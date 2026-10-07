@@ -48,7 +48,7 @@ Mix sub-topics (food, body, home, weather, materials, animals, sound, light...).
 
 Return JSON: {{"ideas": [{{"topic": "the question", "angle": "the surprising part of the answer",
 "confidence": 1-10 (how sure you are the core facts are textbook-solid)}}]}}"""
-    ideas = generate_json(prompt, llm["model"], temperature=1.0).get("ideas", [])
+    ideas = generate_json(prompt, [llm["model"], *llm.get("fallback_models", [])], temperature=1.0).get("ideas", [])
     covered_lower = {t.lower() for t in recent_topics}
     ideas = [i for i in ideas if i.get("topic") and i["topic"].lower() not in covered_lower]
     if not ideas:
@@ -87,7 +87,7 @@ SEO:
 
 Return JSON exactly in this shape:
 {PACKAGE_SCHEMA}"""
-    pkg = generate_json(prompt, llm["model"], temperature=0.9)
+    pkg = generate_json(prompt, [llm["model"], *llm.get("fallback_models", [])], temperature=0.9)
     pkg["topic"] = idea["topic"]
     return pkg
 
@@ -107,7 +107,7 @@ Review this video package:
 
 Return JSON: {{"claims": [{{"claim": "...", "status": "solid|shaky|wrong"}}],
 "verdict": "ok|revised|reject", "package": <the full package, revised if needed>}}"""
-    res = generate_json(prompt, llm["model"], temperature=0.2)
+    res = generate_json(prompt, [llm["model"], *llm.get("fallback_models", [])], temperature=0.2)
     verdict = res.get("verdict", "ok")
     revised = res.get("package") or pkg
     revised["topic"] = pkg["topic"]
