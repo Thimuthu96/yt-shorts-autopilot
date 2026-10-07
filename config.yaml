@@ -1,0 +1,55 @@
+# ─── Channel ────────────────────────────────────────────────────────────────
+channel:
+  # What the channel is about. Change this line to switch niche.
+  niche: >-
+    Everyday science: the surprising "why" behind ordinary things people see,
+    eat, use and feel every day (why ice is slippery, why onions make you cry,
+    why the sky is blue at noon but orange at sunset).
+  audience: Curious adults and teens with no science background
+  tone: Friendly, fast, a little playful, never condescending
+  language: en
+
+# ─── Content generation (Google Gemini, free tier) ──────────────────────────
+llm:
+  model: gemini-2.5-flash     # check https://ai.google.dev/gemini-api/docs/models if this is retired
+  ideas_per_round: 8          # ideas generated before picking one
+  min_words: 110              # narration length → roughly 45–55 seconds
+  max_words: 140
+
+# ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
+voice:
+  name: en-US-AndrewMultilingualNeural   # list voices: edge-tts --list-voices
+  rate: "+8%"
+
+# ─── Video ──────────────────────────────────────────────────────────────────
+video:
+  width: 1080
+  height: 1920
+  fps: 30
+  max_seconds: 59             # keep under a minute for the classic Shorts shelf
+  captions:
+    font: DejaVu Sans
+    size: 92
+    words_per_line: 3
+    color: "FFFFFF"           # RRGGBB
+    highlight: "FFD400"       # colour of the word being spoken
+    outline: 7
+    uppercase: true
+  # Drop royalty-free .mp3 files into the music/ folder to add quiet background
+  # music. Leave the folder empty for voice only.
+  music_volume: 0.10
+
+# ─── Upload ─────────────────────────────────────────────────────────────────
+upload:
+  enabled: true
+  videos_per_run: 1           # one good video a day beats five weak ones
+  category_id: "27"           # 27 = Education, 28 = Science & Technology
+  privacy_status: public      # public | unlisted | private
+  # Hours between upload and going public. During that window the video sits
+  # private and you can watch it in YouTube Studio and delete it if it's wrong.
+  # 0 = publish straight away (fully hands-off).
+  review_window_hours: 0
+  notify_subscribers: true
+  # Set true only if a video shows realistic people, places or events that did
+  # not happen. AI narration over stock footage does not need it.
+  contains_synthetic_media: false

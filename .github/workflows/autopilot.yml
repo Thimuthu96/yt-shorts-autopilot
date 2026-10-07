@@ -1,0 +1,62 @@
+name: Shorts autopilot
+
+on:
+  schedule:
+    # Every day at 07:25 UTC = 12:55 Sri Lanka time. Edit to change the posting time.
+    - cron: "25 7 * * *"
+  workflow_dispatch:          # "Run workflow" button for manual runs
+
+permissions:
+  contents: write             # lets the job save data/history.json back to the repo
+
+concurrency:
+  group: autopilot
+  cancel-in-progress: false
+
+jobs:
+  make-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ffmpeg and fonts
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Make and upload Short
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}   # optional
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python main.py
+
+      - name: Save history
+        if: always()
+        run: |
+          git config user.name "shorts-autopilot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/history.json
+          git diff --cached --quiet || (git commit -m "Log uploaded Short" && git push)
+
+      - name: Keep the video and logs for 7 days
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: short-${{ github.run_number }}
+          path: |
+            output/*/short.mp4
+            output/*/package.json
+            output/*/metadata.json
+          retention-days: 7
+          if-no-files-found: ignore
