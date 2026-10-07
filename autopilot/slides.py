@@ -74,11 +74,13 @@ def _wrap(draw, text: str, font, max_w: int, max_lines: int) -> list[str]:
 
 
 class Canvas:
-    def __init__(self, cfg: dict, date_label: str):
+    def __init__(self, cfg: dict, date_label: str, edition: str = ""):
         self.accent = _hex(cfg["video"].get("accent", "FFD400"))
         self.brand = cfg["channel"].get("display_name", "DAILY MARKET BRIEF").upper()
         self.footer = cfg["video"].get("footer", "Not financial advice")
-        self.date_label = date_label
+        self.date_label = f"{date_label} · {edition.upper()}" if edition else date_label
+        self.date_only = date_label
+        self.edition = edition
 
     def base(self):
         img = Image.new("RGB", (W, H), BG)
@@ -258,12 +260,13 @@ def slide_outro(cv: Canvas, data: dict, v: dict):
     img, d = cv.base()
     f = _font(84, True)
     y = 380
-    for line in _wrap(d, f"That's your brief for {cv.date_label.title()}.", f, W - 120, 3):
+    what = f"{cv.edition} brief" if cv.edition else "brief"
+    for line in _wrap(d, f"That's your {what} for {cv.date_only.title()}.", f, W - 120, 3):
         d.text((60, y), line, font=f, fill=FG)
         y += 100
     y += 40
-    for line in ("Not financial advice.", "Do your own research.", "New brief every day."):
-        d.text((60, y), line, font=_font(48, True), fill=cv.accent if line.startswith("New") else MUTED)
+    for line in ("Not financial advice.", "Do your own research.", "Next brief at the next session open."):
+        d.text((60, y), line, font=_font(48, True), fill=cv.accent if line.startswith("Next") else MUTED)
         y += 70
     return img, None
 
@@ -273,12 +276,12 @@ RENDERERS = {"title": slide_title, "price": slide_price, "fx": slide_fx, "board"
 
 
 def render_slides(cfg: dict, data: dict, scenes: list[dict], workdir: Path,
-                  cover: Path | None = None) -> list[dict]:
+                  cover: Path | None = None, edition: str = "") -> list[dict]:
     """Returns [{"image": path, "reveal": (x, y, w, h) | None, "cover": bool}] per scene.
     With `cover`, scene 1 shows the thumbnail design (so the opening frame is the thumbnail)."""
     dt = datetime.fromisoformat(data["date_utc"])
     date_label = f"{dt:%b} {dt.day}, {dt.year}".upper()
-    cv = Canvas(cfg, date_label)
+    cv = Canvas(cfg, date_label, edition)
     out = []
     for i, s in enumerate(scenes):
         if i == 0 and cover:

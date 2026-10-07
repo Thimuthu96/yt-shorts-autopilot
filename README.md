@@ -1,7 +1,21 @@
 # Shorts Autopilot: Daily Market Brief
 
-Makes and uploads a **daily crypto & forex market brief** as a YouTube Short, with no manual
-work, running free on GitHub Actions.
+Makes and uploads **crypto & forex market briefs** as YouTube Shorts, up to three a day, with
+no manual work, running free on GitHub Actions.
+
+| Edition | UTC | Sri Lanka | Focus |
+|---|---|---|---|
+| Asia Open | 00:30 | 06:00 | moves since the New York close, yen/AUD, the day ahead |
+| London Open | 05:40 | 11:10 | the Asian session, euro/pound, the day's big events |
+| New York Open | 12:30 | 18:00 | moves since London, the dollar, what's left on the calendar |
+
+Each edition only uses news since the previous brief. At weekends (forex closed) only the
+London edition runs (`weekend_sessions` in `config.yaml`). GitHub may start a run a few
+minutes late.
+
+**Manual runs:** Actions → Shorts autopilot → **Run workflow** → pick the edition (or `auto`,
+which picks by the current time) and tick **force** to make one even if that edition is
+already up today.
 
 ```
 market data + news ─► script ─► fact-check ─► voiceover ─► data graphics ─► render + captions ─► upload with SEO
@@ -109,7 +123,8 @@ Approval usually takes days to a few weeks. After that, videos go public automat
 | `channel.display_name` | Brand line at the top of every graphic |
 | `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
 | `video.accent` / `video.footer` | Brand colour and the footer line on every graphic |
-| Posting time | `cron` line in `.github/workflows/autopilot.yml` (UTC) |
+| Posting times | the three `cron` lines in `.github/workflows/autopilot.yml` (UTC); if you change one, change the matching time in the `SESSION:` line below it |
+| Editions | `sessions` (focus text per edition) and `weekend_sessions` in `config.yaml` |
 | Coins / FX pairs | `CRYPTO` and `FX` lists at the top of `autopilot/sources.py` |
 | News feeds | `DEFAULT_FEEDS` in `autopilot/sources.py` |
 | Background music | Drop royalty-free `.mp3` files into `music/` |
@@ -121,7 +136,7 @@ Needs Python 3.10+ and ffmpeg.
 ```bash
 pip install -r requirements.txt
 export GEMINI_API_KEY=...          # Windows PowerShell: $env:GEMINI_API_KEY="..."
-python main.py --no-upload          # makes output/<time>/short.mp4 (plus data.json, package.json)
+python main.py --no-upload --session london   # makes output/<time>/short.mp4 (+ thumbnail, data)
 python tests/test_offline.py        # graphics + render check with sample data, no keys needed
 ```
 
