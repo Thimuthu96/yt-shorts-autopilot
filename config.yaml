@@ -11,7 +11,9 @@ channel:
 
 # ─── Content generation (Google Gemini, free tier) ──────────────────────────
 llm:
-  model: gemini-2.5-flash     # check https://ai.google.dev/gemini-api/docs/models if this is retired
+  model: gemini-3.8-flash     # free tier; see https://ai.google.dev/gemini-api/docs/models
+  # Tried in order if the main model is retired or unavailable (404).
+  fallback_models: [gemini-3.7-flash, gemini-3.5-flash, gemini-flash-latest, gemini-3.5-flash-lite]
   ideas_per_round: 8          # ideas generated before picking one
   min_words: 110              # narration length → roughly 45–55 seconds
   max_words: 140
