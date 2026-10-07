@@ -22,9 +22,9 @@ PACKAGE_SCHEMA = """{
   "title": "string, under 60 characters",
   "scenes": [
     {"text": "narration for this scene (1-2 short sentences)",
-     "visual": "stock footage search query, 2-4 concrete visual words",
-     "visual_alt": "a different backup query"}
+     "visuals": ["3 stock-footage searches, 1-2 words each, best first"]}
   ],
+  "subject_keywords": ["3-4 searches of 1-2 words for the video's main subject"],
   "description": "2-3 sentences",
   "tags": ["search phrase", "..."],
   "hashtags": ["#example", "..."]
@@ -74,9 +74,18 @@ Narration rules:
 - Only state facts you are confident are accurate. Never invent statistics, studies, names or quotes.
 - Write numbers the way they are spoken ("twenty percent", not "20%").
 
-Structure: split the narration into 5-8 scenes. For each scene give a stock-footage search
-query made of concrete, filmable things (e.g. "frozen lake skater", not "friction concept"),
-plus a different backup query.
+Structure: split the narration into 5-8 scenes.
+
+Footage searches (they run on a small stock library that only matches simple tags):
+- For each scene, "visuals" = 3 searches of 1-2 words each, naming a concrete, filmable thing
+  the viewer should SEE while hearing that line. Common nouns that stock videos are tagged with:
+  "pineapple", "tongue", "cutting fruit", "kitchen knife", "microscope", "rain window".
+- Never abstract or scientific terms ("enzyme", "protein breakdown", "molecules"); show a
+  physical stand-in instead (a lab, a microscope, a close-up of the food, a person reacting).
+- Order: most relevant first, last one broad but still on-topic (e.g. "tropical fruit").
+- "subject_keywords": 3-4 simple searches for the main subject of the whole video
+  (e.g. "pineapple", "pineapple slice", "tropical fruit", "fruit market"), used when a scene's
+  own searches find nothing.
 
 SEO:
 - title: under 60 characters, specific and curiosity-driving, but the video must fully deliver
@@ -111,7 +120,23 @@ Return JSON: {{"claims": [{{"claim": "...", "status": "solid|shaky|wrong"}}],
     verdict = res.get("verdict", "ok")
     revised = res.get("package") or pkg
     revised["topic"] = pkg["topic"]
+    # the fact-checker sometimes drops footage fields; restore them from the original
+    if not revised.get("subject_keywords"):
+        revised["subject_keywords"] = pkg.get("subject_keywords", [])
+    orig = pkg.get("scenes") or []
+    for i, s in enumerate(revised.get("scenes") or []):
+        if not scene_queries(s) and i < len(orig):
+            s["visuals"] = scene_queries(orig[i])
     return verdict, revised, res.get("claims", [])
+
+
+def scene_queries(scene: dict) -> list[str]:
+    """Footage searches for a scene (handles the old visual/visual_alt shape too)."""
+    qs = scene.get("visuals")
+    if isinstance(qs, str):
+        qs = [qs]
+    qs = list(qs or []) + [scene.get("visual"), scene.get("visual_alt")]
+    return [q.strip() for q in qs if isinstance(q, str) and q.strip()]
 
 
 def validate(cfg: dict, pkg: dict) -> list[str]:
@@ -120,7 +145,7 @@ def validate(cfg: dict, pkg: dict) -> list[str]:
     if not 3 <= len(scenes) <= 10:
         problems.append(f"{len(scenes)} scenes")
     for i, s in enumerate(scenes):
-        if not (s.get("text") or "").strip() or not (s.get("visual") or "").strip():
+        if not (s.get("text") or "").strip() or not scene_queries(s):
             problems.append(f"scene {i + 1} missing text or visual")
     words = sum(len(s.get("text", "").split()) for s in scenes)
     lo, hi = cfg["llm"]["min_words"], cfg["llm"]["max_words"]
@@ -136,9 +161,13 @@ def make_package(cfg: dict, recent_topics: list[str], forced_topic: str | None =
     """Return a fact-checked package, retrying with new topics if needed."""
     tried = list(recent_topics)
     for attempt in range(3):
+        if not forced_topic:
+            log("Choosing a topic...")
         idea = {"topic": forced_topic, "angle": ""} if forced_topic else pick_topic(cfg, tried)
         log(f"Topic: {idea['topic']}")
+        log("Writing the script...")
         pkg = write_package(cfg, idea)
+        log(f"Script ready: {pkg.get('title', '')}. Fact-checking...")
         verdict, pkg, claims = fact_check(cfg, pkg)
         log(f"Fact-check verdict: {verdict} ({len(claims)} claims checked)")
         problems = validate(cfg, pkg)
