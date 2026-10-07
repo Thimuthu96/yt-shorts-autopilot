@@ -1,8 +1,9 @@
-"""YouTube Shorts autopilot: topic → script → fact-check → voice → footage → render → upload.
+"""Daily crypto & forex market brief Short:
+market data + news → grounded script → fact-check → voice → data graphics → render → upload.
 
-    python main.py                      # full run (what GitHub Actions does)
-    python main.py --no-upload          # make the video only, saved in output/
-    python main.py --topic "Why do cats purr?" --no-upload
+    python main.py                 # full run (what GitHub Actions does)
+    python main.py --no-upload     # make the video only, saved in output/
+    python main.py --force         # make another one even if today's brief is already up
 """
 import argparse
 import json
@@ -14,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-from autopilot import content, footage, render, voice
+from autopilot import render, script, slides, sources, voice
 from autopilot.history import History
 
 ROOT = Path(__file__).parent
@@ -30,12 +31,16 @@ def faster_rate(rate: str, factor: float) -> str:
     return f"{'+' if new >= 0 else ''}{min(new, 35)}%"
 
 
-def make_one(cfg: dict, history: History, args) -> dict:
+def make_brief(cfg: dict, history: History, args) -> dict:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     workdir = ROOT / "output" / stamp
     workdir.mkdir(parents=True, exist_ok=True)
 
-    pkg = content.make_package(cfg, history.topics(), forced_topic=args.topic, log=log)
+    log("Collecting market data and news...")
+    data = sources.gather(cfg, log=log)
+    (workdir / "data.json").write_text(json.dumps(data, indent=1, ensure_ascii=False, default=str))
+
+    pkg = script.make_script(cfg, data, history.used_headlines(), log=log)
     (workdir / "package.json").write_text(json.dumps(pkg, indent=2, ensure_ascii=False))
     log(f"Title: {pkg['title']}")
 
@@ -51,19 +56,17 @@ def make_one(cfg: dict, history: History, args) -> dict:
         total = sum(a["duration"] for a in audio)
     log(f"Narration: {total:.1f}s")
 
-    used = history.used_footage()
-    before = set(used)
-    clips, credits = footage.fetch_clips(scenes, [a["duration"] for a in audio], used, workdir,
-                                         subject=pkg.get("subject_keywords"), log=log)
+    log("Drawing the graphics...")
+    pics = slides.render_slides(cfg, data, scenes, workdir)
 
     music_files = sorted((ROOT / "music").glob("*.mp3"))
     music = random.choice(music_files) if music_files else None
     out = workdir / "short.mp4"
-    render.build_video(audio, clips, cfg, workdir, out, music=music)
+    render.build_video(audio, pics, cfg, workdir, out, music=music)
     log(f"Rendered {out.relative_to(ROOT)}")
 
     from autopilot import youtube  # imported late so --no-upload needs no Google libs configured
-    meta = youtube.build_metadata(pkg, credits)
+    meta = youtube.build_metadata(pkg, data, cfg)
     (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
 
     video_id = None
@@ -72,38 +75,37 @@ def make_one(cfg: dict, history: History, args) -> dict:
 
     return {
         "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "topic": pkg["topic"],
+        "brief_date": data["date_utc"],
         "title": meta["title"],
         "video_id": video_id,
         "seconds": round(total, 1),
-        "footage_ids": sorted(used - before),
+        "headlines": pkg.get("headlines_used", [])[:10],
     }
 
 
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--no-upload", action="store_true", help="render only")
-    p.add_argument("--topic", help="force a topic instead of letting the AI pick")
-    p.add_argument("--count", type=int, help="videos to make this run")
+    p.add_argument("--force", action="store_true", help="run even if today's brief is already uploaded")
     args = p.parse_args()
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     history = History(ROOT / "data" / "history.json")
-    count = args.count or cfg["upload"].get("videos_per_run", 1)
 
-    failures = 0
-    for i in range(count):
-        try:
-            entry = make_one(cfg, history, args)
-            # local test renders (--no-upload) don't use up topics or footage
-            if entry["video_id"] or not cfg["upload"]["enabled"]:
-                history.add(entry)
-                history.save()
-            args.topic = None
-        except Exception as e:  # keep going with the next video, fail the run at the end
-            failures += 1
-            log(f"Video {i + 1} failed: {e}")
-    return 1 if failures else 0
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not args.force and not args.no_upload and history.uploaded_on(today):
+        log(f"Today's brief ({today}) is already uploaded; nothing to do. Use --force to make another.")
+        return 0
+
+    try:
+        entry = make_brief(cfg, history, args)
+    except Exception as e:
+        log(f"Brief failed: {e}")
+        return 1
+    if entry["video_id"]:
+        history.add(entry)
+        history.save()
+    return 0
 
 
 if __name__ == "__main__":

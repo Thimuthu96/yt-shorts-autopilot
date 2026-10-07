@@ -1,5 +1,4 @@
 """Assemble the Short: footage per scene + narration + word-highlighted captions."""
-import random
 from pathlib import Path
 
 from .media import probe_duration, run
@@ -64,33 +63,28 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _segment(src: Path, dur: float, out: Path, w: int, h: int, fps: int) -> None:
-    if Path(src).suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"):
-        # still photo: slow push-in ("Ken Burns") so it doesn't feel frozen
-        frames = max(int(round(dur * fps)), 1)
-        zoom_step = 0.12 / frames
-        vf = (f"scale={w * 2}:{h * 2}:force_original_aspect_ratio=increase,crop={w * 2}:{h * 2},"
-              f"zoompan=z='1+{zoom_step:.6f}*on':d={frames}:"
-              f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h}:fps={fps},"
-              f"setsar=1,format=yuv420p")
-        run(["ffmpeg", "-y", "-v", "error", "-i", src, "-vf", vf, "-frames:v", str(frames),
-             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(fps), out])
-        return
-    src_dur = probe_duration(src)
-    cmd = ["ffmpeg", "-y", "-v", "error"]
-    if src_dur < dur + 0.2:
-        cmd += ["-stream_loop", "-1", "-ss", "0"]
+def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: str = "0x0E0F12") -> None:
+    """One scene: a still slide, either with a chart that draws itself left-to-right
+    (a background-coloured box slides off the chart) or with a gentle push-in."""
+    img = str(Path(slide["image"]).resolve())
+    base = ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", str(fps), "-t", f"{dur:.3f}", "-i", img]
+    enc = ["-t", f"{dur:.3f}", "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+           "-pix_fmt", "yuv420p", str(out)]
+    if slide.get("reveal"):
+        x, y, cw, ch = slide["reveal"]
+        rev = max(min(dur * 0.6, 2.2), 0.5)
+        filt = (f"[0:v][1:v]overlay=x='{x}+{cw}*min(t/{rev:.3f},1)':y={y}:eval=frame,"
+                f"setsar=1,format=yuv420p[v]")
+        run(base + ["-f", "lavfi", "-i", f"color=c={bg}:s={cw}x{ch}:r={fps}:d={dur:.3f}",
+                    "-filter_complex", filt, "-map", "[v]"] + enc)
     else:
-        start = random.uniform(0, min(src_dur - dur - 0.1, src_dur * 0.4))
-        cmd += ["-ss", f"{max(start, 0):.2f}"]
-    vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
-          f"setsar=1,fps={fps},format=yuv420p")
-    cmd += ["-i", src, "-t", f"{dur:.3f}", "-an", "-vf", vf,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", out]
-    run(cmd)
+        zoom = 0.035
+        vf = (f"scale=w='trunc({w}*(1+{zoom}*t/{dur:.3f})/2)*2':h=-2:eval=frame:flags=bicubic,"
+              f"crop={w}:{h},setsar=1,format=yuv420p")
+        run(base + ["-vf", vf] + enc)
 
 
-def build_video(scene_audio: list[dict], clips: list[Path], cfg: dict, workdir: Path,
+def build_video(scene_audio: list[dict], slides: list[dict], cfg: dict, workdir: Path,
                 out_path: Path, music: Path | None = None) -> float:
     v = cfg["video"]
     w, h, fps = v["width"], v["height"], v["fps"]
@@ -109,9 +103,9 @@ def build_video(scene_audio: list[dict], clips: list[Path], cfg: dict, workdir: 
 
     # 2) one video segment per scene, same length as that scene's narration
     with open(workdir / "seg_list.txt", "w") as f:
-        for i, (sa, clip) in enumerate(zip(scene_audio, clips)):
+        for i, (sa, slide) in enumerate(zip(scene_audio, slides)):
             seg = workdir / f"seg_{i:02d}.mp4"
-            _segment(clip, sa["duration"], seg, w, h, fps)
+            _segment(slide, sa["duration"], seg, w, h, fps)
             f.write(f"file '{seg.resolve()}'\n")
     silent = workdir / "video_silent.mp4"
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",

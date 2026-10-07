@@ -1,29 +1,37 @@
-# Shorts Autopilot
+# Shorts Autopilot: Daily Market Brief
 
-Makes and uploads one YouTube Short a day with no manual work, running free on GitHub Actions.
+Makes and uploads a **daily crypto & forex market brief** as a YouTube Short, with no manual
+work, running free on GitHub Actions.
 
 ```
-pick topic ─► write script ─► fact-check ─► voiceover ─► stock footage ─► render with captions ─► upload with SEO
- (Gemini)      (Gemini)        (Gemini)     (edge-tts)     (Pixabay)         (ffmpeg)              (YouTube API)
+market data + news ─► script ─► fact-check ─► voiceover ─► data graphics ─► render + captions ─► upload with SEO
+ (see below)          (Gemini)   (Gemini vs data) (edge-tts) (charts, boards)    (ffmpeg)            (YouTube API)
 ```
 
-**Default niche:** everyday science — the surprising "why" behind ordinary things (why ice is
-slippery, why onions make you cry). It's evergreen, has plenty of matching stock footage, avoids
-medical/financial advice, and curiosity questions hold attention well in Shorts. Change it in
-`config.yaml` → `channel.niche`.
+**Sources (all free, no keys):**
+- **News:** public RSS feeds, the same set the [World Monitor](https://github.com/koala73/worldmonitor)
+  finance dashboard uses: CoinDesk, Cointelegraph, the Federal Reserve, and Google News searches
+  for forex, central banks, crypto and economic data.
+- **Economic calendar:** ForexFactory's official weekly calendar export (high-impact events).
+- **Crypto prices:** Coinbase public market data (BTC, ETH, SOL, XRP; 7-day hourly).
+- **Forex rates:** Frankfurter, daily central-bank reference rates (EUR/USD, GBP/USD, USD/JPY…).
 
-**Running cost:** $0 on the free tiers of Gemini, Pixabay, edge-tts and GitHub Actions.
+Every scene is a graphic drawn from that data (price chart that draws itself in, market
+board, headline card, calendar table), so there's no stock footage to mismatch. The script
+may only use numbers from the data, and a second pass checks it against the data before
+anything is recorded. No predictions or buy/sell calls; every video carries a
+not-financial-advice note.
+
+**Running cost:** $0 on the free tiers of Gemini, edge-tts and GitHub Actions.
 
 ---
 
 ## Setup (about 30–40 minutes, once)
 
-### 1. Get the two content API keys
+### 1. Get a Gemini API key
 
-| Secret name | Where |
-|---|---|
-| `GEMINI_API_KEY` | https://aistudio.google.com/apikey → **Create API key** |
-| `PIXABAY_API_KEY` | Create a free account at https://pixabay.com, then open https://pixabay.com/api/docs/ — your key is shown under **Parameters → key** |
+`GEMINI_API_KEY`: https://aistudio.google.com/apikey → **Create API key**. (The market data
+sources need no keys.)
 
 ### 2. Let the system upload to your channel
 
@@ -51,13 +59,14 @@ medical/financial advice, and curiosity questions hold attention well in Shorts.
 
 1. Create a new **private** repository and upload everything in this folder
    (`client_secret.json` is git-ignored — never commit it).
-2. **Settings → Secrets and variables → Actions → New repository secret** — add all five:
-   `GEMINI_API_KEY`, `PIXABAY_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`.
+2. **Settings → Secrets and variables → Actions → New repository secret** — add all four:
+   `GEMINI_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`.
 3. **Actions** tab → enable workflows → **Shorts autopilot** → **Run workflow** to test now.
-   After that it runs by itself every day at 12:55 Sri Lanka time.
+   After that it runs by itself every day at 05:40 UTC (11:10 Sri Lanka time), before the
+   London session opens. If today's brief is already up, a second run does nothing.
 
 Each run's video, script and metadata are kept for 7 days under the run's **Artifacts**,
-and `data/history.json` logs every upload so topics and footage never repeat.
+and `data/history.json` logs every upload so the same story doesn't lead two days running.
 GitHub emails you if a run fails.
 
 ### 4. Request the YouTube API audit (needed for public videos)
@@ -80,9 +89,12 @@ Approval usually takes days to a few weeks. After that, videos go public automat
 | `channel.niche` / `audience` / `tone` | What the channel is about and how it sounds |
 | `voice.name` | Narrator voice. List them: `edge-tts --list-voices` |
 | `upload.review_window_hours` | `0` = public immediately. e.g. `6` = sits private for 6 h so you can watch and delete it first, then goes public on its own |
-| `upload.videos_per_run` | Videos per day (keep at 1–2) |
+| `channel.display_name` | Brand line at the top of every graphic |
+| `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
+| `video.accent` / `video.footer` | Brand colour and the footer line on every graphic |
 | Posting time | `cron` line in `.github/workflows/autopilot.yml` (UTC) |
-| Extra footage source | Add a `PEXELS_API_KEY` secret if you have one; it's used as a fallback |
+| Coins / FX pairs | `CRYPTO` and `FX` lists at the top of `autopilot/sources.py` |
+| News feeds | `DEFAULT_FEEDS` in `autopilot/sources.py` |
 | Background music | Drop royalty-free `.mp3` files into `music/` |
 
 ## Run it on your computer
@@ -91,10 +103,9 @@ Needs Python 3.10+ and ffmpeg.
 
 ```bash
 pip install -r requirements.txt
-export GEMINI_API_KEY=... PIXABAY_API_KEY=...        # Windows: set GEMINI_API_KEY=...
-python main.py --no-upload                          # makes output/<time>/short.mp4
-python main.py --topic "Why do cats purr?" --no-upload
-python tests/test_render.py                         # offline render check, no keys needed
+export GEMINI_API_KEY=...          # Windows PowerShell: $env:GEMINI_API_KEY="..."
+python main.py --no-upload          # makes output/<time>/short.mp4 (plus data.json, package.json)
+python tests/test_offline.py        # graphics + render check with sample data, no keys needed
 ```
 
 ---
@@ -105,20 +116,26 @@ YouTube's **inauthentic content** policy demonetizes channels whose videos look 
 or templated. Faceless and AI-assisted channels are allowed; low-effort repetition isn't.
 
 What the system already does to stay on the right side:
-- Every script goes through a separate fact-check pass; videos with a false premise are thrown away.
-- Hooks and endings rotate between styles, so videos don't all open the same way.
-- Topics and footage are never reused (tracked in `data/history.json`).
-- One video a day by default, not a flood.
+- Each video is built from that day's data, so every upload says something new.
+- Original graphics drawn from the data, not reused clips.
+- A fact-check pass against the data; drafts that don't hold up are thrown away.
+- One brief a day, not a flood.
+
+Finance-specific care:
+- No predictions, price targets or buy/sell calls (YouTube and viewers both punish "signals").
+- Not-financial-advice note on screen, in the narration and in the description.
+- News is paraphrased and credited in the description; nothing is read out verbatim.
 
 What helps most from your side, even if it's 10 minutes a week:
 - Watch a few uploads and delete weak ones (or use `review_window_hours`).
-- Reply to comments, and pin a comment with an extra fact.
-- Narrow the niche to something with a distinct point of view; a specific channel identity
-  reads as more original than a generic one.
+- Reply to comments, and pin a comment with something extra.
 
 ## Known limits
 
 - Shorts thumbnails can't be set through the API; YouTube picks a frame.
+- Forex rates are daily reference rates (not live quotes); the script says "yesterday's close".
+- Free data sources can change or go down. A source that fails is skipped; if no price data
+  at all is available, the run stops instead of guessing.
 - edge-tts uses Microsoft's free Edge read-aloud service; if it ever stops working, swap
   `autopilot/voice.py` for a paid TTS (the rest of the pipeline doesn't change).
 - The Gemini model name may be retired over time; update `llm.model` if runs start failing with 404.
@@ -130,10 +147,11 @@ What helps most from your side, even if it's 10 minutes a week:
 main.py                 orchestrates one run
 config.yaml             all settings
 get_token.py            one-time YouTube login
-autopilot/content.py    topic, script, fact-check (Gemini)
+autopilot/sources.py    news feeds, economic calendar, crypto + forex prices
+autopilot/script.py     grounded script + fact-check against the data (Gemini)
+autopilot/slides.py     charts, market board, headline + calendar graphics
 autopilot/voice.py      narration + word timings (edge-tts)
-autopilot/footage.py    stock clips (Pixabay, optional Pexels)
-autopilot/render.py     ffmpeg assembly + highlighted captions
+autopilot/render.py     ffmpeg assembly, chart draw-in, highlighted captions
 autopilot/youtube.py    SEO metadata + upload
 data/history.json       what has been uploaded
 .github/workflows/      daily schedule

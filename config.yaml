@@ -1,27 +1,32 @@
 # ─── Channel ────────────────────────────────────────────────────────────────
 channel:
-  # What the channel is about. Change this line to switch niche.
   niche: >-
-    Everyday science: the surprising "why" behind ordinary things people see,
-    eat, use and feel every day (why ice is slippery, why onions make you cry,
-    why the sky is blue at noon but orange at sunset).
-  audience: Curious adults and teens with no science background
-  tone: Friendly, fast, a little playful, never condescending
+    Daily crypto and forex market brief: the biggest price moves in Bitcoin, Ethereum
+    and major currency pairs, the news behind them, and the high-impact economic
+    events traders are watching today.
+  audience: Retail crypto and forex traders and curious beginners
+  tone: Clear, fast, neutral and factual, like a market news anchor; no hype
   language: en
+  display_name: Daily Market Brief    # shown at the top of every graphic
 
 # ─── Content generation (Google Gemini, free tier) ──────────────────────────
 llm:
   model: gemini-3.8-flash     # free tier; see https://ai.google.dev/gemini-api/docs/models
   # Tried in order if the main model is retired or unavailable (404).
   fallback_models: [gemini-3.7-flash, gemini-3.5-flash, gemini-flash-latest, gemini-3.5-flash-lite]
-  ideas_per_round: 8          # ideas generated before picking one
-  min_words: 110              # narration length → roughly 45–55 seconds
-  max_words: 140
+  min_words: 115              # narration length → roughly 45–55 seconds
+  max_words: 145
+
+# ─── Market data (all free, no keys) ────────────────────────────────────────
+market:
+  news_hours: 30              # how far back to read headlines
+  calendar_hours_ahead: 24    # economic events shown: from now until this many hours ahead
+  calendar_impacts: [High]    # add Medium for more events
 
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:
   name: en-US-AndrewMultilingualNeural   # list voices: edge-tts --list-voices
-  rate: "+8%"
+  rate: "+10%"
 
 # ─── Video ──────────────────────────────────────────────────────────────────
 video:
@@ -29,9 +34,11 @@ video:
   height: 1920
   fps: 30
   max_seconds: 59             # keep under a minute for the classic Shorts shelf
+  accent: "FFD400"            # brand colour on the graphics
+  footer: "Not financial advice · Data: Coinbase, ECB/Frankfurter, ForexFactory"
   captions:
     font: DejaVu Sans
-    size: 92
+    size: 84
     words_per_line: 3
     color: "FFFFFF"           # RRGGBB
     highlight: "FFD400"       # colour of the word being spoken
@@ -39,19 +46,19 @@ video:
     uppercase: true
   # Drop royalty-free .mp3 files into the music/ folder to add quiet background
   # music. Leave the folder empty for voice only.
-  music_volume: 0.10
+  music_volume: 0.08
 
 # ─── Upload ─────────────────────────────────────────────────────────────────
 upload:
   enabled: true
-  videos_per_run: 1           # one good video a day beats five weak ones
-  category_id: "27"           # 27 = Education, 28 = Science & Technology
+  category_id: "25"           # 25 = News & Politics, 27 = Education
   privacy_status: public      # public | unlisted | private
   # Hours between upload and going public. During that window the video sits
   # private and you can watch it in YouTube Studio and delete it if it's wrong.
   # 0 = publish straight away (fully hands-off).
   review_window_hours: 0
   notify_subscribers: true
-  # Set true only if a video shows realistic people, places or events that did
-  # not happen. AI narration over stock footage does not need it.
   contains_synthetic_media: false
+  disclaimer: >-
+    This video is for information and education only and is not financial advice.
+    Crypto and forex trading carry a high risk of loss. Do your own research.
