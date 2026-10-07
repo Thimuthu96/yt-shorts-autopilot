@@ -7,7 +7,7 @@ channel:
   audience: Retail crypto and forex traders and curious beginners
   tone: Clear, fast, neutral and factual, like a market news anchor; no hype
   language: en
-  display_name: Daily Market Brief    # shown at the top of every graphic
+  display_name: CryptoFX Daily        # shown at the top of every graphic
 
 # ─── Content generation (Google Gemini, free tier) ──────────────────────────
 llm:
@@ -22,6 +22,31 @@ market:
   news_hours: 30              # how far back to read headlines
   calendar_hours_ahead: 24    # economic events shown: from now until this many hours ahead
   calendar_impacts: [High]    # add Medium for more events
+
+# ─── Editions: up to 3 briefs a day, one per trading-session open ──────────
+# The times are set in .github/workflows/autopilot.yml (cron lines, UTC).
+sessions:
+  asia:
+    label: Asia Open
+    short: Asia
+    focus: >-
+      Cover what moved since the New York close, crypto overnight, the yen and the
+      Australian dollar, and events coming up in the Asian and European sessions.
+  london:
+    label: London Open
+    short: London
+    focus: >-
+      Cover what happened in the Asian session, the euro and the pound, and the day's
+      biggest scheduled events.
+  newyork:
+    label: New York Open
+    short: New York
+    focus: >-
+      Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and what is
+      still ahead on today's calendar.
+# Forex is closed at weekends, so only these editions run on Saturday and Sunday
+# (automatic runs only; a manual run can still choose any edition).
+weekend_sessions: [london]
 
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:
@@ -59,6 +84,9 @@ upload:
   review_window_hours: 0
   notify_subscribers: true
   contains_synthetic_media: false
+  # Also try to upload thumbnail.jpg as the custom thumbnail (YouTube only accepts this for
+  # some channels, e.g. Partner Program members). Refusals are ignored.
+  set_thumbnail: true
   disclaimer: >-
     This video is for information and education only and is not financial advice.
     Crypto and forex trading carry a high risk of loss. Do your own research.
