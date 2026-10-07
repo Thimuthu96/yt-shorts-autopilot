@@ -1,3 +1,21 @@
 {
-  "videos": []
+  "videos": [
+    {
+      "date": "2026-10-07T06:34:09+00:00",
+      "topic": "Why does pineapple make your tongue tingle or burn?",
+      "title": "Why pineapple actually eats you back",
+      "video_id": "9CeUd5m-jHY",
+      "seconds": 43.1,
+      "footage_ids": [
+        "pixabay:13100",
+        "pixabay:133760",
+        "pixabay:171272",
+        "pixabay:189018",
+        "pixabay:264272",
+        "pixabay:283431",
+        "pixabay:71350",
+        "pixabay:73847"
+      ]
+    }
+  ]
 }
