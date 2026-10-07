@@ -346,10 +346,10 @@ def _render_level(spec, accent, date_label, name):
     return img
 
 
-def render(spec: dict, cfg: dict, date_utc: str, path: Path) -> Path:
+def render(spec: dict, cfg: dict, date_utc: str, path: Path, edition_short: str = "") -> Path:
     accent = _hex(cfg["video"].get("accent", "FFD400"))
     dt = datetime.fromisoformat(date_utc)
-    date_label = f"{dt:%b} {dt.day}".upper()
+    date_label = f"{dt:%b} {dt.day}".upper() + (f" · {edition_short.upper()}" if edition_short else "")
     spec.setdefault("hook", spec["default_hook"])
     fn = {"move": _render_move, "event": _render_event, "split": _render_split, "level": _render_level}[spec["template"]]
     img = fn(spec, accent, date_label, cfg["channel"].get("display_name", "CryptoFX Daily"))

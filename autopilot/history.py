@@ -1,5 +1,6 @@
-"""Record of uploaded briefs: avoids double posts and repeating yesterday's lead story."""
+"""Record of uploaded briefs: avoids double posts and repeating earlier stories."""
 import json
+from datetime import datetime
 from pathlib import Path
 
 
@@ -11,14 +12,27 @@ class History:
         else:
             self.data = {"videos": []}
 
+    def uploaded(self) -> list[dict]:
+        return [v for v in self.data["videos"] if v.get("video_id")]
+
     def used_headlines(self) -> list[str]:
         out = []
-        for v in self.data["videos"][-7:]:
+        for v in self.uploaded()[-15:]:
             out += v.get("headlines", [])
         return out
 
-    def uploaded_on(self, date: str) -> bool:
-        return any(v.get("brief_date") == date and v.get("video_id") for v in self.data["videos"])
+    def uploaded_on(self, date: str, session: str) -> bool:
+        # briefs from before sessions existed count as the London edition
+        return any(v.get("brief_date") == date and v.get("session", "london") == session for v in self.uploaded())
+
+    def last_upload_time(self) -> datetime | None:
+        times = []
+        for v in self.uploaded():
+            try:
+                times.append(datetime.fromisoformat(v["date"]))
+            except (KeyError, ValueError):
+                pass
+        return max(times) if times else None
 
     def add(self, entry: dict) -> None:
         self.data["videos"].append(entry)

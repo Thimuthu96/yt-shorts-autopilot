@@ -55,19 +55,25 @@ def brief_for_llm(data: dict, max_news: int = 30) -> dict:
     }
 
 
-def write(cfg: dict, data: dict, used_headlines: list[str], cover: dict) -> dict:
+def write(cfg: dict, data: dict, used_headlines: list[str], cover: dict, session: dict | None = None) -> dict:
     ch, llm = cfg["channel"], cfg["llm"]
     brief = brief_for_llm(data)
     recent = "\n".join(f"- {h}" for h in used_headlines[-60:]) or "- (none)"
     types = "\n".join(f'- "{k}": {v}' for k, v in SCENE_TYPES.items())
-    prompt = f"""You write a daily YouTube Short: a {llm['min_words']}-{llm['max_words']} word market brief.
+    session = session or {}
+    edition = (f"EDITION: the {session.get('label')} brief. {session.get('focus', '')}\n"
+               if session.get("label") else "")
+    since = (f"News below is only what came out since the previous brief ({data['news_since']}).\n"
+             if data.get("news_since") else "")
+    prompt = f"""You write a YouTube Short: a {llm['min_words']}-{llm['max_words']} word market brief.
 Channel: {ch['niche']}
 Audience: {ch['audience']}. Tone: {ch['tone']}.
+{edition}{since}
 
 TODAY'S DATA (the only facts you may use):
 {json.dumps(brief, ensure_ascii=False, indent=1)}
 
-Headlines already covered on previous days (don't lead with these again):
+Headlines already covered in earlier briefs (don't repeat them):
 {recent}
 
 Rules:
@@ -78,6 +84,8 @@ Rules:
   or "the latest daily fix" for them, never "right now".
 - If "weekend" is true, forex markets are closed: focus on crypto and the week ahead.
 - If the calendar is empty, skip the calendar scene.
+- The calendar has times, forecasts and previous values only, never results: don't state an
+  actual figure unless a headline in the data reports it.
 - No predictions, price targets, buy/sell calls or "this could explode". Neutral, factual.
   End with a short spoken note that this is not financial advice.
 - First line (under 12 words) opens with {random.choice(HOOKS)}.
@@ -96,7 +104,8 @@ visual for every scene from these types:
 {types}
 
 SEO:
-- title: specific (name the asset and the move), include the date, no clickbait, no emojis.
+- title: specific (name the asset and the move), include the date and the edition name
+  (e.g. "| London Open, Oct 7"), no clickbait, no emojis.
 - tags: 8-12 phrases people search (e.g. "bitcoin price today", "forex news today").
 - hashtags: 2-3.
 
@@ -172,10 +181,11 @@ def fix_visuals(data: dict, pkg: dict) -> None:
             s["visual"] = {"type": "board"}
 
 
-def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, log=print) -> dict:
+def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, session: dict | None = None,
+                log=print) -> dict:
     for attempt in range(3):
         log("Writing the script...")
-        pkg = write(cfg, data, used_headlines, cover)
+        pkg = write(cfg, data, used_headlines, cover, session)
         log(f"Draft: {pkg.get('title', '')}. Fact-checking against the data...")
         verdict, pkg, issues = fact_check(cfg, data, pkg)
         log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))
