@@ -53,7 +53,8 @@ def make_one(cfg: dict, history: History, args) -> dict:
 
     used = history.used_footage()
     before = set(used)
-    clips, credits = footage.fetch_clips(scenes, [a["duration"] for a in audio], used, workdir, log=log)
+    clips, credits = footage.fetch_clips(scenes, [a["duration"] for a in audio], used, workdir,
+                                         subject=pkg.get("subject_keywords"), log=log)
 
     music_files = sorted((ROOT / "music").glob("*.mp3"))
     music = random.choice(music_files) if music_files else None

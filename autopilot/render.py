@@ -65,6 +65,17 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 def _segment(src: Path, dur: float, out: Path, w: int, h: int, fps: int) -> None:
+    if Path(src).suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"):
+        # still photo: slow push-in ("Ken Burns") so it doesn't feel frozen
+        frames = max(int(round(dur * fps)), 1)
+        zoom_step = 0.12 / frames
+        vf = (f"scale={w * 2}:{h * 2}:force_original_aspect_ratio=increase,crop={w * 2}:{h * 2},"
+              f"zoompan=z='1+{zoom_step:.6f}*on':d={frames}:"
+              f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={w}x{h}:fps={fps},"
+              f"setsar=1,format=yuv420p")
+        run(["ffmpeg", "-y", "-v", "error", "-i", src, "-vf", vf, "-frames:v", str(frames),
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-r", str(fps), out])
+        return
     src_dur = probe_duration(src)
     cmd = ["ffmpeg", "-y", "-v", "error"]
     if src_dur < dur + 0.2:
