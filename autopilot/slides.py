@@ -272,13 +272,18 @@ RENDERERS = {"title": slide_title, "price": slide_price, "fx": slide_fx, "board"
              "news": slide_news, "calendar": slide_calendar, "outro": slide_outro}
 
 
-def render_slides(cfg: dict, data: dict, scenes: list[dict], workdir: Path) -> list[dict]:
-    """Returns [{"image": path, "reveal": (x, y, w, h) | None}] per scene."""
+def render_slides(cfg: dict, data: dict, scenes: list[dict], workdir: Path,
+                  cover: Path | None = None) -> list[dict]:
+    """Returns [{"image": path, "reveal": (x, y, w, h) | None, "cover": bool}] per scene.
+    With `cover`, scene 1 shows the thumbnail design (so the opening frame is the thumbnail)."""
     dt = datetime.fromisoformat(data["date_utc"])
     date_label = f"{dt:%b} {dt.day}, {dt.year}".upper()
     cv = Canvas(cfg, date_label)
     out = []
     for i, s in enumerate(scenes):
+        if i == 0 and cover:
+            out.append({"image": Path(cover), "reveal": None, "cover": True})
+            continue
         v = s.get("visual") or {"type": "board"}
         img, reveal = RENDERERS.get(v.get("type"), slide_board)(cv, data, v)
         path = workdir / f"slide_{i:02d}.png"

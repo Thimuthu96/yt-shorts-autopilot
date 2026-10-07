@@ -15,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-from autopilot import render, script, slides, sources, voice
+from autopilot import render, script, slides, sources, thumbnail, voice
 from autopilot.history import History
 
 ROOT = Path(__file__).parent
@@ -40,9 +40,14 @@ def make_brief(cfg: dict, history: History, args) -> dict:
     data = sources.gather(cfg, log=log)
     (workdir / "data.json").write_text(json.dumps(data, indent=1, ensure_ascii=False, default=str))
 
-    pkg = script.make_script(cfg, data, history.used_headlines(), log=log)
+    cover = thumbnail.choose(data)
+    log(f"Thumbnail: {cover['template']} ({cover['facts']})")
+    pkg = script.make_script(cfg, data, history.used_headlines(), cover, log=log)
+    cover["hook"] = thumbnail.clean_hook(pkg.get("thumbnail_hook"), cover["default_hook"])
+    pkg["thumbnail"] = {k: v for k, v in cover.items() if k != "series"}
     (workdir / "package.json").write_text(json.dumps(pkg, indent=2, ensure_ascii=False))
-    log(f"Title: {pkg['title']}")
+    log(f"Title: {pkg['title']} · hook: {cover['hook']}")
+    thumb = thumbnail.render(cover, cfg, data["date_utc"], workdir / "thumbnail.jpg")
 
     v = cfg["voice"]
     scenes = pkg["scenes"]
@@ -57,7 +62,7 @@ def make_brief(cfg: dict, history: History, args) -> dict:
     log(f"Narration: {total:.1f}s")
 
     log("Drawing the graphics...")
-    pics = slides.render_slides(cfg, data, scenes, workdir)
+    pics = slides.render_slides(cfg, data, scenes, workdir, cover=thumb)
 
     music_files = sorted((ROOT / "music").glob("*.mp3"))
     music = random.choice(music_files) if music_files else None
@@ -72,6 +77,8 @@ def make_brief(cfg: dict, history: History, args) -> dict:
     video_id = None
     if cfg["upload"]["enabled"] and not args.no_upload:
         video_id = youtube.upload(out, meta, cfg, log=log)
+        if cfg["upload"].get("set_thumbnail", True):
+            youtube.set_thumbnail(video_id, thumb, log=log)
 
     return {
         "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),

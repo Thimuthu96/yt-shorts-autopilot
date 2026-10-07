@@ -2,12 +2,13 @@ name: Shorts autopilot
 
 on:
   schedule:
-    # Every day at 05:40 UTC = 11:10 Sri Lanka time, before the London session opens.
+    # Every day at 05:40 UTC = 11:10 Sri Lanka time, before the London session opens,
+    # so the calendar covers the London and New York sessions. Edit to change the time.
     - cron: "40 5 * * *"
-  workflow_dispatch:
+  workflow_dispatch:          # "Run workflow" button for manual runs
 
 permissions:
-  contents: write
+  contents: write             # lets the job save data/history.json back to the repo
 
 concurrency:
   group: autopilot
@@ -33,7 +34,7 @@ jobs:
 
       - name: Make and upload Short
         env:
-          PYTHONUNBUFFERED: "1"
+          PYTHONUNBUFFERED: "1"   # show log lines immediately
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
@@ -58,5 +59,6 @@ jobs:
             output/*/package.json
             output/*/metadata.json
             output/*/data.json
+            output/*/thumbnail.jpg
           retention-days: 7
           if-no-files-found: ignore

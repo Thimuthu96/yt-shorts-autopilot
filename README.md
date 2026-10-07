@@ -22,6 +22,23 @@ may only use numbers from the data, and a second pass checks it against the data
 anything is recorded. No predictions or buy/sell calls; every video carries a
 not-financial-advice note.
 
+**Thumbnail / opening frame:** every video opens on a thumbnail design picked from the day's
+data, so the first frame (what the feed shows, and what YouTube usually uses as the
+thumbnail) is built to stop the scroll:
+
+| Template | Used when | Example |
+|---|---|---|
+| Big Move | a coin moves 4%+ in 24h or an FX pair 0.8%+ | "−6.2%" + chart + WHAT HAPPENED? |
+| Event Day | a high-impact event is due within 12 hours | "CPI DAY" on yellow + WATCH BEFORE 12:30 |
+| Split | Bitcoin and the US dollar move opposite ways | green/red split + WHY THE SPLIT? |
+| Key Level | BTC/ETH is within 2% of a round number | "1.2% AWAY FROM $100K" + SO CLOSE. |
+
+The 2–4 word hook is written by the AI for that day and must be answered in the video; hype
+words (moon, buy, sell, will, guaranteed…) are rejected and replaced by the template's
+default hook. Each run also saves `thumbnail.jpg`; the system tries to set it as the custom
+thumbnail, which YouTube currently allows for Shorts only on some channels (e.g. Partner
+Program members, set in Studio on desktop). If refused, the opening frame does the job.
+
 **Running cost:** $0 on the free tiers of Gemini, edge-tts and GitHub Actions.
 
 ---
@@ -150,6 +167,8 @@ get_token.py            one-time YouTube login
 autopilot/sources.py    news feeds, economic calendar, crypto + forex prices
 autopilot/script.py     grounded script + fact-check against the data (Gemini)
 autopilot/slides.py     charts, market board, headline + calendar graphics
+autopilot/thumbnail.py  thumbnail templates + picking one from the data
+assets/fonts/           Anton + Space Grotesk (SIL Open Font License)
 autopilot/voice.py      narration + word timings (edge-tts)
 autopilot/render.py     ffmpeg assembly, chart draw-in, highlighted captions
 autopilot/youtube.py    SEO metadata + upload
