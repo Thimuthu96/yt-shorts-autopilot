@@ -29,7 +29,8 @@ SCHEMA = """{
   "description": "2-3 sentences summarising the brief",
   "tags": ["search phrase", "..."],
   "hashtags": ["#Bitcoin", "..."],
-  "headlines_used": ["exact titles of the news items you referred to"]
+  "headlines_used": ["exact titles of the news items you referred to"],
+  "thumbnail_hook": "2-4 word hook for the thumbnail"
 }"""
 
 
@@ -54,7 +55,7 @@ def brief_for_llm(data: dict, max_news: int = 30) -> dict:
     }
 
 
-def write(cfg: dict, data: dict, used_headlines: list[str]) -> dict:
+def write(cfg: dict, data: dict, used_headlines: list[str], cover: dict) -> dict:
     ch, llm = cfg["channel"], cfg["llm"]
     brief = brief_for_llm(data)
     recent = "\n".join(f"- {h}" for h in used_headlines[-60:]) or "- (none)"
@@ -81,6 +82,14 @@ Rules:
   End with a short spoken note that this is not financial advice.
 - First line (under 12 words) opens with {random.choice(HOOKS)}.
 - No greetings, no "in this video", no "like and subscribe".
+
+OPENING CARD (also the video's thumbnail) — already designed from the data, it shows:
+  {cover['facts']}
+- Scene 1 uses visual "title" and its first sentence must state exactly that fact, so the
+  viewer who clicked gets it straight away. The rest of the brief must answer the hook.
+- "thumbnail_hook": 2-4 words, max 22 characters, written in capitals, that make people want
+  the answer, e.g. "{cover['default_hook']}". It must be answered by this video. No predictions,
+  no "moon", "buy", "sell", "will", "guaranteed", no emojis.
 
 Structure: 6-9 scenes. Scene 1 uses visual "title"; the last uses "outro". Pick a fitting
 visual for every scene from these types:
@@ -110,7 +119,7 @@ SCRIPT:
 
 1. Every number and claim in the narration, title and visuals must match the data (rounding is
    fine). Every "why" must be backed by a headline in the data. Fix anything that isn't.
-2. Remove any prediction, price target, or buy/sell suggestion.
+2. Remove any prediction, price target, or buy/sell suggestion (also in "thumbnail_hook").
 3. Keep {llm['min_words']}-{llm['max_words']} words of narration and the same JSON shape.
 4. verdict: "ok", "revised", or "reject" (only if the script is fundamentally wrong).
 
@@ -149,8 +158,12 @@ def validate(cfg: dict, data: dict, pkg: dict) -> list[str]:
 
 
 def fix_visuals(data: dict, pkg: dict) -> None:
-    """Degrade gracefully instead of failing: unusable visuals become a market board."""
-    for s in pkg.get("scenes") or []:
+    """Degrade gracefully instead of failing: unusable visuals become a market board.
+    Scene 1 is always the opening card (the thumbnail)."""
+    scenes = pkg.get("scenes") or []
+    if scenes:
+        scenes[0]["visual"] = {"type": "title"}
+    for s in scenes:
         v = s.get("visual") or {}
         t = v.get("type")
         if (t == "price" and v.get("asset") not in data["crypto"]) or \
@@ -159,10 +172,10 @@ def fix_visuals(data: dict, pkg: dict) -> None:
             s["visual"] = {"type": "board"}
 
 
-def make_script(cfg: dict, data: dict, used_headlines: list[str], log=print) -> dict:
+def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, log=print) -> dict:
     for attempt in range(3):
         log("Writing the script...")
-        pkg = write(cfg, data, used_headlines)
+        pkg = write(cfg, data, used_headlines, cover)
         log(f"Draft: {pkg.get('title', '')}. Fact-checking against the data...")
         verdict, pkg, issues = fact_check(cfg, data, pkg)
         log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))

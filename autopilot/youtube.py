@@ -121,3 +121,19 @@ def upload(video_path: Path, meta: dict, cfg: dict, log=print) -> str:
     log(f"Uploaded: https://youtube.com/shorts/{vid} (status: {status['privacyStatus']}"
         + (f", goes public {status['publishAt']}" if "publishAt" in status else "") + ")")
     return vid
+
+
+def set_thumbnail(video_id: str, image: Path, log=print) -> bool:
+    """Try to set a custom thumbnail. YouTube only allows this for some channels/Shorts,
+    so a refusal is logged and ignored (the video's opening frame is the thumbnail design)."""
+    try:
+        yt = _client()
+        yt.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(image), mimetype="image/jpeg")).execute()
+        log("Custom thumbnail set")
+        return True
+    except HttpError as e:
+        reason = getattr(e, "reason", "") or str(e)[:200]
+        log(f"Custom thumbnail not accepted ({e.resp.status}: {reason}); the opening frame is used instead")
+    except Exception as e:  # never fail the run over a thumbnail
+        log(f"Custom thumbnail skipped: {e}")
+    return False

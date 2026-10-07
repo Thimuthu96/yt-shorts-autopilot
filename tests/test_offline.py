@@ -2,6 +2,7 @@
 
     python tests/test_offline.py
 """
+import json
 import math
 import random
 import sys
@@ -13,7 +14,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from autopilot import render, script, slides  # noqa: E402
+from autopilot import render, script, slides, thumbnail  # noqa: E402
 from autopilot.media import probe_duration, run  # noqa: E402
 from autopilot.youtube import build_metadata  # noqa: E402
 
@@ -71,6 +72,7 @@ PKG = {
     "tags": ["bitcoin price today", "forex news today", "bitcoin price today"],
     "hashtags": ["#Bitcoin", "#Forex"],
     "headlines_used": ["Bitcoin ETFs see third day of outflows"],
+    "thumbnail_hook": "Buy the dip now",
 }
 
 
@@ -82,7 +84,22 @@ def main():
 
     work = ROOT / "output" / "test"
     work.mkdir(parents=True, exist_ok=True)
-    pics = slides.render_slides(cfg, data, PKG["scenes"], work)
+    # script writer gets the cover facts (LLM mocked) and the prompt must format cleanly
+    cover = thumbnail.choose(data)
+    prompts = []
+
+    def fake_llm(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        pkg = json.loads(json.dumps(PKG))
+        return {"verdict": "ok", "package": pkg} if "editor" in prompt else pkg
+    script.generate_json = fake_llm
+    small = cfg | {"llm": cfg["llm"] | {"min_words": 40, "max_words": 90}}
+    pkg = script.make_script(small, data, [], cover, log=lambda m: None)
+    assert cover["facts"] in prompts[0] and pkg["scenes"][0]["visual"]["type"] == "title"
+    cover["hook"] = thumbnail.clean_hook(pkg.get("thumbnail_hook"), cover["default_hook"])
+    thumb = thumbnail.render(cover, cfg, data["date_utc"], work / "thumbnail.jpg")
+    pics = slides.render_slides(cfg, data, PKG["scenes"], work, cover=thumb)
+    assert pics[0]["cover"]
 
     audio = []
     for i, s in enumerate(PKG["scenes"]):
@@ -105,6 +122,7 @@ def main():
     for a in audio:
         stamps.append(t + a["duration"] * 0.6)
         t += a["duration"]
+    stamps[0] = 0.0  # the very first frame must be the thumbnail design
     stamps.insert(2, audio[0]["duration"] + 0.6)  # chart scene, mid-reveal
     for k, ts in enumerate(stamps):
         run(["ffmpeg", "-y", "-v", "error", "-ss", f"{ts:.2f}", "-i", out, "-frames:v", "1",
@@ -115,7 +133,8 @@ def main():
     meta = build_metadata(PKG, data, cfg)
     assert "not financial advice" in meta["description"].lower()
     assert meta["tags"] == ["bitcoin price today", "forex news today"]
-    print(f"OK: {out} ({got:.1f}s) · contact sheet {work / 'contact.png'}")
+    assert cover["hook"] == cover["default_hook"]  # "Buy the dip now" is rejected
+    print(f"OK: {out} ({got:.1f}s) · thumbnail {cover['template']} '{cover['hook']}' · contact sheet {work / 'contact.png'}")
     print(meta["description"])
 
 

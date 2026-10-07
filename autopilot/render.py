@@ -70,7 +70,13 @@ def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: s
     base = ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", str(fps), "-t", f"{dur:.3f}", "-i", img]
     enc = ["-t", f"{dur:.3f}", "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
            "-pix_fmt", "yuv420p", str(out)]
-    if slide.get("reveal"):
+    if slide.get("cover"):
+        # opening card = thumbnail: frame 1 is the exact design, then a slow push-in
+        vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
+              f"scale=w='trunc({w}*(1+0.03*t/{dur:.3f})/2)*2':h=-2:eval=frame:flags=bicubic,"
+              f"crop={w}:{h},setsar=1,format=yuv420p")
+        run(base + ["-vf", vf] + enc)
+    elif slide.get("reveal"):
         x, y, cw, ch = slide["reveal"]
         rev = max(min(dur * 0.6, 2.2), 0.5)
         filt = (f"[0:v][1:v]overlay=x='{x}+{cw}*min(t/{rev:.3f},1)':y={y}:eval=frame,"
@@ -111,8 +117,9 @@ def build_video(scene_audio: list[dict], slides: list[dict], cfg: dict, workdir:
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
          "-i", workdir / "seg_list.txt", "-c", "copy", silent])
 
-    # 3) captions
-    build_captions(words, v["captions"], w, h, workdir / "captions.ass")
+    # 3) captions (none over the opening card, so it stays clean as a thumbnail)
+    skip = scene_audio[0]["duration"] if slides and slides[0].get("cover") else 0.0
+    build_captions([wd for wd in words if wd[0] >= skip], v["captions"], w, h, workdir / "captions.ass")
 
     # 4) final mix: burn captions, loudness-normalise voice, optional quiet music
     cmd = ["ffmpeg", "-y", "-v", "error", "-i", silent.name, "-i", narration.name]
