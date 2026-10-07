@@ -21,6 +21,19 @@ from autopilot.history import History
 
 ROOT = Path(__file__).parent
 
+# Used when config.yaml has no "sessions" section (e.g. an older config.yaml).
+DEFAULT_SESSIONS = {
+    "asia": {"label": "Asia Open", "short": "Asia",
+             "focus": "Cover what moved since the New York close, crypto overnight, the yen and the "
+                      "Australian dollar, and events coming up in the Asian and European sessions."},
+    "london": {"label": "London Open", "short": "London",
+               "focus": "Cover what happened in the Asian session, the euro and the pound, and the "
+                        "day's biggest scheduled events."},
+    "newyork": {"label": "New York Open", "short": "New York",
+                "focus": "Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and "
+                         "what is still ahead on today's calendar."},
+}
+
 
 def log(msg: str) -> None:
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}", flush=True)
@@ -123,6 +136,10 @@ def main() -> int:
     args = p.parse_args()
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    if not cfg.get("sessions"):
+        log("config.yaml has no 'sessions' section; using the built-in Asia/London/New York editions")
+        cfg["sessions"] = DEFAULT_SESSIONS
+    cfg.setdefault("weekend_sessions", ["london"])
     history = History(ROOT / "data" / "history.json")
 
     now = datetime.now(timezone.utc)
