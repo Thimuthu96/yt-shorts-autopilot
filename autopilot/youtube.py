@@ -34,15 +34,34 @@ def _safe(text: str) -> str:
     return re.sub(r"[<>]", "", text or "").strip()
 
 
-def build_metadata(pkg: dict, credits: str) -> dict:
+def _stories(pkg: dict, data: dict) -> list[str]:
+    """'Source: headline (link)' for the news items the script used."""
+    by_title = {n["title"].lower(): n for n in data.get("news", [])}
+    out = []
+    for t in pkg.get("headlines_used", [])[:6]:
+        n = by_title.get(str(t).lower())
+        if not n:
+            continue
+        link = n["link"] if n.get("link") and "news.google.com" not in n["link"] else ""
+        out.append(f"• {n['source']}: {_safe(n['title'])}" + (f" {link}" if link else ""))
+    return out
+
+
+def build_metadata(pkg: dict, data: dict, cfg: dict) -> dict:
     title = _safe(pkg["title"])[:95]
     hashtags = [h if h.startswith("#") else f"#{h}" for h in pkg.get("hashtags", [])]
     hashtags = [re.sub(r"\s+", "", h) for h in hashtags if len(h) > 1]
     if "#shorts" not in [h.lower() for h in hashtags]:
         hashtags.append("#Shorts")
     parts = [_safe(pkg.get("description", ""))]
-    if credits:
-        parts.append("Footage: " + credits)
+    stories = _stories(pkg, data)
+    if stories:
+        parts.append("Stories mentioned:\n" + "\n".join(stories))
+    parts.append("Data: crypto prices from Coinbase; forex reference rates via Frankfurter (ECB and "
+                 "other central banks); economic calendar from ForexFactory.")
+    disclaimer = (cfg.get("upload", {}).get("disclaimer") or "").strip()
+    if disclaimer:
+        parts.append("⚠️ " + disclaimer)
     parts.append(" ".join(hashtags[:5]))
     description = "\n\n".join(p for p in parts if p)[:4900]
 

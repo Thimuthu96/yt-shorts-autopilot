@@ -1,4 +1,4 @@
-"""Record of past videos, so topics and footage are not repeated."""
+"""Record of uploaded briefs: avoids double posts and repeating yesterday's lead story."""
 import json
 from pathlib import Path
 
@@ -11,14 +11,14 @@ class History:
         else:
             self.data = {"videos": []}
 
-    def topics(self) -> list[str]:
-        return [v["topic"] for v in self.data["videos"] if v.get("topic")]
+    def used_headlines(self) -> list[str]:
+        out = []
+        for v in self.data["videos"][-7:]:
+            out += v.get("headlines", [])
+        return out
 
-    def used_footage(self) -> set:
-        ids = []
-        for v in self.data["videos"][-120:]:
-            ids += v.get("footage_ids", [])
-        return set(ids)
+    def uploaded_on(self, date: str) -> bool:
+        return any(v.get("brief_date") == date and v.get("video_id") for v in self.data["videos"])
 
     def add(self, entry: dict) -> None:
         self.data["videos"].append(entry)
