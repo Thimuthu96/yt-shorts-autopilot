@@ -120,8 +120,9 @@ def _call(method: str, url: str, *, retries: int = 3, log=print, timeout=(15, 12
 # ─── Reels ─────────────────────────────────────────────────────────────────
 
 def _status(video_id: str, token: str, v: str, log=print) -> dict:
-    res = _call("GET", f"{GRAPH.format(v=v)}/{video_id}", params={"fields": "status", "access_token": token},
-                log=log)
+    # token in a header, never in the URL (URLs can end up in error messages / logs)
+    res = _call("GET", f"{GRAPH.format(v=v)}/{video_id}", params={"fields": "status"},
+                headers={"Authorization": f"OAuth {token}"}, log=log)
     return res.get("status") or {}
 
 
