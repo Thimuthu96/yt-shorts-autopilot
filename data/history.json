@@ -112,6 +112,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-08T16:32:54+00:00",
+      "brief_date": "2026-10-08",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "FED RATE HIKES FUEL INFLATION FEARS",
+      "fb_post_id": "462331040302049_122251667138610202",
+      "headlines": [
+        "Fed rate hikes and rising Treasury yields fuel inflation fears"
+      ],
+      "topic": "rates",
+      "source": "Fox Business",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
