@@ -6,37 +6,40 @@ on:
   # scheduled=true; see CLAUDE.md. GitHub's own schedule is unreliable (runs hours late or
   # never), so these crons are only a backup, 17 min after each edition's start time.
   # Times are UTC. Sri Lanka time = UTC + 5:30.
+  # If you change a cron line, change the same string in EDITION below (two places).
   schedule:
-    - cron: "47 0 * * *"    # Asia Open      (due 00:30 UTC → 06:00 Sri Lanka)
-    - cron: "57 5 * * *"    # London Open    (due 05:40 UTC → 11:10 Sri Lanka)
-    - cron: "47 12 * * *"   # New York Open  (due 12:30 UTC → 18:00 Sri Lanka)
-  workflow_dispatch:          # the "Run workflow" button
+    - cron: "47 0 * * *"     # Asia Open      (due 00:30 UTC → 06:00 Sri Lanka)
+    - cron: "57 5 * * *"     # London Open    (due 05:40 UTC → 11:10 Sri Lanka)
+    - cron: "32 6 * * 1-5"   # Gold Outlook   (due 06:15 UTC → 11:45 Sri Lanka), weekdays
+    - cron: "47 12 * * *"    # New York Open  (due 12:30 UTC → 18:00 Sri Lanka)
+  workflow_dispatch:          # the "Run workflow" button (manual runs always make + upload a video)
     inputs:
       session:
         description: "Edition to make"
         type: choice
-        options: [auto, asia, london, newyork]
+        options: [auto, asia, london, newyork, gold]
         default: auto
-      force:
-        description: "Make it even if this edition is already uploaded today"
+      as_edition:
+        description: "Count it as today's edition (its timed run will then skip)"
         type: boolean
         default: false
       scheduled:
-        description: "Timed run (for the outside timer): weekend rule + skip if started too late"
+        description: "Timed run (for the outside timer only)"
         type: boolean
         default: false
 
 permissions:
   contents: write             # lets the job save data/history.json back to the repo
 
-concurrency:
-  group: autopilot
-  cancel-in-progress: false
-
 jobs:
   make-and-upload:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # Timed runs of the same edition (timer + backup) queue one after the other, so the second sees
+    # the first's upload and stops. Manual runs get their own group: they never wait or cancel anything.
+    concurrency:
+      group: "${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || 'newyork') || inputs.session) || format('manual-{0}', github.run_id) }}"
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -58,23 +61,34 @@ jobs:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          # which edition: from the schedule that fired, or from the manual run's choice
-          SESSION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || 'newyork') || inputs.session || 'auto' }}"
+          # which edition: from the backup cron that fired, or from the timer's / manual run's choice
+          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || 'newyork') || inputs.session || 'auto' }}"
           SCHEDULED: ${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && '--scheduled' || '' }}
-          FORCE: ${{ inputs.force && '--force' || '' }}
-        run: python main.py --session "$SESSION" $SCHEDULED $FORCE
+          AS_EDITION: ${{ inputs.as_edition && '--as-edition' || '' }}
+        run: python main.py --session "$EDITION" $SCHEDULED $AS_EDITION
 
       - name: Save history
         if: always()
         run: |
+          shopt -s nullglob
+          entries=(output/*/history_entry.json)
+          if [ ${#entries[@]} -eq 0 ]; then echo "Nothing uploaded, nothing to log"; exit 0; fi
           git config user.name "shorts-autopilot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/history.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Log uploaded Short"
-            git pull --rebase --autostash || true
-            git push
-          fi
+          # Other runs may have pushed meanwhile: start from the latest history and add our entry.
+          for attempt in 1 2 3 4 5; do
+            git fetch -q origin "$GITHUB_REF_NAME"
+            git reset -q --hard "origin/$GITHUB_REF_NAME"
+            python -m autopilot.history add "${entries[@]}"
+            git add data/history.json
+            if git diff --cached --quiet; then echo "History already up to date"; exit 0; fi
+            git commit -qm "Log uploaded Short"
+            if git push -q origin "HEAD:$GITHUB_REF_NAME"; then echo "History saved"; exit 0; fi
+            echo "Push rejected (attempt $attempt), retrying"
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not save data/history.json"
+          exit 1
 
       - name: Keep the video and logs for 7 days
         if: always()

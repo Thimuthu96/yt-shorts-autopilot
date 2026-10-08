@@ -1,11 +1,15 @@
-"""Crypto & forex market brief Shorts, up to 3 editions a day (Asia / London / New York open):
-market data + news → grounded script → fact-check → voice → data graphics → render → upload.
+"""Crypto & forex market brief Shorts (Asia / London / New York open) plus a daily gold outlook:
+market data + news → lead story + research → grounded script → fact-check → voice → data
+graphics → render → upload.
 
-    python main.py --session london   # one edition (what GitHub Actions does)
-    python main.py                    # edition picked from the current UTC time
+    python main.py --session london   # one video, made and uploaded now (a manual run)
+    python main.py --session gold     # the daily gold (XAU/USD) outlook
+    python main.py                    # market edition picked from the current UTC time
     python main.py --no-upload        # make the video only, saved in output/
-    python main.py --force            # make it even if this edition is already up today
-    python main.py --session asia --scheduled   # timed run: weekend rule + skip if started too late
+    python main.py --session asia --scheduled   # timed run: weekend rule, late/early skip, once a day
+    python main.py --session asia --as-edition  # manual run that fills today's slot (timed run skips)
+
+Manual runs always make and upload a video and don't stop the timed run of that edition.
 """
 import argparse
 import json
@@ -17,7 +21,7 @@ from pathlib import Path
 
 import yaml
 
-from autopilot import render, script, slides, sources, thumbnail, voice
+from autopilot import focus, gold, render, script, slides, sources, thumbnail, voice
 from autopilot.history import History
 
 ROOT = Path(__file__).parent
@@ -33,6 +37,7 @@ DEFAULT_SESSIONS = {
     "newyork": {"label": "New York Open", "short": "New York", "start_utc": "12:30",
                 "focus": "Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and "
                          "what is still ahead on today's calendar."},
+    "gold": {"label": "Gold Outlook", "short": "Gold", "start_utc": "06:15", "kind": "gold"},
 }
 
 
@@ -63,7 +68,7 @@ def minutes_late(now: datetime, start_utc: str) -> int:
 
 def news_since_last_brief(data: dict, history: History) -> None:
     """Keep only news newer than the previous brief, so each edition says something new."""
-    last = history.last_upload_time()
+    last = history.last_upload_time("market")
     if not last or datetime.now(timezone.utc) - last > timedelta(hours=24):
         return
     cutoff = (last - timedelta(hours=1)).isoformat()
@@ -75,18 +80,38 @@ def news_since_last_brief(data: dict, history: History) -> None:
 
 def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     session = cfg.get("sessions", {}).get(session_key, {})
+    kind = session.get("kind", "market")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     workdir = ROOT / "output" / stamp
     workdir.mkdir(parents=True, exist_ok=True)
 
     log("Collecting market data and news...")
-    data = sources.gather(cfg, log=log)
-    news_since_last_brief(data, history)
+    data = sources.gather(cfg, kind, log=log)
+    extra = {}
+    if kind == "gold":
+        prev = (history.last("gold") or {}).get("outlook")
+        data["gold_analysis"] = gold.analyze(data, prev)
+        a = data["gold_analysis"]
+        log(f"Gold {a['price']:,.1f}: bias 1H {a['bias']['1H']['bias']}, 4H {a['bias']['4H']['bias']}, "
+            f"daily {a['bias']['Daily']['bias']}" + (f"; last call {'played out' if a['review']['played_out'] else 'missed'}"
+                                                     if a.get("review") else ""))
+        extra["outlook"] = gold.record(a)
+        cover = thumbnail.choose_gold(data)
+    else:
+        news_since_last_brief(data, history)
+        f = focus.pick(data, (history.last("market") or {}).get("lead"), history.used_headlines())
+        if f:
+            log(f"Lead: {f['label']} ({', '.join(f['why'])}) · assets {f['assets']} · story: "
+                f"{(f.get('story') or {}).get('title', '(price move)')}")
+            extra["lead"] = f["lead"]
+        cover = thumbnail.choose(data)
     (workdir / "data.json").write_text(json.dumps(data, indent=1, ensure_ascii=False, default=str))
 
-    cover = thumbnail.choose(data)
     log(f"Thumbnail: {cover['template']} ({cover['facts']})")
-    pkg = script.make_script(cfg, data, history.used_headlines(), cover, session, log=log)
+    if kind == "gold":
+        pkg = script.make_gold_script(cfg, data, history.used_headlines(), cover, log=log)
+    else:
+        pkg = script.make_script(cfg, data, history.used_headlines(), cover, session, log=log)
     cover["hook"] = thumbnail.clean_hook(pkg.get("thumbnail_hook"), cover["default_hook"])
     pkg["thumbnail"] = {k: v for k, v in cover.items() if k != "series"}
     (workdir / "package.json").write_text(json.dumps(pkg, indent=2, ensure_ascii=False))
@@ -106,7 +131,9 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     log(f"Narration: {total:.1f}s")
 
     log("Drawing the graphics...")
-    pics = slides.render_slides(cfg, data, scenes, workdir, cover=thumb, edition=session.get("label", ""))
+    footer = (cfg.get("gold") or {}).get("footer") if kind == "gold" else None
+    pics = slides.render_slides(cfg, data, scenes, workdir, cover=thumb, edition=session.get("label", ""),
+                                footer=footer)
 
     music_files = sorted((ROOT / "music").glob("*.mp3"))
     music = random.choice(music_files) if music_files else None
@@ -115,7 +142,7 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     log(f"Rendered {out.relative_to(ROOT)}")
 
     from autopilot import youtube  # imported late so --no-upload needs no Google libs configured
-    meta = youtube.build_metadata(pkg, data, cfg)
+    meta = youtube.build_metadata(pkg, data, cfg, session.get("label", ""))
     (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
 
     video_id = None
@@ -128,19 +155,25 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
         "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "brief_date": data["date_utc"],
         "session": session_key,
+        "kind": kind,
         "title": meta["title"],
         "video_id": video_id,
         "seconds": round(total, 1),
         "headlines": pkg.get("headlines_used", [])[:10],
+        **extra,
+        "workdir": str(workdir.relative_to(ROOT)),
     }
 
 
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--no-upload", action="store_true", help="render only")
-    p.add_argument("--force", action="store_true", help="run even if this edition is already uploaded today")
-    p.add_argument("--session", default="auto", help="asia | london | newyork | auto (from the UTC time)")
-    p.add_argument("--scheduled", action="store_true", help="set by the daily schedule (applies the weekend rule)")
+    p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
+    p.add_argument("--session", default="auto", help="asia | london | newyork | gold | auto (market edition by UTC time)")
+    p.add_argument("--scheduled", action="store_true",
+                   help="timed run (schedule / outside timer): weekend rule, late/early skip, once per edition per day")
+    p.add_argument("--as-edition", action="store_true",
+                   help="manual run that counts as today's edition, so its timed run then skips")
     args = p.parse_args()
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
@@ -176,9 +209,13 @@ def main() -> int:
             log(f"Started {-late} min before {start} UTC, so the {label} edition is skipped. "
                 "Check the timer's time and time zone.")
             return 0
-    if not args.force and not args.no_upload and history.uploaded_on(today, session_key):
-        log(f"The {label} brief for {today} is already uploaded; nothing to do. Tick 'force' to make another.")
+    if args.scheduled and not args.force and not args.no_upload and history.uploaded_on(today, session_key):
+        log(f"The {label} brief for {today} is already uploaded; nothing to do.")
         return 0
+    if not args.scheduled:
+        log("Manual run: makes and uploads a video now" +
+            (" and fills today's slot (the timed run will skip)." if args.as_edition
+             else "; the timed run of this edition still goes ahead."))
 
     log(f"Edition: {label}")
     try:
@@ -187,6 +224,11 @@ def main() -> int:
         log(f"Brief failed: {e}")
         return 1
     if entry["video_id"]:
+        entry["trigger"] = "timed" if args.scheduled else "manual"
+        entry["counts"] = bool(args.scheduled or args.as_edition)
+        workdir = ROOT / entry.pop("workdir")
+        # the workflow merges this file into the latest data/history.json (safe with parallel runs)
+        (workdir / "history_entry.json").write_text(json.dumps(entry, indent=2, ensure_ascii=False))
         history.add(entry)
         history.save()
     return 0
