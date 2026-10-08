@@ -11,6 +11,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
+from . import seo
+
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 
@@ -47,26 +49,47 @@ def _stories(pkg: dict, data: dict) -> list[str]:
     return out
 
 
-def build_metadata(pkg: dict, data: dict, cfg: dict) -> dict:
-    title = _safe(pkg["title"])[:95]
-    hashtags = [h if h.startswith("#") else f"#{h}" for h in pkg.get("hashtags", [])]
-    hashtags = [re.sub(r"\s+", "", h) for h in hashtags if len(h) > 1]
-    if "#shorts" not in [h.lower() for h in hashtags]:
-        hashtags.append("#Shorts")
+def _credits(data: dict) -> str:
+    if data.get("kind") == "gold":
+        return ("Method: rule-based technical read of hourly XAU/USD (EMA trend, market structure, prior-day, "
+                "Asian-session and weekly ranges, liquidity sweeps, ATR ranges), not a forecast of certainty. "
+                "Data: gold prices from PAXG hourly candles (Kraken/Coinbase) aligned to spot XAU/USD "
+                "(Swissquote); US yields from the US Treasury; CPI from the BLS; forex reference rates via "
+                "Frankfurter; economic calendar from ForexFactory.")
+    extra = []
+    if data.get("gold"):
+        extra.append("gold from PAXG hourly candles aligned to spot XAU/USD")
+    if data.get("macro"):
+        extra.append("US yields from the US Treasury and CPI from the BLS")
+    return ("Data: crypto prices from Coinbase; forex reference rates via Frankfurter (ECB and other central "
+            "banks); economic calendar from ForexFactory" + "".join(f"; {x}" for x in extra) + ".")
+
+
+def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "") -> dict:
+    """Title, description and tags tuned for search (see seo.py); falls back to the writer's
+    output when there is no lead story (e.g. tests with plain data)."""
+    title = _safe(seo.title(pkg.get("title", ""), data, edition))[:95]
+    hashtags = seo.hashtags(data, pkg.get("hashtags", []))
     parts = [_safe(pkg.get("description", ""))]
+    numbers = seo.key_numbers(data)
+    if numbers:
+        parts.append(("Key levels:\n" if data.get("kind") == "gold" else "Key numbers:\n") + "\n".join(numbers))
     stories = _stories(pkg, data)
     if stories:
         parts.append("Stories mentioned:\n" + "\n".join(stories))
-    parts.append("Data: crypto prices from Coinbase; forex reference rates via Frankfurter (ECB and "
-                 "other central banks); economic calendar from ForexFactory.")
+    ahead = seo.watch(data)
+    if ahead:
+        parts.append("What to watch:\n" + "\n".join(ahead))
+    parts.append(seo.schedule(cfg))
+    parts.append(_credits(data))
     disclaimer = (cfg.get("upload", {}).get("disclaimer") or "").strip()
     if disclaimer:
         parts.append("⚠️ " + disclaimer)
-    parts.append(" ".join(hashtags[:5]))
+    parts.append(" ".join(hashtags))
     description = "\n\n".join(p for p in parts if p)[:4900]
 
     tags, seen, total = [], set(), 0
-    for t in pkg.get("tags", []):
+    for t in seo.tag_seeds(data, edition) + list(pkg.get("tags", [])):
         t = _safe(t).replace(",", "")
         cost = len(t) + (2 if " " in t else 0) + 1  # YouTube counts quotes + separator
         if t and t.lower() not in seen and total + cost <= 480:
@@ -116,6 +139,11 @@ def upload(video_path: Path, meta: dict, cfg: dict, log=print) -> str:
                 retries += 1
                 time.sleep(2 ** retries)
                 continue
+            if e.resp.status in (400, 403) and re.search(r"quotaExceeded|uploadLimitExceeded|dailyLimitExceeded",
+                                                         str(e)):
+                raise RuntimeError("YouTube upload limit reached for today (the API allows about 6 uploads "
+                                   "a day: 1,600 of 10,000 quota units each; it resets at midnight Pacific "
+                                   "time). The video is saved in the run's artifacts.") from e
             raise
     vid = response["id"]
     log(f"Uploaded: https://youtube.com/shorts/{vid} (status: {status['privacyStatus']}"

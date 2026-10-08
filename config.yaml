@@ -1,9 +1,10 @@
 # ─── Channel ────────────────────────────────────────────────────────────────
 channel:
   niche: >-
-    Daily crypto and forex market brief: the biggest price moves in Bitcoin, Ethereum
-    and major currency pairs, the news behind them, and the high-impact economic
-    events traders are watching today.
+    Daily crypto, forex and gold market brief: one lead story per brief (Bitcoin,
+    Ethereum, gold or a major currency pair), the news behind it, how it spreads to
+    related markets, and the high-impact events traders are watching today. Plus a
+    daily gold (XAU/USD) outlook with key levels, liquidity and timeframe bias.
   audience: Retail crypto and forex traders and curious beginners
   tone: Clear, fast, neutral and factual, like a market news anchor; no hype
   language: en
@@ -48,12 +49,25 @@ sessions:
     focus: >-
       Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and what is
       still ahead on today's calendar.
+  # Daily gold outlook (not a market brief): bias for the next 1h / 4h / day, liquidity, levels.
+  # 06:15 UTC = after the Asian session has set its range (00:00-06:00 GMT), before London opens
+  # (07:00 GMT summer / 08:00 GMT winter), when gold is most liquid and Asian highs/lows get tested,
+  # and well before US data (12:30-14:00 GMT). Weekdays only (not in weekend_sessions).
+  gold:
+    label: Gold Outlook
+    short: Gold
+    start_utc: "06:15"
+    kind: gold
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
 # (automatic runs only; a manual run can still choose any edition).
 weekend_sessions: [london]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180
+
+# ─── Gold outlook ───────────────────────────────────────────────────────────
+gold:
+  footer: "Not financial advice · Rule-based outlook · Data: PAXG/Kraken, Swissquote, US Treasury"
 
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:

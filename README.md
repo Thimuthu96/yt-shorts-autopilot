@@ -1,16 +1,26 @@
 # Shorts Autopilot: Daily Market Brief
 
-Makes and uploads **crypto & forex market briefs** as YouTube Shorts, up to three a day, with
-no manual work, running free on GitHub Actions.
+Makes and uploads **crypto & forex market briefs** and a **daily gold outlook** as YouTube
+Shorts, four a day, with no manual work, running free on GitHub Actions.
 
-| Edition | UTC | Sri Lanka | Focus |
+| Edition | UTC | Sri Lanka | What it is |
 |---|---|---|---|
-| Asia Open | 00:30 | 06:00 | moves since the New York close, yen/AUD, the day ahead |
-| London Open | 05:40 | 11:10 | the Asian session, euro/pound, the day's big events |
-| New York Open | 12:30 | 18:00 | moves since London, the dollar, what's left on the calendar |
+| Asia Open | 00:30 | 06:00 | market brief: one lead story since the New York close |
+| London Open | 05:40 | 11:10 | market brief: one lead story from the Asian session |
+| Gold Outlook | 06:15 | 11:45 | XAU/USD: bias for the next 1h / 4h / day, liquidity, key levels (Mon–Fri) |
+| New York Open | 12:30 | 18:00 | market brief: one lead story since London |
 
-Each edition only uses news since the previous brief. At weekends (forex closed) only the
-London edition runs (`weekend_sessions` in `config.yaml`).
+**One story per brief:** each market brief picks the day's lead story (scored from headlines,
+price moves and upcoming events), researches how it spreads (e.g. a Bitcoin story → Ether and
+Solana; a Fed story → EUR/USD, gold, USD/JPY), and charts only those assets, instead of reading
+out every market. Each brief only uses news since the previous one.
+
+**Gold outlook:** published after the Asian session has set its range and before London opens,
+when gold is most liquid. Levels and bias come from fixed rules on hourly prices (EMA trend,
+market structure, previous-day / Asian / weekly highs and lows, equal highs/lows, sweeps, ATR
+ranges, dollar and real-yield tilt), and each video first says whether the last outlook played out.
+
+At weekends (forex and gold closed) only the London edition runs (`weekend_sessions`).
 
 **Timing:** GitHub's own schedule can start runs hours late or skip them, so runs are started
 on time by a free outside timer (cron-job.org) that presses "Run workflow" through the GitHub
@@ -18,28 +28,37 @@ API. GitHub's schedule stays as a backup 17 min later. Whichever runs first make
 other sees it's already up and stops. A timed run that starts over 3 h late is skipped rather
 than posting the wrong edition. Setup: [Outside timer](#outside-timer-cron-joborg) below.
 
-**Manual runs:** Actions → Shorts autopilot → **Run workflow** → pick the edition (or `auto`,
-which picks by the current time) and tick **force** to make one even if that edition is
-already up today.
+**Manual runs:** Actions → Shorts autopilot → **Run workflow** → pick the edition (`auto` picks
+a market edition by the current time, or `gold`) → Run. A manual run **always** makes and
+uploads a video, at any time, and never blocks the autopilot: that edition's timed run still
+happens. Tick **Count it as today's edition** only if you want the timed run to skip.
+Leave **Timed run** unticked (it's for the outside timer). Keep it to ~2 manual uploads a day:
+YouTube's API allows about 6 uploads daily in total.
 
 ```
-market data + news ─► script ─► fact-check ─► voiceover ─► data graphics ─► render + captions ─► upload with SEO
- (see below)          (Gemini)   (Gemini vs data) (edge-tts) (charts, boards)    (ffmpeg)            (YouTube API)
+market data + news ─► lead story ─► research ─► script ─► fact-check ─► voiceover ─► graphics ─► render ─► upload
+ (see below)          (scoring)     (Gemini)    (Gemini)  (Gemini vs data) (edge-tts)  (charts)    (ffmpeg)  (YouTube API)
+gold prices + macro ─► rule-based outlook ─► narration ─► fact-check ─► … same as above
 ```
 
 **Sources (all free, no keys):**
-- **News:** public RSS feeds, the same set the [World Monitor](https://github.com/koala73/worldmonitor)
-  finance dashboard uses: CoinDesk, Cointelegraph, the Federal Reserve, and Google News searches
-  for forex, central banks, crypto and economic data.
+- **News:** public RSS feeds: CoinDesk, Cointelegraph, The Daily Hodl (full articles), the
+  Federal Reserve (policy statements, speeches), and Google News searches for forex, central
+  banks, crypto, economic data, gold and Fed rate odds. Paid press releases are filtered out.
 - **Economic calendar:** ForexFactory's official weekly calendar export (high-impact events).
 - **Crypto prices:** Coinbase public market data (BTC, ETH, SOL, XRP; 7-day hourly).
 - **Forex rates:** Frankfurter, daily central-bank reference rates (EUR/USD, GBP/USD, USD/JPY…).
+- **Gold:** PAXG (gold-backed token) hourly prices from Kraken/Coinbase, aligned to spot XAU/USD.
+- **Macro:** US Treasury yields (10Y, 2Y, 10Y real) and US CPI from the BLS.
+- **Fed rate odds:** taken from headlines that quote CME FedWatch (the FedWatch site, Myfxbook and
+  forexfactory.com pages block automated access and forbid scraping).
 
 Every scene is a graphic drawn from that data (price chart that draws itself in, market
 board, headline card, calendar table), so there's no stock footage to mismatch. The script
 may only use numbers from the data, and a second pass checks it against the data before
-anything is recorded. No predictions or buy/sell calls; every video carries a
-not-financial-advice note.
+anything is recorded. Market briefs make no predictions; the gold outlook's bias comes only from
+its fixed rules and is worded as conditional ("bearish while below $4,142"). No buy/sell calls;
+every video carries a not-financial-advice note. News photos aren't used (copyright).
 
 **Thumbnail / opening frame:** every video opens on a thumbnail design picked from the day's
 data, so the first frame (what the feed shows, and what YouTube usually uses as the
@@ -50,7 +69,10 @@ thumbnail) is built to stop the scroll:
 | Big Move | a coin moves 4%+ in 24h or an FX pair 0.8%+ | "−6.2%" + chart + WHAT HAPPENED? |
 | Event Day | a high-impact event is due within 12 hours | "CPI DAY" on yellow + WATCH BEFORE 12:30 |
 | Split | Bitcoin and the US dollar move opposite ways | green/red split + WHY THE SPLIT? |
-| Key Level | BTC/ETH is within 2% of a round number | "1.2% AWAY FROM $100K" + SO CLOSE. |
+| Key Level | BTC/ETH/gold is within 2% of a round number | "1.2% AWAY FROM $100K" + SO CLOSE. |
+| Gold Outlook | the gold edition | "BEARISH" + "BELOW $4,142" + 1H/4H chips + KEY LEVELS TODAY |
+
+In market briefs the template is chosen only from the brief's lead-story assets.
 
 The 2–4 word hook is written by the AI for that day and must be answered in the video; hype
 words (moon, buy, sell, will, guaranteed…) are rejected and replaced by the template's
@@ -128,7 +150,7 @@ Approval usually takes days to a few weeks. After that, videos go public automat
 | `channel.display_name` | Brand line at the top of every graphic |
 | `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
 | `video.accent` / `video.footer` | Brand colour and the footer line on every graphic |
-| Posting times | change all of: the cron-job.org job, `start_utc` in `config.yaml`, and the backup `cron` line in `.github/workflows/autopilot.yml` plus the matching string in its `SESSION:` line |
+| Posting times | change all of: the cron-job.org job, `start_utc` in `config.yaml`, and the backup `cron` line in `.github/workflows/autopilot.yml` plus the matching string in its `EDITION:` line and `concurrency.group` |
 | Editions | `sessions` (focus text per edition) and `weekend_sessions` in `config.yaml` |
 | Coins / FX pairs | `CRYPTO` and `FX` lists at the top of `autopilot/sources.py` |
 | News feeds | `DEFAULT_FEEDS` in `autopilot/sources.py` |
@@ -184,16 +206,19 @@ What helps most from your side, even if it's 10 minutes a week:
 main.py                 orchestrates one run
 config.yaml             all settings
 get_token.py            one-time YouTube login
-autopilot/sources.py    news feeds, economic calendar, crypto + forex prices
-autopilot/script.py     grounded script + fact-check against the data (Gemini)
-autopilot/slides.py     charts, market board, headline + calendar graphics
+autopilot/sources.py    news feeds, economic calendar, crypto, forex + gold prices, US yields, CPI
+autopilot/focus.py      picks each brief's lead story and the assets it moves
+autopilot/gold.py       the gold outlook: levels, liquidity, 1h/4h/daily bias, scenarios
+autopilot/script.py     research note, grounded script + fact-check against the data (Gemini)
+autopilot/slides.py     charts, impact board, headline, calendar + gold outlook graphics
 autopilot/thumbnail.py  thumbnail templates + picking one from the data
 assets/fonts/           Anton + Space Grotesk (SIL Open Font License)
 autopilot/voice.py      narration + word timings (edge-tts)
 autopilot/render.py     ffmpeg assembly, chart draw-in, highlighted captions
-autopilot/youtube.py    SEO metadata + upload
+autopilot/seo.py        search-friendly titles, descriptions, hashtags, tags
+autopilot/youtube.py    metadata + upload
 data/history.json       what has been uploaded
-.github/workflows/      daily schedule
+.github/workflows/      backup schedule, manual runs, history saving
 ```
 
 ## Outside timer (cron-job.org)
@@ -212,9 +237,9 @@ One-time setup, free, about 10 minutes.
      `Content-Type: application/json`
    - Body: `{"ref":"main","inputs":{"session":"asia","scheduled":"true"}}`
    - Save, then **Test run**: `204` = it worked (a "Timer · asia" run appears in Actions).
-3. Copy the job twice, changing only the time and the session:
-   **11:10 → `london`**, **18:00 → `newyork`**.
+3. Copy the job three times, changing only the time and the session:
+   **11:10 → `london`**, **11:45 → `gold`** (set this one to **Monday–Friday**), **18:00 → `newyork`**.
 
 Keep the token only in cron-job.org (never in the repo or chat). If the jobs start failing
-with `401`, the token has expired: make a new one and paste it into all three jobs. A `422`
+with `401`, the token has expired: make a new one and paste it into all four jobs. A `422`
 means the workflow on `main` doesn't have the `scheduled` input yet (push the latest code).
