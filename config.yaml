@@ -24,29 +24,36 @@ market:
   calendar_impacts: [High]    # add Medium for more events
 
 # ─── Editions: up to 3 briefs a day, one per trading-session open ──────────
-# The times are set in .github/workflows/autopilot.yml (cron lines, UTC).
+# start_utc = when the edition is due. The runs are started by the outside timer (cron-job.org)
+# and the backup cron lines in .github/workflows/autopilot.yml; keep all three in step.
 sessions:
   asia:
     label: Asia Open
     short: Asia
+    start_utc: "00:30"
     focus: >-
       Cover what moved since the New York close, crypto overnight, the yen and the
       Australian dollar, and events coming up in the Asian and European sessions.
   london:
     label: London Open
     short: London
+    start_utc: "05:40"
     focus: >-
       Cover what happened in the Asian session, the euro and the pound, and the day's
       biggest scheduled events.
   newyork:
     label: New York Open
     short: New York
+    start_utc: "12:30"
     focus: >-
       Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and what is
       still ahead on today's calendar.
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
 # (automatic runs only; a manual run can still choose any edition).
 weekend_sessions: [london]
+# Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
+# after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
+max_late_minutes: 180
 
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:

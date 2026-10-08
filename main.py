@@ -5,6 +5,7 @@ market data + news → grounded script → fact-check → voice → data graphic
     python main.py                    # edition picked from the current UTC time
     python main.py --no-upload        # make the video only, saved in output/
     python main.py --force            # make it even if this edition is already up today
+    python main.py --session asia --scheduled   # timed run: weekend rule + skip if started too late
 """
 import argparse
 import json
@@ -23,13 +24,13 @@ ROOT = Path(__file__).parent
 
 # Used when config.yaml has no "sessions" section (e.g. an older config.yaml).
 DEFAULT_SESSIONS = {
-    "asia": {"label": "Asia Open", "short": "Asia",
+    "asia": {"label": "Asia Open", "short": "Asia", "start_utc": "00:30",
              "focus": "Cover what moved since the New York close, crypto overnight, the yen and the "
                       "Australian dollar, and events coming up in the Asian and European sessions."},
-    "london": {"label": "London Open", "short": "London",
+    "london": {"label": "London Open", "short": "London", "start_utc": "05:40",
                "focus": "Cover what happened in the Asian session, the euro and the pound, and the "
                         "day's biggest scheduled events."},
-    "newyork": {"label": "New York Open", "short": "New York",
+    "newyork": {"label": "New York Open", "short": "New York", "start_utc": "12:30",
                 "focus": "Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and "
                          "what is still ahead on today's calendar."},
 }
@@ -51,6 +52,13 @@ def auto_session(now: datetime) -> str:
     if now.hour < 12:
         return "london"
     return "newyork"
+
+
+def minutes_late(now: datetime, start_utc: str) -> int:
+    """Minutes since today's start time; negative if a bit early (within 12 h either way)."""
+    h, m = (int(x) for x in str(start_utc).split(":"))
+    diff = (now.hour * 60 + now.minute - (h * 60 + m)) % (24 * 60)
+    return diff - 24 * 60 if diff > 12 * 60 else diff
 
 
 def news_since_last_brief(data: dict, history: History) -> None:
@@ -140,6 +148,7 @@ def main() -> int:
         log("config.yaml has no 'sessions' section; using the built-in Asia/London/New York editions")
         cfg["sessions"] = DEFAULT_SESSIONS
     cfg.setdefault("weekend_sessions", ["london"])
+    cfg.setdefault("max_late_minutes", 180)
     history = History(ROOT / "data" / "history.json")
 
     now = datetime.now(timezone.utc)
@@ -151,10 +160,22 @@ def main() -> int:
         log(f"Unknown edition '{session_key}'. Choose one of: {', '.join(cfg.get('sessions', {}))}")
         return 1
     label = cfg["sessions"][session_key]["label"]
+    start = cfg["sessions"][session_key].get("start_utc") or DEFAULT_SESSIONS.get(session_key, {}).get("start_utc")
 
     if args.scheduled and now.weekday() >= 5 and session_key not in cfg.get("weekend_sessions", []):
         log(f"Weekend: forex is closed, so the {label} edition is skipped today.")
         return 0
+    if args.scheduled and start:
+        late = minutes_late(now, start)
+        log(f"Timed run for the {label} edition (due {start} UTC, started {late:+d} min)")
+        if late > cfg["max_late_minutes"]:
+            log(f"Started more than {cfg['max_late_minutes']} min late, so the {label} edition is skipped "
+                "(it would clash with the next edition). Use Run workflow to make it anyway.")
+            return 0
+        if late < -30:
+            log(f"Started {-late} min before {start} UTC, so the {label} edition is skipped. "
+                "Check the timer's time and time zone.")
+            return 0
     if not args.force and not args.no_upload and history.uploaded_on(today, session_key):
         log(f"The {label} brief for {today} is already uploaded; nothing to do. Tick 'force' to make another.")
         return 0

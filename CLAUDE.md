@@ -30,17 +30,28 @@ choice, weekend rule and the once-per-edition-per-day guard.
 
 ## Editions (up to 3 a day)
 
-| key | label | cron (UTC) | Sri Lanka |
-|---|---|---|---|
-| `asia` | Asia Open | `30 0 * * *` | 06:00 |
-| `london` | London Open | `40 5 * * *` | 11:10 |
-| `newyork` | New York Open | `30 12 * * *` | 18:00 |
+| key | label | due (`start_utc`) | Sri Lanka | outside timer | backup cron (UTC) |
+|---|---|---|---|---|---|
+| `asia` | Asia Open | 00:30 | 06:00 | cron-job.org 06:00 Asia/Colombo | `47 0 * * *` |
+| `london` | London Open | 05:40 | 11:10 | cron-job.org 11:10 Asia/Colombo | `57 5 * * *` |
+| `newyork` | New York Open | 12:30 | 18:00 | cron-job.org 18:00 Asia/Colombo | `47 12 * * *` |
 
-- Defined in `config.yaml → sessions` (label, short, focus text). `main.py` has
+- Defined in `config.yaml → sessions` (label, short, start_utc, focus text). `main.py` has
   `DEFAULT_SESSIONS` as a fallback if config lacks them.
-- The workflow maps the firing cron string → session in the `SESSION:` env line.
-  **If you change a cron time, change the matching string in `SESSION:` too.**
-- Weekends: scheduled runs only make editions in `weekend_sessions` (default `[london]`).
+- **Triggers.** GitHub's schedule proved unreliable (Oct 2026: the 12:30 run started 6.5 h late,
+  the next day's 00:30 run never started), so the **primary trigger is cron-job.org** POSTing
+  `workflow_dispatch` with `{"ref":"main","inputs":{"session":"asia","scheduled":"true"}}`
+  (fine-grained PAT, this repo only, Actions read/write; setup in README "Outside timer").
+  GitHub crons stay as a **backup 17 min later**, off the busy :00/:30 marks.
+- Both triggers pass `--scheduled` ("timed run"). The `concurrency: autopilot` group queues the
+  second one; it checks out the history the first pushed and stops with "already uploaded".
+- Timed runs are skipped if they start > `max_late_minutes` (180) after `start_utc`, or > 30 min
+  before it — so a very late run never posts the wrong edition. Manual runs aren't checked.
+- The workflow maps the firing backup cron string → session in the `SESSION:` env line.
+  **To change a time, change the cron-job.org job, `start_utc`, the cron line and the matching
+  string in `SESSION:`.**
+- Run names in Actions: "Timer · asia", "Backup schedule · 47 0 * * *", "Manual · auto".
+- Weekends: timed runs only make editions in `weekend_sessions` (default `[london]`).
 - Each edition runs once per UTC day unless `--force`. Old history entries without a
   `session` field count as `london`.
 - Each edition keeps only news published since the previous upload (if ≥6 fresh stories).
@@ -51,7 +62,7 @@ Manual runs: Actions → Shorts autopilot → Run workflow → `session` (auto/a
 ## Files
 
 ```
-main.py                  orchestration, CLI: --session, --force, --no-upload, --scheduled
+main.py                  orchestration, CLI: --session, --force, --no-upload, --scheduled (timed run)
 config.yaml              all settings (channel, llm, market, sessions, voice, video, upload)
 get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets
 autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frankfurter FX
@@ -67,7 +78,7 @@ autopilot/media.py       ffmpeg/ffprobe helpers
 assets/fonts/            Anton + Space Grotesk (SIL OFL) for thumbnails
 tests/test_offline.py    full offline render test with sample data + mocked LLM
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
-.github/workflows/autopilot.yml   3 crons + workflow_dispatch inputs
+.github/workflows/autopilot.yml   3 backup crons + workflow_dispatch inputs (session, force, scheduled)
 ```
 
 ## Data sources (all free, no API keys)
@@ -151,6 +162,7 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
 ## Secrets (GitHub → Settings → Secrets and variables → Actions)
 
 `GEMINI_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`.
+The cron-job.org PAT lives only in cron-job.org (not a repo secret).
 (`PIXABAY_API_KEY` / `PEXELS_API_KEY` are legacy and unused.) Never commit `client_secret.json`
 (git-ignored).
 
@@ -184,7 +196,11 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
   `DEFAULT_SESSIONS`. After unzipping updates, check `git status` lists every changed file.
 - The workflow commits `data/history.json` after each upload → **always `git pull` before pushing.**
 - GitHub account billing lock once blocked all jobs ("account is locked due to a billing issue").
-- Scheduled runs can start 5–30+ min late; schedules pause after 60 days of repo inactivity.
+- GitHub scheduled runs can start hours late or never (hence the outside timer); schedules
+  also pause after 60 days of repo inactivity. A green 1-min run = a skip; read its last log line.
+- Run times in the Actions UI are in the browser's time zone (GMT+5:30), not UTC.
+- cron-job.org `401` = PAT expired (1-year expiry) → new token into all three jobs.
+  `422` = `main`'s workflow lacks the `scheduled` input.
 - A cron expression in YAML must stay on one line inside `${{ }}`.
 - Node 20 deprecation warning for actions/checkout@v4, setup-python@v5, upload-artifact@v4 —
   harmless for now; bump to Node 24 versions when convenient (verify versions exist first).

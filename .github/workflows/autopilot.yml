@@ -1,11 +1,15 @@
 name: Shorts autopilot
+run-name: "${{ github.event_name == 'schedule' && 'Backup schedule' || (github.event.inputs.scheduled == 'true' && 'Timer' || 'Manual') }} · ${{ github.event_name == 'schedule' && github.event.schedule || inputs.session }}"
 
 on:
+  # The main trigger is an outside timer (cron-job.org) calling workflow_dispatch on time with
+  # scheduled=true; see CLAUDE.md. GitHub's own schedule is unreliable (runs hours late or
+  # never), so these crons are only a backup, 17 min after each edition's start time.
+  # Times are UTC. Sri Lanka time = UTC + 5:30.
   schedule:
-    # Times are UTC. Sri Lanka time = UTC + 5:30. GitHub may start runs a few minutes late.
-    - cron: "30 0 * * *"    # Asia Open      → 06:00 Sri Lanka
-    - cron: "40 5 * * *"    # London Open    → 11:10 Sri Lanka
-    - cron: "30 12 * * *"   # New York Open  → 18:00 Sri Lanka
+    - cron: "47 0 * * *"    # Asia Open      (due 00:30 UTC → 06:00 Sri Lanka)
+    - cron: "57 5 * * *"    # London Open    (due 05:40 UTC → 11:10 Sri Lanka)
+    - cron: "47 12 * * *"   # New York Open  (due 12:30 UTC → 18:00 Sri Lanka)
   workflow_dispatch:          # the "Run workflow" button
     inputs:
       session:
@@ -15,6 +19,10 @@ on:
         default: auto
       force:
         description: "Make it even if this edition is already uploaded today"
+        type: boolean
+        default: false
+      scheduled:
+        description: "Timed run (for the outside timer): weekend rule + skip if started too late"
         type: boolean
         default: false
 
@@ -51,8 +59,8 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           # which edition: from the schedule that fired, or from the manual run's choice
-          SESSION: "${{ github.event_name == 'schedule' && (github.event.schedule == '30 0 * * *' && 'asia' || github.event.schedule == '40 5 * * *' && 'london' || 'newyork') || inputs.session || 'auto' }}"
-          SCHEDULED: ${{ github.event_name == 'schedule' && '--scheduled' || '' }}
+          SESSION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || 'newyork') || inputs.session || 'auto' }}"
+          SCHEDULED: ${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && '--scheduled' || '' }}
           FORCE: ${{ inputs.force && '--force' || '' }}
         run: python main.py --session "$SESSION" $SCHEDULED $FORCE
 
