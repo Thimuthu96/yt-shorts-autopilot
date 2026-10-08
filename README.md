@@ -298,6 +298,11 @@ data/history.json       what has been published (YouTube id, Facebook Reel / pos
 
 One-time setup, free, about 10 minutes.
 
+**Shortcut:** `python setup_cronjobs.py` creates or fixes all seven jobs from `config.yaml` through
+the cron-job.org API (jobs titled "CryptoFX · <edition>", times in UTC, gold Mon–Fri). It asks for
+a cron-job.org API key (Settings → API) and the GitHub token from step 1, with hidden input. Run it
+again after changing any `start_utc`; `--dry-run` shows the plan. The manual steps below do the same.
+
 1. **GitHub token:** your photo → Settings → Developer settings → Personal access tokens →
    **Fine-grained tokens** → Generate new token. Repository access: **Only select repositories**
    → `yt-shorts-autopilot`. Permissions → Repository → **Actions: Read and write** (nothing
