@@ -164,7 +164,9 @@ def watch(data: dict) -> list[str]:
 
 
 def schedule(cfg: dict) -> str:
-    s = cfg.get("sessions", {})
+    # only the editions that go to YouTube (the Facebook-only news posts aren't listed)
+    s = {k: v for k, v in cfg.get("sessions", {}).items()
+         if v.get("kind") != "post" and "youtube" in (v.get("platforms") or ["youtube"])}
     parts = [f"{v['label']} {v['start_utc']}" + (" (Mon–Fri)" if v.get("kind") == "gold" else "")
              for v in sorted(s.values(), key=lambda v: v.get("start_utc", "")) if v.get("start_utc")]
     return "Daily briefs (GMT): " + " · ".join(parts) + ". Subscribe so you don't miss the next one."

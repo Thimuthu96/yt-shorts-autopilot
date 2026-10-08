@@ -47,7 +47,18 @@ DEFAULT_FEEDS = {
     "gold": [
         ("Google News", GN.format(q='("gold+price"+OR+XAUUSD+OR+"spot+gold"+OR+bullion)')),
     ],
+    # used by the Facebook news posts only (what moves markets beyond the price feeds)
+    "geopolitics": [
+        ("Google News", GN.format(q='(war+OR+sanctions+OR+tariffs+OR+conflict+OR+geopolitical)+'
+                                    '(markets+OR+stocks+OR+oil+OR+dollar+OR+gold+OR+bitcoin)')),
+    ],
+    "regulation": [
+        ("Google News", GN.format(q='(SEC+OR+CFTC+OR+stablecoin)+(crypto+OR+bitcoin+OR+regulation+OR+rule)')),
+    ],
 }
+# The video editions read the feeds they always did; "post" (Facebook news posts) reads them all.
+MARKET_FEEDS = ("crypto", "forex", "rates", "macro", "gold")
+GOLD_FEEDS = ("gold", "rates", "macro", "forex")
 # Paid press releases (e.g. Chainwire posts on The Daily Hodl) are adverts, not news.
 SPONSORED = re.compile(r"chainwire|press release|sponsored|partner content|\[pr\]", re.I)
 
@@ -402,28 +413,34 @@ def usd_strength(fx: dict) -> float | None:
 
 def gather(cfg: dict, kind: str = "market", log=print) -> dict:
     """Everything the script writer needs. Raises if there is no usable price data.
-    kind "market" = crypto/forex brief; "gold" = the daily gold outlook."""
+    kind "market" = crypto/forex brief; "gold" = the daily gold outlook; "post" = a Facebook news
+    image post (all feeds, 48 h of news; prices are only used for the caption's key numbers)."""
     now = datetime.now(timezone.utc)
     m = cfg.get("market", {})
-    feeds = DEFAULT_FEEDS if kind == "market" else \
-        {k: v for k, v in DEFAULT_FEEDS.items() if k in ("gold", "rates", "macro", "forex")}
+    names = {"market": MARKET_FEEDS, "gold": GOLD_FEEDS}.get(kind, tuple(DEFAULT_FEEDS))
+    feeds = {k: v for k, v in DEFAULT_FEEDS.items() if k in names}
+    if kind == "post":  # Google News searches cover 2 days for the 48 h news-post window
+        feeds = {k: [(src, url.replace("when:1d", "when:2d")) for src, url in v] for k, v in feeds.items()}
+    hours = int((cfg.get("news_posts") or {}).get("news_hours", 48)) if kind == "post" else int(m.get("news_hours", 30))
     data = {
         "kind": kind,
         "date_utc": now.strftime("%Y-%m-%d"),
         "weekday": now.strftime("%A"),
         "weekend": now.weekday() >= 5,
-        "crypto": fetch_crypto(log=log) if kind == "market" else {},
+        "crypto": fetch_crypto(log=log) if kind in ("market", "post") else {},
         "fx": fetch_fx(log=log),
         "gold": fetch_gold(log=log),
         "calendar": fetch_calendar(hours_ahead=int(m.get("calendar_hours_ahead", 24)),
                                    impacts=tuple(m.get("calendar_impacts", ["High"])), log=log),
-        "news": fetch_news(feeds, hours=int(m.get("news_hours", 30)), log=log),
+        "news": fetch_news(feeds, hours=hours, log=log),
         "macro": fetch_macro(log=log),
     }
     data["rate_expectations"] = rate_expectations(data["news"])
     if kind == "gold" and not data["gold"]:
         raise RuntimeError("No gold price data; skipping rather than guessing")
-    if not data["crypto"] and not data["fx"] and not data["gold"]:
+    if kind == "post" and not data["news"]:
+        raise RuntimeError("No news from any feed; a news post needs at least one story")
+    if kind != "post" and not data["crypto"] and not data["fx"] and not data["gold"]:
         raise RuntimeError("No price data from any source; skipping today rather than guessing")
     log(f"Data: {len(data['crypto'])} coins, {len(data['fx'])} FX pairs, "
         f"gold {'ok (' + data['gold']['source'] + ')' if data['gold'] else 'missing'}, "

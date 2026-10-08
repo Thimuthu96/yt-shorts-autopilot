@@ -6,7 +6,8 @@ Context for Claude Code. Read this before changing anything.
 
 A fully automated faceless YouTube Shorts channel, **CryptoFX Daily**
 (@CryptoFXDaily202), posting short crypto & forex market briefs (one lead story each) and a
-daily gold (XAU/USD) outlook, with no manual work.
+daily gold (XAU/USD) outlook, with no manual work. The same videos also go to the
+**CryptoFX Daily Facebook Page as Reels**, plus **3 Facebook-only news image posts a day**.
 Runs free on **GitHub Actions** (repo `Thimuthu96/yt-shorts-autopilot`, branch `main`).
 
 Owner goals: hands-off, near-zero cost, eventually monetized (YouTube Partner Program).
@@ -29,24 +30,42 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → voice.synthesize()  edge-tts narration per scene + word timings
   → slides.render_slides()  one PNG graphic per scene (charts, board, news card, calendar…)
   → render.build_video()  ffmpeg: segments + animations + word-highlight captions + audio mix
-  → youtube.upload()    YouTube Data API v3 upload with SEO metadata (+ try set thumbnail)
-  → history.json        logs the upload (dedupe + "don't repeat headlines")
+  → publish(pending)    per platform, one failure never blocks the other:
+       youtube.upload()   YouTube Data API v3 upload with SEO metadata (+ try set thumbnail)
+       facebook.publish_reel()  Graph API Reel (start → rupload → finish once → poll) + reel_caption()
+  → history.json        logs the ids (dedupe + "don't repeat headlines")
+  news image post (kind: post, Facebook only):
+  → news_post.pick_story()  48 h of news (all feeds incl. geopolitics + regulation), topic weight +
+                            coverage + recency, skips stories earlier FB posts used, never empty
+  → news_post.write_post()  Gemini: kicker, 2-3 line headline, subline, caption, image prompt →
+                            script.fact_check() → number check vs facts → deterministic fallback
+  → images.background()     Cloudflare FLUX.1 schnell → assets/backgrounds/<topic>/ → drawn
+  → images.render_card()    post.jpg 1080x1350; news_post.caption() → caption_fb.txt
+  → facebook.publish_photo()  POST /{page}/photos
 ```
 
-Entry point: `main.py`. Orchestration is in `make_brief()`; `main()` handles edition
-choice, timed vs manual rules, the weekend rule and the once-per-edition-per-day guard.
+Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishing in
+`publish()`; `main()` handles edition choice, `--platforms`, timed vs manual rules, the weekend
+rule and the once-per-edition-per-day-per-platform guard:
+`pending = session platforms ∩ enabled − platforms published today for this session`.
 
-## Editions (3 market briefs + 1 gold outlook a day; weekends: London only)
+## Editions (3 market briefs + 1 gold outlook + 3 FB news posts a day; weekends: London + news)
 
-| key | label | due (`start_utc`) | Sri Lanka | outside timer | backup cron (UTC) |
-|---|---|---|---|---|---|
-| `asia` | Asia Open | 00:30 | 06:00 | cron-job.org 06:00 Asia/Colombo | `47 0 * * *` |
-| `london` | London Open | 05:40 | 11:10 | cron-job.org 11:10 Asia/Colombo | `57 5 * * *` |
-| `gold` | Gold Outlook | 06:15 | 11:45 | cron-job.org 11:45 Asia/Colombo, Mon–Fri | `32 6 * * 1-5` |
-| `newyork` | New York Open | 12:30 | 18:00 | cron-job.org 18:00 Asia/Colombo | `47 12 * * *` |
+| key | label | due (`start_utc`) | Sri Lanka | outside timer | backup cron (UTC) | platforms |
+|---|---|---|---|---|---|---|
+| `asia` | Asia Open | 00:30 | 06:00 | cron-job.org 06:00 Asia/Colombo | `47 0 * * *` | YT + FB Reel |
+| `news_morning` | Morning News | 03:00 | 08:30 | cron-job.org 08:30 Asia/Colombo | `17 3 * * *` | FB post |
+| `london` | London Open | 05:40 | 11:10 | cron-job.org 11:10 Asia/Colombo | `57 5 * * *` | YT + FB Reel |
+| `gold` | Gold Outlook | 06:15 | 11:45 | cron-job.org 11:45 Asia/Colombo, Mon–Fri | `32 6 * * 1-5` | YT + FB Reel |
+| `news_midday` | Midday News | 09:30 | 15:00 | cron-job.org 15:00 Asia/Colombo | `47 9 * * *` | FB post |
+| `newyork` | New York Open | 12:30 | 18:00 | cron-job.org 18:00 Asia/Colombo | `47 12 * * *` | YT + FB Reel |
+| `news_evening` | Evening News | 16:30 | 22:00 | cron-job.org 22:00 Asia/Colombo | `47 16 * * *` | FB post |
 
-- Defined in `config.yaml → sessions` (label, short, start_utc, focus text, `kind: gold` for gold).
-  `main.py` has `DEFAULT_SESSIONS` as a fallback if config lacks them.
+- Defined in `config.yaml → sessions` (label, short, start_utc, focus text, `kind: gold` for gold,
+  `kind: post` + `platforms: [facebook]` for news posts; video editions default to
+  `[youtube, facebook]`). `main.py` has `DEFAULT_SESSIONS` as a fallback if config lacks them.
+- **News posts every day, weekends included, never skipped:** no fresh unused story → the best
+  story of the last 48 h not used by an earlier FB post → any story (only "no news at all" fails).
 - **Gold time (06:15 UTC):** the Asian session (00:00–06:00 GMT) has set its range, London opens
   next (07:00 GMT summer / 08:00 winter) and usually tests the Asian high/low first, and US data
   (12:30–14:00 GMT) is still ahead, so the levels are fresh and useful for the whole day.
@@ -56,34 +75,39 @@ choice, timed vs manual rules, the weekend rule and the once-per-edition-per-day
   (fine-grained PAT, this repo only, Actions read/write; setup in README "Outside timer").
   GitHub crons stay as a **backup 17 min later**, off the busy :00/:30 marks.
 - Both triggers pass `--scheduled` ("timed run"). Job concurrency group `timed-<edition>` queues
-  the second one; it checks out the history the first pushed and stops with "already uploaded".
+  the second one; it checks out the history the first pushed and stops with "already published".
+  If the first run published only one platform (e.g. FB failed), the second re-makes the edition
+  (with history minus today's slot, so same lead / same gold review) and publishes only the missing one.
 - **Manual runs** (Run workflow, no `scheduled`) always make and upload a video, any time, in
   their own concurrency group (`manual-<run id>`): they never wait for or cancel autopilot runs,
   and are logged with `trigger: manual, counts: false`, so the timed run of that edition still
   happens. Tick `as_edition` to make a manual run fill today's slot (timed run then skips).
 - **History saving** is safe with parallel runs: `main.py` writes `output/<stamp>/history_entry.json`;
   the workflow resets to the latest `origin/main`, merges entries with
-  `python -m autopilot.history add …` (idempotent by video_id) and retries the push 5×.
+  `python -m autopilot.history add …` (idempotent by any of `video_id`, `fb_reel_id`, `fb_post_id`)
+  and retries the push 5×. A platform added by a later run is a second entry for the same edition.
 - Timed runs are skipped if they start > `max_late_minutes` (180) after `start_utc`, or > 30 min
   before it — so a very late run never posts the wrong edition. Manual runs aren't checked.
 - The workflow maps the firing backup cron string → edition in the `EDITION:` env line **and**
   in the job's `concurrency.group`. **To change a time, change the cron-job.org job, `start_utc`,
   the cron line and the matching string in both places.**
 - Run names in Actions: "Timer · asia", "Backup schedule · 47 0 * * *", "Manual · gold".
-- Weekends: timed runs only make editions in `weekend_sessions` (default `[london]`; no gold).
+- Weekends: timed runs only make editions in `weekend_sessions` (`[london, news_morning,
+  news_midday, news_evening]`; no gold).
 - Timed runs make each edition once per UTC day (`--force` overrides, CLI only). Old history
   entries without `session` count as `london`; without `counts` they count.
 - Market briefs keep only news since the previous *market* upload (if ≥6 fresh stories).
 
-Manual runs: Actions → Shorts autopilot → Run workflow → `session` (auto/asia/london/newyork/gold),
-optional `as_edition`. `auto` = market edition by current UTC hour (<5 asia, <12 london, else newyork).
+Manual runs: Actions → Shorts autopilot → Run workflow → `session` (auto/asia/london/newyork/gold/
+news_morning/news_midday/news_evening), `platforms` (all/youtube/facebook, limited to the edition's
+own), optional `as_edition`. `auto` = market edition by current UTC hour (<5 asia, <12 london, else newyork).
 **YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific).
 Autopilot uses 4 on weekdays, so about 2 manual uploads a day fit.
 
 ## Files
 
 ```
-main.py                  orchestration, CLI: --session, --scheduled (timed), --as-edition, --force, --no-upload
+main.py                  orchestration, CLI: --session, --platforms, --scheduled (timed), --as-edition, --force, --no-upload
 config.yaml              all settings (channel, llm, market, sessions, voice, video, upload)
 get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets
 autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frankfurter FX, gold, macro
@@ -96,13 +120,17 @@ autopilot/slides.py      per-scene graphics (Pillow + matplotlib)
 autopilot/render.py      ffmpeg segments, chart draw-in, push-in, ASS captions, mix
 autopilot/voice.py       edge-tts per scene, WordBoundary timings
 autopilot/youtube.py     metadata assembly, upload (+ clear quota error), set_thumbnail
+autopilot/facebook.py    Graph API v26.0: publish_reel, publish_photo, classified errors/retries, reel_caption
+autopilot/news_post.py   FB news posts: pick_story, write_post (Gemini + fact_check + fallback), caption
+autopilot/images.py      news post background (Cloudflare FLUX → library → drawn) + render_card 1080x1350
 autopilot/seo.py         keyword-first titles (fallback built from data), description blocks, hashtags, tag seeds
-autopilot/history.py     data/history.json helpers (dedupe of counting entries, last by kind, merge CLI)
+autopilot/history.py     data/history.json helpers (per-platform published_on, fb_post_headlines, merge CLI)
 autopilot/media.py       ffmpeg/ffprobe helpers
 assets/fonts/            Anton + Space Grotesk (SIL OFL) for thumbnails
 tests/test_offline.py    full offline render test with sample data + mocked LLM
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
-.github/workflows/autopilot.yml   4 backup crons + workflow_dispatch inputs (session, as_edition, scheduled)
+assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
+.github/workflows/autopilot.yml   7 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled)
 ```
 
 ## Data sources (all free, no API keys)
@@ -130,6 +158,10 @@ data/history.json        upload log, committed back by the workflow (don't hand-
   central-bank reference rates (not live). EUR/USD etc. = 1/(USD→EUR). Script must say
   "yesterday's close / latest daily fix", never "right now".
 - If **no** price data loads, the run stops (no guessing). Failed individual sources are skipped.
+- **News posts** (`gather(kind="post")`) read every feed incl. the FB-only `geopolitics`
+  (war/sanctions/tariffs/conflict + markets) and `regulation` (SEC/CFTC/stablecoin) Google News
+  searches, 48 h window; prices only feed the caption's "Market check". Video editions read the
+  same feeds as before (`MARKET_FEEDS` / `GOLD_FEEDS`).
 
 ## LLM (Gemini, free tier)
 
@@ -206,9 +238,42 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
   the first 3 show above the title). Tags: keyword seeds first, then the writer's; ≤ ~480 chars.
 - `containsSyntheticMedia: false` (AI voice + data graphics don't require the label).
 
+## Facebook (Graph API v26.0)
+
+- Secrets `FB_PAGE_ID`, `FB_PAGE_TOKEN` (never-expiring Page token: Meta Business app owned by the
+  Page admin, `pages_manage_posts`, `pages_read_engagement`, `pages_show_list` (no `publish_video`),
+  **app in Live mode** or posts are hidden; setup in README "Facebook Page"). Missing secrets or
+  `facebook.enabled: false` → skipped with a log line. Token dies on password change / lost role.
+- Reel: `POST /{page}/video_reels upload_phase=start` → `POST rupload.facebook.com/video-upload/v26.0/{id}`
+  (`Authorization: OAuth`, `offset: 0`, `file_size`) → `finish` (`video_state=PUBLISHED`, description)
+  → poll `GET /{id}?fields=status` ≤ 10 min. **`finish` is sent once**; on an unclear answer the status
+  is checked before it is ever re-sent. Cover via `/{id}/thumbnails` is best effort. 30 API Reels/Page/24 h.
+- Photo: `POST /{page}/photos` (`source`, `caption`, `published=true`), ≤ 10 MB.
+- Errors: 190 / 10 / 200–299 / 100 / 368 fail fast with a fix hint; 4/17/32/613/80001 (throttled)
+  fail with a message; 1, 2, `is_transient`, HTTP 5xx retry 3× with backoff from 5 s.
+- Captions: hook first (cut at ~280 chars), source named, no links, ≤ 5 hashtags (no #Shorts),
+  disclaimer; Reel captions are built from the YouTube metadata (`reel_caption`, < 2,200 chars).
+- Renders use a closed ~2 s GOP (`-g 2*fps`) and stereo AAC (`-ac 2`) for the Reels spec.
+
+## News image posts (Facebook)
+
+- Card (owner's reference style): full-bleed story-matched background, small kicker pill, huge
+  2–3 line Anton headline with one line in the accent colour, short subline, brand + date chip,
+  "Source: …", and "AI illustration" when the background is AI.
+- Background: Cloudflare Workers AI `@cf/black-forest-labs/flux-1-schnell` (secrets `CF_ACCOUNT_ID`,
+  `CF_API_TOKEN`; free 10k neurons/day ≈ 60 per image) → random `assets/backgrounds/<topic>/` →
+  drawn branded background. Prompts are symbolic scenes: no text, logos, real people or realistic
+  depiction of the actual event (style suffix in `images.STYLE`).
+- Gemini output is used only if it passes `fact_check()` and a deterministic number check against
+  the facts; card text also fails on `thumbnail.BANNED` words; caption sentences with banned words
+  are dropped. Otherwise the post is built from the story's own title/summary (`fallback_post`).
+- History: `kind: post`, `fb_post_id`, `headlines: [story title]`, `topic`, `background`. These
+  headlines don't feed the videos' "don't repeat" list (`used_headlines()` skips posts).
+
 ## Secrets (GitHub → Settings → Secrets and variables → Actions)
 
-`GEMINI_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`.
+`GEMINI_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`,
+`FB_PAGE_ID`, `FB_PAGE_TOKEN`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`.
 The cron-job.org PAT lives only in cron-job.org (not a repo secret).
 (`PIXABAY_API_KEY` / `PEXELS_API_KEY` are legacy and unused.) Never commit `client_secret.json`
 (git-ignored).
@@ -217,7 +282,8 @@ The cron-job.org PAT lives only in cron-job.org (not a repo secret).
 
 ```bash
 pip install -r requirements.txt            # + ffmpeg on PATH
-python tests/test_offline.py               # no keys/network: renders output/test/short.mp4 + contact.png
+python tests/test_offline.py               # no keys/network: renders output/test/short.mp4 + contact.png,
+                                           # output/test_news/post.jpg + caption_fb.txt; Graph API mocked
 export GEMINI_API_KEY=...                  # PowerShell: $env:GEMINI_API_KEY="..."
 python main.py --no-upload --session london   # real data, no upload → output/<stamp>/
 ```
@@ -230,7 +296,14 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
   to crypto/forex news because stock footage kept mismatching the script.
 - **Stock footage (Pexels/Pixabay):** Pexels stopped issuing API keys; Pixabay's small library
   gave irrelevant clips even with relevance filtering. Replaced by data-generated graphics.
-- **AI-generated images (Cloudflare Workers AI FLUX):** built, then removed at the owner's request.
+- **AI-generated images (Cloudflare Workers AI FLUX):** built for videos, then removed at the
+  owner's request. **Re-adopted Oct 2026 for the Facebook news-post backgrounds only** (owner's
+  decision: AI per post, library and drawn fallbacks, "AI illustration" note on the card).
+- **Facebook (owner, 2026-10-08):** the 4 video editions also go out as Reels (same render), plus 3
+  news image posts a day at 03:00 / 09:30 / 16:30 UTC, every day, never skipped. Card style follows
+  the owner's references; everything else goes in the caption with SEO hashtags.
+- **Publisher photos / scraping for news posts:** not allowed (copyright, ToS); backgrounds are
+  AI, own library or drawn.
 - **AI video APIs (Veo, Kling…):** no free tier (~$0.05+/s).
 - **Reusing YouTube/TikTok clips:** rejected — copyright strikes, reused-content demonetization, ToS.
 - **Monetization policy:** YouTube "inauthentic content" targets mass-produced templated videos;
@@ -254,7 +327,7 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
 - GitHub scheduled runs can start hours late or never (hence the outside timer); schedules
   also pause after 60 days of repo inactivity. A green 1-min run = a skip; read its last log line.
 - Run times in the Actions UI are in the browser's time zone (GMT+5:30), not UTC.
-- cron-job.org `401` = PAT expired (1-year expiry) → new token into all three jobs.
+- cron-job.org `401` = PAT expired (1-year expiry) → new token into all seven jobs.
   `422` = `main`'s workflow lacks the `scheduled` input.
 - A cron expression in YAML must stay on one line inside `${{ }}`.
 - Node 20 deprecation warning for actions/checkout@v4, setup-python@v5, upload-artifact@v4 —
