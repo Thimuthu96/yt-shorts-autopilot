@@ -91,6 +91,27 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-08T12:34:25+00:00",
+      "brief_date": "2026-10-08",
+      "session": "newyork",
+      "kind": "market",
+      "title": "Bitcoin Price Today: Crypto Falls as Oil Soars | NY Open, Oct 8",
+      "video_id": "sKf7ZG3_w0s",
+      "seconds": 50.4,
+      "headlines": [
+        "Bitcoin and ethereum prices today, Thursday, October 8, 2026: Crypto values fall as oil prices soar",
+        "Fed Hike Odds Drop to 18%, Cuts at 0%: What a Hold Means for Bitcoin"
+      ],
+      "lead": "BTC",
+      "fb_reel_id": "2599014117203945",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
