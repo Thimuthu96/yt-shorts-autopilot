@@ -10,8 +10,13 @@ no manual work, running free on GitHub Actions.
 | New York Open | 12:30 | 18:00 | moves since London, the dollar, what's left on the calendar |
 
 Each edition only uses news since the previous brief. At weekends (forex closed) only the
-London edition runs (`weekend_sessions` in `config.yaml`). GitHub may start a run a few
-minutes late.
+London edition runs (`weekend_sessions` in `config.yaml`).
+
+**Timing:** GitHub's own schedule can start runs hours late or skip them, so runs are started
+on time by a free outside timer (cron-job.org) that presses "Run workflow" through the GitHub
+API. GitHub's schedule stays as a backup 17 min later. Whichever runs first makes the video; the
+other sees it's already up and stops. A timed run that starts over 3 h late is skipped rather
+than posting the wrong edition. Setup: [Outside timer](#outside-timer-cron-joborg) below.
 
 **Manual runs:** Actions → Shorts autopilot → **Run workflow** → pick the edition (or `auto`,
 which picks by the current time) and tick **force** to make one even if that edition is
@@ -123,7 +128,7 @@ Approval usually takes days to a few weeks. After that, videos go public automat
 | `channel.display_name` | Brand line at the top of every graphic |
 | `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
 | `video.accent` / `video.footer` | Brand colour and the footer line on every graphic |
-| Posting times | the three `cron` lines in `.github/workflows/autopilot.yml` (UTC); if you change one, change the matching time in the `SESSION:` line below it |
+| Posting times | change all of: the cron-job.org job, `start_utc` in `config.yaml`, and the backup `cron` line in `.github/workflows/autopilot.yml` plus the matching string in its `SESSION:` line |
 | Editions | `sessions` (focus text per edition) and `weekend_sessions` in `config.yaml` |
 | Coins / FX pairs | `CRYPTO` and `FX` lists at the top of `autopilot/sources.py` |
 | News feeds | `DEFAULT_FEEDS` in `autopilot/sources.py` |
@@ -190,3 +195,26 @@ autopilot/youtube.py    SEO metadata + upload
 data/history.json       what has been uploaded
 .github/workflows/      daily schedule
 ```
+
+## Outside timer (cron-job.org)
+
+One-time setup, free, about 10 minutes.
+
+1. **GitHub token:** your photo → Settings → Developer settings → Personal access tokens →
+   **Fine-grained tokens** → Generate new token. Repository access: **Only select repositories**
+   → `yt-shorts-autopilot`. Permissions → Repository → **Actions: Read and write** (nothing
+   else). Expiry: 1 year. Copy the token.
+2. **cron-job.org:** sign up → Create cronjob:
+   - URL: `https://api.github.com/repos/Thimuthu96/yt-shorts-autopilot/actions/workflows/autopilot.yml/dispatches`
+   - Schedule: custom, time zone **Asia/Colombo**, every day at **06:00**
+   - Advanced → Request method **POST**, headers:
+     `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`,
+     `Content-Type: application/json`
+   - Body: `{"ref":"main","inputs":{"session":"asia","scheduled":"true"}}`
+   - Save, then **Test run**: `204` = it worked (a "Timer · asia" run appears in Actions).
+3. Copy the job twice, changing only the time and the session:
+   **11:10 → `london`**, **18:00 → `newyork`**.
+
+Keep the token only in cron-job.org (never in the repo or chat). If the jobs start failing
+with `401`, the token has expired: make a new one and paste it into all three jobs. A `422`
+means the workflow on `main` doesn't have the `scheduled` input yet (push the latest code).
