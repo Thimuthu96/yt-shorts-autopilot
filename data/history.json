@@ -49,6 +49,26 @@
         "Japanese Stocks Fall as Inflation Fears Hit Cyclical Shares",
         "Vitalik Buterin backs crypto ‘bunker mode’ amid rapid AI math advances"
       ]
+    },
+    {
+      "date": "2026-10-08T06:30:26+00:00",
+      "brief_date": "2026-10-08",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Bearish Below $4,141.2 | XAU/USD Oct 8, 2026",
+      "video_id": "IbkMnAXTDXA",
+      "seconds": 58.5,
+      "headlines": [
+        "Fed Hike Odds Drop to 18%, Cuts at 0%: What a Hold Means for Bitcoin",
+        "Gold Price Forecast: XAU/USD Rebounds From $4,070 as Fed Pause Bets Clash With 5.3% Yields"
+      ],
+      "outlook": {
+        "price": 4115.5,
+        "daily_bias": "bearish",
+        "time": "2026-10-08T06:27:14+00:00"
+      },
+      "trigger": "manual",
+      "counts": false
     }
   ]
 }
