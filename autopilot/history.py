@@ -1,4 +1,9 @@
-"""Record of uploaded briefs: avoids double posts and repeating earlier stories.
+"""Record of published editions: avoids double posts and repeating earlier stories.
+
+One entry per run that published anywhere. It carries the id of each platform it reached:
+"video_id" (YouTube), "fb_reel_id" (Facebook Reel), "fb_post_id" (Facebook news image post).
+A run that publishes a platform the edition missed earlier (e.g. Facebook after a failure) adds a
+second entry for the same edition, so each platform's guard is checked on its own.
 
 Entries carry "trigger" (timed | manual) and "counts" (does it fill that day's edition slot?).
 Manual runs don't count unless started with --as-edition, so they never stop the autopilot.
@@ -7,8 +12,11 @@ Manual runs don't count unless started with --as-edition, so they never stop the
 """
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+ID_KEYS = ("video_id", "fb_reel_id", "fb_post_id")
+PLATFORM_IDS = {"youtube": ("video_id",), "facebook": ("fb_reel_id", "fb_post_id")}
 
 
 class History:
@@ -20,18 +28,50 @@ class History:
             self.data = {"videos": []}
 
     def uploaded(self) -> list[dict]:
-        return [v for v in self.data["videos"] if v.get("video_id")]
+        """Entries that reached at least one platform."""
+        return [v for v in self.data["videos"] if any(v.get(k) for k in ID_KEYS)]
 
     def used_headlines(self) -> list[str]:
+        """Headlines of recent video editions (news image posts are tracked separately)."""
         out = []
-        for v in self.uploaded()[-15:]:
+        for v in [v for v in self.uploaded() if v.get("kind") != "post"][-15:]:
             out += v.get("headlines", [])
         return out
 
-    def uploaded_on(self, date: str, session: str) -> bool:
-        # briefs from before sessions existed count as the London edition; manual runs don't count
+    def published_on(self, date: str, session: str, platform: str) -> bool:
+        # entries from before sessions existed count as the London edition; manual runs don't count
+        keys = PLATFORM_IDS[platform]
         return any(v.get("brief_date") == date and v.get("session", "london") == session and v.get("counts", True)
-                   for v in self.uploaded())
+                   and any(v.get(k) for k in keys) for v in self.uploaded())
+
+    def uploaded_on(self, date: str, session: str) -> bool:
+        """Is today's slot of this edition already on YouTube?"""
+        return self.published_on(date, session, "youtube")
+
+    def excluding_slot(self, date: str, session: str) -> "History":
+        """A copy without the counting entries of that day's edition, so re-making an edition for a
+        platform it missed sees the same history the first run saw (same lead, same review)."""
+        h = History.__new__(History)
+        h.path = self.path
+        h.data = {**self.data, "videos": [v for v in self.data["videos"] if not (
+            v.get("brief_date") == date and v.get("session", "london") == session and v.get("counts", True))]}
+        return h
+
+    def fb_post_headlines(self, hours: float | None = None) -> list[str]:
+        """Story titles already used by Facebook news posts (optionally only the last `hours`)."""
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours) if hours else None
+        out = []
+        for v in self.uploaded():
+            if not v.get("fb_post_id"):
+                continue
+            if cutoff:
+                try:
+                    if datetime.fromisoformat(v["date"]) < cutoff:
+                        continue
+                except (KeyError, ValueError):
+                    continue
+            out += v.get("headlines", [])
+        return out[-120:]
 
     def last(self, kind: str = "market") -> dict | None:
         """Most recent upload of that kind (old entries have no kind and are market briefs)."""
@@ -52,10 +92,11 @@ class History:
         return max(times) if times else None
 
     def add(self, entry: dict) -> bool:
-        """Append unless this video is already logged (so merging twice is harmless)."""
-        vid = entry.get("video_id")
-        if vid and any(v.get("video_id") == vid for v in self.data["videos"]):
-            return False
+        """Append unless an entry with any of the same platform ids is logged (merging twice is harmless)."""
+        for k in ID_KEYS:
+            i = entry.get(k)
+            if i and any(v.get(k) == i for v in self.data["videos"]):
+                return False
         self.data["videos"].append(entry)
         return True
 

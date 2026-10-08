@@ -1,15 +1,18 @@
 """Crypto & forex market brief Shorts (Asia / London / New York open) plus a daily gold outlook:
 market data + news → lead story + research → grounded script → fact-check → voice → data
-graphics → render → upload.
+graphics → render → publish (YouTube Short + Facebook Reel, one render).
+Plus Facebook-only news image posts (kind: post): story → headline + caption → card → Page photo.
 
-    python main.py --session london   # one video, made and uploaded now (a manual run)
+    python main.py --session london   # one video, made and published now (a manual run)
     python main.py --session gold     # the daily gold (XAU/USD) outlook
+    python main.py --session news_morning   # a Facebook news image post
     python main.py                    # market edition picked from the current UTC time
-    python main.py --no-upload        # make the video only, saved in output/
-    python main.py --session asia --scheduled   # timed run: weekend rule, late/early skip, once a day
+    python main.py --no-upload        # make it only, saved in output/
+    python main.py --session asia --platforms facebook   # publish to Facebook only
+    python main.py --session asia --scheduled   # timed run: weekend rule, late/early skip, once a day per platform
     python main.py --session asia --as-edition  # manual run that fills today's slot (timed run skips)
 
-Manual runs always make and upload a video and don't stop the timed run of that edition.
+Manual runs always make and publish and don't stop the timed run of that edition.
 """
 import argparse
 import json
@@ -21,7 +24,7 @@ from pathlib import Path
 
 import yaml
 
-from autopilot import focus, gold, render, script, slides, sources, thumbnail, voice
+from autopilot import facebook, focus, gold, images, news_post, render, script, slides, sources, thumbnail, voice
 from autopilot.history import History
 
 ROOT = Path(__file__).parent
@@ -38,7 +41,14 @@ DEFAULT_SESSIONS = {
                 "focus": "Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and "
                          "what is still ahead on today's calendar."},
     "gold": {"label": "Gold Outlook", "short": "Gold", "start_utc": "06:15", "kind": "gold"},
+    "news_morning": {"label": "Morning News", "short": "News", "start_utc": "03:00", "kind": "post",
+                     "platforms": ["facebook"]},
+    "news_midday": {"label": "Midday News", "short": "News", "start_utc": "09:30", "kind": "post",
+                    "platforms": ["facebook"]},
+    "news_evening": {"label": "Evening News", "short": "News", "start_utc": "16:30", "kind": "post",
+                     "platforms": ["facebook"]},
 }
+PLATFORMS = ("youtube", "facebook")
 
 
 def log(msg: str) -> None:
@@ -89,7 +99,7 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     data = sources.gather(cfg, kind, log=log)
     extra = {}
     if kind == "gold":
-        prev = (history.last("gold") or {}).get("outlook")
+        prev = (history.last("gold") or {}).get("outlook")  # a re-make gets history without today's slot
         data["gold_analysis"] = gold.analyze(data, prev)
         a = data["gold_analysis"]
         log(f"Gold {a['price']:,.1f}: bias 1H {a['bias']['1H']['bias']}, 4H {a['bias']['4H']['bias']}, "
@@ -144,43 +154,129 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     from autopilot import youtube  # imported late so --no-upload needs no Google libs configured
     meta = youtube.build_metadata(pkg, data, cfg, session.get("label", ""))
     (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    fb_caption = facebook.reel_caption(meta, pkg, data, cfg)
+    (workdir / "caption_fb.txt").write_text(fb_caption, encoding="utf-8")
 
-    video_id = None
-    if cfg["upload"]["enabled"] and not args.no_upload:
-        video_id = youtube.upload(out, meta, cfg, log=log)
-        if cfg["upload"].get("set_thumbnail", True):
-            youtube.set_thumbnail(video_id, thumb, log=log)
-
-    return {
+    entry = {
         "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "brief_date": data["date_utc"],
         "session": session_key,
         "kind": kind,
         "title": meta["title"],
-        "video_id": video_id,
+        "video_id": None,
         "seconds": round(total, 1),
         "headlines": pkg.get("headlines_used", [])[:10],
         **extra,
         "workdir": str(workdir.relative_to(ROOT)),
     }
+    return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption}
 
 
-def main() -> int:
+def publish(made: dict, platforms: list[str], cfg: dict) -> tuple[dict, list[str]]:
+    """Publish one rendered edition to each platform on its own: a failure on one is logged and
+    never blocks (or repeats) the other. Returns (entry with the ids it got, failed platforms)."""
+    entry, failed = made["entry"], []
+    if "youtube" in platforms:
+        try:
+            from autopilot import youtube
+            entry["video_id"] = youtube.upload(made["video"], made["meta"], cfg, log=log)
+            if cfg["upload"].get("set_thumbnail", True):
+                youtube.set_thumbnail(entry["video_id"], made["thumbnail"], log=log)
+        except Exception as e:
+            log(f"YouTube upload failed: {e}")
+            failed.append("youtube")
+    if "facebook" in platforms:
+        try:
+            entry["fb_reel_id"] = facebook.publish_reel(made["video"], made["fb_caption"], cfg,
+                                                        cover=made["thumbnail"], log=log)
+        except Exception as e:
+            log(f"Facebook Reel failed: {e}")
+            failed.append("facebook")
+    return entry, failed
+
+
+def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
+    """Facebook news image post: one story → headline + caption → background → card → /photos."""
+    session = cfg.get("sessions", {}).get(session_key, {})
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    workdir = ROOT / "output" / stamp
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    log("Collecting news (48 h) and market data...")
+    data = sources.gather(cfg, "post", log=log)
+    last = history.last("post") or {}
+    story = news_post.pick_story(data, history.fb_post_headlines(), history.used_headlines(), cfg,
+                                 last_topic=last.get("topic"), log=log)
+    post = news_post.write_post(cfg, data, story, log=log)
+    log(f"Card: [{post['kicker']}] {' / '.join(post['headline'])} ({post['writer']})")
+    bg, bg_source = images.background(post["image_prompt"], story["topic"], cfg, log=log)
+    card = images.render_card(post, bg, cfg, data["date_utc"], workdir / "post.jpg", ai=bg_source == "ai",
+                              source=story["source"])
+    text = news_post.caption(post, story, data, cfg, ai_image=bg_source == "ai")
+    (workdir / "caption_fb.txt").write_text(text, encoding="utf-8")
+    (workdir / "data.json").write_text(json.dumps(data, indent=1, ensure_ascii=False, default=str))
+    (workdir / "post.json").write_text(json.dumps({"story": story, "post": post, "background": bg_source},
+                                                  indent=2, ensure_ascii=False, default=str))
+
+    entry = {
+        "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "brief_date": data["date_utc"],
+        "session": session_key,
+        "kind": "post",
+        "title": " ".join(post["headline"]),
+        "fb_post_id": None,
+        "headlines": [story["title"]],
+        "topic": story["topic"],
+        "source": story["source"],
+        "background": bg_source,
+        "workdir": str(workdir.relative_to(ROOT)),
+    }
+    failed = []
+    if "facebook" in platforms:  # a news post never goes to YouTube
+        try:
+            entry["fb_post_id"] = facebook.publish_photo(card, text, cfg, log=log)
+        except Exception as e:
+            log(f"Facebook photo post failed: {e}")
+            failed.append("facebook")
+    log(f"Made {session.get('label', session_key)} post: {(workdir / 'post.jpg').relative_to(ROOT)}")
+    return entry, failed
+
+
+def session_platforms(session: dict) -> list[str]:
+    default = ["facebook"] if session.get("kind") == "post" else list(PLATFORMS)
+    out = [str(p).strip().lower() for p in (session.get("platforms") or default)]
+    if session.get("kind") == "post":
+        out = [p for p in out if p != "youtube"]
+    return [p for p in out if p in PLATFORMS]
+
+
+def platform_off(platform: str, cfg: dict) -> str:
+    """'' when the platform can be published to, else why not."""
+    if platform == "youtube":
+        return "" if cfg["upload"].get("enabled", True) else "upload.enabled is false in config.yaml"
+    return facebook.disabled_reason(cfg)
+
+
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--no-upload", action="store_true", help="render only")
+    p.add_argument("--no-upload", action="store_true", help="make it only, publish nowhere")
     p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
-    p.add_argument("--session", default="auto", help="asia | london | newyork | gold | auto (market edition by UTC time)")
+    p.add_argument("--session", default="auto",
+                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | "
+                        "auto (market edition by UTC time)")
+    p.add_argument("--platforms", default="all",
+                   help="all | youtube | facebook | youtube,facebook (limited to the edition's own platforms)")
     p.add_argument("--scheduled", action="store_true",
                    help="timed run (schedule / outside timer): weekend rule, late/early skip, once per edition per day")
     p.add_argument("--as-edition", action="store_true",
                    help="manual run that counts as today's edition, so its timed run then skips")
-    args = p.parse_args()
+    args = p.parse_args(argv)
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     if not cfg.get("sessions"):
-        log("config.yaml has no 'sessions' section; using the built-in Asia/London/New York editions")
+        log("config.yaml has no 'sessions' section; using the built-in editions")
         cfg["sessions"] = DEFAULT_SESSIONS
-    cfg.setdefault("weekend_sessions", ["london"])
+    cfg.setdefault("weekend_sessions", ["london", "news_morning", "news_midday", "news_evening"])
     cfg.setdefault("max_late_minutes", 180)
     history = History(ROOT / "data" / "history.json")
 
@@ -192,8 +288,24 @@ def main() -> int:
     if session_key not in cfg.get("sessions", {}):
         log(f"Unknown edition '{session_key}'. Choose one of: {', '.join(cfg.get('sessions', {}))}")
         return 1
-    label = cfg["sessions"][session_key]["label"]
-    start = cfg["sessions"][session_key].get("start_utc") or DEFAULT_SESSIONS.get(session_key, {}).get("start_utc")
+    session = cfg["sessions"][session_key]
+    label = session["label"]
+    kind = session.get("kind", "market")
+    start = session.get("start_utc") or DEFAULT_SESSIONS.get(session_key, {}).get("start_utc")
+
+    wanted = session_platforms(session)
+    asked = (args.platforms or "all").strip().lower()
+    if asked not in ("", "all", "auto"):
+        req = {x.strip() for x in asked.split(",") if x.strip()}
+        unknown = req - set(PLATFORMS)
+        if unknown:
+            log(f"Unknown platform(s) {sorted(unknown)}. Choose from: all, {', '.join(PLATFORMS)}")
+            return 1
+        wanted = [x for x in wanted if x in req]
+        if not wanted:
+            log(f"The {label} edition isn't published to {asked} ({', '.join(session_platforms(session))} only); "
+                "nothing to do.")
+            return 0
 
     if args.scheduled and now.weekday() >= 5 and session_key not in cfg.get("weekend_sessions", []):
         log(f"Weekend: forex is closed, so the {label} edition is skipped today.")
@@ -209,28 +321,62 @@ def main() -> int:
             log(f"Started {-late} min before {start} UTC, so the {label} edition is skipped. "
                 "Check the timer's time and time zone.")
             return 0
-    if args.scheduled and not args.force and not args.no_upload and history.uploaded_on(today, session_key):
-        log(f"The {label} brief for {today} is already uploaded; nothing to do.")
-        return 0
+
+    # pending = edition platforms ∩ enabled − already published today (timed runs)
+    pending = []
+    for plat in wanted:
+        why = platform_off(plat, cfg)
+        if why:
+            log(f"{plat.title()} skipped: {why}")
+        else:
+            pending.append(plat)
+    if args.no_upload:
+        pending = []
+    remake = False
+    if args.scheduled and not args.force and not args.no_upload:
+        done = [x for x in pending if history.published_on(today, session_key, x)]
+        if done:
+            log(f"The {label} edition for {today} is already published on {', '.join(done)}.")
+        if done and len(done) == len(pending):
+            log("Nothing to do.")
+            return 0
+        if not pending:
+            log(f"No platform to publish the {label} edition to; nothing to do.")
+            return 0
+        remake = bool(done)
+        pending = [x for x in pending if x not in done]
     if not args.scheduled:
-        log("Manual run: makes and uploads a video now" +
+        log("Manual run: makes and publishes now" +
             (" and fills today's slot (the timed run will skip)." if args.as_edition
              else "; the timed run of this edition still goes ahead."))
+    if not pending and not args.no_upload:
+        log("No platform to publish to; making it only.")
 
-    log(f"Edition: {label}")
+    log(f"Edition: {label} → {', '.join(pending) or 'no upload'}")
     try:
-        entry = make_brief(cfg, history, args, session_key)
+        if kind == "post":
+            entry, failed = make_post(cfg, history, args, session_key, pending)
+        else:
+            # re-making an edition for a platform it missed: use the history the first run saw
+            made = make_brief(cfg, history.excluding_slot(today, session_key) if remake else history,
+                              args, session_key)
+            entry, failed = publish(made, pending, cfg)
     except Exception as e:
-        log(f"Brief failed: {e}")
+        log(f"{'Post' if kind == 'post' else 'Brief'} failed: {e}")
         return 1
-    if entry["video_id"]:
+    if any(entry.get(k) for k in ("video_id", "fb_reel_id", "fb_post_id")):
         entry["trigger"] = "timed" if args.scheduled else "manual"
         entry["counts"] = bool(args.scheduled or args.as_edition)
+        entry["platforms"] = [x for x, k in (("youtube", "video_id"), ("facebook", "fb_reel_id"),
+                                             ("facebook", "fb_post_id")) if entry.get(k)]
         workdir = ROOT / entry.pop("workdir")
         # the workflow merges this file into the latest data/history.json (safe with parallel runs)
         (workdir / "history_entry.json").write_text(json.dumps(entry, indent=2, ensure_ascii=False))
         history.add(entry)
         history.save()
+    if failed:
+        log(f"Not published on: {', '.join(failed)} (see the errors above)")
+        return 1
     return 0
 
 

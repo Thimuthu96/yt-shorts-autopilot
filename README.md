@@ -1,14 +1,28 @@
 # Shorts Autopilot: Daily Market Brief
 
-Makes and uploads **crypto & forex market briefs** and a **daily gold outlook** as YouTube
-Shorts, four a day, with no manual work, running free on GitHub Actions.
+Makes and publishes **crypto & forex market briefs** and a **daily gold outlook** as YouTube
+Shorts **and Facebook Reels** (one render, both platforms), four a day, plus **three news image
+posts** a day on the Facebook Page, with no manual work, running free on GitHub Actions.
 
-| Edition | UTC | Sri Lanka | What it is |
-|---|---|---|---|
-| Asia Open | 00:30 | 06:00 | market brief: one lead story since the New York close |
-| London Open | 05:40 | 11:10 | market brief: one lead story from the Asian session |
-| Gold Outlook | 06:15 | 11:45 | XAU/USD: bias for the next 1h / 4h / day, liquidity, key levels (Mon–Fri) |
-| New York Open | 12:30 | 18:00 | market brief: one lead story since London |
+| Edition | UTC | Sri Lanka | What it is | Where |
+|---|---|---|---|---|
+| Asia Open | 00:30 | 06:00 | market brief: one lead story since the New York close | YouTube + Facebook Reel |
+| Morning News | 03:00 | 08:30 | news image post: one market-moving story | Facebook |
+| London Open | 05:40 | 11:10 | market brief: one lead story from the Asian session | YouTube + Facebook Reel |
+| Gold Outlook | 06:15 | 11:45 | XAU/USD: bias for the next 1h / 4h / day, liquidity, key levels (Mon–Fri) | YouTube + Facebook Reel |
+| Midday News | 09:30 | 15:00 | news image post | Facebook |
+| New York Open | 12:30 | 18:00 | market brief: one lead story since London | YouTube + Facebook Reel |
+| Evening News | 16:30 | 22:00 | news image post | Facebook |
+
+**News image posts (Facebook):** each picks the most important story of the last 48 h that moves
+crypto or forex (rate decisions, central-bank speeches and statements, war and geopolitics,
+tariffs, regulation, macro data…), scored by topic, how many outlets cover it and how recent it
+is, and never one an earlier post used. Gemini writes a big 2–3 line headline and an SEO caption
+(fact-checked; numbers only from the data; source named; no hype, no links, ≤5 hashtags,
+disclaimer). The 1080×1350 card sits on a story-matched AI background (Cloudflare Workers AI,
+free tier; marked "AI illustration"), or an image from `assets/backgrounds/<topic>/`, or a drawn
+background. Three posts every day, weekends included: if every fresh story was used, the best
+unused one from the last 48 h is posted instead.
 
 **One story per brief:** each market brief picks the day's lead story (scored from headlines,
 price moves and upcoming events), researches how it spreads (e.g. a Bitcoin story → Ether and
@@ -20,7 +34,8 @@ when gold is most liquid. Levels and bias come from fixed rules on hourly prices
 market structure, previous-day / Asian / weekly highs and lows, equal highs/lows, sweeps, ATR
 ranges, dollar and real-yield tilt), and each video first says whether the last outlook played out.
 
-At weekends (forex and gold closed) only the London edition runs (`weekend_sessions`).
+At weekends (forex and gold closed) only the London edition and the three news posts run
+(`weekend_sessions`).
 
 **Timing:** GitHub's own schedule can start runs hours late or skip them, so runs are started
 on time by a free outside timer (cron-job.org) that presses "Run workflow" through the GitHub
@@ -33,7 +48,9 @@ a market edition by the current time, or `gold`) → Run. A manual run **always*
 uploads a video, at any time, and never blocks the autopilot: that edition's timed run still
 happens. Tick **Count it as today's edition** only if you want the timed run to skip.
 Leave **Timed run** unticked (it's for the outside timer). Keep it to ~2 manual uploads a day:
-YouTube's API allows about 6 uploads daily in total.
+YouTube's API allows about 6 uploads daily in total. **Platforms** (`all` / `youtube` /
+`facebook`) limits where it goes, e.g. `facebook` to post a Reel that failed earlier; news
+posts (`news_*` editions) only ever go to Facebook.
 
 ```
 market data + news ─► lead story ─► research ─► script ─► fact-check ─► voiceover ─► graphics ─► render ─► upload
@@ -80,7 +97,13 @@ default hook. Each run also saves `thumbnail.jpg`; the system tries to set it as
 thumbnail, which YouTube currently allows for Shorts only on some channels (e.g. Partner
 Program members, set in Studio on desktop). If refused, the opening frame does the job.
 
-**Running cost:** $0 on the free tiers of Gemini, edge-tts and GitHub Actions.
+**Each platform on its own:** a video is rendered once and published to each platform
+separately. If YouTube fails (e.g. the daily quota), the Facebook Reel still goes out, and the
+reverse; the backup run re-makes the edition only for the platform that's still missing.
+Facebook is skipped (with a log line) until its secrets are set.
+
+**Running cost:** $0 on the free tiers of Gemini, edge-tts, Cloudflare Workers AI, the Facebook
+Graph API and GitHub Actions.
 
 ---
 
@@ -118,7 +141,8 @@ sources need no keys.)
 1. Create a new **private** repository and upload everything in this folder
    (`client_secret.json` is git-ignored — never commit it).
 2. **Settings → Secrets and variables → Actions → New repository secret** — add all four:
-   `GEMINI_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`.
+   `GEMINI_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`
+   (and the Facebook / Cloudflare ones from step 5 when you set those up).
 3. **Actions** tab → enable workflows → **Shorts autopilot** → **Run workflow** to test now.
    After that it runs by itself every day at 05:40 UTC (11:10 Sri Lanka time), before the
    London session opens. If today's brief is already up, a second run does nothing.
@@ -138,6 +162,46 @@ To remove the lock, submit the **YouTube API Services – Audit and Quota Extens
 Describe it honestly: an internal tool that uploads videos to your own channel only.
 Approval usually takes days to a few weeks. After that, videos go public automatically.
 
+### 5. Facebook Page (Reels + news posts)
+
+Needs a Facebook Page you are an admin of. Everything here is free.
+
+1. **Meta app:** https://developers.facebook.com/apps → **Create app** (from the Page admin's
+   account) → Add use cases → filter **Content management** → **Manage everything on your Page**.
+   (Don't pick "Other": Meta is retiring it. Linking a Business portfolio is optional.)
+   Then Use cases → Manage everything on your Page → **Customize** and check the permissions below.
+2. **Permissions:** `pages_manage_posts`, `pages_read_engagement`, `pages_show_list`, each showing
+   **Ready for testing** (Standard Access is enough for your own Page; no App Review needed).
+   `publish_video` isn't needed: Reels publishing only asks for these three.
+3. **Switch the app to Live mode** (App settings → Basic → privacy policy URL, e.g. your GitHub
+   Pages policy, then the Development/Live toggle). ⚠️ Posts made by an app in Development mode
+   are hidden from the public.
+4. **Page token that never expires:**
+   - Graph API Explorer (https://developers.facebook.com/tools/explorer) → your app → **Get User
+     Access Token** with the three permissions above → copy it.
+   - Make it long-lived (App ID / App Secret from App settings → Basic):
+     `https://graph.facebook.com/v26.0/oauth/access_token?grant_type=fb_exchange_token&client_id=<APP_ID>&client_secret=<APP_SECRET>&fb_exchange_token=<USER_TOKEN>`
+   - `https://graph.facebook.com/v26.0/me/accounts?access_token=<LONG_LIVED_USER_TOKEN>` → find your
+     Page: its `id` is **`FB_PAGE_ID`**, its `access_token` is **`FB_PAGE_TOKEN`**.
+   - Check it: paste it into https://developers.facebook.com/tools/debug/accesstoken →
+     **Expires: Never** (`expires_at: 0`).
+   - The token stops working if you change your Facebook password or lose your Page role; a run
+     then fails with "Facebook error 190 … regenerate FB_PAGE_TOKEN": repeat this step.
+     (Sturdier alternative: a Business Manager **System User** token with the same permissions.)
+5. **Cloudflare (AI backgrounds, optional):** sign up at https://dash.cloudflare.com (free plan) →
+   copy the **Account ID** (right side of the account home) = **`CF_ACCOUNT_ID`**; My Profile → API
+   Tokens → Create Token → template **Workers AI** → **`CF_API_TOKEN`**. Free: 10,000 neurons a day
+   (about 60 per image, 3 images a day). Without these the posts use `assets/backgrounds/<topic>/`
+   images (topics: rates, central_bank, geopolitics, tariffs, regulation, macro, crypto, gold, fx,
+   markets, or `general`; only images you own or that are licensed for reuse) or a drawn background.
+6. Add **`FB_PAGE_ID`**, **`FB_PAGE_TOKEN`**, **`CF_ACCOUNT_ID`**, **`CF_API_TOKEN`** as repository
+   secrets (Settings → Secrets and variables → Actions).
+7. Add the three news-post jobs to cron-job.org (see [Outside timer](#outside-timer-cron-joborg)).
+8. Test: Actions → Run workflow → session `news_morning` (a news post) and, for a Reel,
+   session `london` with platforms `facebook`.
+
+To pause Facebook, set `facebook.enabled: false` in `config.yaml`.
+
 ---
 
 ## Settings you'll likely change (`config.yaml`)
@@ -151,7 +215,9 @@ Approval usually takes days to a few weeks. After that, videos go public automat
 | `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
 | `video.accent` / `video.footer` | Brand colour and the footer line on every graphic |
 | Posting times | change all of: the cron-job.org job, `start_utc` in `config.yaml`, and the backup `cron` line in `.github/workflows/autopilot.yml` plus the matching string in its `EDITION:` line and `concurrency.group` |
-| Editions | `sessions` (focus text per edition) and `weekend_sessions` in `config.yaml` |
+| Editions | `sessions` (focus text per edition, `platforms`) and `weekend_sessions` in `config.yaml` |
+| Facebook | `facebook.enabled`, `facebook.max_hashtags`; news posts: `news_posts.topic_weights`, `fresh_hours`, `disclaimer` |
+| News post backgrounds | `images.provider` (`cloudflare` or `none`), `images.steps`; your own images in `assets/backgrounds/<topic>/` |
 | Coins / FX pairs | `CRYPTO` and `FX` lists at the top of `autopilot/sources.py` |
 | News feeds | `DEFAULT_FEEDS` in `autopilot/sources.py` |
 | Background music | Drop royalty-free `.mp3` files into `music/` |
@@ -164,7 +230,8 @@ Needs Python 3.10+ and ffmpeg.
 pip install -r requirements.txt
 export GEMINI_API_KEY=...          # Windows PowerShell: $env:GEMINI_API_KEY="..."
 python main.py --no-upload --session london   # makes output/<time>/short.mp4 (+ thumbnail, data)
-python tests/test_offline.py        # graphics + render check with sample data, no keys needed
+python main.py --no-upload --session news_morning   # makes output/<time>/post.jpg + caption_fb.txt
+python tests/test_offline.py        # graphics + render + mocked Facebook check, no keys needed
 ```
 
 ---
@@ -199,6 +266,9 @@ What helps most from your side, even if it's 10 minutes a week:
   `autopilot/voice.py` for a paid TTS (the rest of the pipeline doesn't change).
 - The Gemini model name may be retired over time; update `llm.model` if runs start failing with 404.
 - The free Gemini tier may use your prompts to improve Google's products.
+- Facebook may refuse a custom Reel cover through the API; the Reel then uses its own frame.
+- A Reel still processing after 10 minutes is logged as published (so it isn't posted twice);
+  check the Page if a run says so.
 
 ## Files
 
@@ -217,7 +287,10 @@ autopilot/voice.py      narration + word timings (edge-tts)
 autopilot/render.py     ffmpeg assembly, chart draw-in, highlighted captions
 autopilot/seo.py        search-friendly titles, descriptions, hashtags, tags
 autopilot/youtube.py    metadata + upload
-data/history.json       what has been uploaded
+autopilot/facebook.py   Facebook Page: Reels, photos, error handling, captions
+autopilot/news_post.py  news posts: story pick, headline + caption (Gemini, fact-checked)
+autopilot/images.py     news post backgrounds (Cloudflare AI / library / drawn) + the 1080×1350 card
+data/history.json       what has been published (YouTube id, Facebook Reel / post id)
 .github/workflows/      backup schedule, manual runs, history saving
 ```
 
@@ -239,7 +312,9 @@ One-time setup, free, about 10 minutes.
    - Save, then **Test run**: `204` = it worked (a "Timer · asia" run appears in Actions).
 3. Copy the job three times, changing only the time and the session:
    **11:10 → `london`**, **11:45 → `gold`** (set this one to **Monday–Friday**), **18:00 → `newyork`**.
+4. Facebook news posts: copy it three more times, **every day**:
+   **08:30 → `news_morning`**, **15:00 → `news_midday`**, **22:00 → `news_evening`**.
 
 Keep the token only in cron-job.org (never in the repo or chat). If the jobs start failing
-with `401`, the token has expired: make a new one and paste it into all four jobs. A `422`
+with `401`, the token has expired: make a new one and paste it into all seven jobs. A `422`
 means the workflow on `main` doesn't have the `scheduled` input yet (push the latest code).

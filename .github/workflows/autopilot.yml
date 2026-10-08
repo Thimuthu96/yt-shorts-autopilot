@@ -6,19 +6,27 @@ on:
   # scheduled=true; see CLAUDE.md. GitHub's own schedule is unreliable (runs hours late or
   # never), so these crons are only a backup, 17 min after each edition's start time.
   # Times are UTC. Sri Lanka time = UTC + 5:30.
-  # If you change a cron line, change the same string in EDITION below (two places).
+  # If you change a cron line, change the same string in EDITION below and in concurrency.group.
   schedule:
     - cron: "47 0 * * *"     # Asia Open      (due 00:30 UTC → 06:00 Sri Lanka)
     - cron: "57 5 * * *"     # London Open    (due 05:40 UTC → 11:10 Sri Lanka)
     - cron: "32 6 * * 1-5"   # Gold Outlook   (due 06:15 UTC → 11:45 Sri Lanka), weekdays
     - cron: "47 12 * * *"    # New York Open  (due 12:30 UTC → 18:00 Sri Lanka)
-  workflow_dispatch:          # the "Run workflow" button (manual runs always make + upload a video)
+    - cron: "17 3 * * *"     # Morning News   (Facebook post, due 03:00 UTC → 08:30 Sri Lanka)
+    - cron: "47 9 * * *"     # Midday News    (Facebook post, due 09:30 UTC → 15:00 Sri Lanka)
+    - cron: "47 16 * * *"    # Evening News   (Facebook post, due 16:30 UTC → 22:00 Sri Lanka)
+  workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
     inputs:
       session:
-        description: "Edition to make"
+        description: "Edition to make (news_* = Facebook news image post)"
         type: choice
-        options: [auto, asia, london, newyork, gold]
+        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening]
         default: auto
+      platforms:
+        description: "Where to publish (limited to the edition's own platforms)"
+        type: choice
+        options: [all, youtube, facebook]
+        default: all
       as_edition:
         description: "Count it as today's edition (its timed run will then skip)"
         type: boolean
@@ -38,7 +46,7 @@ jobs:
     # Timed runs of the same edition (timer + backup) queue one after the other, so the second sees
     # the first's upload and stops. Manual runs get their own group: they never wait or cancel anything.
     concurrency:
-      group: "${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || 'newyork') || inputs.session) || format('manual-{0}', github.run_id) }}"
+      group: "${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || 'newyork') || inputs.session) || format('manual-{0}', github.run_id) }}"
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -54,25 +62,30 @@ jobs:
       - name: Install Python packages
         run: pip install -r requirements.txt
 
-      - name: Make and upload Short
+      - name: Make and publish
         env:
           PYTHONUNBUFFERED: "1"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           # which edition: from the backup cron that fired, or from the timer's / manual run's choice
-          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || 'newyork') || inputs.session || 'auto' }}"
+          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || 'newyork') || inputs.session || 'auto' }}"
           SCHEDULED: ${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && '--scheduled' || '' }}
           AS_EDITION: ${{ inputs.as_edition && '--as-edition' || '' }}
-        run: python main.py --session "$EDITION" $SCHEDULED $AS_EDITION
+          PLATFORMS: ${{ inputs.platforms || 'all' }}
+        run: python main.py --session "$EDITION" --platforms "$PLATFORMS" $SCHEDULED $AS_EDITION
 
       - name: Save history
         if: always()
         run: |
           shopt -s nullglob
           entries=(output/*/history_entry.json)
-          if [ ${#entries[@]} -eq 0 ]; then echo "Nothing uploaded, nothing to log"; exit 0; fi
+          if [ ${#entries[@]} -eq 0 ]; then echo "Nothing published, nothing to log"; exit 0; fi
           git config user.name "shorts-autopilot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Other runs may have pushed meanwhile: start from the latest history and add our entry.
@@ -82,7 +95,7 @@ jobs:
             python -m autopilot.history add "${entries[@]}"
             git add data/history.json
             if git diff --cached --quiet; then echo "History already up to date"; exit 0; fi
-            git commit -qm "Log uploaded Short"
+            git commit -qm "Log published edition"
             if git push -q origin "HEAD:$GITHUB_REF_NAME"; then echo "History saved"; exit 0; fi
             echo "Push rejected (attempt $attempt), retrying"
             sleep $((attempt * 5))
@@ -90,7 +103,7 @@ jobs:
           echo "::error::Could not save data/history.json"
           exit 1
 
-      - name: Keep the video and logs for 7 days
+      - name: Keep the video / post and logs for 7 days
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -101,5 +114,8 @@ jobs:
             output/*/metadata.json
             output/*/data.json
             output/*/thumbnail.jpg
+            output/*/post.jpg
+            output/*/post.json
+            output/*/caption_fb.txt
           retention-days: 7
           if-no-files-found: ignore

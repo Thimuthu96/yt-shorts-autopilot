@@ -133,9 +133,11 @@ def build_video(scene_audio: list[dict], slides: list[dict], cfg: dict, workdir:
     else:
         audio = f"{voice_chain}[a]"
     filt = f"[0:v]ass=captions.ass[v];{audio}"
+    # closed ~2 s GOP and stereo AAC: the Facebook Reels spec (YouTube accepts it too)
     cmd += ["-filter_complex", filt, "-map", "[v]", "-map", "[a]", "-t", f"{total:.3f}",
             "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
+            "-g", str(2 * fps), "-flags", "+cgop",
+            "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-movflags", "+faststart",
             str(Path(out_path).resolve())]
     run(cmd, cwd=workdir)  # cwd so the subtitle path needs no escaping
     return total
