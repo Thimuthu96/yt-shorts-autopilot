@@ -69,6 +69,28 @@
       },
       "trigger": "manual",
       "counts": false
+    },
+    {
+      "date": "2026-10-08T11:16:21+00:00",
+      "brief_date": "2026-10-08",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Price Today: AI Warning Sparks Slide | London Open, Oct 8",
+      "video_id": "HlgD6NQwE0M",
+      "seconds": 46.5,
+      "headlines": [
+        "Ethereum researcher's AI security warning stirs debate as bitcoin extends slide: Crypto Markets Today",
+        "Bitcoin slips below $83,000 as Ethereum researcher's 'bunker mode' call divides crypto",
+        "Fed Hike Odds Drop to 18%, Cuts at 0%: What a Hold Means for Bitcoin"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "2679010929283833",
+      "trigger": "manual",
+      "counts": false,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
