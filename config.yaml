@@ -27,6 +27,8 @@ market:
 # ─── Editions: up to 3 briefs a day, one per trading-session open ──────────
 # start_utc = when the edition is due. The runs are started by the outside timer (cron-job.org)
 # and the backup cron lines in .github/workflows/autopilot.yml; keep all three in step.
+# platforms: where an edition is published. Video editions default to [youtube, facebook]
+# (one render: a YouTube Short + a Facebook Reel); kind: post editions are Facebook-only.
 sessions:
   asia:
     label: Asia Open
@@ -58,12 +60,60 @@ sessions:
     short: Gold
     start_utc: "06:15"
     kind: gold
+  # Facebook news image posts (3 a day, weekends too): one market-moving story each, a big
+  # headline card + an SEO caption. 03:00 / 09:30 / 16:30 UTC = 08:30 / 15:00 / 22:00 Sri Lanka.
+  news_morning:
+    label: Morning News
+    short: News
+    start_utc: "03:00"
+    kind: post
+    platforms: [facebook]
+  news_midday:
+    label: Midday News
+    short: News
+    start_utc: "09:30"
+    kind: post
+    platforms: [facebook]
+  news_evening:
+    label: Evening News
+    short: News
+    start_utc: "16:30"
+    kind: post
+    platforms: [facebook]
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
-# (automatic runs only; a manual run can still choose any edition).
-weekend_sessions: [london]
+# (automatic runs only; a manual run can still choose any edition). News posts run every day.
+weekend_sessions: [london, news_morning, news_midday, news_evening]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180
+
+# ─── Facebook Page (Graph API; secrets FB_PAGE_ID + FB_PAGE_TOKEN, see README) ─
+# Skipped with a log line when the secrets are missing or enabled is false.
+facebook:
+  enabled: true
+  graph_version: v26.0
+  poll_minutes: 10            # how long to wait for a Reel to finish publishing
+  max_hashtags: 5             # Meta favours a few specific hashtags
+
+# ─── Facebook news image posts (kind: post editions) ────────────────────────
+news_posts:
+  news_hours: 48              # stories considered
+  fresh_hours: 12             # preferred: stories from the last 12 h not used by an earlier post
+  # how much each kind of story matters (plus multi-outlet coverage and recency)
+  topic_weights: {rates: 1.0, central_bank: 0.85, geopolitics: 0.9, tariffs: 0.9, regulation: 0.8,
+                  macro: 0.8, crypto: 0.5, gold: 0.5, fx: 0.5}
+  disclaimer: >-
+    News for information only, not financial advice. Crypto and forex trading carry a high
+    risk of loss.
+
+# ─── News post backgrounds ──────────────────────────────────────────────────
+# cloudflare = Workers AI FLUX.1 schnell, free tier (secrets CF_ACCOUNT_ID + CF_API_TOKEN).
+# Without them (or on an error): a random image from assets/backgrounds/<topic>/, else a
+# drawn branded background. provider: none = never use AI.
+images:
+  provider: cloudflare
+  model: "@cf/black-forest-labs/flux-1-schnell"
+  steps: 6                    # 4-8; ~60 of the free 10k daily neurons per image
 
 # ─── Gold outlook ───────────────────────────────────────────────────────────
 gold:
