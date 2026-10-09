@@ -258,6 +258,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-09T16:33:48+00:00",
+      "brief_date": "2026-10-09",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "LEDGER ADDS BITCOIN LOANS IN SELF-CUSTODY",
+      "fb_post_id": "462331040302049_122252081174610202",
+      "headlines": [
+        "Crypto Wallet Ledger Now Lets Users Borrow Stablecoins Against Their Bitcoin Without Giving Up Self-Custody"
+      ],
+      "topic": "regulation",
+      "source": "The Daily Hodl",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
