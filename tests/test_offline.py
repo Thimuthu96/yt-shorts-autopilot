@@ -207,6 +207,7 @@ def main():
     test_news_post(cfg)
     test_news_edition(cfg)
     test_video_editions(cfg, out, work / "thumbnail.jpg")
+    test_lesson_slides(cfg)
 
 
 def test_gold(cfg, small, data):
@@ -682,6 +683,153 @@ def test_video_editions(cfg, video, cover):
         os.environ.pop("CF_API_TOKEN")
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK video editions (both platforms, FB-only re-make, --platforms, Reel error, CF fallback)")
+
+
+def _contact(paths: list[Path], cell: tuple[int, int], cols: int, out: Path) -> Path:
+    from PIL import Image
+    rows = -(-len(paths) // cols)
+    w, h, pad = cell[0], cell[1], 8
+    sheet = Image.new("RGB", (cols * w + (cols + 1) * pad, rows * h + (rows + 1) * pad), (40, 40, 40))
+    for k, p in enumerate(paths):
+        with Image.open(p) as im:
+            sheet.paste(im.convert("RGB").resize((w, h), Image.LANCZOS),
+                        (pad + (k % cols) * (w + pad), pad + (k // cols) * (h + pad)))
+    sheet.save(out)
+    return out
+
+
+def test_lesson_slides(cfg):
+    """Lesson graphics (entry 3): every scene type in 16:9 and 9:16 from the fixture detectors' real
+    examples, every primitive, portrait zoom, daily-fix line, schematic label, unknown type, thumbnail;
+    writes contact sheets for the owner to approve the look."""
+    from PIL import Image
+    from autopilot import detectors, lesson_slides as ls, lessons  # noqa: F401  (detectors registers)
+    sample = ROOT / "tests" / "lessons"
+    cur, glo = lessons.load_curriculum(sample / "curriculum.yaml"), lessons.load_glossary(sample / "glossary.yaml")
+    load = lambda n: json.loads((sample / "candles" / f"{n}.json").read_text(encoding="utf-8"))  # noqa: E731
+    down, up = load("downtrend_bos_choch"), load("uptrend")
+    fix = [dict(c, o=c["c"], h=c["c"], l=c["c"]) for c in down]  # EUR/USD daily reference fix: o=h=l=c
+    examples = lessons.DETECTORS["bos_choch"].find({"BTC/USD": {"1H": down}, "EUR/USD": {"1D": fix}})
+    assert [e["asset"] for e in examples] == ["BTC/USD", "EUR/USD"], [e["asset"] for e in examples]
+    ex1, ex2 = examples
+    # every primitive: add a trendline through the first two LH swings and a zone between the BOS and
+    # CHoCH levels, all values taken from the example itself
+    f = ex1["facts"]
+    lh = [s for s in f["swings"] if s["kind"] == "LH"]
+    ex1["primitives"] += [
+        {"type": "trendline", "t1": lh[0]["t"], "p1": lh[0]["price"], "t2": lh[1]["t"], "p2": lh[1]["price"]},
+        {"type": "zone", "t1": f["bos"]["swing_t"], "t2": f["choch"]["t"], "low": min(f["bos"]["level"], f["choch"]["level"]),
+         "high": max(f["bos"]["level"], f["choch"]["level"]), "label": "BOS → CHoCH"}]
+    assert lessons.validate_example(ex1) == [], lessons.validate_example(ex1)
+    assert {p["type"] for p in ex1["primitives"]} == set(lessons.PRIMITIVES)
+    schematic = lessons.DETECTORS["swings"].find({"BTC/USD": {"1H": up}})[0]  # example-shaped dict
+    plan = lessons.scene_plan(cur[1], examples)
+    plan.insert(2, {"id": "schematic", "visual": {"type": "schematic", "example": schematic}})
+    types = [s["visual"]["type"] for s in plan]
+    assert types == ["title", "concept", "schematic", "chart", "chart", "misreads", "outro"], types
+
+    work = ROOT / "output" / "test_lessons"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    bg = (14, 15, 18)
+    sheets = {}
+    for layout, cell, cols in ((ls.LANDSCAPE, (640, 360), 3), (ls.PORTRAIT, (360, 640), 4)):
+        pics = ls.render_lesson_slides(cfg, cur[1], plan, glo, layout, work / layout.name)
+        assert [p["id"] for p in pics] == [s["id"] for s in plan] and all(set(p) == {"image", "reveal", "id"} for p in pics)
+        for s, p in zip(plan, pics):
+            with Image.open(p["image"]) as im:
+                assert im.size == (layout.w, layout.h), (layout.name, s["id"], im.size)
+                band = im.convert("RGB").crop((0, layout.caption_band[0], layout.w, layout.caption_band[1]))
+                assert band.getextrema() == tuple((c, c) for c in bg), (layout.name, s["id"], "drew into captions")
+            if s["visual"]["type"] in ("chart", "schematic"):
+                x, y, w, h = p["reveal"]
+                assert w >= 0.85 * layout.w and x >= 0 and x + w <= layout.w, (layout.name, p["reveal"])
+                assert y >= layout.rule_y and y + h <= layout.caption_band[0], (layout.name, p["reveal"])
+            else:
+                assert p["reveal"] is None
+        # deterministic: the same inputs give the same bytes
+        again = ls.render_lesson_slides(cfg, cur[1], plan, glo, layout, work / f"{layout.name}_again")
+        assert all(Path(a["image"]).read_bytes() == Path(b["image"]).read_bytes() for a, b in zip(pics, again))
+        shutil.rmtree(work / f"{layout.name}_again")
+        sheets[layout.name] = _contact([p["image"] for p in pics], cell, cols, work / f"contact_{layout.name}.png")
+
+        # every primitive drawn, in both shapes (portrait zoomed as on the slides)
+        zoom = layout is ls.PORTRAIT
+        canvas = Image.new("RGB", (layout.w, layout.h), bg)
+        info = ls.draw_chart(canvas, layout.content_box, ex1, layout, zoom=zoom)
+        assert set(info["drawn"]) == set(lessons.PRIMITIVES), (layout.name, info["drawn"])
+        assert info["label"].startswith(lessons.example_label(ex1)) and "Coinbase" in info["label"]
+        assert not info["line"]
+        # primitives= limits what is drawn (step reveal)
+        info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, ex1, layout, zoom=zoom,
+                             primitives=[p for p in ex1["primitives"] if p["type"] == "swing"])
+        assert set(info["drawn"]) == {"swing"}, info["drawn"]
+        # daily reference fix: a line, not candles
+        info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, ex2, layout, zoom=zoom)
+        assert info["line"] and "Frankfurter" in info["label"]
+        # schematic: labelled "Schematic", never "Historical example"
+        info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, schematic, layout,
+                             zoom=zoom, label=ls.SCHEMATIC)
+        assert info["label"].startswith("Schematic") and "Historical example" not in info["label"], info["label"]
+
+    # 9:16 zoom: x/y limits from the region (± 3 candles, ± 8% of its range); 16:9 shows every candle
+    zx = json.loads(json.dumps(ex1))
+    c = zx["candles"]
+    part = c[30:51]
+    zx["region"] = {"start": part[0]["t"], "end": part[-1]["t"], "low": min(b["l"] for b in part),
+                    "high": max(b["h"] for b in part)}
+    info = ls.draw_chart(Image.new("RGB", (1080, 1920), bg), ls.PORTRAIT.content_box, zx, ls.PORTRAIT, zoom=True)
+    span = zx["region"]["high"] - zx["region"]["low"]
+    assert info["x_range"] == (27, 53), info["x_range"]
+    assert all(abs(a - b) < 1e-9 for a, b in zip(info["y_range"], (zx["region"]["low"] - 0.08 * span,
+                                                                  zx["region"]["high"] + 0.08 * span))), info["y_range"]
+    info = ls.draw_chart(Image.new("RGB", (1920, 1080), bg), ls.LANDSCAPE.content_box, zx, ls.LANDSCAPE)
+    assert info["x_range"] == (0, len(c) - 1), info["x_range"]
+    assert info["y_range"][0] <= min(b["l"] for b in c) and info["y_range"][1] >= max(b["h"] for b in c)
+
+    # unknown visual type → ValueError naming it
+    try:
+        ls.render_lesson_slides(cfg, cur[1], [{"id": "x", "visual": {"type": "mtf"}}], glo, ls.LANDSCAPE, work / "bad")
+        raise AssertionError("an unknown visual type must fail")
+    except ValueError as e:
+        assert "mtf" in str(e), e
+    # recap: the "Next:" title and the ICT non-affiliation line are drawn when set (each changes the slide;
+    # _flow never drops or cuts them, it raises instead), and the captions stay clear
+    recap = {"type": "outro", "next": cur[0]["title"], "disclaimer": True, "non_affiliation": True}
+    variants = {"full": recap, "no_next": dict(recap, next=None), "no_ict": dict(recap, non_affiliation=False)}
+    for layout in (ls.LANDSCAPE, ls.PORTRAIT):
+        got = {}
+        for name, v in variants.items():
+            p = ls.render_lesson_slides(cfg, dict(cur[1], track=4), [{"id": "recap", "visual": v}], glo, layout,
+                                        work / "recap" / name)[0]
+            with Image.open(p["image"]) as im:
+                band = im.convert("RGB").crop((0, layout.caption_band[0], layout.w, layout.caption_band[1]))
+                assert band.getextrema() == tuple((x, x) for x in bg), (layout.name, name)
+                got[name] = im.convert("RGB").tobytes()
+        assert got["full"] != got["no_next"], (layout.name, "Next: line not drawn")
+        assert got["full"] != got["no_ict"], (layout.name, "non-affiliation line not drawn")
+    shutil.rmtree(work / "recap")
+    # approved key points are never cut: too many to fit at the minimum size → ValueError naming the entry
+    long = dict(cur[1], key_points=[cur[1]["key_points"][0] + " " + cur[1]["key_points"][1]] * 14)
+    for vis in ({"type": "misreads"}, recap):
+        try:
+            ls.render_lesson_slides(cfg, long, [{"id": "x", "visual": vis}], glo, ls.LANDSCAPE, work / "long")
+            raise AssertionError("key points that don't fit must fail")
+        except ValueError as e:
+            assert cur[1]["id"] in str(e), e
+    shutil.rmtree(work / "long", ignore_errors=True)
+    # price axis: 2.5-steps add a decimal only below 10 (no "60,250.0")
+    vals, dec = ls._ticks(60000, 61000)
+    assert [ls._fmt_tick(v, dec) for v in vals][:2] == ["60,000", "60,250"], (vals, dec)
+    vals, dec = ls._ticks(4100, 4200)
+    assert [ls._fmt_tick(v, dec) for v in vals][:2] == ["4,100", "4,125"], (vals, dec)
+    vals, dec = ls._ticks(1.0, 2.0)
+    assert ls._fmt_tick(vals[1], dec) == "1.25", (vals, dec)
+
+    thumb = ls.render_lesson_thumbnail(cfg, cur[1], ex1, work / "thumbnail.jpg")
+    with Image.open(thumb) as im:
+        assert im.size == (1280, 720) and im.format == "JPEG", (im.size, im.format)
+    print(f"OK lesson slides: {sheets['16x9']} · {sheets['9x16']} · {thumb}")
 
 
 if __name__ == "__main__":
