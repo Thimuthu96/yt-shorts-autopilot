@@ -131,6 +131,26 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-09T00:35:57+00:00",
+      "brief_date": "2026-10-09",
+      "session": "asia",
+      "kind": "market",
+      "title": "Solana Price Today: SOL Falls 6% as Crypto Drops | Asia Open, Oct 9",
+      "video_id": "-B0O2j9ZrWM",
+      "seconds": 58.4,
+      "headlines": [
+        "Securitize stock jumps over 10% after launching tokenized US equities on Solana"
+      ],
+      "lead": "SOL",
+      "fb_reel_id": "2587356401732255",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
