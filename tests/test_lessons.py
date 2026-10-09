@@ -1,7 +1,7 @@
 """Offline check of the lesson formats: curriculum + glossary validator, episode picker, example
-schema (incl. the mtf `lower` panel) and scene plan, the structure and top-down detectors (candle
-fixtures in tests/lessons/candles/), the lesson price-history fetch with sources._get mocked and the lesson narration with Gemini mocked
-(no API keys, no network).
+schema (incl. the mtf `lower` panel) and scene plan, the structure, top-down and Track 1-2 trendline /
+liquidity detectors (candle fixtures in tests/lessons/candles/), the lesson price-history fetch with
+sources._get mocked and the lesson narration with Gemini mocked (no API keys, no network).
 
     python tests/test_lessons.py
 """
@@ -582,6 +582,280 @@ def test_top_down():
           "repeat runs identical, examples valid)")
 
 
+# ─── tracks 1-2 detectors (trendlines, liquidity) ──────────────────────────
+
+TRACK12 = {  # detector -> (its own fixture, primitive types its example must draw)
+    "trendline": ("trendline_retest", {"swing", "trendline", "label"}),
+    "trendline_break": ("trendline_retest", {"swing", "trendline", "label"}),
+    "trendline_liquidity": ("trendline_liquidity", {"swing", "trendline", "zone"}),
+    "liquidity_pools": ("liquidity_pools", {"swing", "level"}),
+    "equal_highs_lows": ("equal_highs", {"swing", "level", "label"}),
+    "session_highs_lows": ("sessions_1h", {"zone", "level", "label"}),
+    "sweep_vs_breakout": ("sweep_breakout", {"swing", "level", "label"}),
+    "inducement": ("inducement", {"swing", "level", "label"}),
+}
+# sha256 of the swings / bos_choch examples on the 1.2 fixtures, taken before the shared code moved
+# to detectors/common.py: the move must not change a byte
+STRUCTURE_DIGEST = "bcac0aba0d47fa432ccadf62b96f1809ec4365db5805c19c24f3d31b626cdcde"
+COUNTS = {"touches"}  # facts that are counts, not prices
+
+
+def _numbers(v, key=""):
+    if isinstance(v, bool) or key in COUNTS:
+        return
+    if isinstance(v, (int, float)):
+        yield v
+    elif isinstance(v, dict):
+        for k, x in v.items():
+            yield from _numbers(x, k)
+    elif isinstance(v, list):
+        for x in v:
+            yield from _numbers(x, key)
+
+
+def check_track12(examples: list[dict], history: dict):
+    """Every example: valid, 1.1's primitives only, its detector's glossary keys, real candles, and
+    every number in its facts read from a candle of its series."""
+    assert len(examples) <= 2
+    glo = lessons.load_glossary(lessons.GLOSSARY)
+    for ex in examples:
+        assert lessons.validate_example(ex) == [], (ex["detector"], lessons.validate_example(ex))
+        assert {p["type"] for p in ex["primitives"]} <= set(lessons.PRIMITIVES)
+        keys = lessons.DETECTORS[ex["detector"]].glossary_keys()
+        assert ex["glossary"] in keys and set(keys) <= set(glo), (ex["detector"], ex["glossary"])
+        src = history[ex["asset"]][ex["timeframe"]]
+        assert 0 < len(ex["candles"]) <= 150 and all(c in src for c in ex["candles"])
+        times = [c["t"] for c in ex["candles"]]
+        assert times[0] <= ex["region"]["start"] <= ex["region"]["end"] <= times[-1]
+        assert ex["date"] == ex["region"]["end"][:10] and ex["facts"]["source"]
+        values = {c[k] for c in src for k in "ohlc"}
+        bad = [v for v in _numbers({k: v for k, v in ex["facts"].items()}) if v not in values]
+        assert not bad, (ex["detector"], bad)
+        by_t = {c["t"]: c for c in src}
+        for s in ex["facts"].get("swings", []):
+            assert s["price"] in (by_t[s["t"]]["h"], by_t[s["t"]]["l"]), s
+
+
+def test_detectors_tracks_1_2():
+    new = sorted(TRACK12)
+    assert set(new) <= set(lessons.DETECTORS), sorted(lessons.DETECTORS)
+    glo = lessons.load_glossary(lessons.GLOSSARY)
+    for name in new:
+        assert set(lessons.DETECTORS[name].glossary_keys()) <= set(glo), name
+
+    # clean case per detector: its own seeded fixture -> >= 1 example with its primitives and glossary key
+    found = {}
+    for name, (fixture, prims) in TRACK12.items():
+        h = {"BTC/USD": {"1H": candles(fixture)}}
+        ex = find(name, h)
+        check_track12(ex, h)
+        assert ex and all(e["detector"] == name for e in ex), name
+        assert prims <= {p["type"] for p in ex[0]["primitives"]}, (name, ex[0]["primitives"])
+        found[name] = ex
+
+    # trendline: 4 swing lows on one rising line, label "4 touches", line from the first touch to the last candle
+    e = found["trendline"][0]
+    f, line = e["facts"], next(p for p in e["primitives"] if p["type"] == "trendline")
+    assert f["trend"] == "uptrend" and f["touches"] == len(f["swings"]) == 4 and f["line"] == "rising support"
+    assert [p["text"] for p in e["primitives"] if p["type"] == "label"] == ["4 touches"]
+    assert (line["t1"], line["p1"]) == (f["swings"][0]["t"], f["swings"][0]["price"]) and line["t2"] == e["candles"][-1]["t"]
+    assert all(s["kind"] in ("low", "HL") for s in f["swings"])
+
+    # trendline_break: retest (break close below, a rally back that closes below the line), fakeout
+    e = found["trendline_break"][0]
+    f = e["facts"]
+    assert f["kind"] == "retest" and e["glossary"] == "retest", f
+    assert f["break"]["t"] < f["retest"]["t"] == e["region"]["end"] and f["retest"]["close"] < f["retest"]["high"]
+    assert [p["text"] for p in e["primitives"] if p["type"] == "label"] == ["Break", "Retest"]
+    last_touch = f["swings"][-1]["t"]
+    hl = candles("trendline_retest")
+    k = next(i for i, c in enumerate(hl) if c["t"] == last_touch)
+    assert f["break"]["t"] >= hl[k + 3]["t"]  # broken only after the last touch was confirmed
+    h = {"BTC/USD": {"1H": candles("trendline_fakeout")}}
+    ex = find("trendline_break", h)
+    check_track12(ex, h)
+    f = ex[0]["facts"]
+    assert len(ex) == 1 and f["kind"] == "fakeout" and ex[0]["glossary"] == "fakeout" and f["trend"] == "downtrend"
+    assert f["break"]["close"] > f["fakeout"]["close"] and f["fakeout"]["t"] == ex[0]["region"]["end"]
+    assert [p["text"] for p in ex[0]["primitives"] if p["type"] == "label"] == ["Break", "Fakeout"]
+    # a plain break: the retest rally cut off -> after 10 candles with no retest
+    plain = trendline_plain()
+    h = {"BTC/USD": {"1H": plain}}
+    ex = find("trendline_break", h)
+    check_track12(ex, h)
+    assert len(ex) == 1 and ex[0]["facts"]["kind"] == "break" and ex[0]["glossary"] == "trendline_break", ex
+
+    # a close below the line 1 candle after its 4th touch, before that touch is confirmed (3 candles):
+    # the break belongs to the line as known then, through 3 touches
+    early = early_break()
+    h = {"BTC/USD": {"1H": early}}
+    ex = find("trendline_break", h)
+    check_track12(ex, h)
+    f = ex[0]["facts"]
+    assert f["touches"] == 3 and f["swings"][-1]["price"] == 105.5 and f["break"]["t"] == early[54]["t"], f
+
+    # trendline_liquidity: a wick >= 0.5 ATR through the rising line, closing back above it; zone = the stops
+    e = found["trendline_liquidity"][0]
+    f, zone = e["facts"], next(p for p in e["primitives"] if p["type"] == "zone")
+    assert f["touches"] >= 3 and f["pierce"]["low"] == 116.0 and f["pierce"]["close"] > zone["high"]
+    assert zone["low"] == f["pierce"]["low"] < zone["high"] and zone["t2"] == f["pierce"]["t"] == e["region"]["end"]
+    # the same wick but the candle closes below the line: a break, not a pierce -> no trendline_liquidity
+    tl = candles("trendline_liquidity")
+    k = next(i for i, c in enumerate(tl) if c["l"] == 116.0)
+    closed = tl[:k] + [dict(tl[k], c=116.5)] + tl[k + 1:]
+    assert find("trendline_liquidity", {"BTC/USD": {"1H": closed}}) == []
+
+    # liquidity_pools: in the uptrend's pullback, BSL above the last HH, SSL below the two latest HLs
+    e = found["liquidity_pools"][0]
+    f = e["facts"]
+    assert e["glossary"] == "buy_side_liquidity" and f["trend"] == "uptrend"
+    assert [p["price"] for p in e["primitives"] if p.get("label") == "BSL"] == [s["price"] for s in f["bsl"]]
+    assert all(s["price"] > f["at"]["close"] for s in f["bsl"]) and all(s["price"] < f["at"]["close"] for s in f["ssl"])
+    assert len(f["bsl"]) == 1 and len(f["ssl"]) == 2
+    # the top is a pool from its confirming candle (top + 3) on, never earlier
+    lp = candles("liquidity_pools")
+    top = max(range(len(lp)), key=lambda i: lp[i]["h"])
+    for cut in (top + 1, top + 3):
+        ex = find("liquidity_pools", {"BTC/USD": {"1H": lp[:cut]}})
+        assert all(s["price"] != lp[top]["h"] for e in ex for s in e["facts"]["bsl"]), cut
+    ex = find("liquidity_pools", {"BTC/USD": {"1H": lp[:top + 4]}})
+    assert ex[0]["facts"]["bsl"][0]["price"] == lp[top]["h"] and ex[0]["facts"]["at"]["t"] == lp[top + 3]["t"]
+
+    # equal_highs_lows: two highs 0.05 apart, 16 candles apart, EQH level at the higher one
+    f = found["equal_highs_lows"][0]["facts"]
+    assert f["label"] == "EQH" and (f["first"]["price"], f["second"]["price"], f["level"]) == (110.0, 110.05, 110.05)
+
+    # session_highs_lows: day 1 (Asia ranged), not day 2 (Asia trended); 1H only (4H and 1D -> [])
+    e = found["session_highs_lows"][0]
+    f = e["facts"]
+    assert f["day"] == "2026-09-01" and e["date"] == "2026-09-01"
+    assert [z["label"] for z in e["primitives"] if z["type"] == "zone"] == ["Asia", "London", "New York"]
+    assert {(t["session"], t["side"]) for t in f["taken"]} >= {("London", "high"), ("New York", "low")}
+    assert all(t["price"] > f["asia"]["high"] if t["side"] == "high" else t["price"] < f["asia"]["low"] for t in f["taken"])
+    s1h = candles("sessions_1h")
+    # 4H buckets don't line up with the sessions, and daily data has none: only 4H / 1D series -> []
+    for h in ({"BTC/USD": {"4H": aggregate(s1h, 4 * 3600)}}, {"BTC/USD": {"1D": retime(s1h, 24)}}, {"EUR/USD": {"1D": daily_fix(retime(s1h, 24))}},
+              {"BTC/USD": {"1D": aggregate(s1h, 86400)}}):
+        assert find("session_highs_lows", h) == [], h.keys()
+
+    # sweep vs breakout: one of each in the fixture -> example 1 the sweep, example 2 the breakout
+    ex = found["sweep_vs_breakout"]
+    assert [e["facts"]["kind"] for e in ex] == ["sweep", "breakout"], ex
+    assert [e["glossary"] for e in ex] == ["liquidity_sweep", "breakout"]
+    sw, bo = ex[0]["facts"], ex[1]["facts"]
+    assert sw["candle"]["high"] > sw["level"] >= sw["candle"]["close"] and all(c <= sw["level"] for c in sw["next_closes"])
+    assert bo["candle"]["close"] > bo["level"] and all(c > bo["level"] for c in bo["next_closes"])
+    assert len(bo["next_closes"]) == len(sw["next_closes"]) == 3
+    sweeps = detectors.liquidity.find_sweeps(candles("sweep_breakout"),
+                                             detectors.common.find_swings(candles("sweep_breakout")))
+    assert [(s["kind"], s["t"]) for s in sweeps] == [("sweep", sw["candle"]["t"])]
+    # any asset / timeframe: the best sweep (ETH) then the best breakout (the more recent one, BTC)
+    h = {"BTC/USD": {"1H": candles("liquidity_pools")}, "ETH/USD": {"4H": candles("sweep_breakout")}}
+    ex = find("sweep_vs_breakout", h)
+    check_track12(ex, h)
+    assert [(e["asset"], e["facts"]["kind"]) for e in ex] == [("ETH/USD", "sweep"), ("BTC/USD", "breakout")], ex
+
+    # inducement: HH, first minor pullback low (IDM) taken before the HL, then a close above the HH
+    e = found["inducement"][0]
+    f = e["facts"]
+    assert f["trend"] == "uptrend" and [s["kind"] for s in f["swings"]] == ["HL", "HH", "HL"]
+    hh, hl2 = f["swings"][1], f["swings"][2]
+    assert hh["t"] < f["idm"]["t"] < f["idm"]["taken_t"] < hl2["t"] < f["bos"]["t"] == e["region"]["end"]
+    assert hl2["price"] < f["idm"]["taken_price"] < f["idm"]["price"] and f["bos"]["close"] > hh["price"] == f["bos"]["level"]
+    assert [p["text"] for p in e["primitives"] if p["type"] == "label"] == ["BOS", "IDM"]
+    # the BOS is the first close above the HH, even when it comes 2 candles after the HL (before the HL
+    # is confirmed): a fast rally off the HL
+    ind = candles("inducement")
+    y = next(i for i, c in enumerate(ind) if c["t"] == hl2["t"])
+    lo, top = ind[y]["l"] + 0.2, hh["price"]
+    rows = [(ind[y]["c"], top - 4.5, lo, top - 5), (top - 5, top + 1.0, top - 5.2, top + 0.8)]
+    rows += [(top + 0.8 + 0.5 * j, top + 1.5 + 0.5 * j, top + 0.6 + 0.5 * j, top + 1.3 + 0.5 * j) for j in range(6)]
+    t0 = datetime.fromisoformat(ind[y]["t"])
+    fast = ind[:y + 1] + [{"t": (t0 + timedelta(hours=j)).isoformat(), "o": round(o, 2), "h": round(hi, 2),
+                           "l": round(lw, 2), "c": round(c, 2)} for j, (o, hi, lw, c) in enumerate(rows, 1)]
+    h = {"BTC/USD": {"1H": fast}}
+    ex = find("inducement", h)
+    check_track12(ex, h)
+    f = ex[0]["facts"]
+    assert f["swings"][-1]["t"] == hl2["t"] and f["bos"]["level"] == top
+    assert (f["bos"]["t"], f["bos"]["close"]) == (fast[y + 2]["t"], fast[y + 2]["c"]), f["bos"]
+    assert fast[y + 1]["c"] <= top < fast[y + 2]["c"]
+
+    # second example on another asset, else another timeframe
+    h = {"BTC/USD": {"1H": candles("trendline_retest")}, "ETH/USD": {"1H": candles("trendline_liquidity")}}
+    ex = find("trendline", h)
+    check_track12(ex, h)
+    assert len(ex) == 2 and {e["asset"] for e in ex} == {"BTC/USD", "ETH/USD"}
+    h = {"XAU/USD": {"1H": candles("equal_highs"), "4H": candles("equal_highs")}}
+    ex = find("equal_highs_lows", h)
+    check_track12(ex, h)
+    assert [e["timeframe"] for e in ex] == ["4H", "1H"]
+
+    # no clean case: choppy range, its daily-fix twin, empty and too-short series -> [] from every new detector
+    chop, short = candles("choppy"), candles("trendline_retest")[:6]
+    for h in ({"BTC/USD": {"1H": chop}}, {"EUR/USD": {"1D": daily_fix(chop)}}, {}, {"BTC/USD": {"1H": short}},
+              {"BTC/USD": {"1H": chop, "4H": aggregate(chop, 4 * 3600)}}):
+        for name in new:
+            assert find(name, h) == [], (name, h.keys())
+
+    # repeat run: same history -> identical examples, byte for byte; input untouched
+    h = {"BTC/USD": {fixture_tf: candles(f) for fixture_tf, f in (("1H", "sweep_breakout"), ("4H", "trendline_retest"))},
+         "ETH/USD": {"1H": candles("sessions_1h")}, "XAU/USD": {"1H": candles("inducement")},
+         "EUR/USD": {"1D": daily_fix(candles("liquidity_pools"))}}
+    before = json.dumps(h, sort_keys=True)
+    for name in new:
+        a, b = find(name, h), find(name, copy.deepcopy(h))
+        assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True), name
+    assert json.dumps(h, sort_keys=True) == before
+
+    # 1.2 regression: swings / bos_choch on the existing fixtures are byte-identical to before
+    assert structure_digest() == STRUCTURE_DIGEST
+    print(f"OK tracks 1-2 detectors ({', '.join(new)}: clean case per fixture, break / fakeout / retest, "
+          "wick-only pierce zone, BSL/SSL + confirmation, EQH, sessions 1H only, sweep then breakout, IDM + first BOS, "
+          "choppy / short -> [], repeat runs identical, facts from candles, 1.2 outputs unchanged)")
+
+
+def trendline_plain() -> list[dict]:
+    """trendline_retest with the retest rally replaced by a steady fall: a break with no retest."""
+    series = candles("trendline_retest")
+    k = next(i for i, c in enumerate(series) if c["c"] == 110 and i > 60)  # end of the drop after the break
+    out = series[:k + 1]
+    price, t = out[-1]["c"], datetime.fromisoformat(out[-1]["t"])
+    for _ in range(12):
+        o, price, t = price, round(price - 0.8, 2), t + timedelta(hours=1)
+        out.append({"t": t.isoformat(), "o": o, "h": round(o + 0.2, 2), "l": round(price - 0.2, 2), "c": price})
+    return out
+
+
+def early_break() -> list[dict]:
+    """trendline_retest up to its 4th touch (candle 53, low 111.5, close 112), then closes just under the
+    line that keep every low above 111.5 for 3 candles (so candle 53 still confirms as a swing low),
+    then a steady fall."""
+    series = candles("trendline_retest")[:54]
+    assert series[53]["l"] == 111.5 and series[53]["c"] == 112
+    t = datetime.fromisoformat(series[53]["t"])
+    rows = [(112.0, 112.2, 111.55, 111.7), (111.7, 111.9, 111.52, 111.6), (111.6, 111.7, 111.51, 111.55)]
+    price = 111.55
+    for _ in range(14):
+        rows.append((price, round(price + 0.2, 2), round(price - 1.0, 2), round(price - 0.8, 2)))
+        price = round(price - 0.8, 2)
+    for k, (o, hi, lo, c) in enumerate(rows, 1):
+        series.append({"t": (t + timedelta(hours=k)).isoformat(), "o": o, "h": hi, "l": lo, "c": c})
+    return series
+
+
+def structure_digest() -> str:
+    import hashlib
+    names = ("uptrend", "downtrend_bos_choch", "choppy", "downtrend_hl_choch", "range_after_trend", "top_down_1h")
+    s = {n: candles(n) for n in names}
+    out = {n: json.dumps({d: find(d, {"BTC/USD": {"1H": s[n]}}) for d in ("swings", "bos_choch")}, sort_keys=True)
+           for n in names}
+    h = {"BTC/USD": {"1H": s["downtrend_bos_choch"], "4H": s["uptrend"]}, "ETH/USD": {"1H": s["uptrend"]},
+         "XAU/USD": {"1D": s["downtrend_hl_choch"]}}
+    out["mixed"] = json.dumps({d: find(d, h) for d in ("swings", "bos_choch")}, sort_keys=True)
+    return hashlib.sha256("".join(out[k] for k in sorted(out)).encode()).hexdigest()
+
+
 # ─── lesson price history (network mocked) ─────────────────────────────────
 
 class _Resp:
@@ -892,6 +1166,7 @@ def main():
     test_real_files()
     test_detectors()
     test_top_down()
+    test_detectors_tracks_1_2()
     test_fetch()
     test_narration()
 
