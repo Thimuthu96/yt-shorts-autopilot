@@ -204,6 +204,7 @@ def main():
     test_gold(cfg, small, gdata)
     test_history()
     test_facebook(cfg, PKG, data, meta, out, work / "thumbnail.jpg")
+    test_facebook_video(cfg)
     test_news_post(cfg)
     test_news_edition(cfg)
     test_video_editions(cfg, out, work / "thumbnail.jpg")
@@ -306,15 +307,80 @@ class FakeResp:
 class FakeGraph:
     """Answers like graph.facebook.com / rupload.facebook.com and records every call."""
 
-    def __init__(self, finish_fails: bool = False, photo_errors: list | None = None):
+    def __init__(self, finish_fails: bool = False, photo_errors: list | None = None,
+                 video_errors: dict | None = None, video_took: bool = True, video_status_fails: bool = False,
+                 video_slow_start: bool = False, chunk: int = 1000):
         self.calls, self.finish_fails = [], finish_fails
         self.photo_errors = list(photo_errors or [])
         self.status_reads = 0
         self.finished = False
+        # /{page}/videos (long lesson videos): errors queued per upload phase; video_took = an errored
+        # finish went through anyway; video_status_fails = GET /V1 always errors; video_slow_start = the
+        # first status read after a finish that took still shows processing not_started
+        self.video_errors = {k: list(v) for k, v in (video_errors or {}).items()}
+        self.video_took, self.video_status_fails, self.chunk = video_took, video_status_fails, chunk
+        self.video_slow_start = video_slow_start
+        self.video_size, self.video_finishes, self.video_reads, self.video_published = 0, [], 0, None
+        self.chunks = []
+
+    def _video(self, method, url, data, kw):
+        phase = data.get("upload_phase")
+        if url.endswith("/videos") and self.video_errors.get(phase):
+            if phase == "finish":
+                self.video_finishes.append(dict(data))
+                if self.video_took:
+                    self.video_published = data["published"] == "true"
+            return self.video_errors[phase].pop(0)
+        if url.endswith("/videos") and phase == "start":
+            self.video_size = int(data["file_size"])
+            return FakeResp(200, {"upload_session_id": "S1", "video_id": "V1", "start_offset": "0",
+                                  "end_offset": str(min(self.chunk, self.video_size))})
+        if url.endswith("/videos") and phase == "transfer":
+            assert data["upload_session_id"] == "S1"
+            name, blob, _ = kw["files"]["video_file_chunk"]
+            assert isinstance(blob, bytes) and len(blob) > 0
+            start = int(data["start_offset"])
+            self.chunks.append((start, blob))
+            nxt = start + len(blob)
+            return FakeResp(200, {"start_offset": str(nxt), "end_offset": str(min(nxt + self.chunk, self.video_size))})
+        if url.endswith("/videos") and phase == "finish":
+            assert data["upload_session_id"] == "S1" and sum(len(b) for _, b in self.chunks) >= self.video_size
+            self.video_finishes.append(dict(data))
+            self.video_published = data["published"] == "true"
+            return FakeResp(200, {"success": True})
+        if method == "GET" and url.endswith("/V1"):
+            assert kw["headers"]["Authorization"] == "OAuth TOKEN"
+            if self.video_status_fails:
+                return FakeResp(500, {"error": {"code": 1, "message": "unknown error"}})
+            if self.video_published is None:  # finish hasn't taken: the upload isn't complete
+                return FakeResp(200, {"status": {"video_status": "processing",
+                                                 "uploading_phase": {"status": "in_progress"},
+                                                 "processing_phase": {"status": "not_started"},
+                                                 "publishing_phase": {"status": "not_started"}}})
+            self.video_reads += 1
+            if self.video_slow_start and self.video_reads == 1:  # took, but nothing moving yet
+                return FakeResp(200, {"status": {"video_status": "processing",
+                                                 "uploading_phase": {"status": "complete"},
+                                                 "processing_phase": {"status": "not_started"},
+                                                 "publishing_phase": {"status": "not_started"}}})
+            done = self.video_reads >= 3
+            pub = ("complete" if done else "in_progress") if self.video_published else "not_started"
+            return FakeResp(200, {"status": {"video_status": "ready" if done else "processing",
+                                             "uploading_phase": {"status": "complete"},
+                                             "processing_phase": {"status": "complete" if done else "in_progress"},
+                                             "publishing_phase": {"status": pub}}})
+        if method == "DELETE" and url.endswith("/V1"):
+            assert kw["headers"]["Authorization"] == "OAuth TOKEN"
+            return FakeResp(200, {"success": True})
+        return None
 
     def request(self, method, url, timeout=None, **kw):
         data = kw.get("data") if isinstance(kw.get("data"), dict) else {}
         self.calls.append((method, url, data.get("upload_phase")))
+        if url.endswith("/videos") or url.endswith("/V1"):
+            res = self._video(method, url, data, kw)
+            if res is not None:
+                return res
         if url.endswith("/video_reels") and data.get("upload_phase") == "start":
             return FakeResp(200, {"video_id": "R1", "upload_url": "https://rupload.facebook.com/video-upload/v26.0/R1"})
         if "rupload.facebook.com" in url:
@@ -420,6 +486,89 @@ def test_facebook(cfg, pkg, data, meta, video, cover):
     for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN"):
         os.environ.pop(k, None)
     print("OK facebook")
+
+
+def test_facebook_video(cfg):
+    """Long vertical lesson → chunked /{page}/videos upload, finish once, status before any re-send."""
+    fcfg = cfg | {"facebook": cfg["facebook"] | {"poll_every_seconds": 1}}
+    blob = bytes(range(256)) * 11 + b"tail"  # 2,820 bytes → 3 chunks of ≤ 1,000
+    video = Path(tempfile.mkdtemp()) / "lesson_9x16.mp4"
+    video.write_bytes(blob)
+    logs = []
+    quiet = logs.append
+    unclear = lambda: FakeResp(503, {"error": {"code": 2, "message": "Service temporarily unavailable",  # noqa: E731
+                                               "is_transient": True}})
+
+    def no_token_in_urls(fake):
+        assert all("TOKEN" not in u for _, u, _ in fake.calls), fake.calls
+
+    def chunks_ok(fake):  # each chunk = exactly the file's bytes for the range Facebook asked for
+        assert [(st, len(b)) for st, b in fake.chunks] == [(0, 1000), (1000, 1000), (2000, 820)], fake.chunks
+        assert all(b == blob[st:st + len(b)] for st, b in fake.chunks)
+
+    # happy path: start, 3 transfers (the byte ranges asked for), one finish with title/description, poll
+    fake = FakeGraph()
+    _fb_env(fake)
+    desc = "Lesson description " * 400  # > 5,000 chars → cut
+    assert facebook.publish_video(video, "T" * 300, desc, fcfg, log=quiet) == "V1"
+    assert fake.count("start", "/videos") == 1 and fake.count("transfer") == 3 and fake.count("finish") == 1
+    chunks_ok(fake)
+    f = fake.video_finishes[0]
+    assert f["published"] == "true" and len(f["title"]) == 255 and len(f["description"]) == 5000, f
+    assert fake.video_reads == 3 and not any("still processing" in m for m in logs), logs
+    no_token_in_urls(fake)
+
+    # token error at start: fails at once with the fix, exactly one request
+    fake = FakeGraph(video_errors={"start": [FakeResp(400, {"error": {"code": 190, "message": "Session has expired"}})]})
+    _fb_env(fake)
+    try:
+        facebook.publish_video(video, "t", "d", fcfg, log=quiet)
+        raise AssertionError("190 should fail")
+    except facebook.GraphError as e:
+        assert e.code == 190 and "FB_PAGE_TOKEN" in str(e) and not e.transient
+    assert len(fake.calls) == 1, fake.calls
+
+    # finish answered 503 but took (status shows processing/publishing) → not sent again
+    fake = FakeGraph(video_errors={"finish": [unclear()]}, video_took=True)
+    _fb_env(fake)
+    assert facebook.publish_video(video, "t", "d", fcfg, log=quiet) == "V1" and fake.count("finish") == 1
+    # ... and took, but processing hasn't begun on the first read (upload complete) → still not re-sent
+    for pub in (True, False):
+        fake = FakeGraph(video_errors={"finish": [unclear()]}, video_took=True, video_slow_start=True)
+        _fb_env(fake)
+        assert facebook.publish_video(video, "t", "d", fcfg, published=pub, log=quiet) == "V1"
+        assert fake.count("finish") == 1, fake.calls
+    # finish answered 503 and didn't take (status: not started) → sent once more
+    fake = FakeGraph(video_errors={"finish": [unclear()]}, video_took=False)
+    _fb_env(fake)
+    logs.clear()
+    assert facebook.publish_video(video, "t", "d", fcfg, log=quiet) == "V1" and fake.count("finish") == 2
+    assert any("sending finish again" in m for m in logs), logs
+    # finish answered 503 and the status can't be read → no re-send, id still returned
+    fake = FakeGraph(video_errors={"finish": [unclear()]}, video_status_fails=True)
+    _fb_env(fake)
+    logs.clear()
+    assert facebook.publish_video(video, "t", "d", fcfg, log=quiet) == "V1" and fake.count("finish") == 1
+    assert any("not sending finish again" in m for m in logs) and any("status unknown" in m for m in logs), logs
+
+    # unpublished test upload: finish sends published=false, done once ready
+    fake = FakeGraph()
+    _fb_env(fake)
+    assert facebook.publish_video(video, "t", "d", fcfg, published=False, log=quiet) == "V1"
+    assert fake.video_finishes[0]["published"] == "false" and fake.count("finish") == 1
+    facebook.delete_video("V1", fcfg, log=quiet)
+    assert fake.count(contains="/V1") == fake.video_reads + 1 and fake.calls[-1][0] == "DELETE"
+    no_token_in_urls(fake)
+
+    # one chunk answers 5xx → that chunk is retried by _call, the upload isn't restarted
+    fake = FakeGraph(video_errors={"transfer": [FakeResp(500, {"error": {"code": 1, "message": "unknown error"}})]})
+    _fb_env(fake)
+    assert facebook.publish_video(video, "t", "d", fcfg, log=quiet) == "V1"
+    assert fake.count("start", "/videos") == 1 and fake.count("transfer") == 4 and fake.count("finish") == 1
+    chunks_ok(fake)
+    for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN"):
+        os.environ.pop(k, None)
+    print("OK facebook lesson video (chunked /videos, one publish, 190 not retried, status before re-send)")
 
 
 # ─── news image posts ──────────────────────────────────────────────────────
