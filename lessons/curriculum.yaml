@@ -1,0 +1,19 @@
+# Lesson curriculum: one entry per episode. LIST ORDER IS THE QUEUE: the picker publishes the first
+# entry not yet in history, so reordering, inserting or dropping entries changes the next episode
+# with no code change. Drafted by hand, approved by the owner via PR (entry 9 fills this in).
+# Checked by `python tests/test_lessons.py` (autopilot.lessons.validate); see
+# tests/lessons/curriculum.yaml for a worked sample.
+#
+# Format:
+#   episodes:
+#     - id: swing-structure            # stable slug; history's `episode` stores it. Never rename
+#                                      # a published one.
+#       track: 0                       # 0-6
+#       title: "Structure #1: Swing Points"
+#       key_points:                    # non-empty; narration never adds concepts beyond these
+#         - "..."
+#       concepts: [swing_point]        # glossary keys the key points use (lessons/glossary.yaml)
+#       prerequisites: []              # ids of earlier episodes
+#       visual: chart                  # chart (mtf arrives later)
+#       detector: swings               # registered detector that finds the real examples
+episodes: []

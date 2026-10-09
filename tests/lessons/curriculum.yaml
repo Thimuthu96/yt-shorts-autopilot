@@ -1,0 +1,22 @@
+# Sample Track 0 curriculum for tests/test_lessons.py (not the real one: lessons/curriculum.yaml).
+episodes:
+  - id: swing-structure
+    track: 0
+    title: "Structure #1: Swing Points and HH/HL/LH/LL"
+    key_points:
+      - "A swing high has lower highs on both sides; a swing low has higher lows on both sides."
+      - "Higher highs and higher lows mark an uptrend; lower highs and lower lows a downtrend."
+    concepts: [swing_point, market_structure]
+    prerequisites: []
+    visual: chart
+    detector: swings
+  - id: bos-vs-choch
+    track: 0
+    title: "Structure #2: BOS vs CHoCH"
+    key_points:
+      - "A BOS closes beyond the last swing in the trend's direction and continues the trend."
+      - "A CHoCH is the first close beyond the last swing against the trend."
+    concepts: [break_of_structure, change_of_character, swing_point]
+    prerequisites: [swing-structure]
+    visual: chart
+    detector: bos_choch

@@ -1,0 +1,14 @@
+# Sample glossary for tests/test_lessons.py (not the real one: lessons/glossary.yaml).
+terms:
+  swing_point:
+    term: "Swing point"
+    definition: "A candle whose high (swing high) or low (swing low) is more extreme than the candles on both sides of it."
+  market_structure:
+    term: "Market structure (HH / HL / LH / LL)"
+    definition: "The sequence of swing points: higher highs and higher lows make an uptrend, lower highs and lower lows a downtrend."
+  break_of_structure:
+    term: "Break of structure (BOS)"
+    definition: "A close beyond the last swing point in the direction of the trend, continuing it."
+  change_of_character:
+    term: "Change of character (CHoCH)"
+    definition: "The first close beyond the last swing point against the trend, the first sign it may be turning."

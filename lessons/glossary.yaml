@@ -1,0 +1,40 @@
+# Lesson glossary: every concept is defined once here; narration and the example detectors both
+# follow it. Drafted by hand (ChatGPT Go), cross-checked by a second model, approved by the owner
+# via PR. Checked by `python tests/test_lessons.py` (autopilot.lessons.validate).
+#
+# Format:
+#   terms:
+#     <key>:                # snake_case; curriculum `concepts` and detectors name this key
+#       term: "Display name"
+#       definition: "One or two plain sentences."   # must be filled before an episode uses it
+#
+# The keys below are stubs for every tracks 0-3 detector (definitions filled by the owner).
+terms:
+  # ── track 0 · structure (detectors: entry 2) ──
+  swing_point: {term: "Swing point", definition: ""}
+  market_structure: {term: "Market structure (HH / HL / LH / LL)", definition: ""}
+  break_of_structure: {term: "Break of structure (BOS)", definition: ""}
+  change_of_character: {term: "Change of character (CHoCH)", definition: ""}
+  top_down_analysis: {term: "Top-down multi-timeframe reading", definition: ""}
+  # ── track 1 · trendlines (detectors: entry 7) ──
+  trendline: {term: "Valid trendline", definition: ""}
+  trendline_break: {term: "Trendline break", definition: ""}
+  fakeout: {term: "Fakeout", definition: ""}
+  retest: {term: "Retest", definition: ""}
+  trendline_liquidity: {term: "Trendline liquidity", definition: ""}
+  # ── track 2 · liquidity (detectors: entry 7) ──
+  buy_side_liquidity: {term: "Buy-side liquidity (BSL)", definition: ""}
+  sell_side_liquidity: {term: "Sell-side liquidity (SSL)", definition: ""}
+  equal_highs_lows: {term: "Equal highs / equal lows", definition: ""}
+  session_high_low: {term: "Session high / low", definition: ""}
+  liquidity_sweep: {term: "Liquidity sweep", definition: ""}
+  breakout: {term: "Breakout", definition: ""}
+  inducement: {term: "Inducement", definition: ""}
+  # ── track 3 · SMC (detectors: entry 8) ──
+  fair_value_gap: {term: "Fair value gap (FVG)", definition: ""}
+  order_block: {term: "Order block", definition: ""}
+  mitigation_block: {term: "Mitigation block", definition: ""}
+  breaker_block: {term: "Breaker block", definition: ""}
+  premium_discount: {term: "Premium and discount", definition: ""}
+  equilibrium: {term: "Equilibrium", definition: ""}
+  sweep_choch_model: {term: "Sweep → CHoCH → OB/FVG model", definition: ""}
