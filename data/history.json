@@ -151,6 +151,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-09T03:03:07+00:00",
+      "brief_date": "2026-10-09",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "RECORD US HOLIDAY SPENDING",
+      "fb_post_id": "462331040302049_122251708022610202",
+      "headlines": [
+        "Americans are set to spend more this holiday season than ever. Thank inflation and tariffs."
+      ],
+      "topic": "tariffs",
+      "source": "NBC News",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
