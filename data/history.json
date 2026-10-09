@@ -170,6 +170,28 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-09T05:45:05+00:00",
+      "brief_date": "2026-10-09",
+      "session": "london",
+      "kind": "market",
+      "title": "Gold Price Today: Jumps 1.7% Past $4,200 | London Open, Oct 9",
+      "video_id": "VzYOVaJLQvU",
+      "seconds": 51.5,
+      "headlines": [
+        "Gold Price Forecast: XAU/USD Breaks Trendline as Softer Yields Put $4,227 in Focus",
+        "Gold Price Forecast: XAU/USD looks to regain $4,200 amid pre-US CPI repositioning",
+        "Fed Hike Odds Drop to 18% as Jobs and Inflation Data Soften"
+      ],
+      "lead": "XAU",
+      "fb_reel_id": "2002173217932354",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
