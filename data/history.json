@@ -217,6 +217,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-09T09:47:09+00:00",
+      "brief_date": "2026-10-09",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "US DOLLAR DIPS AS YIELDS DROP",
+      "fb_post_id": "462331040302049_122251978646610202",
+      "headlines": [
+        "Forex Today: US Dollar retreats alongside bond yields as mood improves"
+      ],
+      "topic": "macro",
+      "source": "www.tmgm.com",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
