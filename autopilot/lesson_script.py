@@ -200,16 +200,24 @@ def make_lesson_script(cfg: dict, entry: dict, glossary: dict, plan: list[dict],
 
 # ─── live sample ───────────────────────────────────────────────────────────
 
-def sample_episode() -> tuple[dict, dict, list[dict], list[dict]]:
-    """(entry, glossary, plan, examples) for the sample `bos-vs-choch` episode: tests/lessons/ curriculum
-    and glossary, examples found by the real bos_choch detector on the fixture candles."""
+def sample_inputs() -> tuple[dict, dict, dict, dict | None]:
+    """(entry, glossary, price history, next entry) for the sample `bos-vs-choch` episode: tests/lessons/
+    curriculum and glossary, fixture candles shaped like lesson_data.fetch_history's answer."""
     root = Path(__file__).resolve().parents[1] / "tests" / "lessons"
-    entry = next(e for e in lessons.load_curriculum(root / "curriculum.yaml") if e["id"] == "bos-vs-choch")
+    curriculum = lessons.load_curriculum(root / "curriculum.yaml")
+    i = next(n for n, e in enumerate(curriculum) if e["id"] == "bos-vs-choch")
     glossary = lessons.load_glossary(root / "glossary.yaml")
 
     def candles(name):
         return json.loads((root / "candles" / f"{name}.json").read_text(encoding="utf-8"))
     history = {"BTC/USD": {"1H": candles("downtrend_bos_choch")}, "ETH/USD": {"1H": candles("downtrend_hl_choch")}}
+    return curriculum[i], glossary, history, (curriculum[i + 1] if i + 1 < len(curriculum) else None)
+
+
+def sample_episode() -> tuple[dict, dict, list[dict], list[dict]]:
+    """(entry, glossary, plan, examples) for the sample `bos-vs-choch` episode: tests/lessons/ curriculum
+    and glossary, examples found by the real bos_choch detector on the fixture candles."""
+    entry, glossary, history, _ = sample_inputs()
     examples = lessons.DETECTORS[entry["detector"]].find(history)
     return entry, glossary, lessons.scene_plan(entry, examples), examples
 

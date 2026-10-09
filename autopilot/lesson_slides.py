@@ -1,6 +1,6 @@
 """Lesson graphics in two shapes: one PNG per `lessons.scene_plan` scene, plus the lesson thumbnail.
 
-    LANDSCAPE  1920x1080  (the YouTube lesson)     caption band y 880-1010, footer ~1040
+    LANDSCAPE  1920x1080  (the YouTube lesson)     caption band y 880-1010, footer ~1030
     PORTRAIT   1080x1920  (the vertical version)   caption band y 1230-1480, footer ~1830
 
     render_lesson_slides(cfg, entry, plan, glossary, layout, workdir)
@@ -55,7 +55,7 @@ class Layout:
 
 
 LANDSCAPE = Layout("16x9", 1920, 1080, (880, 1010), (60, 130, 1860, 860),
-                   header_y=40, rule_y=108, footer_y=1036, footer_lines=1, min_text=30)
+                   header_y=40, rule_y=108, footer_y=1028, footer_lines=1, min_text=30)
 PORTRAIT = Layout("9x16", 1080, 1920, (1230, 1480), (40, 170, 1040, 1190),
                   header_y=80, rule_y=140, footer_y=1830, footer_lines=2, min_text=34)
 THUMB = Layout("thumb", 1280, 720, (720, 720), (0, 0, 1280, 720), min_text=24)

@@ -11,6 +11,7 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
     python main.py --session asia --platforms facebook   # publish to Facebook only
     python main.py --session asia --scheduled   # timed run: weekend rule, late/early skip, once a day per platform
     python main.py --session asia --as-edition  # manual run that fills today's slot (timed run skips)
+    python main.py --lesson-sample --no-upload  # sample trading lesson (16:9 + 9:16) on fixture candles
 
 Manual runs always make and publish and don't stop the timed run of that edition.
 """
@@ -24,7 +25,8 @@ from pathlib import Path
 
 import yaml
 
-from autopilot import facebook, focus, gold, images, news_post, render, script, slides, sources, thumbnail, voice
+from autopilot import (facebook, focus, gold, images, lesson_meta, lesson_script, lesson_slides, lessons, news_post,
+                       render, script, slides, sources, thumbnail, voice)
 from autopilot.history import History
 
 ROOT = Path(__file__).parent
@@ -49,6 +51,12 @@ DEFAULT_SESSIONS = {
                      "platforms": ["facebook"]},
 }
 PLATFORMS = ("youtube", "facebook")
+LESSON_MAX_SECONDS = 300  # lessons' own limit (cfg lessons.max_seconds); the Shorts keep video.max_seconds
+# caption overrides per lesson shape: 16:9 smaller text; 9:16 keeps the Shorts' 84 px but 2 words a line,
+# so a wrapped caption is at most 2 lines (libass never breaks inside a word) and fits the caption band
+LESSON_CAPTIONS = {"16x9": {"size": 56, "outline": 5}, "9x16": {"words_per_line": 2}}
+LESSON_CAPTION_PAD = 2  # px above the bottom of the caption band (outline, shadow and descender space come on top)
+LESSON_PUSH_IN = 0.012  # push-in growth per scene: small enough that the slide footers stay in frame
 
 
 def log(msg: str) -> None:
@@ -172,6 +180,93 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption}
 
 
+def lesson_video_cfg(cfg: dict, layout) -> dict:
+    """A cfg copy for render.build_video in one lesson shape: the layout's size, captions sized for it and
+    anchored at the bottom of the layout's caption band (slides never draw there; a wrapped caption grows
+    upwards inside the band), and a push-in small enough to keep the slide footer in frame."""
+    cap = {**cfg["video"]["captions"], **LESSON_CAPTIONS.get(layout.name, {})}
+    cap["margin_v"] = layout.h - layout.caption_band[1] + int(cap.get("outline", 0)) + 3 + LESSON_CAPTION_PAD  # 3 = shadow
+    return {**cfg, "video": {**cfg["video"], "width": layout.w, "height": layout.h, "captions": cap,
+                             "push_in": LESSON_PUSH_IN}}
+
+
+def make_lesson(cfg: dict, entry: dict, glossary: dict, history: dict, workdir: Path | None = None,
+                next_entry: dict | None = None, log=log) -> dict:
+    """One curriculum entry → a 16:9 and a 9:16 lesson video from the same narration, the lesson
+    thumbnail, chapters and metadata (written to the workdir; nothing is uploaded).
+    `history` is lesson_data.fetch_history's {asset: {timeframe: candles}}.
+    Returns {"held": reason} when the detector finds no clean example (nothing is rendered), else
+    {"videos": {"16x9", "9x16"}, "thumbnail", "meta", "chapters", "seconds", "examples", "workdir"}."""
+    det = lessons.DETECTORS.get(entry.get("detector"))
+    examples = det.find(history) if det else []
+    if not examples:
+        reason = (f"{entry['id']}: no clean {entry.get('detector')} example in the price history" if det
+                  else f"{entry['id']}: detector '{entry.get('detector')}' is not registered")
+        log(f"Lesson held: {reason}")
+        return {"held": reason}
+    log(f"Lesson {entry['id']}: {len(examples)} example(s): "
+        + ", ".join(f"{e['asset']} {e['timeframe']} {e['date']}" for e in examples))
+    if workdir is None:
+        workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    workdir = Path(workdir)
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    plan = lessons.scene_plan(entry, examples, next_entry)
+    pkg = lesson_script.make_lesson_script(cfg, entry, glossary, plan, examples, log=log)
+    narration = [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]]  # visuals carry the candles
+    (workdir / "package.json").write_text(json.dumps(
+        {"entry": entry["id"], "title": entry["title"], "scenes": narration, "fact_check": pkg.get("fact_check"),
+         "examples": examples}, indent=2, ensure_ascii=False, default=str))
+
+    v = cfg["voice"]
+    scenes = pkg["scenes"]
+    audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log)
+    total = sum(a["duration"] for a in audio)
+    limit = (cfg.get("lessons") or {}).get("max_seconds", LESSON_MAX_SECONDS)
+    if total > limit:
+        rate = faster_rate(v["rate"], total / limit)
+        log(f"Lesson narration {total:.1f}s is over {limit}s, re-recording at {rate}")
+        audio = voice.synthesize(scenes, v["name"], rate, workdir, log=log)
+        total = sum(a["duration"] for a in audio)
+    log(f"Lesson narration: {total:.1f}s")
+
+    chapters = lesson_meta.chapters(plan, audio, examples, glossary)
+    log("Chapters: " + ", ".join(f"{c['time']} {c['title']}" for c in chapters))
+    thumb = lesson_slides.render_lesson_thumbnail(cfg, entry, examples[0], workdir / "thumbnail.jpg")
+
+    music_files = sorted((ROOT / "music").glob("*.mp3"))
+    music = random.choice(music_files) if music_files else None  # same music in both shapes
+    videos = {}
+    for layout in (lesson_slides.LANDSCAPE, lesson_slides.PORTRAIT):
+        log(f"Drawing and rendering the {layout.name} lesson...")
+        shape_dir = workdir / layout.name  # each render keeps its own segments / captions
+        pics = lesson_slides.render_lesson_slides(cfg, entry, plan, glossary, layout, shape_dir)
+        out = workdir / f"lesson_{layout.name}.mp4"
+        render.build_video(audio, pics, lesson_video_cfg(cfg, layout), shape_dir, out, music=music)
+        videos[layout.name] = out
+        log(f"Rendered {out}")
+
+    meta = lesson_meta.build_lesson_metadata(entry, pkg, examples, chapters, cfg, log=log)
+    (workdir / "metadata.json").write_text(json.dumps({**meta, "chapters": chapters}, indent=2, ensure_ascii=False))
+    log(f"Lesson title: {meta['title']}")
+    return {"videos": videos, "thumbnail": thumb, "meta": meta, "chapters": chapters, "seconds": round(total, 1),
+            "examples": examples, "workdir": workdir}
+
+
+def lesson_sample(cfg: dict) -> int:
+    """The tests/lessons sample entry on fixture candles, made only (lessons aren't published yet)."""
+    entry, glossary, history, nxt = lesson_script.sample_inputs()
+    try:
+        made = make_lesson(cfg, entry, glossary, history, next_entry=nxt)
+    except Exception as e:
+        log(f"Lesson failed: {e}")
+        return 1
+    if made.get("held"):
+        return 1
+    log(f"Made lesson {entry['id']} ({made['seconds']}s): " + ", ".join(str(p) for p in made["videos"].values()))
+    return 0
+
+
 def publish(made: dict, platforms: list[str], cfg: dict) -> tuple[dict, list[str]]:
     """Publish one rendered edition to each platform on its own: a failure on one is logged and
     never blocks (or repeats) the other. Returns (entry with the ids it got, failed platforms)."""
@@ -270,6 +365,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="timed run (schedule / outside timer): weekend rule, late/early skip, once per edition per day")
     p.add_argument("--as-edition", action="store_true",
                    help="manual run that counts as today's edition, so its timed run then skips")
+    p.add_argument("--lesson-sample", action="store_true",
+                   help="make the sample trading lesson on fixture candles (never uploaded; use with --no-upload)")
     args = p.parse_args(argv)
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
@@ -278,6 +375,10 @@ def main(argv: list[str] | None = None) -> int:
         cfg["sessions"] = DEFAULT_SESSIONS
     cfg.setdefault("weekend_sessions", ["london", "news_morning", "news_midday", "news_evening"])
     cfg.setdefault("max_late_minutes", 180)
+    if args.lesson_sample:
+        if not args.no_upload:
+            log("Lessons aren't published yet: --lesson-sample makes it only (as with --no-upload).")
+        return lesson_sample(cfg)
     history = History(ROOT / "data" / "history.json")
 
     now = datetime.now(timezone.utc)

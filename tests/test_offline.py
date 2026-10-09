@@ -208,6 +208,7 @@ def main():
     test_news_edition(cfg)
     test_video_editions(cfg, out, work / "thumbnail.jpg")
     test_lesson_slides(cfg)
+    test_lesson_render(cfg)
 
 
 def test_gold(cfg, small, data):
@@ -909,6 +910,228 @@ def test_lesson_slides(cfg):
     with Image.open(thumb) as im:
         assert im.size == (1280, 720) and im.format == "JPEG", (im.size, im.format)
     print(f"OK lesson slides: {sheets['16x9']} · {sheets['9x16']} · {thumb}")
+
+LESSON_FILLER = ("A swing point marks where price turned and the next close tells us whether "
+                 "the structure held or changed character").split()
+LESSON_WORDS = {"hook": 110, "concept": 120, "example_1": 120, "example_2": 120, "misreads": 40, "recap": 110}
+
+
+def _lesson_draft(plan: list[dict], tail: str) -> dict:
+    """A mocked lesson writer reply: LESSON_WORDS words per scene (the misreads scene is short), no
+    numbers, the recap ending with `tail`."""
+    scenes = []
+    for p in plan:
+        n = LESSON_WORDS[p["id"]] - (len(tail.split()) if p["id"] == "recap" else 0)
+        body = " ".join(LESSON_FILLER[k % len(LESSON_FILLER)] for k in range(n))
+        scenes.append({"id": p["id"], "text": body + (" " + tail if p["id"] == "recap" else "")})
+    return {"scenes": scenes}
+
+
+def _ink_rows(path: Path, bg=(14, 15, 18), tol: int = 24) -> list[int]:
+    """Rows of an image that differ from the channel ground by more than `tol` (a low tol also counts
+    caption outline and shadow; the default ignores video-compression noise)."""
+    import numpy as np
+    from PIL import Image
+    with Image.open(path) as im:
+        a = np.asarray(im.convert("RGB"), dtype=int)
+    return [int(y) for y in np.where((np.abs(a - np.array(bg)).max(axis=2) > tol).any(axis=1))[0]]
+
+
+def _probe_size(path: Path) -> tuple[int, int]:
+    import subprocess
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+                        "-of", "csv=p=0", str(path)], capture_output=True, text=True, check=True)
+    w, h = r.stdout.strip().split(",")[:2]
+    return int(w), int(h)
+
+
+def test_lesson_render(cfg):
+    """make_lesson (entry 6): sample entry on fixture candles, mocked narration + sine voice → a 16:9 and a
+    9:16 mp4 from the same audio, captions in each layout's band, chapters from the scene timings (a short
+    scene merges), lesson metadata; plus the hold, over-limit re-record, ICT and Shorts-caption cases."""
+    from unittest import mock
+    import main as app
+    from autopilot import lesson_meta, lesson_script, lesson_slides as ls, lessons, voice
+    from PIL import Image
+
+    entry, glossary, history, nxt = lesson_script.sample_inputs()
+    per_word = 0.1  # seconds per mocked spoken word: keeps the renders short
+    prompts, voice_calls, last_audio = [], [], []
+    draft = {}
+
+    def fake_llm(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        if "strict financial news editor" in prompt:
+            pkg = json.loads(prompt.split("SCRIPT:\n", 1)[1].rsplit("\n\n1. Every", 1)[0])
+            return {"verdict": "ok", "issues": [], "package": pkg}
+        return json.loads(json.dumps(draft))
+
+    def fake_voice(scenes, name, rate, workdir, log=print):
+        voice_calls.append(rate)
+        step = per_word * 1.1 / (1 + int(rate.strip("%")) / 100)  # a faster rate → shorter words
+        out = []
+        for i, sc in enumerate(scenes):
+            words = sc["text"].split()
+            wav = Path(workdir) / f"voice_{i:02d}.wav"
+            run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
+                 f"sine=frequency={320 + 30 * i}:duration={step * len(words) + 0.3:.3f}", "-ar", "44100", "-ac", "1",
+                 wav])
+            out.append({"audio": wav, "duration": probe_duration(wav),
+                        "words": [(j * step, (j + 0.9) * step, w) for j, w in enumerate(words)]})
+        last_audio[:] = out
+        return out
+
+    def make(e, c, workdir, hist=history, logs=None):
+        prompts.clear()
+        voice_calls.clear()
+        with mock.patch.object(lesson_script, "generate_json", fake_llm), \
+                mock.patch.object(script, "generate_json", fake_llm), mock.patch.object(voice, "synthesize", fake_voice):
+            return app.make_lesson(c, e, glossary, hist, workdir=workdir, next_entry=nxt,
+                                   log=(logs.append if logs is not None else (lambda m: None)))
+
+    # Shorts regression: without margin_v the caption line keeps 30% of the height
+    tmp = Path(tempfile.mkdtemp())
+    render.build_captions([(0.0, 0.4, "hi")], cfg["video"]["captions"], 1080, 1920, tmp / "c.ass")
+    style = next(ln for ln in (tmp / "c.ass").read_text().splitlines() if ln.startswith("Style: Cap,"))
+    assert style.split(",")[-2] == "576" and style.split(",")[2] == str(cfg["video"]["captions"]["size"]), style
+    shutil.rmtree(tmp, ignore_errors=True)
+
+    # no clean example → held, named, nothing made (no narration call, no workdir)
+    hold_dir = ROOT / "output" / "test_lesson_hold"
+    shutil.rmtree(hold_dir, ignore_errors=True)
+    choppy = json.loads((ROOT / "tests" / "lessons" / "candles" / "choppy.json").read_text(encoding="utf-8"))
+    logs = []
+    held = make(entry, cfg, hold_dir, hist={"BTC/USD": {"1H": choppy}}, logs=logs)
+    assert set(held) == {"held"} and entry["id"] in held["held"] and "example" in held["held"], held
+    assert not prompts and not voice_calls and not hold_dir.exists() and any("held" in m for m in logs), logs
+
+    # 1) the sample lesson: both shapes rendered from one narration
+    work = ROOT / "output" / "test_lesson"
+    shutil.rmtree(work, ignore_errors=True)
+    plan = lessons.scene_plan(entry, lessons.DETECTORS[entry["detector"]].find(history), nxt)
+    draft.update(_lesson_draft(plan, lesson_script.DISCLAIMER))
+    made = make(entry, cfg, work)
+    assert set(made) == {"videos", "thumbnail", "meta", "chapters", "seconds", "examples", "workdir"}, set(made)
+    assert voice_calls == [cfg["voice"]["rate"]]  # under 300 s: recorded once
+    total = sum(a["duration"] for a in last_audio)
+    assert set(made["videos"]) == {"16x9", "9x16"} and abs(made["seconds"] - total) < 0.1
+    durs = {}
+    for name, size in (("16x9", (1920, 1080)), ("9x16", (1080, 1920))):
+        path = made["videos"][name]
+        assert path == work / f"lesson_{name}.mp4" and path.exists()
+        assert _probe_size(path) == size, (name, _probe_size(path))
+        durs[name] = probe_duration(path)
+        assert abs(durs[name] - total) < 0.25 and durs[name] < 300, (name, durs[name], total)
+    assert abs(durs["16x9"] - durs["9x16"]) < 0.1, durs
+    # captions: 56 px in 16:9, the Shorts' 84 px in 9:16 (2 words a line), every scene captioned
+    for layout, size in ((ls.LANDSCAPE, 56), (ls.PORTRAIT, cfg["video"]["captions"]["size"])):
+        ass = (work / layout.name / "captions.ass").read_text()
+        assert f"PlayResX: {layout.w}" in ass and f"PlayResY: {layout.h}" in ass
+        f = next(ln for ln in ass.splitlines() if ln.startswith("Style: Cap,")).split(",")
+        assert int(f[2]) == size, (layout.name, f)
+        assert ass.count("Dialogue:") == sum(len(sc["text"].split()) for sc in draft["scenes"])
+        # a caption that wraps to two lines (the longest a line of words_per_line words can wrap to) stays
+        # inside the caption band, also while its first word pops in at 108%
+        cap = app.lesson_video_cfg(cfg, layout)["video"]["captions"]
+        words = ["INTERCONTINENTALISATIONSQ", "MISUNDERSTANDINGSHOWNTOGQ", "ACCOMPLISHMENTSXXJQWERTYQ"]
+        cdir = work / f"capcheck_{layout.name}"
+        cdir.mkdir()
+        render.build_captions([(k * 0.1, k * 0.1 + 0.09, w) for k, w in enumerate(words[:cap["words_per_line"]])],
+                              cap, layout.w, layout.h, cdir / "c.ass")
+        for ts in ("0.0", "0.25"):
+            run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"color=c=0x0E0F12:s={layout.w}x{layout.h}:d=1",
+                 "-vf", "ass=c.ass", "-ss", ts, "-frames:v", "1", "f.png"], cwd=cdir)
+            rows = _ink_rows(cdir / "f.png", tol=4)
+            assert rows and layout.caption_band[0] <= rows[0] and rows[-1] <= layout.caption_band[1], \
+                (layout.name, ts, rows[0], rows[-1], layout.caption_band)
+            assert rows[-1] - rows[0] > 1.5 * cap["size"], (layout.name, "expected two lines", rows[0], rows[-1])
+        shutil.rmtree(cdir)
+        # push-in: the last frame of a non-chart scene (concept) still shows the whole footer
+        seg = work / layout.name / "seg_01.mp4"
+        assert next(s for s in plan if s["id"] == "concept")["visual"]["type"] == "concept"
+        run(["ffmpeg", "-y", "-v", "error", "-sseof", "-0.3", "-i", seg, "-update", "1", work / "last.png"])
+        slide_rows = [r for r in _ink_rows(work / layout.name / f"lesson_{layout.name}_01.png")
+                      if r > layout.caption_band[1]]
+        frame_rows = [r for r in _ink_rows(work / "last.png") if r > layout.caption_band[1]]
+        assert slide_rows and frame_rows and frame_rows[-1] < layout.h - 3, (layout.name, "footer cropped", frame_rows[-1:])
+        assert frame_rows[-1] - frame_rows[0] >= slide_rows[-1] - slide_rows[0], (layout.name, frame_rows, slide_rows)
+        (work / "last.png").unlink()
+    with Image.open(made["thumbnail"]) as im:
+        assert im.size == (1280, 720)
+
+    # chapters: start at 0:00, follow the scene starts, ≥ 10 s each; the short misreads scene merges
+    starts, t = {}, 0.0
+    for p, a in zip(plan, last_audio):
+        starts[p["id"]] = t
+        t += a["duration"]
+    ch = made["chapters"]
+    assert [c["title"] for c in ch] == ["Intro", glossary["break_of_structure"]["term"], "Example 1: ETH/USD 1H",
+                                        "Example 2: BTC/USD 1H", "Recap"], [c["title"] for c in ch]
+    assert [sid for c in ch for sid in c["scenes"]] == [p["id"] for p in plan]
+    assert ch[3]["scenes"] == ["example_2", "misreads"] and last_audio[4]["duration"] < 10
+    assert ch[0]["start"] == 0 and ch[0]["time"] == "0:00"
+    ends = [c["start"] for c in ch[1:]] + [total]
+    for c, end in zip(ch, ends):
+        assert abs(c["start"] - starts[c["scenes"][0]]) < 0.01 and end - c["start"] >= 10, (c, end)
+        assert c["time"] == lesson_meta.timestamp(c["start"])
+
+    # metadata: written, keyword-first title, chapters / examples / credits / disclaimer, no ICT line
+    meta = made["meta"]
+    saved = json.loads((work / "metadata.json").read_text())
+    assert {k: saved[k] for k in meta} == meta and saved["chapters"] == ch
+    assert set(meta) == {"title", "description", "tags", "category_id", "fb_title", "fb_description"}
+    assert meta["title"] == f"{entry['title']} Explained | Structure Lesson" and len(meta["title"]) <= 100
+    assert meta["category_id"] == "27" and meta["fb_title"] == meta["title"]
+    d = meta["description"]
+    assert d.startswith(" ".join(entry["key_points"]))
+    assert "Chapters:\n" + "\n".join(f"{c['time']} {c['title']}" for c in ch) in d, d
+    assert "Historical examples:\n" in d and all(lessons.example_label(e) in d for e in made["examples"])
+    assert "Coinbase" in d and "not financial advice" in d.lower() and ls.NON_AFFILIATION not in d
+    tags = d.rsplit("\n\n", 1)[1].split()
+    assert 3 <= len(tags) <= 5 and all(h.startswith("#") for h in tags) and "#Shorts" not in tags, tags
+    assert meta["tags"] and len(meta["tags"]) == len({x.lower() for x in meta["tags"]})
+    fb = meta["fb_description"]
+    assert "http" not in d and "http" not in fb and "www." not in fb and "not financial advice" in fb.lower()
+    assert fb.startswith(" ".join(entry["key_points"])) and 1 <= len([w for w in fb.split() if w.startswith("#")]) <= 5
+
+    # 2) ICT entry (track 4) over the limit: re-recorded faster once; the non-affiliation line in both texts.
+    # Rendering is stubbed here (the sample above rendered for real); it records each shape's cfg.
+    shapes = []
+
+    def fake_build(audio, pics, vcfg, workdir, out, music=None):
+        shapes.append(vcfg["video"])
+        return sum(a["duration"] for a in audio)
+    ict = dict(entry, track=4)
+    plan = lessons.scene_plan(ict, made["examples"], nxt)
+    draft.clear()
+    draft.update(_lesson_draft(plan, f"{lesson_script.DISCLAIMER} {lesson_script.NON_AFFILIATION}"))
+    logs = []
+    with mock.patch.object(render, "build_video", fake_build):
+        made = make(ict, {**cfg, "lessons": {"max_seconds": 40}}, ROOT / "output" / "test_lesson_ict", logs=logs)
+    assert len(voice_calls) == 2 and int(voice_calls[1].strip("%")) > int(voice_calls[0].strip("%")), voice_calls
+    assert any("re-recording" in m for m in logs), logs
+    assert [(s["width"], s["height"], s["captions"]["size"]) for s in shapes] == \
+        [(1920, 1080, 56), (1080, 1920, cfg["video"]["captions"]["size"])], shapes
+    assert cfg["video"]["max_seconds"] == 59 and "margin_v" not in cfg["video"]["captions"]  # Shorts cfg untouched
+    assert ls.NON_AFFILIATION in made["meta"]["description"] and ls.NON_AFFILIATION in made["meta"]["fb_description"]
+    assert made["meta"]["title"].endswith("| ICT concepts Lesson"), made["meta"]["title"]
+    shutil.rmtree(ROOT / "output" / "test_lesson_ict", ignore_errors=True)
+
+    # chapter rules on their own: a short opening absorbs the next scene; a short last scene merges back
+    p3 = [{"id": "hook"}, {"id": "concept", "visual": {"concepts": ["swing_point"]}}, {"id": "example_1"},
+          {"id": "recap"}]
+    ex = [{"asset": "BTC/USD", "timeframe": "4H"}]
+    got = lesson_meta.chapters(p3, [{"duration": d} for d in (4.0, 12.0, 15.0, 6.0)], ex, glossary)
+    assert [(c["time"], c["title"], c["scenes"]) for c in got] == [
+        ("0:00", "Intro", ["hook", "concept"]), ("0:16", "Example 1: BTC/USD 4H", ["example_1", "recap"])], got
+    # fewer than 3 chapters: YouTube ignores them, so the description has no "Chapters:" block (logged)
+    logs = []
+    two = lesson_meta.build_lesson_metadata(entry, {}, made["examples"], got, cfg, log=logs.append)
+    assert "Chapters:" not in two["description"] and "0:16" not in two["description"], two["description"]
+    assert any("No chapters" in m and "2" in m for m in logs), logs
+    assert lesson_meta.timestamp(75.9) == "1:15" and lesson_meta.timestamp(3725) == "1:02:05"
+    print(f"OK lesson render: {work / 'lesson_16x9.mp4'} + lesson_9x16.mp4 ({durs['16x9']:.1f}s) · "
+          f"{len(ch)} chapters · hold, re-record, ICT, Shorts captions")
 
 
 if __name__ == "__main__":
