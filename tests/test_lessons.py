@@ -1,6 +1,7 @@
 """Offline check of the lesson formats: curriculum + glossary validator, episode picker, example
-schema and scene plan, the structure detectors (candle fixtures in tests/lessons/candles/) and the
-lesson price-history fetch with sources._get mocked (no API keys, no network).
+schema and scene plan, the structure detectors (candle fixtures in tests/lessons/candles/), the
+lesson price-history fetch with sources._get mocked and the lesson narration with Gemini mocked
+(no API keys, no network).
 
     python tests/test_lessons.py
 """
@@ -15,7 +16,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from autopilot import detectors, lesson_data, lessons, sources  # noqa: E402,F401  (detectors registers)
+from autopilot import detectors, lesson_data, lesson_script, lessons, script, sources  # noqa: E402,F401  (detectors registers)
 from autopilot.history import History  # noqa: E402
 
 SAMPLE = ROOT / "tests" / "lessons"
@@ -526,6 +527,163 @@ def test_fetch():
           "timeframe skipped and logged)")
 
 
+# ─── narration ─────────────────────────────────────────────────────────────
+
+FILLER = ("A swing point marks where price turned and the next close tells us whether "
+          "the structure held or changed character").split()
+
+
+def draft(plan: list[dict], words: int = 600, inserts: dict | None = None, recap_tail: str | None = None) -> dict:
+    """A mocked writer reply: exactly `words` words over the plan's scenes; `inserts` {id: sentence}
+    replace filler at the start of a scene; the recap ends with `recap_tail` (default the disclaimer)."""
+    inserts = inserts or {}
+    tail = lesson_script.DISCLAIMER if recap_tail is None else recap_tail
+    fixed = {p["id"]: inserts.get(p["id"], "").split() for p in plan}
+    fixed["recap"] = fixed.get("recap", []) + tail.split()
+    free = words - sum(len(v) for v in fixed.values())
+    scenes, used = [], 0
+    for i, p in enumerate(plan):
+        n = free // len(plan) + (free % len(plan) if i == len(plan) - 1 else 0)
+        body = [FILLER[(used + k) % len(FILLER)] for k in range(n)]
+        used += n
+        sid = p["id"]
+        parts = fixed[sid] + body if sid != "recap" else body + fixed[sid]
+        scenes.append({"id": sid, "text": " ".join(parts)})
+    return {"scenes": scenes}
+
+
+def test_narration():
+    entry, glossary, plan, examples = lesson_script.sample_episode()
+    assert entry["id"] == "bos-vs-choch" and len(examples) == 2
+    assert [p["id"] for p in plan] == ["hook", "concept", "example_1", "example_2", "misreads", "recap"]
+    facts = lesson_script.lesson_facts(entry, glossary, examples)
+    assert set(facts) == {"title", "key_points", "glossary", "examples"}
+    assert set(facts["glossary"]) == {"break_of_structure", "change_of_character", "swing_point"}
+    assert all(set(x) == {"scene", "asset", "timeframe", "date", "facts"} for x in facts["examples"])
+    f1 = examples[0]["facts"]
+    level, close = f"{f1['bos']['level']:.2f}", f"{f1['choch']['close']:.2f}"
+
+    cfg = {"channel": {"display_name": "CryptoFX Daily"},
+           "llm": {"model": "m", "fallback_models": [], "min_words": 115, "max_words": 145}}
+    cfg_before = copy.deepcopy(cfg)
+    prompts, drafts = [], []
+
+    def fake_llm(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        if "strict financial news editor" in prompt:
+            pkg = json.loads(prompt.split("SCRIPT:\n", 1)[1].rsplit("\n\n1. Every", 1)[0])
+            return {"verdict": "revised", "issues": ["tightened wording"], "package": pkg}
+        return copy.deepcopy(drafts.pop(0))
+
+    def run(*replies, e=entry, p=plan):
+        drafts[:] = list(replies)
+        prompts.clear()
+        logs = []
+        with mock.patch.object(lesson_script, "generate_json", fake_llm), \
+                mock.patch.object(script, "generate_json", fake_llm):
+            pkg = lesson_script.make_lesson_script(cfg, e, glossary, p, examples, log=logs.append)
+        return pkg, logs
+
+    clean = draft(plan, 600, {"example_1": f"Price closed below {level} and later closed above {close}."})
+
+    # good draft: one text per plan scene, fact_check verdict kept, lesson bounds + rules sent
+    pkg, logs = run(clean)
+    assert [s["id"] for s in pkg["scenes"]] == [p["id"] for p in plan] and all(s["text"] for s in pkg["scenes"])
+    assert pkg["scenes"][2]["visual"]["example"] is examples[0]
+    assert pkg["fact_check"] == {"verdict": "revised", "issues": ["tightened wording"]}
+    assert lesson_script.check_lesson(pkg, entry, plan, facts) == []
+    writer, checker = prompts
+    assert "intermediate traders" in writer and "calm, precise trading educator" in writer
+    assert all(k in writer for k in entry["key_points"]) and glossary["swing_point"]["definition"] in writer
+    assert all(f'- "{p["id"]}": {p["covers"]}' in writer for p in plan)
+    assert '"candles"' not in writer and '"primitives"' not in writer and '"region"' not in writer
+    assert "Keep 550-700 words" in checker and "trading LESSON" in checker and '"candles"' not in checker
+    assert cfg == cfg_before  # fact_check got a copy
+
+    # banned claims → rejected with the reason, next attempt used
+    for bad in ("Buy here when it breaks.", "Put a stop loss under it.", "This setup has a high win rate.",
+                "Price will reach the next swing.", "Set a target at the next level."):
+        pkg, logs = run(draft(plan, 600, {"concept": bad}), clean)
+        assert pkg["scenes"][0]["text"] == clean["scenes"][0]["text"] and len(drafts) == 0
+        assert any("Discarding draft" in m and "banned wording" in m for m in logs), (bad, logs)
+    problems = lesson_script.check_lesson(draft(plan, 600, {"concept": "Buy here and set a stop-loss."}),
+                                          entry, plan, facts)
+    assert problems == ["banned wording: buy, stop-loss"], problems
+
+    # liquidity terms are allowed
+    liq = draft(plan, 600, {"misreads": "Sell-side liquidity rests below lows and buy-side liquidity above highs; "
+                                        "buy side and sell side are names, not instructions."})
+    assert lesson_script.check_lesson(liq, entry, plan, facts) == []
+    uni = draft(plan, 600, {"misreads": "Sell\u2011side liquidity sits below lows, buy\u2013side liquidity above highs."})
+    assert lesson_script.check_lesson(uni, entry, plan, facts) == []  # non-breaking hyphen, en dash
+    pkg, _ = run(liq)
+    assert "Sell-side liquidity" in pkg["scenes"][-2]["text"]
+
+    # too short / too long → rejected with the word count
+    for n in (400, 800):
+        pkg, logs = run(draft(plan, n), clean)
+        assert any(f"{n} words (target 550-700)" in m for m in logs), logs
+    assert lesson_script.check_lesson(draft(plan, 550), entry, plan, facts) == []
+    assert lesson_script.check_lesson(draft(plan, 700), entry, plan, facts) == []
+    extra = draft(plan, 600)
+    extra["scenes"].append({"id": "bonus", "text": " ".join(["word"] * 300)})  # not a plan scene: not counted
+    assert lesson_script.check_lesson(extra, entry, plan, facts) == []
+
+    # unbacked number → rejected naming it
+    pkg, logs = run(draft(plan, 600, {"example_1": "Price then traded at 123.45 before turning."}), clean)
+    assert any("numbers not in the facts: 123.45" in m for m in logs), logs
+    assert lesson_script.check_lesson(draft(plan, 600, {"hook": "Two key points, one idea."}),
+                                      entry, plan, facts) == []  # bare small integers are fine
+    # dates / times in the facts don't back numbers; spoken dates and clock times aren't numbers
+    for said, num in (("Price fell 19% that week.", "19"), ("It tested the level 23 times.", "23"),
+                      ("Price then traded at $112,345.67 that day.", "112,345.67"),
+                      ("Volume reached 1234567 contracts.", "1,234,567")):
+        p = lesson_script.check_lesson(draft(plan, 600, {"example_1": said}), entry, plan, facts)
+        assert p == [f"numbers not in the facts: {num}"], (said, p)
+    d, dt = examples[0]["date"], datetime.fromisoformat(examples[0]["date"])
+    spoken = f"On {dt:%B} {dt.day}, {dt.year}, at 12:00 UTC ({d}), price closed above {close}."
+    assert lesson_script.check_lesson(draft(plan, 600, {"example_1": spoken}), entry, plan, facts) == [], spoken
+
+    # missing disclaimer; track 4 also needs the non-affiliation line
+    no_disc = draft(plan, 600, recap_tail="That is the whole lesson.")
+    assert lesson_script.check_lesson(no_disc, entry, plan, facts) == [
+        "recap lacks the disclaimer (\"not financial advice\")"]
+    pkg, logs = run(no_disc, clean)
+    assert any("recap lacks the disclaimer" in m for m in logs), logs
+    ict = dict(entry, track=4)
+    ict_plan = lessons.scene_plan(ict, examples)
+    p = lesson_script.check_lesson(draft(ict_plan, 600), ict, ict_plan, facts)
+    assert p == ["recap lacks the non-affiliation line (The Inner Circle Trader)"], p
+    both = draft(ict_plan, 600, recap_tail=f"{lesson_script.DISCLAIMER} {lesson_script.NON_AFFILIATION}")
+    assert lesson_script.check_lesson(both, ict, ict_plan, facts) == []
+    pkg, _ = run(draft(ict_plan, 600), both, e=ict, p=ict_plan)
+    assert "Inner Circle Trader" in pkg["scenes"][-1]["text"]
+    assert "not affiliated with The Inner Circle Trader" in prompts[0] and "Inner Circle Trader" in prompts[1]
+
+    # fact-check reject → retried
+    def rejecting(prompt, models, temperature=0.9):
+        if "strict financial news editor" in prompt:
+            rejecting.n += 1
+            if rejecting.n == 1:
+                return {"verdict": "reject", "issues": ["wrong"], "package": {}}
+        return fake_llm(prompt, models, temperature)
+    rejecting.n = 0
+    drafts[:] = [clean, clean]
+    logs = []
+    with mock.patch.object(lesson_script, "generate_json", rejecting), mock.patch.object(script, "generate_json", rejecting):
+        pkg = lesson_script.make_lesson_script(cfg, entry, glossary, plan, examples, log=logs.append)
+    assert any("fact-check verdict: reject" in m for m in logs) and pkg["fact_check"]["verdict"] == "revised"
+
+    # all attempts fail → RuntimeError with the last problems
+    try:
+        run(draft(plan, 400), draft(plan, 600, {"concept": "Buy now."}), draft(plan, 800))
+        raise AssertionError("3 bad drafts must fail")
+    except RuntimeError as e:
+        assert "3 attempts" in str(e) and "800 words (target 550-700)" in str(e), e
+    print("OK narration (good draft, banned claims retried, liquidity terms allowed, word bounds, unbacked number, "
+          "disclaimer + ICT non-affiliation, fact-check reject retried, 3 failures raise; Gemini mocked)")
+
+
 def main():
     test_validate()
     test_pick()
@@ -534,6 +692,7 @@ def main():
     test_real_files()
     test_detectors()
     test_fetch()
+    test_narration()
 
 
 if __name__ == "__main__":
