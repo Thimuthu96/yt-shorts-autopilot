@@ -236,6 +236,28 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-09T12:37:15+00:00",
+      "brief_date": "2026-10-09",
+      "session": "newyork",
+      "kind": "market",
+      "title": "Gold Price Today: XAU Near $4,188 on Iran Talks | NY Open, Oct 9",
+      "video_id": "HoMIv5wLwrU",
+      "seconds": 50.8,
+      "headlines": [
+        "Gold price today, Friday, October 9, 2026: Gold prices see modest gains after 'productive discussions' with Iran",
+        "Gold recovery stalls near $4,200 as US Dollar, Treasury yields stabilise",
+        "Bitcoin, Strategy, and Crypto Stocks Rebound as Trump Signal Cools Iran Attack Fears"
+      ],
+      "lead": "XAU",
+      "fb_reel_id": "1838962337459157",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
