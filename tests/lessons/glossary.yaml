@@ -12,3 +12,6 @@ terms:
   change_of_character:
     term: "Change of character (CHoCH)"
     definition: "The first close beyond the last swing point against the trend, the first sign it may be turning."
+  top_down_analysis:
+    term: "Top-down multi-timeframe reading"
+    definition: "Reading the structure of a higher timeframe first, then the structure of a lower timeframe of the same asset inside the higher timeframe's latest leg."

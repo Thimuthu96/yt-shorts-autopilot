@@ -10,6 +10,10 @@ files). Prices walk between hand-picked turning points with small seeded noise.
                               -> bos_choch with that one disagreeing swing last
     range_after_trend.json    LH/LL downtrend, then a range (HL, LH, LL) before price finally closes
                               above the run's last LH -> no bos_choch (structure moved on)
+    top_down_1h.json          long 1H series with nested structure: a HH/HL staircase whose up legs
+                              zigzag on 1H (up 6 candles, down 3), so aggregated to 4H it is an
+                              uptrend and inside its last up leg the 1H makes its own HH/HL
+                              -> top_down (4H -> 1H; read as 4H candles and aggregated to 1D, 1D -> 4H)
 """
 import json
 import random
@@ -35,6 +39,33 @@ SERIES = {
 }
 
 
+# (start price, [(candles in a straight down leg, higher-timeframe turning point), ...]); up legs zigzag
+NESTED = {
+    "top_down_1h": (100.0, [(16, 92), (0, 110), (20, 102), (0, 120), (20, 112), (0, 130), (20, 122), (0, 140),
+                            (20, 132), (0, 150), (20, 142)]),
+}
+UP_WAVE, DOWN_WAVE = (6, 1.0), (3, 0.8)  # 1H waves inside an up leg: (candles, price step per candle)
+
+
+def nested_legs(start: float, turns: list) -> list:
+    """Higher-timeframe turning points -> 1H legs: up legs as waves (up 6 x 1.0, down 3 x 0.8, net up),
+    down legs straight."""
+    legs, price = [], start
+    (n1, s1), (n2, s2) = UP_WAVE, DOWN_WAVE
+    for n, target in turns:
+        if target > price:
+            while target - price > n1 * s1:
+                price += n1 * s1
+                legs.append((n1, round(price, 2)))
+                price -= n2 * s2
+                legs.append((n2, round(price, 2)))
+            legs.append((max(2, round((target - price) / s1)), target))
+        else:
+            legs.append((n, target))
+        price = target
+    return legs
+
+
 def make(start: float, legs: list, seed: int) -> list[dict]:
     rnd = random.Random(seed)
     out, price, t = [], start, START
@@ -53,6 +84,10 @@ def make(start: float, legs: list, seed: int) -> list[dict]:
 def main():
     for seed, (name, (start, legs)) in enumerate(SERIES.items(), 1):
         candles = make(start, legs, seed)
+        (HERE / f"{name}.json").write_text(json.dumps(candles, indent=1) + "\n", encoding="utf-8")
+        print(f"{name}.json: {len(candles)} candles")
+    for seed, (name, (start, turns)) in enumerate(NESTED.items(), len(SERIES) + 1):
+        candles = make(start, nested_legs(start, turns), seed)
         (HERE / f"{name}.json").write_text(json.dumps(candles, indent=1) + "\n", encoding="utf-8")
         print(f"{name}.json: {len(candles)} candles")
 

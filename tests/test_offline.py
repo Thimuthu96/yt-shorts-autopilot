@@ -699,11 +699,12 @@ def _contact(paths: list[Path], cell: tuple[int, int], cols: int, out: Path) -> 
 
 
 def test_lesson_slides(cfg):
-    """Lesson graphics (entry 3): every scene type in 16:9 and 9:16 from the fixture detectors' real
-    examples, every primitive, portrait zoom, daily-fix line, schematic label, unknown type, thumbnail;
-    writes contact sheets for the owner to approve the look."""
-    from PIL import Image
-    from autopilot import detectors, lesson_slides as ls, lessons  # noqa: F401  (detectors registers)
+    """Lesson graphics (entries 3 + 4): every scene type in 16:9 and 9:16 from the fixture detectors' real
+    examples, every primitive, portrait zoom, daily-fix line, schematic label, the mtf (top-down) panels,
+    unknown type, thumbnail; writes contact sheets (chart and mtf scenes) for the owner to approve the look."""
+    from types import SimpleNamespace
+    from PIL import Image, ImageDraw
+    from autopilot import detectors, lesson_data, lesson_slides as ls, lessons  # noqa: F401  (detectors registers)
     sample = ROOT / "tests" / "lessons"
     cur, glo = lessons.load_curriculum(sample / "curriculum.yaml"), lessons.load_glossary(sample / "glossary.yaml")
     load = lambda n: json.loads((sample / "candles" / f"{n}.json").read_text(encoding="utf-8"))  # noqa: E731
@@ -723,10 +724,20 @@ def test_lesson_slides(cfg):
     assert lessons.validate_example(ex1) == [], lessons.validate_example(ex1)
     assert {p["type"] for p in ex1["primitives"]} == set(lessons.PRIMITIVES)
     schematic = lessons.DETECTORS["swings"].find({"BTC/USD": {"1H": up}})[0]  # example-shaped dict
+    # top-down (mtf): the 1H fixture with nested structure and its 4H aggregation
+    h1 = load("top_down_1h")
+    rows = {int(datetime.fromisoformat(c["t"]).timestamp()): (c["o"], c["h"], c["l"], c["c"]) for c in h1}
+    h4 = lesson_data._candles(lesson_data._aggregate(rows, 4 * 3600))
+    mtf = lessons.DETECTORS["top_down"].find({"BTC/USD": {"4H": h4, "1H": h1}})
+    assert len(mtf) == 1 and lessons.validate_example(mtf[0]) == [], mtf
+    mtf_ex = mtf[0]
+    mtf_scene = lessons.scene_plan(cur[2], [mtf_ex])[2]
+    assert mtf_scene["id"] == "example_1" and mtf_scene["visual"]["type"] == "mtf"
     plan = lessons.scene_plan(cur[1], examples)
     plan.insert(2, {"id": "schematic", "visual": {"type": "schematic", "example": schematic}})
+    plan.insert(5, dict(mtf_scene, id="mtf"))
     types = [s["visual"]["type"] for s in plan]
-    assert types == ["title", "concept", "schematic", "chart", "chart", "misreads", "outro"], types
+    assert types == ["title", "concept", "schematic", "chart", "chart", "mtf", "misreads", "outro"], types
 
     work = ROOT / "output" / "test_lessons"
     shutil.rmtree(work, ignore_errors=True)
@@ -741,7 +752,7 @@ def test_lesson_slides(cfg):
                 assert im.size == (layout.w, layout.h), (layout.name, s["id"], im.size)
                 band = im.convert("RGB").crop((0, layout.caption_band[0], layout.w, layout.caption_band[1]))
                 assert band.getextrema() == tuple((c, c) for c in bg), (layout.name, s["id"], "drew into captions")
-            if s["visual"]["type"] in ("chart", "schematic"):
+            if s["visual"]["type"] in ("chart", "schematic", "mtf"):
                 x, y, w, h = p["reveal"]
                 assert w >= 0.85 * layout.w and x >= 0 and x + w <= layout.w, (layout.name, p["reveal"])
                 assert y >= layout.rule_y and y + h <= layout.caption_band[0], (layout.name, p["reveal"])
@@ -772,6 +783,64 @@ def test_lesson_slides(cfg):
                              zoom=zoom, label=ls.SCHEMATIC)
         assert info["label"].startswith("Schematic") and "Historical example" not in info["label"], info["label"]
 
+        # mtf: two panels, side by side in 16:9 (higher left) / stacked in 9:16 (higher on top), each with
+        # its timeframe title and strip, together filling the content width (no crop, no letterbox)
+        x0, y0, x1, y1 = layout.content_box
+        hi, lo = ls.draw_mtf(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, mtf_ex, layout)
+        (ax, ay, aw, ah), (bx, by, bw, bh) = hi["panel"], lo["panel"]
+        if layout is ls.LANDSCAPE:
+            assert ay == by and ah == bh and ax == x0 and bx + bw == x1 and bx - (ax + aw) == ls.MTF_GUTTER, (hi, lo)
+            assert aw == bw and aw >= 0.45 * (x1 - x0)
+        else:
+            assert ax == bx == x0 and aw == bw == x1 - x0 and ay == y0 and by + bh == y1, (hi, lo)
+            assert by - (ay + ah) == ls.MTF_GUTTER and ah == bh
+        assert y1 <= layout.caption_band[0]
+        for info, tf, role in ((hi, "4H", "Higher timeframe"), (lo, "1H", "Lower timeframe")):
+            assert info["timeframe"] == tf and info["title"] == f"{tf} · {role}", info
+            assert info["label"].startswith("Historical example · BTC/USD · ") and f"· {tf}" in info["label"]
+            assert "Coinbase" in info["label"] and not info["line"]
+            px, py, pw, ph = info["panel"]
+            cx, cy, cw, chh = info["box"]
+            assert px <= cx and cx + cw <= px + pw and py < cy and cy + chh <= py + ph, info
+            assert info["x_range"][1] - info["x_range"][0] >= 10  # readable: a real stretch of candles
+        assert "zone" in hi["drawn"] and "swing" in hi["drawn"] and set(lo["drawn"]) == {"swing"}, (hi, lo)
+        # headroom: every swing's marker + kind text fits inside its plot (above a high, below a low)
+        fs = layout.min_text
+        room = ls.SWING_ROOM + max(10, round(fs * 0.42)) + round(fs * 1.2)
+        for info, prims in ((hi, mtf_ex["primitives"]), (lo, mtf_ex["lower"]["primitives"])):
+            ylo, yhi = info["y_range"]
+            plot_h = info["box"][3] - round(fs * 1.3)  # chart box minus the time row
+            for sw in prims:
+                gap = (yhi - sw["price"] if sw["kind"] in ls.SWING_HIGH else sw["price"] - ylo) / (yhi - ylo) * plot_h
+                assert gap >= room - 1, (layout.name, info["timeframe"], sw, gap, room)
+        # draw-in box: the slide's reveal never covers a panel title or label strip
+        heading = ls._heading(SimpleNamespace(accent=(255, 212, 0)), glo["top_down_analysis"]["term"])
+        canvas = Image.new("RGB", (layout.w, layout.h), bg)
+        hy = ls._flow(ImageDraw.Draw(canvas), [heading], layout.content_box, layout)
+        infos = ls.draw_mtf(canvas, (x0, hy, x1, y1), mtf_ex, layout, label=mtf_scene["visual"]["label"])
+        rev = next(p["reveal"] for p in pics if p["id"] == "mtf")
+        assert rev == ls.mtf_reveal(infos, layout), (rev, ls.mtf_reveal(infos, layout))
+
+        def overlaps(a, b):
+            return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+        for info in infos:
+            for lab in (info["title_box"], info["strip_box"]):
+                assert lab[3] > 0 and not overlaps(rev, lab), (layout.name, rev, lab)
+        if layout is ls.PORTRAIT:
+            assert rev == infos[1]["box"]  # only the lower chart draws in; the higher one shows at once
+        if layout is ls.PORTRAIT:  # zoomed to each panel's region, as chart scenes are
+            assert hi["x_range"] != (0, len(mtf_ex["candles"]) - 1) or lo["x_range"] != (0, len(mtf_ex["lower"]["candles"]) - 1)
+        # the higher panel's zone is the lower window, labelled with the lower timeframe
+        higher, lower = ls.mtf_panels(mtf_ex)
+        r = mtf_ex["lower"]["region"]
+        # the zone ends with the 4H candle holding the window's last 1H candle (not inside the next one)
+        t2 = max(c["t"] for c in mtf_ex["candles"] if c["t"] <= r["end"])
+        assert t2 < r["end"] < (datetime.fromisoformat(t2) + timedelta(hours=4)).isoformat()
+        assert higher["primitives"][-1] == {"type": "zone", "t1": r["start"], "t2": t2, "low": r["low"],
+                                            "high": r["high"], "label": "1H"}
+        assert "lower" not in higher and higher["primitives"][:-1] == mtf_ex["primitives"]
+        assert lower["date"] == r["end"][:10] and lower["candles"] == mtf_ex["lower"]["candles"]
+
     # 9:16 zoom: x/y limits from the region (± 3 candles, ± 8% of its range); 16:9 shows every candle
     zx = json.loads(json.dumps(ex1))
     c = zx["candles"]
@@ -787,12 +856,22 @@ def test_lesson_slides(cfg):
     assert info["x_range"] == (0, len(c) - 1), info["x_range"]
     assert info["y_range"][0] <= min(b["l"] for b in c) and info["y_range"][1] >= max(b["h"] for b in c)
 
-    # unknown visual type → ValueError naming it
-    try:
-        ls.render_lesson_slides(cfg, cur[1], [{"id": "x", "visual": {"type": "mtf"}}], glo, ls.LANDSCAPE, work / "bad")
-        raise AssertionError("an unknown visual type must fail")
-    except ValueError as e:
-        assert "mtf" in str(e), e
+    # unknown visual type → ValueError naming it (sessions / pair / walkthrough are not built)
+    for t in ("sessions", "pair", "walkthrough"):
+        try:
+            ls.render_lesson_slides(cfg, cur[1], [{"id": "x", "visual": {"type": t}}], glo, ls.LANDSCAPE, work / "bad")
+            raise AssertionError("an unknown visual type must fail")
+        except ValueError as e:
+            assert t in str(e), e
+    # an mtf scene needs an example with its lower panel
+    no_lower = {k: v for k, v in mtf_ex.items() if k != "lower"}
+    for vis in ({"type": "mtf"}, {"type": "mtf", "example": no_lower}):
+        try:
+            ls.render_lesson_slides(cfg, cur[2], [{"id": "x", "visual": vis}], glo, ls.LANDSCAPE, work / "bad")
+            raise AssertionError("an mtf scene without its panels must fail")
+        except ValueError as e:
+            assert "mtf" in str(e), e
+    shutil.rmtree(work / "bad", ignore_errors=True)
     # recap: the "Next:" title and the ICT non-affiliation line are drawn when set (each changes the slide;
     # _flow never drops or cuts them, it raises instead), and the captions stay clear
     recap = {"type": "outro", "next": cur[0]["title"], "disclaimer": True, "non_affiliation": True}

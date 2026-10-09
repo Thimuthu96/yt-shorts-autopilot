@@ -1,6 +1,6 @@
 """Offline check of the lesson formats: curriculum + glossary validator, episode picker, example
-schema and scene plan, the structure detectors (candle fixtures in tests/lessons/candles/), the
-lesson price-history fetch with sources._get mocked and the lesson narration with Gemini mocked
+schema (incl. the mtf `lower` panel) and scene plan, the structure and top-down detectors (candle
+fixtures in tests/lessons/candles/), the lesson price-history fetch with sources._get mocked and the lesson narration with Gemini mocked
 (no API keys, no network).
 
     python tests/test_lessons.py
@@ -24,11 +24,12 @@ CANDLES = SAMPLE / "candles"
 
 
 def stub_detectors() -> dict:
-    """Test-only registry standing in for entry 2's structure detectors."""
+    """Test-only registry standing in for the structure and top-down detectors."""
     reg = {}
     lessons.register(lessons.Detector("swings", "swing_point", lambda *a, **k: []), reg)
     lessons.register(lessons.Detector("bos_choch", ("break_of_structure", "change_of_character"),
                                       lambda *a, **k: []), reg)
+    lessons.register(lessons.Detector("top_down", ("top_down_analysis", "market_structure"), lambda *a, **k: []), reg)
     return reg
 
 
@@ -39,7 +40,8 @@ def sample():
 
 def test_validate():
     cur, glo, det = sample()
-    assert len(cur) == 2 and all(e["track"] == 0 and e["visual"] == "chart" for e in cur)
+    assert len(cur) == 3 and all(e["track"] == 0 for e in cur)
+    assert [e["visual"] for e in cur] == ["chart", "chart", "mtf"] and cur[2]["detector"] == "top_down"
     assert lessons.validate(cur, glo, det) == [], lessons.validate(cur, glo, det)
 
     def errors(mutate, glossary=glo):
@@ -63,13 +65,19 @@ def test_validate():
     assert e == ["swing-structure: glossary key 'swing_point' has an empty definition",
                  "bos-vs-choch: glossary key 'swing_point' has an empty definition"], e
     e = errors(lambda c: c[1].update(id="swing-structure", prerequisites=[]))
-    assert e == ["swing-structure: duplicate id"], e
+    assert e == ["swing-structure: duplicate id",
+                 "top-down-reading: prerequisite 'bos-vs-choch' is not an earlier episode"], e
     e = errors(lambda c: c[0].pop("key_points"))
     assert e == ["swing-structure: missing field 'key_points'"], e
     e = errors(lambda c: c[0].update(key_points=[]))
     assert e == ["swing-structure: key_points must be a non-empty list of text"], e
     e = errors(lambda c: c.reverse())  # prerequisites must come earlier
-    assert e == ["bos-vs-choch: prerequisite 'swing-structure' is not an earlier episode"], e
+    assert e == ["top-down-reading: prerequisite 'swing-structure' is not an earlier episode",
+                 "top-down-reading: prerequisite 'bos-vs-choch' is not an earlier episode",
+                 "bos-vs-choch: prerequisite 'swing-structure' is not an earlier episode"], e
+    e = errors(lambda c: c[2].update(visual="walkthrough"))  # only chart and mtf exist
+    assert e == ["top-down-reading: unknown visual type 'walkthrough'"], e
+    assert lessons.VISUAL_TYPES == {"chart", "mtf"}
     e = errors(lambda c: c[0].update(track=7))
     assert e == ["swing-structure: track 7 is not 0-6"], e
     # non-string values are listed, never raised
@@ -97,7 +105,7 @@ def test_pick():
         assert p.entry["id"] == "bos-vs-choch" and not p.rerun
         # reordering the curriculum changes the next pick with no code change
         assert lessons.pick(list(reversed(cur)), History(Path(tmp) / "none.json"), "2026-10-13", "lesson") \
-            .entry["id"] == "bos-vs-choch"
+            .entry["id"] == "top-down-reading"
         # re-run of a slot: the recorded episode again, even though it's published, and even if held
         p = lessons.pick(cur, h, "2026-10-12", "lesson", hold=lambda e: "no clean example")
         assert p.entry["id"] == "swing-structure" and p.rerun and p.held == []
@@ -105,7 +113,10 @@ def test_pick():
         h.add({"brief_date": "2026-10-13", "session": "lesson", "episode": "bos-vs-choch", "fb_reel_id": "M1",
                "trigger": "manual", "counts": False})
         p = lessons.pick(cur, h, "2026-10-13", "lesson")
-        assert p.entry is None and not p.rerun, p  # both published: queue exhausted
+        assert p.entry["id"] == "top-down-reading" and not p.rerun, p
+        h.add({"brief_date": "2026-10-14", "session": "lesson", "episode": "top-down-reading", "video_id": "L3"})
+        p = lessons.pick(cur, h, "2026-10-15", "lesson")
+        assert p.entry is None and not p.rerun, p  # all published: queue exhausted
         # held: skipped with its reason, the next one returned
         h2 = History(Path(tmp) / "h2.json")
         hold = lambda e: "no clean example in BTC/ETH/gold 1H-1D" if e["id"] == "swing-structure" else None  # noqa: E731
@@ -113,12 +124,13 @@ def test_pick():
         assert p.entry["id"] == "bos-vs-choch" and p.held == [("swing-structure", "no clean example in BTC/ETH/gold 1H-1D")]
         # all held → nothing, holds listed
         p = lessons.pick(cur, h2, "2026-10-12", "lesson", hold=lambda e: "no data")
-        assert p.entry is None and p.held == [("swing-structure", "no data"), ("bos-vs-choch", "no data")]
+        assert p.entry is None and p.held == [("swing-structure", "no data"), ("bos-vs-choch", "no data"),
+                                              ("top-down-reading", "no data")]
         # an unpublished history entry (no platform id) doesn't count
         h2.add({"brief_date": "2026-10-12", "session": "lesson", "episode": "swing-structure"})
         assert lessons.pick(cur, h2, "2026-10-12", "lesson").entry["id"] == "swing-structure"
         # deterministic: same inputs, same answer
-        assert lessons.pick(cur, h, "2026-10-14", "lesson") == lessons.pick(cur, h, "2026-10-14", "lesson")
+        assert lessons.pick(cur, h, "2026-10-16", "lesson") == lessons.pick(cur, h, "2026-10-16", "lesson")
     print("OK pick (next, re-run, held, exhausted, manual runs, curriculum order)")
 
 
@@ -145,6 +157,20 @@ def example(**over) -> dict:
     return ex
 
 
+def mtf_example(**over) -> dict:
+    """example() as a 4H higher-timeframe panel with a 1H `lower` panel inside it."""
+    ex = example(detector="top_down", glossary="top_down_analysis", timeframe="4H", **over)
+    ex["lower"] = {
+        "timeframe": "1H",
+        "candles": [{"t": "2026-09-30T00:00:00+00:00", "o": 63000.0, "h": 63100.0, "l": 62900.0, "c": 63050.0},
+                    {"t": "2026-09-30T01:00:00+00:00", "o": 63050.0, "h": 63250.0, "l": 63000.0, "c": 63200.0}],
+        "region": {"start": "2026-09-30T00:00:00+00:00", "end": "2026-09-30T01:00:00+00:00",
+                   "low": 62900.0, "high": 63250.0},
+        "primitives": [{"type": "swing", "t": "2026-09-30T01:00:00+00:00", "price": 63250.0, "kind": "HH"}],
+    }
+    return ex
+
+
 def test_examples():
     assert lessons.validate_example(example()) == [], lessons.validate_example(example())
     bad = example(primitives=[{"type": "arrow", "t": "2026-09-30T00:00:00+00:00"}])
@@ -162,7 +188,34 @@ def test_examples():
     bad["candles"][0]["h"] = 62000.0
     assert lessons.validate_example(bad) == ["candle 0: low/high don't contain open/close"]
     assert set(lessons.PRIMITIVES) == {"level", "trendline", "zone", "swing", "label"}
-    print("OK examples (valid example, unknown primitive, missing field, bad time/kind, candles)")
+
+    # mtf: an optional `lower` panel, checked by the same rules, each problem prefixed "lower: "
+    good = mtf_example()
+    assert lessons.validate_example(good) == [], lessons.validate_example(good)
+    bad = mtf_example()
+    del bad["lower"]["candles"]
+    assert lessons.validate_example(bad) == ["lower: missing field 'candles'"], lessons.validate_example(bad)
+    bad = mtf_example()
+    bad["lower"]["primitives"].append({"type": "arrow", "t": "2026-09-30T00:00:00+00:00"})
+    assert lessons.validate_example(bad) == ["lower: primitive 1: unknown primitive type 'arrow'"], \
+        lessons.validate_example(bad)
+    bad = mtf_example()
+    bad["lower"]["candles"][1]["l"] = 70000.0
+    bad["lower"]["region"]["low"] = 99999.0
+    e = lessons.validate_example(bad)
+    assert e == ["lower: candle 1: low/high don't contain open/close",
+                 "lower: region start/end or low/high are reversed"], e
+    bad = mtf_example()
+    bad["lower"]["timeframe"] = ""
+    assert lessons.validate_example(bad) == ["lower: timeframe must be text"], lessons.validate_example(bad)
+    assert lessons.validate_example(dict(example(), lower=[])) == ["lower: panel is not a mapping"]
+    # the example's own problems keep their (unprefixed) names next to the panel's
+    bad = mtf_example(primitives=[{"type": "arrow"}])
+    del bad["lower"]["region"]
+    assert lessons.validate_example(bad) == ["primitive 0: unknown primitive type 'arrow'",
+                                             "lower: missing field 'region'"], lessons.validate_example(bad)
+    print("OK examples (valid example, unknown primitive, missing field, bad time/kind, candles; "
+          "mtf lower panel: missing candles, unknown primitive, bad candle/region, timeframe, not a mapping)")
 
 
 def test_scene_plan():
@@ -181,6 +234,12 @@ def test_scene_plan():
     assert plan[-1]["visual"]["next"] == cur[1]["title"] and cur[1]["title"] in plan[-1]["covers"]
     ict = dict(cur[0], track=4)
     assert lessons.scene_plan(ict, [example()])[-1]["visual"]["non_affiliation"]
+    # mtf entry: example scenes take the entry's visual type, the example (with its lower panel) as is
+    plan = lessons.scene_plan(cur[2], [mtf_example()])
+    assert [s["id"] for s in plan] == ["hook", "concept", "example_1", "misreads", "recap"]
+    v = plan[2]["visual"]
+    assert v["type"] == "mtf" and v["example"]["lower"]["timeframe"] == "1H"
+    assert v["label"] == "Historical example · BTC/USD · 2026-09-30"
     try:
         lessons.scene_plan(cur[0], [])
         raise AssertionError("scene_plan without an example must fail")
@@ -202,11 +261,14 @@ def test_real_files():
     assert stubs <= set(glo), stubs - set(glo)
     assert all(g.get("term") for g in glo.values())
     # the real registry (autopilot.detectors is imported above), not the test stubs
-    assert {"swings", "bos_choch"} <= set(lessons.DETECTORS), sorted(lessons.DETECTORS)
+    assert {"swings", "bos_choch", "top_down"} <= set(lessons.DETECTORS), sorted(lessons.DETECTORS)
+    assert lessons.DETECTORS["top_down"].glossary_keys() == ("top_down_analysis", "market_structure")
     for d in lessons.DETECTORS.values():
         assert set(d.glossary_keys()) <= set(glo), d
     s_cur, s_glo, _ = sample()
-    assert lessons.validate(s_cur, s_glo) == [], lessons.validate(s_cur, s_glo)
+    assert lessons.validate(s_cur, s_glo) == [], lessons.validate(s_cur, s_glo)  # real registry
+    td = next(e for e in s_cur if e["id"] == "top-down-reading")
+    assert td["visual"] == "mtf" and td["detector"] == "top_down"
     print(f"OK real lessons/ files ({len(cur)} episodes, {len(glo)} glossary keys, validate passes; "
           f"real detectors: {', '.join(sorted(lessons.DETECTORS))})")
 
@@ -380,6 +442,144 @@ def test_detectors():
     print("OK detectors (uptrend swings, BOS then CHoCH, latest-swing breaks + one disagreeing swing, "
           "range after trend -> no CHoCH, second example on another asset/timeframe, daily fix, "
           "ranking + 150-candle cap, choppy -> [], repeat runs identical, all examples valid)")
+
+
+# ─── top-down (mtf) detector ───────────────────────────────────────────────
+
+def aggregate(series: list[dict], seconds: int) -> list[dict]:
+    """Higher-timeframe candles built the way lesson_data builds 4H from 1H."""
+    rows = {int(datetime.fromisoformat(c["t"]).timestamp()): (c["o"], c["h"], c["l"], c["c"]) for c in series}
+    return lesson_data._candles(lesson_data._aggregate(rows, seconds))
+
+
+def retime(series: list[dict], hours: int) -> list[dict]:
+    """The same candles spaced `hours` apart (the 1H fixture read as 4H candles)."""
+    t0 = datetime.fromisoformat(series[0]["t"])
+    return [dict(c, t=(t0 + timedelta(hours=hours * k)).isoformat()) for k, c in enumerate(series)]
+
+
+def check_top_down(examples: list[dict], history: dict):
+    """Every top_down example: valid with its lower panel, 1.1's primitives only, real candles of the
+    same asset on the paired timeframes, the higher panel = the swings detector's case, the lower
+    window inside the higher case's last leg with >= 4 labelled swings taken from its candles."""
+    assert len(examples) <= 2
+    for ex in examples:
+        assert lessons.validate_example(ex) == [], lessons.validate_example(ex)
+        low, f = ex["lower"], ex["facts"]
+        htf, ltf = ex["timeframe"], low["timeframe"]
+        assert (htf, ltf) in (("1D", "4H"), ("4H", "1H")) and ex["detector"] == "top_down"
+        assert ex["glossary"] == "top_down_analysis"
+        for panel in (ex, low):
+            assert {p["type"] for p in panel["primitives"]} == {"swing"}
+        src_h, src_l = history[ex["asset"]][htf], history[ex["asset"]][ltf]
+        assert 0 < len(ex["candles"]) <= 150 and all(c in src_h for c in ex["candles"])
+        assert 0 < len(low["candles"]) <= 150 and all(c in src_l for c in low["candles"])
+        # higher panel: exactly what the swings detector shows for that series
+        same = find("swings", {ex["asset"]: {htf: src_h}})[0]
+        assert (ex["candles"], ex["region"], f["swings"], f["trend"]) == \
+            (same["candles"], same["region"], same["facts"]["swings"], same["facts"]["trend"])
+        assert f["htf"] == {"timeframe": htf, "trend": f["trend"]} and f["ltf"]["timeframe"] == ltf
+        assert f["ltf"]["trend"] in ("uptrend", "downtrend", "mixed") and f["source"]
+        assert f["aligned"] is (f["ltf"]["trend"] == f["trend"])
+        # lower window: inside the higher case's last leg (2nd-to-last swing -> end of the last swing's candle)
+        dt = datetime.fromisoformat
+        leg0 = dt(f["swings"][-2]["t"])
+        leg1 = dt(f["swings"][-1]["t"]) + timedelta(seconds=lesson_data.TF_SECONDS[htf])
+        r = low["region"]
+        assert leg0 <= dt(r["start"]) <= dt(r["end"]) < leg1, (r, leg0, leg1)
+        assert ex["region"]["low"] <= r["low"] <= r["high"] <= ex["region"]["high"]
+        times = [c["t"] for c in low["candles"]]
+        assert times[0] <= r["start"] <= r["end"] <= times[-1]
+        window = [c for c in src_l if r["start"] <= c["t"] <= r["end"]]
+        assert (r["low"], r["high"]) == (min(c["l"] for c in window), max(c["h"] for c in window))
+        sw = f["ltf"]["swings"]
+        assert [{"type": "swing", **s} for s in sw] == low["primitives"]
+        assert sum(s["kind"] in ("HH", "HL", "LH", "LL") for s in sw) >= 4, sw
+        by_t = {c["t"]: c for c in src_l}
+        for s in sw:  # every lower swing is a real candle's high or low inside the window
+            assert r["start"] <= s["t"] <= r["end"] and s["price"] in (by_t[s["t"]]["h"], by_t[s["t"]]["l"]), s
+
+
+def test_top_down():
+    h1 = candles("top_down_1h")
+    h4 = aggregate(h1, 4 * 3600)
+    assert all(datetime.fromisoformat(c["t"]).hour % 4 == 0 for c in h4) and len(h4) == len(h1) // 4
+
+    # clean pair: the 4H uptrend, and inside its last up leg the 1H's own HH/HL
+    h = {"BTC/USD": {"4H": h4, "1H": h1}}
+    ex = find("top_down", h)
+    check_top_down(ex, h)
+    assert len(ex) == 1 and (ex[0]["timeframe"], ex[0]["lower"]["timeframe"]) == ("4H", "1H")
+    f = ex[0]["facts"]
+    assert f["trend"] == f["ltf"]["trend"] == "uptrend" and f["aligned"] is True
+    assert [s["kind"] for s in f["swings"]][-2:] == ["HL", "HH"]  # the last leg is an up leg
+    assert lessons.example_label(ex[0]) == f"Historical example · BTC/USD · {ex[0]['date']}"
+
+    # 1D -> 4H: the same nested candles read as 4H, aggregated to 1D
+    d4 = retime(h1, 4)
+    h = {"ETH/USD": {"1D": aggregate(d4, 86400), "4H": d4}}
+    ex = find("top_down", h)
+    check_top_down(ex, h)
+    assert len(ex) == 1 and (ex[0]["timeframe"], ex[0]["lower"]["timeframe"]) == ("1D", "4H") and ex[0]["facts"]["aligned"]
+
+    # two assets: one example each (the second on another asset)
+    h = {"BTC/USD": {"4H": h4, "1H": h1}, "ETH/USD": {"1D": aggregate(d4, 86400), "4H": d4}}
+    ex = find("top_down", h)
+    check_top_down(ex, h)
+    assert {(e["asset"], e["timeframe"]) for e in ex} == {("BTC/USD", "4H"), ("ETH/USD", "1D")}, ex
+
+    # no LTF structure: the HTF case exists (swings finds it) but the 1H is flat -> [] for that asset
+    flat = [dict(c, o=100.0, h=100.0, l=100.0, c=100.0) for c in h1]
+    h = {"BTC/USD": {"4H": h4, "1H": flat}}
+    assert find("swings", {"BTC/USD": {"4H": h4}}) and find("top_down", h) == []
+    # ... and the other asset still gives its example
+    h["ETH/USD"] = {"1D": aggregate(d4, 86400), "4H": d4}
+    assert [e["asset"] for e in find("top_down", h)] == ["ETH/USD"]
+    # no lower series, lower candles that end before the last leg, a 1H with nothing below it, empty
+    for h in ({"BTC/USD": {"4H": h4}}, {"BTC/USD": {"4H": h4, "1H": h1[:120]}}, {"BTC/USD": {"1H": h1}}, {}):
+        assert find("top_down", h) == [], h.keys()
+
+    # lower trend = the most recent run of >= 2 agreeing swings: one trailing pullback swing doesn't
+    # flip it; no two agreeing -> "mixed" (never aligned)
+    kinds = lambda *ks: [{"kind": k} for k in ks]  # noqa: E731
+    assert detectors.mtf._trend(kinds("HH", "HL", "HH", "HL", "LH")) == "uptrend"
+    assert detectors.mtf._trend(kinds("LH", "LL", "LH", "LL", "HL")) == "downtrend"
+    assert detectors.mtf._trend(kinds("HH", "HL", "HH", "LL", "LH")) == "downtrend"
+    assert detectors.mtf._trend(kinds("HH", "LL", "HL", "LH")) == "mixed"
+    # end to end: the lower window ends on one LH after HH/HL -> still uptrend and aligned; mixed -> not aligned
+    real = detectors.mtf.find_swings
+
+    def ltf_swings(kinds_at_end):
+        def fake(candles):
+            sw = real(candles)
+            if candles is not h1:
+                return sw
+            w = [k for k, s in enumerate(sw) if s["kind"] in ("HH", "HL", "LH", "LL")][-len(kinds_at_end):]
+            for k, kind in zip(w, kinds_at_end):
+                sw[k] = dict(sw[k], kind=kind)
+            return sw
+        return fake
+    h = {"BTC/USD": {"4H": h4, "1H": h1}}
+    for tail, trend, aligned in ((("HH", "HL", "HH", "HL", "LH"), "uptrend", True),
+                                 (("HH", "LL", "HL", "LH") * 4, "mixed", False)):  # no two agree anywhere
+        with mock.patch.object(detectors.mtf, "find_swings", ltf_swings(tail)):
+            f = find("top_down", h)[0]["facts"]
+        got = [s["kind"] for s in f["ltf"]["swings"]]
+        n = min(len(got), len(tail))
+        assert n >= 5 and got[-n:] == list(tail[-n:]), (got, tail)
+        assert (f["ltf"]["trend"], f["aligned"]) == (trend, aligned), (tail, f["ltf"]["trend"], f["aligned"])
+
+    # repeat run: same history -> identical examples, byte for byte; input untouched
+    h = {"BTC/USD": {"4H": h4, "1H": h1}, "ETH/USD": {"1D": aggregate(d4, 86400), "4H": d4}}
+    before = json.dumps(h, sort_keys=True)
+    a, b = find("top_down", h), find("top_down", copy.deepcopy(h))
+    assert a and json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+    assert json.dumps(h, sort_keys=True) == before
+    # earlier detectors unchanged by the new registry entry
+    assert lessons.DETECTORS["swings"].glossary_keys() == ("swing_point", "market_structure")
+    print("OK top_down (4H -> 1H and 1D -> 4H pairs, LTF window inside the HTF last leg, facts + aligned, "
+          "one-swing pullback keeps the LTF trend, mixed -> not aligned, flat LTF -> [], missing / short LTF -> [], "
+          "repeat runs identical, examples valid)")
 
 
 # ─── lesson price history (network mocked) ─────────────────────────────────
@@ -691,6 +891,7 @@ def main():
     test_scene_plan()
     test_real_files()
     test_detectors()
+    test_top_down()
     test_fetch()
     test_narration()
 

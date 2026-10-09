@@ -20,3 +20,13 @@ episodes:
     prerequisites: [swing-structure]
     visual: chart
     detector: bos_choch
+  - id: top-down-reading
+    track: 0
+    title: "Structure #3: Top-Down Reading"
+    key_points:
+      - "Read the higher timeframe's structure first: its swings set the trend you are reading inside."
+      - "Then read the lower timeframe's swings inside the higher timeframe's last leg and check whether they agree with it."
+    concepts: [top_down_analysis, market_structure]
+    prerequisites: [swing-structure, bos-vs-choch]
+    visual: mtf
+    detector: top_down

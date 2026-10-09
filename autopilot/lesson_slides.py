@@ -7,14 +7,20 @@
         -> [{"image": path, "reveal": (x, y, w, h) | None, "id": scene id}]   (same shape as slides.render_slides)
     render_lesson_thumbnail(cfg, entry, example, path) -> path                 (1280x720 JPEG)
     draw_chart(img, box, example, layout, zoom=False, primitives=None, label=None) -> info dict
+    draw_mtf(img, box, example, layout, label=None) -> [higher info, lower info]
 
-Scene types (RENDERERS): title, concept, chart, schematic, misreads, outro. An unknown type raises
+Scene types (RENDERERS): title, concept, chart, mtf, schematic, misreads, outro. An unknown type raises
 ValueError. Charts are drawn with Pillow from the example's own candles and primitives (swing, level,
 trendline, zone, label); every number on a chart comes from them. Real charts carry the strip
 "Historical example · asset · date · timeframe" + "Data: source"; a schematic is labelled "Schematic"
 and draws no numbers. Portrait charts zoom to the example's region (± 3 candles, ± 8% of its range);
 landscape shows every candle. Both use the full content width (no crop, no letterbox). A daily
 reference fix (o = h = l = c, e.g. EUR/USD) is drawn as a line. Same inputs → same pixels.
+An `mtf` scene draws the example (higher timeframe) and its `lower` panel with draw_chart, each with a
+"<timeframe> · Higher/Lower timeframe" title and its own strip: side by side in 16:9 (higher left),
+stacked in 9:16 (higher on top), 40 px apart, with headroom for the swing texts. The higher panel
+marks the lower panel's window with a zone labelled with the lower timeframe. The draw-in box never
+covers a title or label strip (9:16: only the lower chart draws in).
 
 Look: channel ground, accent from config, up/down colours, brand header and disclaimer footer as in
 slides.py; fonts from assets/fonts (DejaVu fallback). The caption band is never drawn into.
@@ -64,6 +70,9 @@ SWING_HIGH = {"HH", "LH", "high"}
 ZOOM_CANDLES = 3  # portrait zoom: candles either side of the region
 ZOOM_PAD = 0.08  # portrait zoom: share of the region's range above and below
 FULL_PAD = 0.12
+SWING_ROOM = 18  # px between a swing's price and the far edge of its kind text (label_room)
+MTF_GUTTER = 40  # px between the two mtf panels
+MTF_ROLES = ("Higher timeframe", "Lower timeframe")
 
 
 # ─── fonts / text ──────────────────────────────────────────────────────────
@@ -188,10 +197,12 @@ def _strip_lines(example: dict, label: str) -> list[tuple[str, bool, tuple]]:
 
 def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool = False,
                primitives: list[dict] | None = None, label: str | None = None, axes: bool = True,
-               accent: tuple = (255, 212, 0)) -> dict:
+               accent: tuple = (255, 212, 0), label_room: bool = False) -> dict:
     """Candles (or a line for a daily fix) + primitives inside box (x0, y0, x1, y1), the label strip at
     its bottom. `primitives` limits what is drawn (None = all of the example's; [] = candles only).
     label None = lessons.example_label(example); SCHEMATIC = no numbers; "" = no strip.
+    label_room (mtf panels): pad the price range so the highest / lowest price sits at least one swing
+    marker + kind text inside the plot, so those texts fit above / below their swings.
     Returns {box: reveal (x, y, w, h), x_range: (i0, i1), y_range: (lo, hi), drawn: [types], label, line}."""
     x0, y0, x1, y1 = box
     schematic = label == SCHEMATIC
@@ -239,6 +250,11 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
             prices += [p[k] for k in ("price", "low", "high") if isinstance(p.get(k), (int, float))]
         lo, hi = min(prices), max(prices)
         pad = (hi - lo) * FULL_PAD or abs(hi) * 0.01 or 1.0
+    if label_room:
+        room = SWING_ROOM + max(10, round(fs * 0.42)) + round(fs * 1.2)  # gap + marker + kind text, px
+        plot_h = py1 - y0
+        if plot_h > 2 * room + 20:
+            pad = max(pad, (hi - lo) * room / (plot_h - 2 * room))
     lo, hi = lo - pad, hi + pad
 
     ticks, dec = _ticks(lo, hi)
@@ -288,6 +304,8 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
         if p.get("label"):
             tx = min(max(zx0 + 8, 4), pw - d.textlength(p["label"], font=f_bold) - 4)
             ty = min(max(zy0 + 6, 4), ph - fs - 6)
+            if label_room and zy1 - zy0 < fs * 1.2 + 12:  # a flat zone: its label sits just above it
+                ty = zy0 - fs * 1.25 - 2 if zy0 - fs * 1.25 - 2 >= 0 else min(zy1 + 4, ph - fs - 6)
             ld.text((tx, ty), p["label"], font=f_bold, fill=accent + (255,))
             placed.append((tx, ty, tx + d.textlength(p["label"], font=f_bold), ty + fs * 1.2))
         drawn.append("zone")
@@ -439,6 +457,81 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
             "y_range": (lo, hi), "drawn": drawn, "label": " ".join(t for t, _, _ in strip), "line": line}
 
 
+def _day(t) -> str:
+    return (datetime.fromisoformat(t) if isinstance(t, str) else t).date().isoformat()
+
+
+def mtf_panels(example: dict) -> tuple[dict, dict]:
+    """(higher, lower) chart examples of an mtf example. The higher one gets a zone over the lower
+    panel's window (its region; it ends with the higher candle holding the window's end), labelled with
+    the lower timeframe; the lower one carries the asset,
+    the date its window ends and the data source. Every value comes from the example."""
+    lower = example.get("lower")
+    if not isinstance(lower, dict):
+        raise ValueError("mtf visual needs an example with a `lower` panel")
+    r = lower["region"]
+    # the zone ends with the higher-timeframe candle that contains the lower window's end
+    end = _ts(r["end"])
+    t2 = next((c["t"] for c in reversed(example["candles"]) if _ts(c["t"]) <= end), r["end"])
+    zone = {"type": "zone", "t1": r["start"], "t2": t2, "low": r["low"], "high": r["high"],
+            "label": lower["timeframe"]}
+    higher = {k: v for k, v in example.items() if k != "lower"}
+    higher["primitives"] = list(example.get("primitives") or []) + [zone]
+    facts = {k: v for k, v in (example.get("facts") or {}).items() if k in ("source", "daily_reference_fix")}
+    panel = {"asset": example.get("asset"), "timeframe": lower["timeframe"], "date": _day(r["end"]),
+             "candles": lower["candles"], "region": r, "primitives": list(lower.get("primitives") or []),
+             "facts": facts}
+    return higher, panel
+
+
+def draw_mtf(img: Image.Image, box, example: dict, layout: Layout, label: str | None = None,
+             accent: tuple = (255, 212, 0)) -> list[dict]:
+    """The two panels of an mtf example inside box: side by side in landscape (higher left), stacked in
+    portrait (higher on top). Each: a "<timeframe> · Higher/Lower timeframe" title, then draw_chart with
+    its own strip ("Historical example · asset · date · timeframe", "Data: …"). `label` overrides the
+    higher panel's strip label. Panels get label_room (swing texts fit inside the plot).
+    Returns draw_chart's info per panel plus panel, title_box, strip_box (x, y, w, h), timeframe, title."""
+    x0, y0, x1, y1 = box
+    g = MTF_GUTTER
+    portrait = layout is PORTRAIT
+    if portrait:
+        h = (y1 - y0 - g) // 2
+        boxes = [(x0, y0, x1, y0 + h), (x0, y1 - h, x1, y1)]
+    else:
+        w = (x1 - x0 - g) // 2
+        boxes = [(x0, y0, x0 + w, y1), (x1 - w, y0, x1, y1)]
+    higher, lower = mtf_panels(example)
+    labels = (label or lessons.example_label(higher), lessons.example_label(lower))
+    d = ImageDraw.Draw(img)
+    f = _font(layout.min_text, True)
+    title_h = round(layout.min_text * 1.3) + 8
+    out = []
+    for (bx0, by0, bx1, by1), panel, lab, role in zip(boxes, (higher, lower), labels, MTF_ROLES):
+        tf = panel["timeframe"]
+        d.text((bx0, by0), tf, font=f, fill=accent)
+        d.text((bx0 + d.textlength(f"{tf}  ", font=f), by0), f"· {role}", font=f, fill=MUTED)
+        info = draw_chart(img, (bx0, by0 + title_h, bx1, by1), panel, layout, zoom=portrait, label=lab,
+                          accent=accent, label_room=True)
+        d = ImageDraw.Draw(img)
+        cy1 = info["box"][1] + info["box"][3]  # the strip starts below the chart box
+        info.update(panel=(int(bx0), int(by0), int(bx1 - bx0), int(by1 - by0)), timeframe=tf, title=f"{tf} · {role}",
+                    title_box=(int(bx0), int(by0), int(bx1 - bx0), title_h), strip_box=(int(bx0), cy1, int(bx1 - bx0), int(by1 - cy1)))
+        out.append(info)
+    return out
+
+
+def mtf_reveal(infos: list[dict], layout: Layout) -> tuple[int, int, int, int]:
+    """Draw-in box of an mtf slide that never covers a panel title or label strip (they show from the
+    first frame): 9:16 = the lower panel's chart (the higher one is shown at once); 16:9 = both charts,
+    down to the shorter chart's bottom."""
+    if layout is PORTRAIT:
+        return infos[1]["box"]
+    rx0 = min(i["box"][0] for i in infos)
+    ry0 = max(i["box"][1] for i in infos)
+    rx1 = max(i["box"][0] + i["box"][2] for i in infos)
+    ry1 = min(i["box"][1] + i["box"][3] for i in infos)
+    return rx0, ry0, rx1 - rx0, ry1 - ry0
+
 
 # ─── slides ────────────────────────────────────────────────────────────────
 
@@ -551,6 +644,18 @@ def slide_chart(ctx: _Ctx, v: dict):
     return _chart_slide(ctx, v, schematic=False)
 
 
+def slide_mtf(ctx: _Ctx, v: dict):
+    ex = v.get("example")
+    if not isinstance(ex, dict):
+        raise ValueError("mtf visual needs an example")
+    img, d = _base(ctx)
+    L = ctx.layout
+    x0, y0, x1, y1 = L.content_box
+    y = _flow(d, [_heading(ctx, _chart_heading(ctx, ex, "Top-down reading"))], (x0, y0, x1, y1), L)
+    infos = draw_mtf(img, (x0, y, x1, y1), ex, L, label=v.get("label"), accent=ctx.accent)
+    return img, mtf_reveal(infos, L)
+
+
 def slide_schematic(ctx: _Ctx, v: dict):
     return _chart_slide(ctx, v, schematic=True)
 
@@ -584,8 +689,8 @@ def slide_outro(ctx: _Ctx, v: dict):
     return img, None
 
 
-RENDERERS = {"title": slide_title, "concept": slide_concept, "chart": slide_chart, "schematic": slide_schematic,
-             "misreads": slide_misreads, "outro": slide_outro}
+RENDERERS = {"title": slide_title, "concept": slide_concept, "chart": slide_chart, "mtf": slide_mtf,
+             "schematic": slide_schematic, "misreads": slide_misreads, "outro": slide_outro}
 
 
 def render_lesson_slides(cfg: dict, entry: dict, plan: list[dict], glossary: dict, layout: Layout,

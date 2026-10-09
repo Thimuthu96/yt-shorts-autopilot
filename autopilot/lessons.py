@@ -19,6 +19,8 @@ Glossary: `terms: {key: {term, definition}}`.
 Example (what a detector returns, up to 2 per episode; [] = no clean example):
     {detector, glossary, asset, timeframe, date, candles: [{t, o, h, l, c}],
      region: {start, end, low, high}, primitives: [...], facts: {...}}   times ISO-8601
+An `mtf` example adds a lower-timeframe panel checked by the same rules (problems prefixed "lower: "):
+    lower: {timeframe, candles, region, primitives}
 
 The picker is pure: history and the hold check are passed in, holds are never stored.
 """
@@ -34,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CURRICULUM = ROOT / "lessons" / "curriculum.yaml"
 GLOSSARY = ROOT / "lessons" / "glossary.yaml"
 
-VISUAL_TYPES = {"chart"}  # `mtf` arrives with its slides (entry 4)
+VISUAL_TYPES = {"chart", "mtf"}  # mtf = higher-timeframe chart + a lower-timeframe panel
 
 # drawing primitives an example may use → required fields (`label` on level/zone is optional)
 PRIMITIVES = {
@@ -50,6 +52,7 @@ TEXT_FIELDS = {"kind", "label", "text"}
 
 ENTRY_FIELDS = ("id", "track", "title", "key_points", "concepts", "prerequisites", "visual", "detector")
 EXAMPLE_FIELDS = ("detector", "glossary", "asset", "timeframe", "date", "candles", "region", "primitives", "facts")
+LOWER_FIELDS = ("timeframe", "candles", "region", "primitives")  # the optional `lower` panel (mtf)
 SLUG = re.compile(r"^[a-z0-9]+(?:[-_][a-z0-9]+)*$")
 
 
@@ -187,13 +190,9 @@ def _ts(v) -> datetime:
     return datetime.fromisoformat(v)
 
 
-def validate_example(ex: dict) -> list[str]:
-    """Problems with a detector's example; each primitive problem names the primitive."""
-    if not isinstance(ex, dict):
-        return ["example is not a mapping"]
-    errors = [f"missing field '{f}'" for f in EXAMPLE_FIELDS if f not in ex]
-    if "date" in ex and not _is_time(ex["date"]):
-        errors.append(f"date {ex['date']!r} is not ISO-8601")
+def _panel_problems(ex: dict) -> list[str]:
+    """Candle, region and primitive problems of one chart panel (an example or its `lower` panel)."""
+    errors = []
     candles = ex.get("candles")
     if "candles" in ex:
         if not isinstance(candles, list) or not candles:
@@ -240,8 +239,32 @@ def validate_example(ex: dict) -> list[str]:
                     errors.append(f"{name}: kind '{p['kind']}' is not one of {sorted(SWING_KINDS)}")
                 if kind == "zone" and _num(p.get("low")) and _num(p.get("high")) and p["low"] > p["high"]:
                     errors.append(f"{name}: low is above high")
+    return errors
+
+
+def _lower_problems(lower) -> list[str]:
+    """The `lower` panel of an mtf example: same rules as the example's own chart."""
+    if not isinstance(lower, dict):
+        return ["panel is not a mapping"]
+    errors = [f"missing field '{f}'" for f in LOWER_FIELDS if f not in lower]
+    if "timeframe" in lower and not (isinstance(lower["timeframe"], str) and lower["timeframe"].strip()):
+        errors.append("timeframe must be text")
+    return errors + _panel_problems(lower)
+
+
+def validate_example(ex: dict) -> list[str]:
+    """Problems with a detector's example; each primitive problem names the primitive, each problem of
+    the optional `lower` panel (mtf) starts with "lower: "."""
+    if not isinstance(ex, dict):
+        return ["example is not a mapping"]
+    errors = [f"missing field '{f}'" for f in EXAMPLE_FIELDS if f not in ex]
+    if "date" in ex and not _is_time(ex["date"]):
+        errors.append(f"date {ex['date']!r} is not ISO-8601")
+    errors += _panel_problems(ex)
     if "facts" in ex and not isinstance(ex["facts"], dict):
         errors.append("facts must be a mapping")
+    if "lower" in ex:
+        errors += [f"lower: {e}" for e in _lower_problems(ex["lower"])]
     return errors
 
 
