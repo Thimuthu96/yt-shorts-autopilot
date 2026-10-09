@@ -192,6 +192,31 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-09T06:19:23+00:00",
+      "brief_date": "2026-10-09",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Neutral Bias Between $4,153 and $4,200 | Oct 9",
+      "video_id": "bH1RKiWxf0I",
+      "seconds": 49.3,
+      "headlines": [
+        "XAUUSD: Gold Rebounds Toward $4,200 as Yields Ease Up, Dollar Pulls Back",
+        "Fed Hike Odds Drop to 18% as Jobs and Inflation Data Soften"
+      ],
+      "outlook": {
+        "price": 4193.6,
+        "daily_bias": "neutral",
+        "time": "2026-10-09T06:16:31+00:00"
+      },
+      "fb_reel_id": "1125309500008465",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
