@@ -210,6 +210,7 @@ def main():
     test_video_editions(cfg, out, work / "thumbnail.jpg")
     test_lesson_slides(cfg)
     test_lesson_render(cfg)
+    test_youtube_lesson(cfg)
 
 
 def test_gold(cfg, small, data):
@@ -1281,6 +1282,271 @@ def test_lesson_render(cfg):
     assert lesson_meta.timestamp(75.9) == "1:15" and lesson_meta.timestamp(3725) == "1:02:05"
     print(f"OK lesson render: {work / 'lesson_16x9.mp4'} + lesson_9x16.mp4 ({durs['16x9']:.1f}s) · "
           f"{len(ch)} chapters · hold, re-record, ICT, Shorts captions")
+
+
+# ─── YouTube lesson publishing (fake googleapiclient service) ──────────────
+
+class _Req:
+    def __init__(self, fn):
+        self.fn = fn
+
+    def execute(self):
+        return self.fn()
+
+
+class FakeYouTube:
+    """videos / thumbnails / playlists / playlistItems with .execute() and a resumable next_chunk()."""
+
+    def __init__(self, playlists=(), fail=None, page=2):
+        self.playlists_ = [{"id": f"PL{i}", "snippet": {"title": t}} for i, t in enumerate(playlists)]
+        self.fail = dict(fail or {})  # op → exception raised once
+        self.page = page
+        self.calls = []  # (op, kwargs)
+
+    def _maybe_fail(self, op):
+        if op in self.fail:
+            raise self.fail.pop(op)
+
+    def count(self, op):
+        return sum(1 for o, _ in self.calls if o == op)
+
+    def videos(self):
+        fake = self
+
+        class V:
+            def insert(self, **kw):
+                fake.calls.append(("videos.insert", kw))
+                chunks = iter([(type("S", (), {"progress": lambda s: 0.5})(), None), (None, {"id": "VID1"})])
+
+                class R:
+                    def next_chunk(self):
+                        fake._maybe_fail("videos.insert")
+                        return next(chunks)
+                return R()
+
+            def delete(self, **kw):
+                fake.calls.append(("videos.delete", kw))
+                return _Req(lambda: fake._maybe_fail("videos.delete") or "")
+        return V()
+
+    def thumbnails(self):
+        fake = self
+
+        class T:
+            def set(self, **kw):
+                fake.calls.append(("thumbnails.set", kw))
+                return _Req(lambda: fake._maybe_fail("thumbnails.set") or {"items": [{}]})
+        return T()
+
+    def playlists(self):
+        fake = self
+
+        class P:
+            def list(self, **kw):
+                fake.calls.append(("playlists.list", kw))
+                assert kw.get("mine") is True and kw.get("part") == "snippet", kw
+                start = int(kw.get("pageToken") or 0)
+                items = fake.playlists_[start:start + fake.page]
+                more = start + fake.page < len(fake.playlists_)
+                return _Req(lambda: {"items": items} | ({"nextPageToken": str(start + fake.page)} if more else {}))
+
+            def insert(self, **kw):
+                fake.calls.append(("playlists.insert", kw))
+                pid = f"PL{len(fake.playlists_)}"
+                fake.playlists_.append({"id": pid, "snippet": dict(kw["body"]["snippet"])})
+                return _Req(lambda: {"id": pid})
+
+            def delete(self, **kw):
+                fake.calls.append(("playlists.delete", kw))
+                return _Req(lambda: "")
+        return P()
+
+    def playlistItems(self):  # noqa: N802 (googleapiclient name)
+        fake = self
+
+        class I:  # noqa: E742
+            def insert(self, **kw):
+                fake.calls.append(("playlistItems.insert", kw))
+                return _Req(lambda: fake._maybe_fail("playlistItems.insert") or {"id": "PLI"})
+        return I()
+
+
+def _http_error(status: int, reason: str):
+    import httplib2
+    from googleapiclient.errors import HttpError
+    body = {"error": {"code": status, "message": reason, "errors": [{"reason": reason, "message": reason}]}}
+    return HttpError(httplib2.Response({"status": status}), json.dumps(body).encode())
+
+
+def test_youtube_lesson(cfg):
+    """upload_lesson: Education, private + publishAt, thumbnail, track + Path playlists; daily scopes unchanged."""
+    from autopilot import youtube
+    tmp = Path(tempfile.mkdtemp())
+    video, thumb = tmp / "lesson_16x9.mp4", tmp / "thumbnail.jpg"
+    video.write_bytes(b"\0" * 1024)
+    thumb.write_bytes(b"\xff\xd8\xff\xd9")
+    meta = {"title": "Structure #2: BOS vs CHoCH Explained | Structure Lesson",
+            "description": "Summary\n\nChapters:\n0:00 Intro\n0:12 Break of structure\n0:40 Recap",
+            "tags": ["market structure"], "category_id": "27"}
+    track, path = "Track 0 · Structure", "The Path"
+    scopes_seen = []
+
+    class FakeCreds:
+        def __init__(self, token, **kw):
+            scopes_seen.append(kw["scopes"])
+
+        def refresh(self, request):
+            pass
+
+    saved = (youtube.build, youtube.Credentials, youtube.time.sleep,
+             {k: os.environ.get(k) for k in ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN")})
+    os.environ.update(YT_CLIENT_ID="id", YT_CLIENT_SECRET="secret", YT_REFRESH_TOKEN="refresh")
+    youtube.Credentials, youtube.time.sleep = FakeCreds, (lambda s: None)
+    logs = []
+
+    def use(fake):
+        youtube.build = lambda *a, **k: fake
+        scopes_seen.clear()
+        logs.clear()
+        return fake
+
+    try:
+        # daily path: _client() default and upload()/set_thumbnail() ask for youtube.upload only
+        use(FakeYouTube())
+        youtube._client()
+        assert scopes_seen == [["https://www.googleapis.com/auth/youtube.upload"]], scopes_seen
+        fake = use(FakeYouTube())
+        ucfg = cfg | {"upload": cfg["upload"] | {"privacy_status": "public", "review_window_hours": 0}}
+        assert youtube.upload(video, {"title": "t", "description": "d", "tags": []}, ucfg, log=logs.append) == "VID1"
+        assert youtube.set_thumbnail("VID1", thumb, log=logs.append)
+        assert scopes_seen == [youtube.SCOPES] * 2 and youtube.SCOPES == scopes_seen[0], scopes_seen
+        b = fake.calls[0][1]["body"]
+        assert b["snippet"]["categoryId"] == str(cfg["upload"]["category_id"]) and b["status"]["privacyStatus"] == "public"
+        assert "publishAt" not in b["status"] and any("youtube.com/shorts/VID1" in m for m in logs), logs
+
+        # happy path: both playlists exist (Path on the 2nd page) → no create, 2 playlistItems inserts
+        fake = use(FakeYouTube(playlists=["Other", track, "Old", path]))
+        before = datetime.now(timezone.utc)
+        res = youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)
+        assert scopes_seen == [youtube.LESSON_SCOPES] and len(youtube.LESSON_SCOPES) == 3, scopes_seen
+        assert set(youtube.LESSON_SCOPES) == {"https://www.googleapis.com/auth/youtube.upload",
+                                              "https://www.googleapis.com/auth/youtube",
+                                              "https://www.googleapis.com/auth/yt-analytics.readonly"}
+        ins = fake.calls[0][1]
+        assert fake.calls[0][0] == "videos.insert" and ins["notifySubscribers"] is True
+        sn, st = ins["body"]["snippet"], ins["body"]["status"]
+        assert sn["categoryId"] == "27" and sn["description"] == meta["description"] and sn["title"] == meta["title"]
+        assert st["privacyStatus"] == "private" and st["selfDeclaredMadeForKids"] is False
+        pub = datetime.strptime(st["publishAt"], "%Y-%m-%dT%H:%M:%S.000Z").replace(tzinfo=timezone.utc)
+        assert abs((pub - before).total_seconds() - 24 * 3600) < 120, st["publishAt"]
+        assert res == {"video_id": "VID1", "publish_at": st["publishAt"], "thumbnail_set": True,
+                       "playlists": {track: "PL1", path: "PL3"}, "errors": []}, res
+        assert fake.count("thumbnails.set") == 1 and fake.count("playlists.insert") == 0
+        assert fake.count("playlistItems.insert") == 2 and fake.count("playlists.list") >= 3  # paged
+        items = [kw["body"]["snippet"] for o, kw in fake.calls if o == "playlistItems.insert"]
+        assert items == [{"playlistId": "PL1", "resourceId": {"kind": "youtube#video", "videoId": "VID1"}},
+                         {"playlistId": "PL3", "resourceId": {"kind": "youtube#video", "videoId": "VID1"}}], items
+
+        # playlists missing → each created once (public, described), then the video is added
+        fake = use(FakeYouTube(playlists=["Other"]))
+        res = youtube.upload_lesson(video, meta, thumb, track, path, review_hours=48, notify=False, log=logs.append)
+        made = [kw["body"] for o, kw in fake.calls if o == "playlists.insert"]
+        assert [m["snippet"]["title"] for m in made] == [track, path] and all(
+            m["status"]["privacyStatus"] == "public" for m in made), made
+        assert made[0]["snippet"]["description"] == "CryptoFX Daily trading lessons · Track 0 · Structure"
+        assert made[1]["snippet"]["description"] == "CryptoFX Daily trading lessons in curriculum order"
+        assert res["playlists"] == {track: "PL1", path: "PL2"} and fake.count("playlistItems.insert") == 2
+        assert fake.calls[0][1]["notifySubscribers"] is False and not res["errors"]
+        # a second lesson finds the playlists it created (exact title) instead of creating them again
+        res2 = youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)
+        assert fake.count("playlists.insert") == 2 and res2["playlists"] == res["playlists"]
+
+        # thumbnail refused (403) → logged, thumbnail_set False, upload + playlists still done
+        fake = use(FakeYouTube(playlists=[track, path], fail={"thumbnails.set": _http_error(403, "forbidden")}))
+        res = youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)
+        assert res["video_id"] == "VID1" and res["thumbnail_set"] is False and not res["errors"], res
+        assert any("Custom thumbnail not accepted (403" in m for m in logs), logs
+        assert fake.count("playlistItems.insert") == 2
+
+        # playlist add fails → logged, listed in errors, video id returned, the other playlist still added
+        fake = use(FakeYouTube(playlists=[track, path],
+                               fail={"playlistItems.insert": _http_error(403, "playlistItemsNotAccessible")}))
+        res = youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)
+        assert res["video_id"] == "VID1" and res["playlists"] == {track: None, path: "PL1"}, res
+        assert len(res["errors"]) == 1 and track in res["errors"][0], res["errors"]
+        assert any("Could not add the lesson to playlist 'Track 0" in m for m in logs), logs
+
+        # quota exceeded → the same clear RuntimeError as upload(), nothing else called
+        quota = None
+        for fn in (lambda: youtube.upload(video, {"title": "t", "description": "d", "tags": []}, ucfg, log=logs.append),
+                   lambda: youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)):
+            fake = use(FakeYouTube(playlists=[track, path], fail={"videos.insert": _http_error(403, "quotaExceeded")}))
+            try:
+                fn()
+                raise AssertionError("quota should raise")
+            except RuntimeError as e:
+                assert str(e) == youtube.QUOTA_MESSAGE and "upload limit" in str(e)
+                quota = quota or str(e)
+                assert str(e) == quota
+            assert fake.count("thumbnails.set") == 0 and fake.count("playlistItems.insert") == 0
+
+        # 5xx during the upload is retried, not raised
+        fake = use(FakeYouTube(playlists=[track, path], fail={"videos.insert": _http_error(503, "backendError")}))
+        assert youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)["video_id"] == "VID1"
+
+        # delete (owner's test cleanup) uses the lesson scopes
+        fake = use(FakeYouTube())
+        youtube.delete_video("VID1", log=logs.append)
+        assert fake.calls == [("videos.delete", {"id": "VID1"})] and scopes_seen == [youtube.LESSON_SCOPES]
+        assert "Chapters:" in youtube._test_meta(95)["description"] and "0:31 Middle" in youtube._test_meta(95)["description"]
+        assert "Chapters:" not in youtube._test_meta(20)["description"]
+
+        # owner's test CLI (stdin not a terminal → no pause); the fake mp4 has no duration
+        import contextlib
+        import io
+
+        def cli(fake, creds=FakeCreds):
+            use(fake)
+            youtube.Credentials, out, stdin = creds, io.StringIO(), sys.stdin
+            sys.stdin = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(out):
+                    rc = youtube._main(["test-lesson", str(video), str(thumb), "--days", "30"])
+            finally:
+                youtube.Credentials, sys.stdin = FakeCreds, stdin
+            return rc, out.getvalue()
+
+        fake = FakeYouTube()
+        rc, out = cli(fake)
+        made = [kw["body"]["status"]["privacyStatus"] for o, kw in fake.calls if o == "playlists.insert"]
+        assert rc == 0 and made == ["private", "private"], (rc, made, out)
+        assert "no chapters" in out and fake.count("videos.delete") == 1 and fake.count("playlists.delete") == 2, out
+        # refused thumbnail → exit 1 (the live check needs it), still cleaned up
+        fake = FakeYouTube(fail={"thumbnails.set": _http_error(403, "forbidden")})
+        rc, out = cli(fake)
+        assert rc == 1 and fake.count("videos.delete") == 1 and fake.count("playlists.delete") == 2, out
+        # video delete fails → reported, the TEST playlists are still deleted
+        fake = FakeYouTube(fail={"videos.delete": _http_error(500, "backendError")})
+        rc, out = cli(fake)
+        assert rc == 1 and "could not delete test video VID1" in out and fake.count("playlists.delete") == 2, out
+
+        # old token without the lesson scopes → upload fails, nothing to clean, no false "delete in Studio"
+        class OldToken(FakeCreds):
+            def refresh(self, request):
+                raise RuntimeError("invalid_scope")
+        fake = FakeYouTube()
+        rc, out = cli(fake, OldToken)
+        assert rc == 1 and "test upload failed" in out and "nothing to clean up" in out, out
+        assert "Studio" not in out and not fake.calls, out
+    finally:
+        youtube.build, youtube.Credentials, youtube.time.sleep, env = saved
+        for k, v in env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    print("OK YouTube lesson publishing (Education, private + publishAt 24 h, thumbnail, track + Path playlists, "
+          "daily scopes unchanged)")
 
 
 if __name__ == "__main__":
