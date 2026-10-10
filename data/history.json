@@ -367,6 +367,38 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-10T14:55:56+00:00",
+      "brief_date": "2026-10-10",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "bos-vs-choch",
+      "track": 0,
+      "title": "Structure #2: BOS vs CHoCH Explained | Structure Lesson",
+      "video_id": "xB0EKBFEn8U",
+      "fb_video_id": "1424698269020704",
+      "seconds": 280.7,
+      "examples": [
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-10-06T19:00:00+00:00",
+          "end": "2026-10-08T02:00:00+00:00"
+        },
+        {
+          "asset": "BTC/USD",
+          "timeframe": "1D",
+          "start": "2026-04-02T00:00:00+00:00",
+          "end": "2026-05-22T00:00:00+00:00"
+        }
+      ],
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
