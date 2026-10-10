@@ -316,6 +316,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-10T09:33:06+00:00",
+      "brief_date": "2026-10-10",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "GOLD PRICES RISE ON FED OUTLOOK",
+      "fb_post_id": "462331040302049_122252292008610202",
+      "headlines": [
+        "Gold Prices Rise as Investors Await US Interest Rate Outlook"
+      ],
+      "topic": "rates",
+      "source": "Fana News -",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
