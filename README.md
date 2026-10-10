@@ -12,6 +12,7 @@ posts** a day on the Facebook Page, with no manual work, running free on GitHub 
 | Gold Outlook | 06:15 | 11:45 | XAU/USD: bias for the next 1h / 4h / day, liquidity, key levels (Mon–Fri) | YouTube + Facebook Reel |
 | Midday News | 09:30 | 15:00 | news image post | Facebook |
 | New York Open | 12:30 | 18:00 | market brief: one lead story since London | YouTube + Facebook Reel |
+| Trading Lesson | 14:30 | 20:00 | the next curriculum episode, Tue/Thu/Sat/Sun (off until enabled, see [Trading lessons](#trading-lessons)) | YouTube (16:9) + Facebook video (9:16) |
 | Evening News | 16:30 | 22:00 | news image post | Facebook |
 
 **News image posts (Facebook):** each picks the most important story of the last 48 h that moves
@@ -34,8 +35,8 @@ when gold is most liquid. Levels and bias come from fixed rules on hourly prices
 market structure, previous-day / Asian / weekly highs and lows, equal highs/lows, sweeps, ATR
 ranges, dollar and real-yield tilt), and each video first says whether the last outlook played out.
 
-At weekends (forex and gold closed) only the London edition and the three news posts run
-(`weekend_sessions`).
+At weekends (forex and gold closed) only the London edition, the three news posts and the
+Saturday / Sunday lesson run (`weekend_sessions`).
 
 **Timing:** GitHub's own schedule can start runs hours late or skip them, so runs are started
 on time by a free outside timer (cron-job.org) that presses "Run workflow" through the GitHub
@@ -50,7 +51,8 @@ happens. Tick **Count it as today's edition** only if you want the timed run to 
 Leave **Timed run** unticked (it's for the outside timer). Keep it to ~2 manual uploads a day:
 YouTube's API allows about 6 uploads daily in total. **Platforms** (`all` / `youtube` /
 `facebook`) limits where it goes, e.g. `facebook` to post a Reel that failed earlier; news
-posts (`news_*` editions) only ever go to Facebook.
+posts (`news_*` editions) only ever go to Facebook. Session `lesson` makes and publishes the next
+unpublished trading lesson, any day, without filling the timed slot.
 
 ```
 market data + news ─► lead story ─► research ─► script ─► fact-check ─► voiceover ─► graphics ─► render ─► upload
@@ -202,6 +204,37 @@ Needs a Facebook Page you are an admin of. Everything here is free.
 
 To pause Facebook, set `facebook.enabled: false` in `config.yaml`.
 
+### 6. Trading lessons (off until you switch them on)
+
+The `lesson` edition publishes the next episode of `lessons/curriculum.yaml` (list order is the
+queue) at 14:30 UTC (20:00 Sri Lanka) on **Tuesday, Thursday, Saturday and Sunday**: a 16:9 video on
+YouTube (Education, public on upload; set `lessons.review_window_hours` to keep it private that many
+hours first; playlists by hand in Studio unless `lessons.playlists: true`) and the same
+narration as a 9:16 video on the Facebook Page. Every chart is a real historical example a detector
+found in the free price history; an episode with no clean example is **held** (logged, retried next
+time) and the next one goes out instead. If every episode is published or held, the run logs
+"nothing to publish in this slot" and stops. Each platform is published on its own: if one fails,
+the backup run re-makes the same episode (same examples) and publishes only the missing one; if
+that episode can't be re-made, the run fails so you see it.
+
+To switch them on:
+1. **YouTube:** nothing to change: lessons upload with the existing `YT_REFRESH_TOKEN` and you add
+   them to playlists by hand in YouTube Studio (`lessons.playlists: false`). Only if you want automatic
+   playlists: add the `youtube` and `yt-analytics.readonly` scopes to the OAuth consent screen, run
+   `python get_token.py --lesson-scopes`, replace **`YT_REFRESH_TOKEN`**, set `lessons.playlists: true`.
+   Custom thumbnails on long videos need a phone-verified channel (youtube.com/verify).
+2. **Curriculum:** merge the approved `lessons/curriculum.yaml` and `lessons/glossary.yaml`;
+   `python tests/test_lessons.py` must pass (a run with curriculum problems lists them and fails).
+3. Set **`lessons.enabled: true`** in `config.yaml` and push.
+4. **Outside timer:** add the `lesson` job to cron-job.org (14:30 UTC / 20:00 Asia/Colombo,
+   Tuesday, Thursday, Saturday, Sunday; body `{"ref":"main","inputs":{"session":"lesson","scheduled":"true"}}`),
+   or run `python setup_cronjobs.py` (it uses the edition's `days`).
+5. Test: Actions → Run workflow → session `lesson` (a manual run works any day, publishes the next
+   episode and doesn't fill the timed slot).
+
+While `lessons.enabled` is false, lesson runs log why and stop without fetching or posting
+(`python main.py --session lesson --no-upload` still makes one locally).
+
 ---
 
 ## Settings you'll likely change (`config.yaml`)
@@ -217,6 +250,7 @@ To pause Facebook, set `facebook.enabled: false` in `config.yaml`.
 | Posting times | change all of: the cron-job.org job, `start_utc` in `config.yaml`, and the backup `cron` line in `.github/workflows/autopilot.yml` plus the matching string in its `EDITION:` line and `concurrency.group` |
 | Editions | `sessions` (focus text per edition, `platforms`) and `weekend_sessions` in `config.yaml` |
 | Facebook | `facebook.enabled`, `facebook.max_hashtags`; news posts: `news_posts.topic_weights`, `fresh_hours`, `disclaimer` |
+| Trading lessons | `lessons.enabled`, `review_window_hours`, `path_playlist`, `track_playlist`, `fb_published`, `max_seconds`; run days: `sessions.lesson.days` |
 | News post backgrounds | `images.provider` (`cloudflare` or `none`), `images.steps`; your own images in `assets/backgrounds/<topic>/` |
 | Coins / FX pairs | `CRYPTO` and `FX` lists at the top of `autopilot/sources.py` |
 | News feeds | `DEFAULT_FEEDS` in `autopilot/sources.py` |
@@ -231,7 +265,9 @@ pip install -r requirements.txt
 export GEMINI_API_KEY=...          # Windows PowerShell: $env:GEMINI_API_KEY="..."
 python main.py --no-upload --session london   # makes output/<time>/short.mp4 (+ thumbnail, data)
 python main.py --no-upload --session news_morning   # makes output/<time>/post.jpg + caption_fb.txt
+python main.py --no-upload --session lesson   # next lesson: output/<time>/lesson_16x9.mp4 + lesson_9x16.mp4
 python tests/test_offline.py        # graphics + render + mocked Facebook check, no keys needed
+python tests/test_lessons.py        # curriculum, detectors, lesson data + narration checks
 ```
 
 ---
@@ -267,8 +303,10 @@ What helps most from your side, even if it's 10 minutes a week:
 - The Gemini model name may be retired over time; update `llm.model` if runs start failing with 404.
 - The free Gemini tier may use your prompts to improve Google's products.
 - Facebook may refuse a custom Reel cover through the API; the Reel then uses its own frame.
-- A Reel still processing after 10 minutes is logged as published (so it isn't posted twice);
-  check the Page if a run says so.
+- A Reel or lesson video still processing after 10 minutes is logged as published (so it isn't
+  posted twice); check the Page if a run says so.
+- YouTube's ~6 uploads a day: with lessons on, the autopilot uses 5 on Tuesdays and Thursdays
+  (4 Shorts + the lesson), leaving about 1 manual upload on those days.
 
 ## Files
 
@@ -290,7 +328,15 @@ autopilot/youtube.py    metadata + upload
 autopilot/facebook.py   Facebook Page: Reels, photos, error handling, captions
 autopilot/news_post.py  news posts: story pick, headline + caption (Gemini, fact-checked)
 autopilot/images.py     news post backgrounds (Cloudflare AI / library / drawn) + the 1080×1350 card
-data/history.json       what has been published (YouTube id, Facebook Reel / post id)
+autopilot/lessons.py    trading lessons: curriculum / glossary format, validator, episode picker, scene plan
+autopilot/detectors/    find real historical examples per concept (structure, trendlines, liquidity, SMC, mtf)
+autopilot/lesson_data.py   multi-timeframe price history for the detectors (Coinbase, Kraken, Frankfurter)
+autopilot/lesson_script.py lesson narration from the approved key points (Gemini, fact-checked)
+autopilot/lesson_slides.py lesson graphics + thumbnail in 16:9 and 9:16
+autopilot/lesson_meta.py   lesson chapters, titles, descriptions, hashtags
+lessons/                curriculum.yaml (the episode queue) + glossary.yaml
+setup_cronjobs.py       creates / fixes the cron-job.org timers from config.yaml
+data/history.json       what has been published (YouTube id, Facebook Reel / post / video id, lesson episode)
 .github/workflows/      backup schedule, manual runs, history saving
 ```
 
@@ -298,8 +344,9 @@ data/history.json       what has been published (YouTube id, Facebook Reel / pos
 
 One-time setup, free, about 10 minutes.
 
-**Shortcut:** `python setup_cronjobs.py` creates or fixes all seven jobs from `config.yaml` through
-the cron-job.org API (jobs titled "CryptoFX · <edition>", times in UTC, gold Mon–Fri). It asks for
+**Shortcut:** `python setup_cronjobs.py` creates or fixes all eight jobs from `config.yaml` through
+the cron-job.org API (jobs titled "CryptoFX · <edition>", times in UTC, gold Mon–Fri, lesson on its
+`days`: Tue/Thu/Sat/Sun; `--disable lesson` creates that one paused). It asks for
 a cron-job.org API key (Settings → API) and the GitHub token from step 1, with hidden input. Run it
 again after changing any `start_utc`; `--dry-run` shows the plan. The manual steps below do the same.
 
@@ -319,7 +366,9 @@ again after changing any `start_utc`; `--dry-run` shows the plan. The manual ste
    **11:10 → `london`**, **11:45 → `gold`** (set this one to **Monday–Friday**), **18:00 → `newyork`**.
 4. Facebook news posts: copy it three more times, **every day**:
    **08:30 → `news_morning`**, **15:00 → `news_midday`**, **22:00 → `news_evening`**.
+5. Trading lessons (once they're enabled): **20:00 → `lesson`**, **Tuesday, Thursday, Saturday,
+   Sunday** only.
 
 Keep the token only in cron-job.org (never in the repo or chat). If the jobs start failing
-with `401`, the token has expired: make a new one and paste it into all seven jobs. A `422`
+with `401`, the token has expired: make a new one and paste it into all eight jobs. A `422`
 means the workflow on `main` doesn't have the `scheduled` input yet (push the latest code).

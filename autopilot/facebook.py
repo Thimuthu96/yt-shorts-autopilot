@@ -1,4 +1,5 @@
-"""Facebook Page publishing (Graph API v26.0): Reels for the video editions, photos for news posts.
+"""Facebook Page publishing (Graph API v26.0): Reels for the video editions, photos for news posts,
+regular Page videos (chunked /videos upload) for long vertical lessons.
 
 Secrets: FB_PAGE_ID and FB_PAGE_TOKEN (a never-expiring Page token, see README "Facebook Page").
 Facebook is skipped with a log line when they are missing or `facebook.enabled` is false.
@@ -8,7 +9,7 @@ Errors are classified, never looped blindly:
   a hint; 4 / 17 / 32 / 613 / 80001 (throttled) → fail with a message; 1, 2, is_transient and
   HTTP 5xx → retried 3 times with backoff from ~5 s.
 A Reel's `finish` call is sent once; if it seems to fail, the video's status is checked before
-it is ever sent again, so a Reel is never published twice.
+it is ever sent again, so a Reel is never published twice. Long videos follow the same rule.
 """
 import os
 import re
@@ -42,6 +43,7 @@ class GraphError(RuntimeError):
                  transient: bool = False, status: int | None = None):
         super().__init__(message)
         self.code, self.subcode, self.transient, self.status = code, subcode, transient, status
+        self.video_id: str | None = None  # set by publish_video once the video exists
 
 
 def disabled_reason(cfg: dict) -> str:
@@ -220,6 +222,122 @@ def publish_reel(video: Path, description: str, cfg: dict, cover: Path | None = 
     return vid
 
 
+# ─── long videos (lessons) ─────────────────────────────────────────────────
+
+def _video_not_started(st: dict) -> bool:
+    """True only when the status clearly shows the upload itself never completed, so the finish
+    can't have taken. Everything else (incl. processing not started yet, or a missing phase)
+    counts as taken, so finish is never re-sent on a guess."""
+    up = (st.get("uploading_phase") or {}).get("status")
+    return (up is not None and up not in ("complete", "completed") and not _finish_took(st)
+            and st.get("video_status") != "ready")
+
+
+def publish_video(video: Path, title: str, description: str, cfg: dict, published: bool = True,
+                  poll_minutes: float | None = None, log=print) -> str:
+    """A long (up to ~5 min) vertical lesson as a regular Page video: chunked upload to
+    /{page}/videos (start → transfer the byte ranges Facebook asks for → finish once with title and
+    description) → poll until ready (≤ poll_minutes, default facebook.poll_minutes).
+    published=False uploads it unpublished (owner's test). Returns the video id.
+    Any error after start carries the id as `video_id`, so a caller can log or delete it."""
+    page, token = _creds()
+    v = _version(cfg)
+    url = f"{GRAPH.format(v=v)}/{page}/videos"
+    blob = Path(video).read_bytes()
+    res = _call("POST", url, log=log,
+                data={"upload_phase": "start", "file_size": str(len(blob)), "access_token": token})
+    vid = str(res["video_id"])
+    try:
+        _video_upload(vid, res, url, blob, Path(video).name, title, description, published, token, v, log)
+        _video_poll(vid, page, token, v, cfg, published, poll_minutes, log)
+    except Exception as e:  # the video exists on the Page: never lose its id
+        if getattr(e, "video_id", None) is None:
+            e.video_id = vid
+        raise
+    return vid
+
+
+def _video_upload(vid, res, url, blob, name, title, description, published, token, v, log) -> None:
+    sid = str(res["upload_session_id"])
+    start, end = int(res["start_offset"]), int(res["end_offset"])
+    log(f"Facebook: video {vid} upload started ({len(blob) / 1e6:.1f} MB)")
+    while start < end:
+        # a chunk is bytes, so _call can re-send it on a transient error without restarting
+        res = _call("POST", url, timeout=(15, 600), log=log,
+                    data={"upload_phase": "transfer", "upload_session_id": sid, "start_offset": str(start),
+                          "access_token": token},
+                    files={"video_file_chunk": (name, blob[start:end], "application/octet-stream")})
+        nxt, nend = int(res["start_offset"]), int(res["end_offset"])
+        if nxt <= start and nxt != nend:
+            raise GraphError(f"Facebook video {vid} upload stuck at byte {start} (answer: {res})")
+        start, end = nxt, nend
+    log(f"Facebook: video {vid} uploaded, finishing ({'published' if published else 'unpublished'})")
+
+    finish = {"upload_phase": "finish", "upload_session_id": sid, "title": title[:255],
+              "description": description[:5000], "published": "true" if published else "false",
+              "access_token": token}
+    for attempt in range(3):
+        try:
+            done = _call("POST", url, data=finish, retries=0, log=log)
+            if done.get("success") is False:
+                raise GraphError(f"Facebook video {vid} finish was not accepted: {done}")
+            return
+        except GraphError as e:
+            # first finish clearly refused → fail; unclear, or a re-sent finish refused → look first
+            if not e.transient and attempt == 0:
+                raise
+            log(f"Facebook: finish call {'unclear' if e.transient else 'refused'} ({e}); "
+                "checking the video's status before anything else")
+            _sleep(5 * 2 ** attempt)
+            try:
+                st = _status(vid, token, v, log)
+            except GraphError as se:  # can't tell: a missed video beats a duplicate one
+                log(f"Facebook: video {vid} status unreadable ({se}); not sending finish again")
+                return
+            if not _video_not_started(st):
+                log(f"Facebook: the finish of video {vid} went through after all")
+                return
+            if attempt == 2 or not e.transient:
+                raise
+            log("Facebook: upload not complete yet, sending finish again")
+
+
+def _video_poll(vid, page, token, v, cfg, published, poll_minutes, log) -> None:
+    fb = cfg.get("facebook") or {}
+    poll = float(fb.get("poll_minutes", 10) if poll_minutes is None else poll_minutes) * 60
+    every = float(fb.get("poll_every_seconds", 10))
+    waited = 0.0
+    while True:
+        try:
+            st = _status(vid, token, v, log)
+        except Exception as e:  # the finish went through: never lose the id over a status read
+            log(f"Facebook: video {vid} status unknown ({e}); logged so it isn't posted twice")
+            return
+        errs = _phase_errors(st)
+        if errs:
+            raise GraphError(f"Facebook video {vid} failed: {'; '.join(errs)}")
+        if st.get("video_status") == "ready" and (not published or _published(st)):
+            log(f"Facebook: video {'published' if published else 'ready (unpublished)'} "
+                f"https://www.facebook.com/{page}/videos/{vid}")
+            return
+        if waited >= poll:
+            log(f"Facebook: video {vid} still processing after {poll / 60:.0f} min ({st.get('video_status')}); "
+                "it normally appears on the Page shortly. Logged so it isn't posted twice.")
+            return
+        _sleep(every)
+        waited += every
+
+
+def delete_video(video_id: str, cfg: dict, log=print) -> None:
+    """Delete a Page video (used after the owner's unpublished test upload)."""
+    _, token = _creds()
+    res = _call("DELETE", f"{GRAPH.format(v=_version(cfg))}/{video_id}",
+                headers={"Authorization": f"OAuth {token}"}, log=log)
+    if res.get("success") is False:
+        raise GraphError(f"Facebook video {video_id} was not deleted: {res}")
+    log(f"Facebook: video {video_id} deleted")
+
+
 # ─── photos ────────────────────────────────────────────────────────────────
 
 def publish_photo(image: Path, caption: str, cfg: dict, log=print) -> str:
@@ -287,3 +405,55 @@ def reel_caption(meta: dict, pkg: dict, data: dict, cfg: dict) -> str:
     tail = " ".join(tags)
     body = "\n\n".join(p for p in (strip_hashtags(x) for x in parts) if p)
     return (body[:2190 - len(tail) - 2].rstrip() + "\n\n" + tail).strip()
+
+
+# ─── owner's test: python -m autopilot.facebook test-video <mp4> [--title T] ──
+
+def _main(argv: list[str] | None = None) -> int:
+    import argparse
+    import json
+
+    import yaml
+
+    ap = argparse.ArgumentParser(prog="python -m autopilot.facebook")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    tv = sub.add_parser("test-video", help="upload an mp4 unpublished, print its id and status, then delete it")
+    tv.add_argument("mp4", type=Path)
+    tv.add_argument("--title", default=None)
+    args = ap.parse_args(argv)
+
+    missing = [k for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN") if not os.environ.get(k)]
+    if missing:
+        print(f"set {', '.join(missing)} first")
+        return 2
+    if not args.mp4.is_file():
+        print(f"{args.mp4} not found")
+        return 2
+    cfg = yaml.safe_load((Path(__file__).resolve().parents[1] / "config.yaml").read_text(encoding="utf-8")) or {}
+    title = args.title or f"Test upload: {args.mp4.stem}"
+    vid, rc = None, 0
+    try:
+        vid = publish_video(args.mp4, title, "CryptoFX Daily test upload (unpublished, deleted right after).",
+                            cfg, published=False)
+        print(f"video id: {vid}")
+        _, token = _creds()
+        info = _call("GET", f"{GRAPH.format(v=_version(cfg))}/{vid}",
+                     params={"fields": "title,description,status"}, headers={"Authorization": f"OAuth {token}"})
+        print(f"title: {info.get('title')}")
+        print(f"description: {info.get('description')}")
+        print("status:", json.dumps(info.get("status") or {}, indent=2))
+    except Exception as e:
+        vid = vid or getattr(e, "video_id", None)
+        print(f"test upload failed: {e}" + (f" (video id {vid})" if vid else ""))
+        rc = 1
+    finally:
+        if vid:  # never leave the test video on the Page
+            try:
+                delete_video(vid, cfg)
+            except Exception as e:
+                print(f"could not delete test video {vid} ({e}); delete it in Meta Business Suite")
+                rc = 1
+    return rc
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

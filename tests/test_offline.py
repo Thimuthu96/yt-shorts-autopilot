@@ -204,9 +204,14 @@ def main():
     test_gold(cfg, small, gdata)
     test_history()
     test_facebook(cfg, PKG, data, meta, out, work / "thumbnail.jpg")
+    test_facebook_video(cfg)
     test_news_post(cfg)
     test_news_edition(cfg)
     test_video_editions(cfg, out, work / "thumbnail.jpg")
+    test_lesson_slides(cfg)
+    test_lesson_render(cfg)
+    test_youtube_lesson(cfg)
+    test_lesson_edition(cfg)
 
 
 def test_gold(cfg, small, data):
@@ -287,6 +292,11 @@ def test_history():
         assert "Fed holds rates" not in h.used_headlines() and "Story L" in h.used_headlines()
         assert h.last("post")["topic"] == "rates" and h.last("market")["fb_reel_id"] == "r1"
         assert not h.add({"fb_post_id": "p1"})
+        # lessons have no headlines and don't take places in the videos' last-15 "don't repeat" window
+        for i in range(16):
+            h.add({"brief_date": "2026-10-07", "session": "lesson", "kind": "lesson", "episode": f"e{i}",
+                   "video_id": f"l{i}", "date": "2026-10-07T14:35:00+00:00"})
+        assert "Story L" in h.used_headlines(), h.used_headlines()
     print("OK history")
 
 
@@ -304,15 +314,80 @@ class FakeResp:
 class FakeGraph:
     """Answers like graph.facebook.com / rupload.facebook.com and records every call."""
 
-    def __init__(self, finish_fails: bool = False, photo_errors: list | None = None):
+    def __init__(self, finish_fails: bool = False, photo_errors: list | None = None,
+                 video_errors: dict | None = None, video_took: bool = True, video_status_fails: bool = False,
+                 video_slow_start: bool = False, chunk: int = 1000):
         self.calls, self.finish_fails = [], finish_fails
         self.photo_errors = list(photo_errors or [])
         self.status_reads = 0
         self.finished = False
+        # /{page}/videos (long lesson videos): errors queued per upload phase; video_took = an errored
+        # finish went through anyway; video_status_fails = GET /V1 always errors; video_slow_start = the
+        # first status read after a finish that took still shows processing not_started
+        self.video_errors = {k: list(v) for k, v in (video_errors or {}).items()}
+        self.video_took, self.video_status_fails, self.chunk = video_took, video_status_fails, chunk
+        self.video_slow_start = video_slow_start
+        self.video_size, self.video_finishes, self.video_reads, self.video_published = 0, [], 0, None
+        self.chunks = []
+
+    def _video(self, method, url, data, kw):
+        phase = data.get("upload_phase")
+        if url.endswith("/videos") and self.video_errors.get(phase):
+            if phase == "finish":
+                self.video_finishes.append(dict(data))
+                if self.video_took:
+                    self.video_published = data["published"] == "true"
+            return self.video_errors[phase].pop(0)
+        if url.endswith("/videos") and phase == "start":
+            self.video_size = int(data["file_size"])
+            return FakeResp(200, {"upload_session_id": "S1", "video_id": "V1", "start_offset": "0",
+                                  "end_offset": str(min(self.chunk, self.video_size))})
+        if url.endswith("/videos") and phase == "transfer":
+            assert data["upload_session_id"] == "S1"
+            name, blob, _ = kw["files"]["video_file_chunk"]
+            assert isinstance(blob, bytes) and len(blob) > 0
+            start = int(data["start_offset"])
+            self.chunks.append((start, blob))
+            nxt = start + len(blob)
+            return FakeResp(200, {"start_offset": str(nxt), "end_offset": str(min(nxt + self.chunk, self.video_size))})
+        if url.endswith("/videos") and phase == "finish":
+            assert data["upload_session_id"] == "S1" and sum(len(b) for _, b in self.chunks) >= self.video_size
+            self.video_finishes.append(dict(data))
+            self.video_published = data["published"] == "true"
+            return FakeResp(200, {"success": True})
+        if method == "GET" and url.endswith("/V1"):
+            assert kw["headers"]["Authorization"] == "OAuth TOKEN"
+            if self.video_status_fails:
+                return FakeResp(500, {"error": {"code": 1, "message": "unknown error"}})
+            if self.video_published is None:  # finish hasn't taken: the upload isn't complete
+                return FakeResp(200, {"status": {"video_status": "processing",
+                                                 "uploading_phase": {"status": "in_progress"},
+                                                 "processing_phase": {"status": "not_started"},
+                                                 "publishing_phase": {"status": "not_started"}}})
+            self.video_reads += 1
+            if self.video_slow_start and self.video_reads == 1:  # took, but nothing moving yet
+                return FakeResp(200, {"status": {"video_status": "processing",
+                                                 "uploading_phase": {"status": "complete"},
+                                                 "processing_phase": {"status": "not_started"},
+                                                 "publishing_phase": {"status": "not_started"}}})
+            done = self.video_reads >= 3
+            pub = ("complete" if done else "in_progress") if self.video_published else "not_started"
+            return FakeResp(200, {"status": {"video_status": "ready" if done else "processing",
+                                             "uploading_phase": {"status": "complete"},
+                                             "processing_phase": {"status": "complete" if done else "in_progress"},
+                                             "publishing_phase": {"status": pub}}})
+        if method == "DELETE" and url.endswith("/V1"):
+            assert kw["headers"]["Authorization"] == "OAuth TOKEN"
+            return FakeResp(200, {"success": True})
+        return None
 
     def request(self, method, url, timeout=None, **kw):
         data = kw.get("data") if isinstance(kw.get("data"), dict) else {}
         self.calls.append((method, url, data.get("upload_phase")))
+        if url.endswith("/videos") or url.endswith("/V1"):
+            res = self._video(method, url, data, kw)
+            if res is not None:
+                return res
         if url.endswith("/video_reels") and data.get("upload_phase") == "start":
             return FakeResp(200, {"video_id": "R1", "upload_url": "https://rupload.facebook.com/video-upload/v26.0/R1"})
         if "rupload.facebook.com" in url:
@@ -418,6 +493,89 @@ def test_facebook(cfg, pkg, data, meta, video, cover):
     for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN"):
         os.environ.pop(k, None)
     print("OK facebook")
+
+
+def test_facebook_video(cfg):
+    """Long vertical lesson → chunked /{page}/videos upload, finish once, status before any re-send."""
+    fcfg = cfg | {"facebook": cfg["facebook"] | {"poll_every_seconds": 1}}
+    blob = bytes(range(256)) * 11 + b"tail"  # 2,820 bytes → 3 chunks of ≤ 1,000
+    video = Path(tempfile.mkdtemp()) / "lesson_9x16.mp4"
+    video.write_bytes(blob)
+    logs = []
+    quiet = logs.append
+    unclear = lambda: FakeResp(503, {"error": {"code": 2, "message": "Service temporarily unavailable",  # noqa: E731
+                                               "is_transient": True}})
+
+    def no_token_in_urls(fake):
+        assert all("TOKEN" not in u for _, u, _ in fake.calls), fake.calls
+
+    def chunks_ok(fake):  # each chunk = exactly the file's bytes for the range Facebook asked for
+        assert [(st, len(b)) for st, b in fake.chunks] == [(0, 1000), (1000, 1000), (2000, 820)], fake.chunks
+        assert all(b == blob[st:st + len(b)] for st, b in fake.chunks)
+
+    # happy path: start, 3 transfers (the byte ranges asked for), one finish with title/description, poll
+    fake = FakeGraph()
+    _fb_env(fake)
+    desc = "Lesson description " * 400  # > 5,000 chars → cut
+    assert facebook.publish_video(video, "T" * 300, desc, fcfg, log=quiet) == "V1"
+    assert fake.count("start", "/videos") == 1 and fake.count("transfer") == 3 and fake.count("finish") == 1
+    chunks_ok(fake)
+    f = fake.video_finishes[0]
+    assert f["published"] == "true" and len(f["title"]) == 255 and len(f["description"]) == 5000, f
+    assert fake.video_reads == 3 and not any("still processing" in m for m in logs), logs
+    no_token_in_urls(fake)
+
+    # token error at start: fails at once with the fix, exactly one request
+    fake = FakeGraph(video_errors={"start": [FakeResp(400, {"error": {"code": 190, "message": "Session has expired"}})]})
+    _fb_env(fake)
+    try:
+        facebook.publish_video(video, "t", "d", fcfg, log=quiet)
+        raise AssertionError("190 should fail")
+    except facebook.GraphError as e:
+        assert e.code == 190 and "FB_PAGE_TOKEN" in str(e) and not e.transient
+    assert len(fake.calls) == 1, fake.calls
+
+    # finish answered 503 but took (status shows processing/publishing) → not sent again
+    fake = FakeGraph(video_errors={"finish": [unclear()]}, video_took=True)
+    _fb_env(fake)
+    assert facebook.publish_video(video, "t", "d", fcfg, log=quiet) == "V1" and fake.count("finish") == 1
+    # ... and took, but processing hasn't begun on the first read (upload complete) → still not re-sent
+    for pub in (True, False):
+        fake = FakeGraph(video_errors={"finish": [unclear()]}, video_took=True, video_slow_start=True)
+        _fb_env(fake)
+        assert facebook.publish_video(video, "t", "d", fcfg, published=pub, log=quiet) == "V1"
+        assert fake.count("finish") == 1, fake.calls
+    # finish answered 503 and didn't take (status: not started) → sent once more
+    fake = FakeGraph(video_errors={"finish": [unclear()]}, video_took=False)
+    _fb_env(fake)
+    logs.clear()
+    assert facebook.publish_video(video, "t", "d", fcfg, log=quiet) == "V1" and fake.count("finish") == 2
+    assert any("sending finish again" in m for m in logs), logs
+    # finish answered 503 and the status can't be read → no re-send, id still returned
+    fake = FakeGraph(video_errors={"finish": [unclear()]}, video_status_fails=True)
+    _fb_env(fake)
+    logs.clear()
+    assert facebook.publish_video(video, "t", "d", fcfg, log=quiet) == "V1" and fake.count("finish") == 1
+    assert any("not sending finish again" in m for m in logs) and any("status unknown" in m for m in logs), logs
+
+    # unpublished test upload: finish sends published=false, done once ready
+    fake = FakeGraph()
+    _fb_env(fake)
+    assert facebook.publish_video(video, "t", "d", fcfg, published=False, log=quiet) == "V1"
+    assert fake.video_finishes[0]["published"] == "false" and fake.count("finish") == 1
+    facebook.delete_video("V1", fcfg, log=quiet)
+    assert fake.count(contains="/V1") == fake.video_reads + 1 and fake.calls[-1][0] == "DELETE"
+    no_token_in_urls(fake)
+
+    # one chunk answers 5xx → that chunk is retried by _call, the upload isn't restarted
+    fake = FakeGraph(video_errors={"transfer": [FakeResp(500, {"error": {"code": 1, "message": "unknown error"}})]})
+    _fb_env(fake)
+    assert facebook.publish_video(video, "t", "d", fcfg, log=quiet) == "V1"
+    assert fake.count("start", "/videos") == 1 and fake.count("transfer") == 4 and fake.count("finish") == 1
+    chunks_ok(fake)
+    for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN"):
+        os.environ.pop(k, None)
+    print("OK facebook lesson video (chunked /videos, one publish, 190 not retried, status before re-send)")
 
 
 # ─── news image posts ──────────────────────────────────────────────────────
@@ -682,6 +840,1019 @@ def test_video_editions(cfg, video, cover):
         os.environ.pop("CF_API_TOKEN")
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK video editions (both platforms, FB-only re-make, --platforms, Reel error, CF fallback)")
+
+
+def _contact(paths: list[Path], cell: tuple[int, int], cols: int, out: Path) -> Path:
+    from PIL import Image
+    rows = -(-len(paths) // cols)
+    w, h, pad = cell[0], cell[1], 8
+    sheet = Image.new("RGB", (cols * w + (cols + 1) * pad, rows * h + (rows + 1) * pad), (40, 40, 40))
+    for k, p in enumerate(paths):
+        with Image.open(p) as im:
+            sheet.paste(im.convert("RGB").resize((w, h), Image.LANCZOS),
+                        (pad + (k % cols) * (w + pad), pad + (k // cols) * (h + pad)))
+    sheet.save(out)
+    return out
+
+
+def test_lesson_slides(cfg):
+    """Lesson graphics (entries 3 + 4): every scene type in 16:9 and 9:16 from the fixture detectors' real
+    examples, every primitive, portrait zoom, daily-fix line, schematic label, the mtf (top-down) panels,
+    unknown type, thumbnail; writes contact sheets (chart and mtf scenes) for the owner to approve the look."""
+    from types import SimpleNamespace
+    from PIL import Image, ImageDraw
+    from autopilot import detectors, lesson_data, lesson_slides as ls, lessons  # noqa: F401  (detectors registers)
+    sample = ROOT / "tests" / "lessons"
+    cur, glo = lessons.load_curriculum(sample / "curriculum.yaml"), lessons.load_glossary(sample / "glossary.yaml")
+    load = lambda n: json.loads((sample / "candles" / f"{n}.json").read_text(encoding="utf-8"))  # noqa: E731
+    down, up = load("downtrend_bos_choch"), load("uptrend")
+    fix = [dict(c, o=c["c"], h=c["c"], l=c["c"]) for c in down]  # EUR/USD daily reference fix: o=h=l=c
+    examples = lessons.DETECTORS["bos_choch"].find({"BTC/USD": {"1H": down}, "EUR/USD": {"1D": fix}})
+    assert [e["asset"] for e in examples] == ["BTC/USD", "EUR/USD"], [e["asset"] for e in examples]
+    ex1, ex2 = examples
+    # every primitive: add a trendline through the first two LH swings and a zone between the BOS and
+    # CHoCH levels, all values taken from the example itself
+    f = ex1["facts"]
+    lh = [s for s in f["swings"] if s["kind"] == "LH"]
+    ex1["primitives"] += [
+        {"type": "trendline", "t1": lh[0]["t"], "p1": lh[0]["price"], "t2": lh[1]["t"], "p2": lh[1]["price"]},
+        {"type": "zone", "t1": f["bos"]["swing_t"], "t2": f["choch"]["t"], "low": min(f["bos"]["level"], f["choch"]["level"]),
+         "high": max(f["bos"]["level"], f["choch"]["level"]), "label": "BOS → CHoCH"}]
+    assert lessons.validate_example(ex1) == [], lessons.validate_example(ex1)
+    assert {p["type"] for p in ex1["primitives"]} == set(lessons.PRIMITIVES)
+    schematic = lessons.DETECTORS["swings"].find({"BTC/USD": {"1H": up}})[0]  # example-shaped dict
+    # top-down (mtf): the 1H fixture with nested structure and its 4H aggregation
+    h1 = load("top_down_1h")
+    rows = {int(datetime.fromisoformat(c["t"]).timestamp()): (c["o"], c["h"], c["l"], c["c"]) for c in h1}
+    h4 = lesson_data._candles(lesson_data._aggregate(rows, 4 * 3600))
+    mtf = lessons.DETECTORS["top_down"].find({"BTC/USD": {"4H": h4, "1H": h1}})
+    assert len(mtf) == 1 and lessons.validate_example(mtf[0]) == [], mtf
+    mtf_ex = mtf[0]
+    mtf_scene = lessons.scene_plan(cur[2], [mtf_ex])[2]
+    assert mtf_scene["id"] == "example_1" and mtf_scene["visual"]["type"] == "mtf"
+    plan = lessons.scene_plan(cur[1], examples)
+    plan.insert(2, {"id": "schematic", "visual": {"type": "schematic", "example": schematic}})
+    plan.insert(5, dict(mtf_scene, id="mtf"))
+    types = [s["visual"]["type"] for s in plan]
+    assert types == ["title", "concept", "schematic", "chart", "chart", "mtf", "misreads", "outro"], types
+
+    work = ROOT / "output" / "test_lessons"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    bg = (14, 15, 18)
+    sheets = {}
+    for layout, cell, cols in ((ls.LANDSCAPE, (640, 360), 3), (ls.PORTRAIT, (360, 640), 4)):
+        pics = ls.render_lesson_slides(cfg, cur[1], plan, glo, layout, work / layout.name)
+        assert [p["id"] for p in pics] == [s["id"] for s in plan] and all(set(p) == {"image", "reveal", "id"} for p in pics)
+        for s, p in zip(plan, pics):
+            with Image.open(p["image"]) as im:
+                assert im.size == (layout.w, layout.h), (layout.name, s["id"], im.size)
+                band = im.convert("RGB").crop((0, layout.caption_band[0], layout.w, layout.caption_band[1]))
+                assert band.getextrema() == tuple((c, c) for c in bg), (layout.name, s["id"], "drew into captions")
+            if s["visual"]["type"] in ("chart", "schematic", "mtf"):
+                x, y, w, h = p["reveal"]
+                assert w >= 0.85 * layout.w and x >= 0 and x + w <= layout.w, (layout.name, p["reveal"])
+                assert y >= layout.rule_y and y + h <= layout.caption_band[0], (layout.name, p["reveal"])
+            else:
+                assert p["reveal"] is None
+        # deterministic: the same inputs give the same bytes
+        again = ls.render_lesson_slides(cfg, cur[1], plan, glo, layout, work / f"{layout.name}_again")
+        assert all(Path(a["image"]).read_bytes() == Path(b["image"]).read_bytes() for a, b in zip(pics, again))
+        shutil.rmtree(work / f"{layout.name}_again")
+        sheets[layout.name] = _contact([p["image"] for p in pics], cell, cols, work / f"contact_{layout.name}.png")
+
+        # every primitive drawn, in both shapes (portrait zoomed as on the slides)
+        zoom = layout is ls.PORTRAIT
+        canvas = Image.new("RGB", (layout.w, layout.h), bg)
+        info = ls.draw_chart(canvas, layout.content_box, ex1, layout, zoom=zoom)
+        assert set(info["drawn"]) == set(lessons.PRIMITIVES), (layout.name, info["drawn"])
+        assert info["label"].startswith(lessons.example_label(ex1)) and "Coinbase" in info["label"]
+        assert not info["line"]
+        # primitives= limits what is drawn (step reveal)
+        info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, ex1, layout, zoom=zoom,
+                             primitives=[p for p in ex1["primitives"] if p["type"] == "swing"])
+        assert set(info["drawn"]) == {"swing"}, info["drawn"]
+        # daily reference fix: a line, not candles
+        info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, ex2, layout, zoom=zoom)
+        assert info["line"] and "Frankfurter" in info["label"]
+        # schematic: labelled "Schematic", never "Historical example"
+        info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, schematic, layout,
+                             zoom=zoom, label=ls.SCHEMATIC)
+        assert info["label"].startswith("Schematic") and "Historical example" not in info["label"], info["label"]
+
+        # mtf: two panels, side by side in 16:9 (higher left) / stacked in 9:16 (higher on top), each with
+        # its timeframe title and strip, together filling the content width (no crop, no letterbox)
+        x0, y0, x1, y1 = layout.content_box
+        hi, lo = ls.draw_mtf(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, mtf_ex, layout)
+        (ax, ay, aw, ah), (bx, by, bw, bh) = hi["panel"], lo["panel"]
+        if layout is ls.LANDSCAPE:
+            assert ay == by and ah == bh and ax == x0 and bx + bw == x1 and bx - (ax + aw) == ls.MTF_GUTTER, (hi, lo)
+            assert aw == bw and aw >= 0.45 * (x1 - x0)
+        else:
+            assert ax == bx == x0 and aw == bw == x1 - x0 and ay == y0 and by + bh == y1, (hi, lo)
+            assert by - (ay + ah) == ls.MTF_GUTTER and ah == bh
+        assert y1 <= layout.caption_band[0]
+        for info, tf, role in ((hi, "4H", "Higher timeframe"), (lo, "1H", "Lower timeframe")):
+            assert info["timeframe"] == tf and info["title"] == f"{tf} · {role}", info
+            assert info["label"].startswith("Historical example · BTC/USD · ") and f"· {tf}" in info["label"]
+            assert "Coinbase" in info["label"] and not info["line"]
+            px, py, pw, ph = info["panel"]
+            cx, cy, cw, chh = info["box"]
+            assert px <= cx and cx + cw <= px + pw and py < cy and cy + chh <= py + ph, info
+            assert info["x_range"][1] - info["x_range"][0] >= 10  # readable: a real stretch of candles
+        assert "zone" in hi["drawn"] and "swing" in hi["drawn"] and set(lo["drawn"]) == {"swing"}, (hi, lo)
+        # headroom: every swing's marker + kind text fits inside its plot (above a high, below a low)
+        fs = layout.min_text
+        room = ls.SWING_ROOM + max(10, round(fs * 0.42)) + round(fs * 1.2)
+        for info, prims in ((hi, mtf_ex["primitives"]), (lo, mtf_ex["lower"]["primitives"])):
+            ylo, yhi = info["y_range"]
+            plot_h = info["box"][3] - round(fs * 1.3)  # chart box minus the time row
+            for sw in prims:
+                gap = (yhi - sw["price"] if sw["kind"] in ls.SWING_HIGH else sw["price"] - ylo) / (yhi - ylo) * plot_h
+                assert gap >= room - 1, (layout.name, info["timeframe"], sw, gap, room)
+        # draw-in box: the slide's reveal never covers a panel title or label strip
+        heading = ls._heading(SimpleNamespace(accent=(255, 212, 0)), glo["top_down_analysis"]["term"])
+        canvas = Image.new("RGB", (layout.w, layout.h), bg)
+        hy = ls._flow(ImageDraw.Draw(canvas), [heading], layout.content_box, layout)
+        infos = ls.draw_mtf(canvas, (x0, hy, x1, y1), mtf_ex, layout, label=mtf_scene["visual"]["label"])
+        rev = next(p["reveal"] for p in pics if p["id"] == "mtf")
+        assert rev == ls.mtf_reveal(infos, layout), (rev, ls.mtf_reveal(infos, layout))
+
+        def overlaps(a, b):
+            return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+        for info in infos:
+            for lab in (info["title_box"], info["strip_box"]):
+                assert lab[3] > 0 and not overlaps(rev, lab), (layout.name, rev, lab)
+        if layout is ls.PORTRAIT:
+            assert rev == infos[1]["box"]  # only the lower chart draws in; the higher one shows at once
+        if layout is ls.PORTRAIT:  # zoomed to each panel's region, as chart scenes are
+            assert hi["x_range"] != (0, len(mtf_ex["candles"]) - 1) or lo["x_range"] != (0, len(mtf_ex["lower"]["candles"]) - 1)
+        # the higher panel's zone is the lower window, labelled with the lower timeframe
+        higher, lower = ls.mtf_panels(mtf_ex)
+        r = mtf_ex["lower"]["region"]
+        # the zone ends with the 4H candle holding the window's last 1H candle (not inside the next one)
+        t2 = max(c["t"] for c in mtf_ex["candles"] if c["t"] <= r["end"])
+        assert t2 < r["end"] < (datetime.fromisoformat(t2) + timedelta(hours=4)).isoformat()
+        assert higher["primitives"][-1] == {"type": "zone", "t1": r["start"], "t2": t2, "low": r["low"],
+                                            "high": r["high"], "label": "1H"}
+        assert "lower" not in higher and higher["primitives"][:-1] == mtf_ex["primitives"]
+        assert lower["date"] == r["end"][:10] and lower["candles"] == mtf_ex["lower"]["candles"]
+
+    # 9:16 zoom: x/y limits from the region (± 3 candles, ± 8% of its range); 16:9 shows every candle
+    zx = json.loads(json.dumps(ex1))
+    c = zx["candles"]
+    part = c[30:51]
+    zx["region"] = {"start": part[0]["t"], "end": part[-1]["t"], "low": min(b["l"] for b in part),
+                    "high": max(b["h"] for b in part)}
+    info = ls.draw_chart(Image.new("RGB", (1080, 1920), bg), ls.PORTRAIT.content_box, zx, ls.PORTRAIT, zoom=True)
+    span = zx["region"]["high"] - zx["region"]["low"]
+    assert info["x_range"] == (27, 53), info["x_range"]
+    assert all(abs(a - b) < 1e-9 for a, b in zip(info["y_range"], (zx["region"]["low"] - 0.08 * span,
+                                                                  zx["region"]["high"] + 0.08 * span))), info["y_range"]
+    info = ls.draw_chart(Image.new("RGB", (1920, 1080), bg), ls.LANDSCAPE.content_box, zx, ls.LANDSCAPE)
+    assert info["x_range"] == (0, len(c) - 1), info["x_range"]
+    assert info["y_range"][0] <= min(b["l"] for b in c) and info["y_range"][1] >= max(b["h"] for b in c)
+
+    # unknown visual type → ValueError naming it (sessions / pair / walkthrough are not built)
+    for t in ("sessions", "pair", "walkthrough"):
+        try:
+            ls.render_lesson_slides(cfg, cur[1], [{"id": "x", "visual": {"type": t}}], glo, ls.LANDSCAPE, work / "bad")
+            raise AssertionError("an unknown visual type must fail")
+        except ValueError as e:
+            assert t in str(e), e
+    # an mtf scene needs an example with its lower panel
+    no_lower = {k: v for k, v in mtf_ex.items() if k != "lower"}
+    for vis in ({"type": "mtf"}, {"type": "mtf", "example": no_lower}):
+        try:
+            ls.render_lesson_slides(cfg, cur[2], [{"id": "x", "visual": vis}], glo, ls.LANDSCAPE, work / "bad")
+            raise AssertionError("an mtf scene without its panels must fail")
+        except ValueError as e:
+            assert "mtf" in str(e), e
+    # a malformed `lower` panel: ValueError naming the missing field (never a KeyError)
+    for field in ("region", "candles", "timeframe"):
+        broken = dict(mtf_ex, lower={k: v for k, v in mtf_ex["lower"].items() if k != field})
+        try:
+            ls.mtf_panels(broken)
+            raise AssertionError(f"an mtf lower panel without {field} must fail")
+        except ValueError as e:
+            assert field in str(e), e
+    try:
+        ls.mtf_panels(dict(mtf_ex, lower=dict(mtf_ex["lower"], region={"start": mtf_ex["lower"]["region"]["start"]})))
+        raise AssertionError("an mtf lower region without its end must fail")
+    except ValueError as e:
+        assert "region" in str(e), e
+    shutil.rmtree(work / "bad", ignore_errors=True)
+    # recap: the "Next:" title and the ICT non-affiliation line are drawn when set (each changes the slide;
+    # _flow never drops or cuts them, it raises instead), and the captions stay clear
+    recap = {"type": "outro", "next": cur[0]["title"], "disclaimer": True, "non_affiliation": True}
+    variants = {"full": recap, "no_next": dict(recap, next=None), "no_ict": dict(recap, non_affiliation=False)}
+    for layout in (ls.LANDSCAPE, ls.PORTRAIT):
+        got = {}
+        for name, v in variants.items():
+            p = ls.render_lesson_slides(cfg, dict(cur[1], track=4), [{"id": "recap", "visual": v}], glo, layout,
+                                        work / "recap" / name)[0]
+            with Image.open(p["image"]) as im:
+                band = im.convert("RGB").crop((0, layout.caption_band[0], layout.w, layout.caption_band[1]))
+                assert band.getextrema() == tuple((x, x) for x in bg), (layout.name, name)
+                got[name] = im.convert("RGB").tobytes()
+        assert got["full"] != got["no_next"], (layout.name, "Next: line not drawn")
+        assert got["full"] != got["no_ict"], (layout.name, "non-affiliation line not drawn")
+    shutil.rmtree(work / "recap")
+    # approved key points are never cut: too many to fit at the minimum size → ValueError naming the entry
+    long = dict(cur[1], key_points=[cur[1]["key_points"][0] + " " + cur[1]["key_points"][1]] * 14)
+    for vis in ({"type": "misreads"}, recap):
+        try:
+            ls.render_lesson_slides(cfg, long, [{"id": "x", "visual": vis}], glo, ls.LANDSCAPE, work / "long")
+            raise AssertionError("key points that don't fit must fail")
+        except ValueError as e:
+            assert cur[1]["id"] in str(e), e
+    shutil.rmtree(work / "long", ignore_errors=True)
+    # price axis: 2.5-steps add a decimal only below 10 (no "60,250.0")
+    vals, dec = ls._ticks(60000, 61000)
+    assert [ls._fmt_tick(v, dec) for v in vals][:2] == ["60,000", "60,250"], (vals, dec)
+    vals, dec = ls._ticks(4100, 4200)
+    assert [ls._fmt_tick(v, dec) for v in vals][:2] == ["4,100", "4,125"], (vals, dec)
+    vals, dec = ls._ticks(1.0, 2.0)
+    assert ls._fmt_tick(vals[1], dec) == "1.25", (vals, dec)
+
+    thumb = ls.render_lesson_thumbnail(cfg, cur[1], ex1, work / "thumbnail.jpg")
+    with Image.open(thumb) as im:
+        assert im.size == (1280, 720) and im.format == "JPEG", (im.size, im.format)
+    print(f"OK lesson slides: {sheets['16x9']} · {sheets['9x16']} · {thumb}")
+
+LESSON_FILLER = ("A swing point marks where price turned and the next close tells us whether "
+                 "the structure held or changed character").split()
+LESSON_WORDS = {"hook": 110, "concept": 120, "example_1": 120, "example_2": 120, "misreads": 40, "recap": 110}
+
+
+def _lesson_draft(plan: list[dict], tail: str) -> dict:
+    """A mocked lesson writer reply: LESSON_WORDS words per scene (the misreads scene is short), no
+    numbers, the recap ending with `tail`."""
+    scenes = []
+    for p in plan:
+        n = LESSON_WORDS[p["id"]] - (len(tail.split()) if p["id"] == "recap" else 0)
+        body = " ".join(LESSON_FILLER[k % len(LESSON_FILLER)] for k in range(n))
+        scenes.append({"id": p["id"], "text": body + (" " + tail if p["id"] == "recap" else "")})
+    return {"scenes": scenes}
+
+
+def _ink_rows(path: Path, bg=(14, 15, 18), tol: int = 24) -> list[int]:
+    """Rows of an image that differ from the channel ground by more than `tol` (a low tol also counts
+    caption outline and shadow; the default ignores video-compression noise)."""
+    import numpy as np
+    from PIL import Image
+    with Image.open(path) as im:
+        a = np.asarray(im.convert("RGB"), dtype=int)
+    return [int(y) for y in np.where((np.abs(a - np.array(bg)).max(axis=2) > tol).any(axis=1))[0]]
+
+
+def _probe_size(path: Path) -> tuple[int, int]:
+    import subprocess
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+                        "-of", "csv=p=0", str(path)], capture_output=True, text=True, check=True)
+    w, h = r.stdout.strip().split(",")[:2]
+    return int(w), int(h)
+
+
+def test_lesson_render(cfg):
+    """make_lesson (entry 6): sample entry on fixture candles, mocked narration + sine voice → a 16:9 and a
+    9:16 mp4 from the same audio, captions in each layout's band, chapters from the scene timings (a short
+    scene merges), lesson metadata; plus the hold, over-limit re-record, ICT and Shorts-caption cases."""
+    from unittest import mock
+    import main as app
+    from autopilot import lesson_meta, lesson_script, lesson_slides as ls, lessons, voice
+    from PIL import Image
+
+    entry, glossary, history, nxt = lesson_script.sample_inputs()
+    per_word = 0.1  # seconds per mocked spoken word: keeps the renders short
+    prompts, voice_calls, last_audio = [], [], []
+    draft = {}
+
+    def fake_llm(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        if "strict financial news editor" in prompt:
+            pkg = json.loads(prompt.split("SCRIPT:\n", 1)[1].rsplit("\n\n1. Every", 1)[0])
+            return {"verdict": "ok", "issues": [], "package": pkg}
+        return json.loads(json.dumps(draft))
+
+    def fake_voice(scenes, name, rate, workdir, log=print):
+        voice_calls.append(rate)
+        step = per_word * 1.1 / (1 + int(rate.strip("%")) / 100)  # a faster rate → shorter words
+        out = []
+        for i, sc in enumerate(scenes):
+            words = sc["text"].split()
+            wav = Path(workdir) / f"voice_{i:02d}.wav"
+            run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
+                 f"sine=frequency={320 + 30 * i}:duration={step * len(words) + 0.3:.3f}", "-ar", "44100", "-ac", "1",
+                 wav])
+            out.append({"audio": wav, "duration": probe_duration(wav),
+                        "words": [(j * step, (j + 0.9) * step, w) for j, w in enumerate(words)]})
+        last_audio[:] = out
+        return out
+
+    def make(e, c, workdir, hist=history, logs=None):
+        prompts.clear()
+        voice_calls.clear()
+        with mock.patch.object(lesson_script, "generate_json", fake_llm), \
+                mock.patch.object(script, "generate_json", fake_llm), mock.patch.object(voice, "synthesize", fake_voice):
+            return app.make_lesson(c, e, glossary, hist, workdir=workdir, next_entry=nxt,
+                                   log=(logs.append if logs is not None else (lambda m: None)))
+
+    # Shorts regression: without margin_v the caption line keeps 30% of the height
+    tmp = Path(tempfile.mkdtemp())
+    render.build_captions([(0.0, 0.4, "hi")], cfg["video"]["captions"], 1080, 1920, tmp / "c.ass")
+    style = next(ln for ln in (tmp / "c.ass").read_text().splitlines() if ln.startswith("Style: Cap,"))
+    assert style.split(",")[-2] == "576" and style.split(",")[2] == str(cfg["video"]["captions"]["size"]), style
+    shutil.rmtree(tmp, ignore_errors=True)
+
+    # no clean example → held, named, nothing made (no narration call, no workdir)
+    hold_dir = ROOT / "output" / "test_lesson_hold"
+    shutil.rmtree(hold_dir, ignore_errors=True)
+    choppy = json.loads((ROOT / "tests" / "lessons" / "candles" / "choppy.json").read_text(encoding="utf-8"))
+    logs = []
+    held = make(entry, cfg, hold_dir, hist={"BTC/USD": {"1H": choppy}}, logs=logs)
+    assert set(held) == {"held"} and entry["id"] in held["held"] and "example" in held["held"], held
+    assert not prompts and not voice_calls and not hold_dir.exists() and any("held" in m for m in logs), logs
+
+    # 1) the sample lesson: both shapes rendered from one narration
+    work = ROOT / "output" / "test_lesson"
+    shutil.rmtree(work, ignore_errors=True)
+    plan = lessons.scene_plan(entry, lessons.DETECTORS[entry["detector"]].find(history), nxt)
+    draft.update(_lesson_draft(plan, lesson_script.DISCLAIMER))
+    made = make(entry, cfg, work)
+    assert set(made) == {"videos", "thumbnail", "meta", "chapters", "seconds", "examples", "workdir"}, set(made)
+    assert voice_calls == [cfg["voice"]["rate"]]  # under 300 s: recorded once
+    total = sum(a["duration"] for a in last_audio)
+    assert set(made["videos"]) == {"16x9", "9x16"} and abs(made["seconds"] - total) < 0.1
+    durs = {}
+    for name, size in (("16x9", (1920, 1080)), ("9x16", (1080, 1920))):
+        path = made["videos"][name]
+        assert path == work / f"lesson_{name}.mp4" and path.exists()
+        assert _probe_size(path) == size, (name, _probe_size(path))
+        durs[name] = probe_duration(path)
+        assert abs(durs[name] - total) < 0.25 and durs[name] < 300, (name, durs[name], total)
+    assert abs(durs["16x9"] - durs["9x16"]) < 0.1, durs
+    # captions: 56 px in 16:9, the Shorts' 84 px in 9:16 (2 words a line), every scene captioned
+    for layout, size in ((ls.LANDSCAPE, 56), (ls.PORTRAIT, cfg["video"]["captions"]["size"])):
+        ass = (work / layout.name / "captions.ass").read_text()
+        assert f"PlayResX: {layout.w}" in ass and f"PlayResY: {layout.h}" in ass
+        f = next(ln for ln in ass.splitlines() if ln.startswith("Style: Cap,")).split(",")
+        assert int(f[2]) == size, (layout.name, f)
+        assert ass.count("Dialogue:") == sum(len(sc["text"].split()) for sc in draft["scenes"])
+        # a caption that wraps to two lines (the longest a line of words_per_line words can wrap to) stays
+        # inside the caption band, also while its first word pops in at 108%
+        cap = app.lesson_video_cfg(cfg, layout)["video"]["captions"]
+        words = ["INTERCONTINENTALISATIONSQ", "MISUNDERSTANDINGSHOWNTOGQ", "ACCOMPLISHMENTSXXJQWERTYQ"]
+        cdir = work / f"capcheck_{layout.name}"
+        cdir.mkdir()
+        render.build_captions([(k * 0.1, k * 0.1 + 0.09, w) for k, w in enumerate(words[:cap["words_per_line"]])],
+                              cap, layout.w, layout.h, cdir / "c.ass")
+        for ts in ("0.0", "0.25"):
+            run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"color=c=0x0E0F12:s={layout.w}x{layout.h}:d=1",
+                 "-vf", "ass=c.ass", "-ss", ts, "-frames:v", "1", "f.png"], cwd=cdir)
+            rows = _ink_rows(cdir / "f.png", tol=4)
+            assert rows and layout.caption_band[0] <= rows[0] and rows[-1] <= layout.caption_band[1], \
+                (layout.name, ts, rows[0], rows[-1], layout.caption_band)
+            assert rows[-1] - rows[0] > 1.5 * cap["size"], (layout.name, "expected two lines", rows[0], rows[-1])
+        shutil.rmtree(cdir)
+        # push-in: the last frame of a non-chart scene (concept) still shows the whole footer
+        seg = work / layout.name / "seg_01.mp4"
+        assert next(s for s in plan if s["id"] == "concept")["visual"]["type"] == "concept"
+        run(["ffmpeg", "-y", "-v", "error", "-sseof", "-0.3", "-i", seg, "-update", "1", work / "last.png"])
+        slide_rows = [r for r in _ink_rows(work / layout.name / f"lesson_{layout.name}_01.png")
+                      if r > layout.caption_band[1]]
+        frame_rows = [r for r in _ink_rows(work / "last.png") if r > layout.caption_band[1]]
+        assert slide_rows and frame_rows and frame_rows[-1] < layout.h - 3, (layout.name, "footer cropped", frame_rows[-1:])
+        assert frame_rows[-1] - frame_rows[0] >= slide_rows[-1] - slide_rows[0], (layout.name, frame_rows, slide_rows)
+        (work / "last.png").unlink()
+    with Image.open(made["thumbnail"]) as im:
+        assert im.size == (1280, 720)
+
+    # chapters: start at 0:00, follow the scene starts, ≥ 10 s each; the short misreads scene merges
+    starts, t = {}, 0.0
+    for p, a in zip(plan, last_audio):
+        starts[p["id"]] = t
+        t += a["duration"]
+    ch = made["chapters"]
+    assert [c["title"] for c in ch] == ["Intro", glossary["break_of_structure"]["term"], "Example 1: ETH/USD 1H",
+                                        "Example 2: BTC/USD 1H", "Recap"], [c["title"] for c in ch]
+    assert [sid for c in ch for sid in c["scenes"]] == [p["id"] for p in plan]
+    assert ch[3]["scenes"] == ["example_2", "misreads"] and last_audio[4]["duration"] < 10
+    assert ch[0]["start"] == 0 and ch[0]["time"] == "0:00"
+    ends = [c["start"] for c in ch[1:]] + [total]
+    for c, end in zip(ch, ends):
+        assert abs(c["start"] - starts[c["scenes"][0]]) < 0.01 and end - c["start"] >= 10, (c, end)
+        assert c["time"] == lesson_meta.timestamp(c["start"])
+
+    # metadata: written, keyword-first title, chapters / examples / credits / disclaimer, no ICT line
+    meta = made["meta"]
+    saved = json.loads((work / "metadata.json").read_text())
+    assert {k: saved[k] for k in meta} == meta and saved["chapters"] == ch
+    assert set(meta) == {"title", "description", "tags", "category_id", "fb_title", "fb_description"}
+    assert meta["title"] == f"{entry['title']} Explained | Structure Lesson" and len(meta["title"]) <= 100
+    assert meta["category_id"] == "27" and meta["fb_title"] == meta["title"]
+    d = meta["description"]
+    assert d.startswith(" ".join(entry["key_points"]))
+    assert "Chapters:\n" + "\n".join(f"{c['time']} {c['title']}" for c in ch) in d, d
+    assert "Historical examples:\n" in d and all(lessons.example_label(e) in d for e in made["examples"])
+    assert "Coinbase" in d and "not financial advice" in d.lower() and ls.NON_AFFILIATION not in d
+    tags = d.rsplit("\n\n", 1)[1].split()
+    assert 3 <= len(tags) <= 5 and all(h.startswith("#") for h in tags) and "#Shorts" not in tags, tags
+    assert meta["tags"] and len(meta["tags"]) == len({x.lower() for x in meta["tags"]})
+    fb = meta["fb_description"]
+    assert "http" not in d and "http" not in fb and "www." not in fb and "not financial advice" in fb.lower()
+    assert fb.startswith(" ".join(entry["key_points"])) and 1 <= len([w for w in fb.split() if w.startswith("#")]) <= 5
+
+    # 2) ICT entry (track 4) over the limit: re-recorded faster once; the non-affiliation line in both texts.
+    # Rendering is stubbed here (the sample above rendered for real); it records each shape's cfg.
+    shapes = []
+
+    def fake_build(audio, pics, vcfg, workdir, out, music=None):
+        shapes.append(vcfg["video"])
+        return sum(a["duration"] for a in audio)
+    ict = dict(entry, track=4)
+    plan = lessons.scene_plan(ict, made["examples"], nxt)
+    draft.clear()
+    draft.update(_lesson_draft(plan, f"{lesson_script.DISCLAIMER} {lesson_script.NON_AFFILIATION}"))
+    logs = []
+    with mock.patch.object(render, "build_video", fake_build):
+        made = make(ict, {**cfg, "lessons": {"max_seconds": 40}}, ROOT / "output" / "test_lesson_ict", logs=logs)
+    assert len(voice_calls) == 2 and int(voice_calls[1].strip("%")) > int(voice_calls[0].strip("%")), voice_calls
+    assert any("re-recording" in m for m in logs), logs
+    assert [(s["width"], s["height"], s["captions"]["size"]) for s in shapes] == \
+        [(1920, 1080, 56), (1080, 1920, cfg["video"]["captions"]["size"])], shapes
+    assert cfg["video"]["max_seconds"] == 59 and "margin_v" not in cfg["video"]["captions"]  # Shorts cfg untouched
+    assert ls.NON_AFFILIATION in made["meta"]["description"] and ls.NON_AFFILIATION in made["meta"]["fb_description"]
+    assert made["meta"]["title"].endswith("| ICT concepts Lesson"), made["meta"]["title"]
+    shutil.rmtree(ROOT / "output" / "test_lesson_ict", ignore_errors=True)
+
+    # chapter rules on their own: a short opening absorbs the next scene; a short last scene merges back
+    p3 = [{"id": "hook"}, {"id": "concept", "visual": {"concepts": ["swing_point"]}}, {"id": "example_1"},
+          {"id": "recap"}]
+    ex = [{"asset": "BTC/USD", "timeframe": "4H"}]
+    got = lesson_meta.chapters(p3, [{"duration": d} for d in (4.0, 12.0, 15.0, 6.0)], ex, glossary)
+    assert [(c["time"], c["title"], c["scenes"]) for c in got] == [
+        ("0:00", "Intro", ["hook", "concept"]), ("0:16", "Example 1: BTC/USD 4H", ["example_1", "recap"])], got
+    # fewer than 3 chapters: YouTube ignores them, so the description has no "Chapters:" block (logged)
+    logs = []
+    two = lesson_meta.build_lesson_metadata(entry, made["examples"], got, cfg, log=logs.append)
+    assert "Chapters:" not in two["description"] and "0:16" not in two["description"], two["description"]
+    assert any("No chapters" in m and "2" in m for m in logs), logs
+    assert lesson_meta.timestamp(75.9) == "1:15" and lesson_meta.timestamp(3725) == "1:02:05"
+    print(f"OK lesson render: {work / 'lesson_16x9.mp4'} + lesson_9x16.mp4 ({durs['16x9']:.1f}s) · "
+          f"{len(ch)} chapters · hold, re-record, ICT, Shorts captions")
+
+
+# ─── YouTube lesson publishing (fake googleapiclient service) ──────────────
+
+class _Req:
+    def __init__(self, fn):
+        self.fn = fn
+
+    def execute(self):
+        return self.fn()
+
+
+class FakeYouTube:
+    """videos / thumbnails / playlists / playlistItems with .execute() and a resumable next_chunk()."""
+
+    def __init__(self, playlists=(), fail=None, page=2):
+        self.playlists_ = [{"id": f"PL{i}", "snippet": {"title": t}} for i, t in enumerate(playlists)]
+        self.fail = dict(fail or {})  # op → exception raised once
+        self.page = page
+        self.calls = []  # (op, kwargs)
+
+    def _maybe_fail(self, op):
+        if op in self.fail:
+            raise self.fail.pop(op)
+
+    def count(self, op):
+        return sum(1 for o, _ in self.calls if o == op)
+
+    def videos(self):
+        fake = self
+
+        class V:
+            def insert(self, **kw):
+                fake.calls.append(("videos.insert", kw))
+                chunks = iter([(type("S", (), {"progress": lambda s: 0.5})(), None), (None, {"id": "VID1"})])
+
+                class R:
+                    def next_chunk(self):
+                        fake._maybe_fail("videos.insert")
+                        return next(chunks)
+                return R()
+
+            def delete(self, **kw):
+                fake.calls.append(("videos.delete", kw))
+                return _Req(lambda: fake._maybe_fail("videos.delete") or "")
+        return V()
+
+    def thumbnails(self):
+        fake = self
+
+        class T:
+            def set(self, **kw):
+                fake.calls.append(("thumbnails.set", kw))
+                return _Req(lambda: fake._maybe_fail("thumbnails.set") or {"items": [{}]})
+        return T()
+
+    def playlists(self):
+        fake = self
+
+        class P:
+            def list(self, **kw):
+                fake.calls.append(("playlists.list", kw))
+                assert kw.get("mine") is True and kw.get("part") == "snippet", kw
+                start = int(kw.get("pageToken") or 0)
+                items = fake.playlists_[start:start + fake.page]
+                more = start + fake.page < len(fake.playlists_)
+                return _Req(lambda: {"items": items} | ({"nextPageToken": str(start + fake.page)} if more else {}))
+
+            def insert(self, **kw):
+                fake.calls.append(("playlists.insert", kw))
+                pid = f"PL{len(fake.playlists_)}"
+                fake.playlists_.append({"id": pid, "snippet": dict(kw["body"]["snippet"])})
+                return _Req(lambda: {"id": pid})
+
+            def delete(self, **kw):
+                fake.calls.append(("playlists.delete", kw))
+                return _Req(lambda: "")
+        return P()
+
+    def playlistItems(self):  # noqa: N802 (googleapiclient name)
+        fake = self
+
+        class I:  # noqa: E742
+            def insert(self, **kw):
+                fake.calls.append(("playlistItems.insert", kw))
+                return _Req(lambda: fake._maybe_fail("playlistItems.insert") or {"id": "PLI"})
+        return I()
+
+
+def _http_error(status: int, reason: str):
+    import httplib2
+    from googleapiclient.errors import HttpError
+    body = {"error": {"code": status, "message": reason, "errors": [{"reason": reason, "message": reason}]}}
+    return HttpError(httplib2.Response({"status": status}), json.dumps(body).encode())
+
+
+def test_youtube_lesson(cfg):
+    """upload_lesson: Education, private + publishAt, thumbnail, track + Path playlists; daily scopes unchanged."""
+    from autopilot import youtube
+    tmp = Path(tempfile.mkdtemp())
+    video, thumb = tmp / "lesson_16x9.mp4", tmp / "thumbnail.jpg"
+    video.write_bytes(b"\0" * 1024)
+    thumb.write_bytes(b"\xff\xd8\xff\xd9")
+    meta = {"title": "Structure #2: BOS vs CHoCH Explained | Structure Lesson",
+            "description": "Summary\n\nChapters:\n0:00 Intro\n0:12 Break of structure\n0:40 Recap",
+            "tags": ["market structure"], "category_id": "27"}
+    track, path = "Track 0 · Structure", "The Path"
+    scopes_seen = []
+
+    class FakeCreds:
+        def __init__(self, token, **kw):
+            scopes_seen.append(kw["scopes"])
+
+        def refresh(self, request):
+            pass
+
+    saved = (youtube.build, youtube.Credentials, youtube.time.sleep,
+             {k: os.environ.get(k) for k in ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN")})
+    os.environ.update(YT_CLIENT_ID="id", YT_CLIENT_SECRET="secret", YT_REFRESH_TOKEN="refresh")
+    youtube.Credentials, youtube.time.sleep = FakeCreds, (lambda s: None)
+    logs = []
+
+    def use(fake):
+        youtube.build = lambda *a, **k: fake
+        scopes_seen.clear()
+        logs.clear()
+        return fake
+
+    try:
+        # daily path: _client() default and upload()/set_thumbnail() ask for youtube.upload only
+        use(FakeYouTube())
+        youtube._client()
+        assert scopes_seen == [["https://www.googleapis.com/auth/youtube.upload"]], scopes_seen
+        fake = use(FakeYouTube())
+        ucfg = cfg | {"upload": cfg["upload"] | {"privacy_status": "public", "review_window_hours": 0}}
+        assert youtube.upload(video, {"title": "t", "description": "d", "tags": []}, ucfg, log=logs.append) == "VID1"
+        assert youtube.set_thumbnail("VID1", thumb, log=logs.append)
+        assert scopes_seen == [youtube.SCOPES] * 2 and youtube.SCOPES == scopes_seen[0], scopes_seen
+        b = fake.calls[0][1]["body"]
+        assert b["snippet"]["categoryId"] == str(cfg["upload"]["category_id"]) and b["status"]["privacyStatus"] == "public"
+        assert "publishAt" not in b["status"] and any("youtube.com/shorts/VID1" in m for m in logs), logs
+
+        # happy path: both playlists exist (Path on the 2nd page) → no create, 2 playlistItems inserts
+        fake = use(FakeYouTube(playlists=["Other", track, "Old", path]))
+        before = datetime.now(timezone.utc)
+        res = youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)
+        assert scopes_seen == [youtube.LESSON_SCOPES] and len(youtube.LESSON_SCOPES) == 3, scopes_seen
+        assert set(youtube.LESSON_SCOPES) == {"https://www.googleapis.com/auth/youtube.upload",
+                                              "https://www.googleapis.com/auth/youtube",
+                                              "https://www.googleapis.com/auth/yt-analytics.readonly"}
+        ins = fake.calls[0][1]
+        assert fake.calls[0][0] == "videos.insert" and ins["notifySubscribers"] is True
+        sn, st = ins["body"]["snippet"], ins["body"]["status"]
+        assert sn["categoryId"] == "27" and sn["description"] == meta["description"] and sn["title"] == meta["title"]
+        assert st["privacyStatus"] == "private" and st["selfDeclaredMadeForKids"] is False
+        pub = datetime.strptime(st["publishAt"], "%Y-%m-%dT%H:%M:%S.000Z").replace(tzinfo=timezone.utc)
+        assert abs((pub - before).total_seconds() - 24 * 3600) < 120, st["publishAt"]
+        assert res == {"video_id": "VID1", "publish_at": st["publishAt"], "thumbnail_set": True,
+                       "playlists": {track: "PL1", path: "PL3"}, "errors": []}, res
+        assert fake.count("thumbnails.set") == 1 and fake.count("playlists.insert") == 0
+        assert fake.count("playlistItems.insert") == 2 and fake.count("playlists.list") >= 3  # paged
+        items = [kw["body"]["snippet"] for o, kw in fake.calls if o == "playlistItems.insert"]
+        assert items == [{"playlistId": "PL1", "resourceId": {"kind": "youtube#video", "videoId": "VID1"}},
+                         {"playlistId": "PL3", "resourceId": {"kind": "youtube#video", "videoId": "VID1"}}], items
+
+        # playlists missing → each created once (public, described), then the video is added
+        fake = use(FakeYouTube(playlists=["Other"]))
+        res = youtube.upload_lesson(video, meta, thumb, track, path, review_hours=48, notify=False, log=logs.append)
+        made = [kw["body"] for o, kw in fake.calls if o == "playlists.insert"]
+        assert [m["snippet"]["title"] for m in made] == [track, path] and all(
+            m["status"]["privacyStatus"] == "public" for m in made), made
+        assert made[0]["snippet"]["description"] == "CryptoFX Daily trading lessons · Track 0 · Structure"
+        assert made[1]["snippet"]["description"] == "CryptoFX Daily trading lessons in curriculum order"
+        assert res["playlists"] == {track: "PL1", path: "PL2"} and fake.count("playlistItems.insert") == 2
+        assert fake.calls[0][1]["notifySubscribers"] is False and not res["errors"]
+        # a second lesson finds the playlists it created (exact title) instead of creating them again
+        res2 = youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)
+        assert fake.count("playlists.insert") == 2 and res2["playlists"] == res["playlists"]
+
+        # thumbnail refused (403) → logged, thumbnail_set False, upload + playlists still done
+        fake = use(FakeYouTube(playlists=[track, path], fail={"thumbnails.set": _http_error(403, "forbidden")}))
+        res = youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)
+        assert res["video_id"] == "VID1" and res["thumbnail_set"] is False and not res["errors"], res
+        assert any("Custom thumbnail not accepted (403" in m for m in logs), logs
+        assert fake.count("playlistItems.insert") == 2
+
+        # playlist add fails → logged, listed in errors, video id returned, the other playlist still added
+        fake = use(FakeYouTube(playlists=[track, path],
+                               fail={"playlistItems.insert": _http_error(403, "playlistItemsNotAccessible")}))
+        res = youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)
+        assert res["video_id"] == "VID1" and res["playlists"] == {track: None, path: "PL1"}, res
+        assert len(res["errors"]) == 1 and track in res["errors"][0], res["errors"]
+        assert any("Could not add the lesson to playlist 'Track 0" in m for m in logs), logs
+
+        # quota exceeded → the same clear RuntimeError as upload(), nothing else called
+        quota = None
+        for fn in (lambda: youtube.upload(video, {"title": "t", "description": "d", "tags": []}, ucfg, log=logs.append),
+                   lambda: youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)):
+            fake = use(FakeYouTube(playlists=[track, path], fail={"videos.insert": _http_error(403, "quotaExceeded")}))
+            try:
+                fn()
+                raise AssertionError("quota should raise")
+            except RuntimeError as e:
+                assert str(e) == youtube.QUOTA_MESSAGE and "upload limit" in str(e)
+                quota = quota or str(e)
+                assert str(e) == quota
+            assert fake.count("thumbnails.set") == 0 and fake.count("playlistItems.insert") == 0
+
+        # 5xx during the upload is retried, not raised
+        fake = use(FakeYouTube(playlists=[track, path], fail={"videos.insert": _http_error(503, "backendError")}))
+        assert youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)["video_id"] == "VID1"
+
+        # playlists off (owner manages them by hand): only the upload scope, no playlist calls
+        fake = use(FakeYouTube())
+        scopes_seen.clear()
+        res = youtube.upload_lesson(video, meta, thumb, None, None, log=logs.append, playlists=False)
+        assert res["video_id"] == "VID1" and res["thumbnail_set"] and res["playlists"] == {}, res
+        assert scopes_seen == [youtube.SCOPES], scopes_seen
+        assert not [o for o, _ in fake.calls if o.startswith("playlist")], fake.calls
+        scopes_seen.clear()
+
+        # review_hours 0 (config default): public straight away, no publishAt
+        fake = use(FakeYouTube())
+        res = youtube.upload_lesson(video, meta, thumb, None, None, review_hours=0, log=logs.append, playlists=False)
+        st0 = next(kw["body"]["status"] for o, kw in fake.calls if o == "videos.insert")
+        assert st0["privacyStatus"] == "public" and "publishAt" not in st0 and res["publish_at"] is None, st0
+        scopes_seen.clear()
+
+        # delete (owner's test cleanup) uses the lesson scopes
+        fake = use(FakeYouTube())
+        youtube.delete_video("VID1", log=logs.append)
+        assert fake.calls == [("videos.delete", {"id": "VID1"})] and scopes_seen == [youtube.LESSON_SCOPES]
+        assert "Chapters:" in youtube._test_meta(95)["description"] and "0:31 Middle" in youtube._test_meta(95)["description"]
+        assert "Chapters:" not in youtube._test_meta(20)["description"]
+
+        # owner's test CLI (stdin not a terminal → no pause); the fake mp4 has no duration
+        import contextlib
+        import io
+
+        def cli(fake, creds=FakeCreds, extra=("--playlists",)):
+            use(fake)
+            youtube.Credentials, out, stdin = creds, io.StringIO(), sys.stdin
+            sys.stdin = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(out):
+                    rc = youtube._main(["test-lesson", str(video), str(thumb), "--days", "30", *extra])
+            finally:
+                youtube.Credentials, sys.stdin = FakeCreds, stdin
+            return rc, out.getvalue()
+
+        fake = FakeYouTube()
+        rc, out = cli(fake)
+        made = [kw["body"]["status"]["privacyStatus"] for o, kw in fake.calls if o == "playlists.insert"]
+        assert rc == 0 and made == ["private", "private"], (rc, made, out)
+        assert "no chapters" in out and fake.count("videos.delete") == 1 and fake.count("playlists.delete") == 2, out
+        # refused thumbnail → exit 1 (the live check needs it), still cleaned up
+        fake = FakeYouTube(fail={"thumbnails.set": _http_error(403, "forbidden")})
+        rc, out = cli(fake)
+        assert rc == 1 and fake.count("videos.delete") == 1 and fake.count("playlists.delete") == 2, out
+        # video delete fails → reported, the TEST playlists are still deleted
+        fake = FakeYouTube(fail={"videos.delete": _http_error(500, "backendError")})
+        rc, out = cli(fake)
+        assert rc == 1 and "could not delete test video VID1" in out and fake.count("playlists.delete") == 2, out
+
+        # default test (no --playlists): works with the upload-only token, nothing deleted via the API
+        fake = FakeYouTube()
+        scopes_seen.clear()
+        rc, out = cli(fake, extra=())
+        assert rc == 0 and "delete the test video in YouTube Studio" in out, out
+        assert scopes_seen == [youtube.SCOPES] and fake.count("videos.delete") == 0, (scopes_seen, out)
+        assert not [o for o, _ in fake.calls if o.startswith("playlist")], fake.calls
+
+        # old token without the lesson scopes → upload fails, nothing to clean, no false "delete in Studio"
+        class OldToken(FakeCreds):
+            def refresh(self, request):
+                raise RuntimeError("invalid_scope")
+        fake = FakeYouTube()
+        rc, out = cli(fake, OldToken)
+        assert rc == 1 and "test upload failed" in out and "nothing to clean up" in out, out
+        assert "Studio" not in out and not fake.calls, out
+    finally:
+        youtube.build, youtube.Credentials, youtube.time.sleep, env = saved
+        for k, v in env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    print("OK YouTube lesson publishing (Education, private + publishAt 24 h, thumbnail, track + Path playlists, "
+          "daily scopes unchanged)")
+
+
+def test_lesson_edition(cfg):
+    """The lesson edition through main() (entry 12): days rule, lessons.enabled, next episode on both
+    platforms, the guard, a held episode, one platform failing + the re-run of the slot's recorded
+    episode, empty slots, curriculum problems, a manual run on another day, history merge by
+    fb_video_id and the cron-job.org days. Price history, make_lesson and both publishers are faked."""
+    import main as app
+    import setup_cronjobs
+    from autopilot import lesson_data, lessons, youtube
+
+    clock = [datetime(2026, 10, 13, 14, 35, tzinfo=timezone.utc)]  # a Tuesday, 5 min after 14:30
+
+    class FixedNow(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock[0].astimezone(tz) if tz else clock[0].replace(tzinfo=None)
+
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "lessons").mkdir()
+    shutil.copy(ROOT / "tests" / "lessons" / "glossary.yaml", tmp / "lessons" / "glossary.yaml")
+    sample = (ROOT / "tests" / "lessons" / "curriculum.yaml").read_text(encoding="utf-8")
+    (tmp / "lessons" / "curriculum.yaml").write_text(sample, encoding="utf-8")
+    ids = [e["id"] for e in lessons.load_curriculum(tmp / "lessons" / "curriculum.yaml")]
+    assert ids == ["swing-structure", "bos-vs-choch", "top-down-reading"], ids
+
+    def write_cfg(enabled: bool):
+        c = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+        c["lessons"]["enabled"] = enabled
+        (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
+
+    def history() -> list[dict]:
+        f = tmp / "data" / "history.json"
+        return json.loads(f.read_text())["videos"] if f.exists() else []
+
+    available = {"swings", "bos_choch", "top_down"}  # detectors that find a clean example
+    fetched, made, yt, fb, logs = [], [], [], [], []
+    fail_fb, other_first = [False], [False]
+    region = {"start": "2026-09-01T00:00:00+00:00", "end": "2026-09-02T00:00:00+00:00", "low": 1, "high": 2}
+
+    def fake_detector(name):
+        real = lessons.DETECTORS[name]
+
+        def find(hist):
+            assert hist == {"BTC/USD": {"1H": [{"t": "x"}]}}, hist
+            if name not in available:
+                return []
+            ex = {"asset": "BTC/USD", "timeframe": "1H", "date": "2026-09-01", "detector": name, "region": region}
+            other = {**ex, "asset": "ETH/USD", "region": {**region, "start": "2026-09-05T00:00:00+00:00"}}
+            return [other, ex] if other_first[0] else [ex]  # other_first: a new example now ranks first
+        return lessons.Detector(name, real.glossary, find)
+
+    def fake_fetch(log=print, now=None):
+        fetched.append(1)
+        return {"BTC/USD": {"1H": [{"t": "x"}]}}
+
+    def fake_make_lesson(cfg_, entry, glossary, hist, workdir=None, next_entry=None, log=print, examples=None):
+        if examples is None:  # as the real one: run the detector itself
+            examples = lessons.DETECTORS[entry["detector"]].find(hist)
+            if not examples:
+                return {"held": f"{entry['id']}: no clean example"}
+        made.append({"id": entry["id"], "examples": examples, "next": (next_entry or {}).get("id"),
+                     "glossary": sorted(glossary)})
+        wd = Path(workdir)
+        wd.mkdir(parents=True, exist_ok=True)
+        return {"videos": {"16x9": wd / "lesson_16x9.mp4", "9x16": wd / "lesson_9x16.mp4"},
+                "thumbnail": wd / "thumbnail.jpg", "seconds": 120.0, "chapters": [], "workdir": wd,
+                "examples": examples,
+                "meta": {"title": f"Lesson {entry['id']}", "description": "d", "tags": [], "category_id": "27",
+                         "fb_title": f"FB {entry['id']}", "fb_description": "fd"}}
+
+    def fake_upload_lesson(video, meta, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
+                           log=print, playlist_privacy="public", playlists=True):
+        yt.append({"video": Path(video).name, "title": meta["title"], "track": track_playlist,
+                   "path": path_playlist, "review": review_hours, "playlists": playlists})
+        return {"video_id": f"Y{len(yt)}", "publish_at": "2026-10-14T14:40:00.000Z", "thumbnail_set": True,
+                "playlists": {}, "errors": []}
+
+    def fake_publish_video(video, title, description, cfg_, published=True, poll_minutes=None, log=print):
+        fb.append({"video": Path(video).name, "title": title, "published": published})
+        if fail_fb[0]:
+            e = RuntimeError("Facebook video V9 failed: bad codec")
+            e.video_id = "V9"
+            raise e
+        return f"F{len(fb)}"
+
+    def run(*argv) -> int:
+        logs.clear()
+        return app.main(list(argv))
+
+    def said(text: str) -> bool:
+        return any(text in m for m in logs)
+
+    saved_det = dict(lessons.DETECTORS)
+    saved = (app.ROOT, app.datetime, app.make_lesson, app.log, lesson_data.fetch_history, youtube.upload_lesson,
+             facebook.publish_video, youtube.upload, youtube.set_thumbnail)
+    env = {k: os.environ.get(k) for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN")}
+    for name in available:
+        lessons.DETECTORS[name] = fake_detector(name)
+    app.ROOT, app.datetime, app.make_lesson, app.log = tmp, FixedNow, fake_make_lesson, logs.append
+    lesson_data.fetch_history, youtube.upload_lesson, facebook.publish_video = (fake_fetch, fake_upload_lesson,
+                                                                                fake_publish_video)
+    youtube.upload = youtube.set_thumbnail = lambda *a, **k: (_ for _ in ()).throw(AssertionError("daily upload"))
+    os.environ["FB_PAGE_ID"], os.environ["FB_PAGE_TOKEN"] = "PAGE", "TOKEN"
+    try:
+        # disabled: timed and manual runs log why and stop before fetching; manual --no-upload still makes
+        write_cfg(False)
+        assert run("--session", "lesson", "--scheduled") == 0 and said("lessons.enabled is false"), logs
+        assert run("--session", "lesson") == 0 and said("lessons.enabled is false"), logs
+        assert not fetched and not made and not yt and not fb
+        assert run("--session", "lesson", "--no-upload") == 0 and made[-1]["id"] == "swing-structure", logs
+        assert not yt and not fb and not history()
+        made.clear()
+        fetched.clear()
+
+        write_cfg(True)
+        # wrong day: a timed run on Monday is skipped before anything is fetched
+        clock[0] = datetime(2026, 10, 12, 14, 35, tzinfo=timezone.utc)
+        assert run("--session", "lesson", "--scheduled") == 0 and said("runs only on tue, thu, sat, sun"), logs
+        assert not fetched and not made
+
+        # Tuesday: episode 1 made once (examples from the hold check passed through), both platforms
+        clock[0] = datetime(2026, 10, 13, 14, 35, tzinfo=timezone.utc)
+        assert run("--session", "lesson", "--scheduled") == 0, logs
+        assert [m["id"] for m in made] == ["swing-structure"] and made[0]["examples"], made
+        assert made[0]["next"] == "bos-vs-choch" and len(fetched) == 1
+        assert yt == [{"video": "lesson_16x9.mp4", "title": "Lesson swing-structure", "track": "Track 0 · Structure",
+                       "path": "Trading Lessons · The Path", "review": 0, "playlists": False}], yt  # config default: public on upload
+        assert fb == [{"video": "lesson_9x16.mp4", "title": "FB swing-structure", "published": True}], fb
+        h = history()
+        assert len(h) == 1 and h[0]["kind"] == "lesson" and h[0]["episode"] == "swing-structure", h
+        assert h[0]["video_id"] == "Y1" and h[0]["fb_video_id"] == "F1" and h[0]["platforms"] == ["youtube", "facebook"]
+        assert h[0]["session"] == "lesson" and h[0]["brief_date"] == "2026-10-13" and h[0]["counts"] is True
+        assert h[0]["examples"] == [{"asset": "BTC/USD", "timeframe": "1H", "start": region["start"],
+                                     "end": region["end"]}], h[0]["examples"]  # identity only, no candles
+        assert list((tmp / "output").glob("*/history_entry.json"))
+        # the backup run of the same slot: everything is out → nothing fetched or made
+        assert run("--session", "lesson", "--scheduled") == 0 and said("already published"), logs
+        assert len(made) == 1 and len(fetched) == 1 and len(history()) == 1
+
+        # Thursday: episode 2's detector finds nothing → held (logged with its reason, not stored), episode 3 made
+        clock[0] = datetime(2026, 10, 15, 14, 35, tzinfo=timezone.utc)
+        available.discard("bos_choch")
+        assert run("--session", "lesson", "--scheduled") == 0, logs
+        assert said("Lesson bos-vs-choch held: no clean bos_choch example"), logs
+        assert made[-1]["id"] == "top-down-reading" and made[-1]["next"] is None, made
+        h = history()
+        assert len(h) == 2 and h[1]["episode"] == "top-down-reading" and "held" not in json.dumps(h), h
+        available.add("bos_choch")
+
+        # Saturday: episode 2 is clean again; Facebook fails → YouTube id still logged, exit 1
+        clock[0] = datetime(2026, 10, 17, 14, 35, tzinfo=timezone.utc)
+        fail_fb[0] = True
+        n_yt = len(yt)
+        assert run("--session", "lesson", "--scheduled") == 1, logs
+        assert said("Facebook lesson video failed") and said("V9") and said("Not published on: facebook"), logs
+        h = history()
+        assert len(h) == 3 and h[2]["episode"] == "bos-vs-choch" and h[2]["video_id"] == f"Y{n_yt + 1}", h
+        assert not h[2].get("fb_video_id") and h[2]["platforms"] == ["youtube"]
+        fail_fb[0] = False
+        # a re-run while the recorded episode has no clean example now: can't be re-made → exit 1, said so
+        available.discard("bos_choch")
+        n_yt, n_fb, n_made = len(yt), len(fb), len(made)
+        assert run("--session", "lesson", "--scheduled") == 1, logs
+        assert said("recorded episode bos-vs-choch can't be re-made"), logs
+        assert len(made) == n_made and len(fb) == n_fb and len(history()) == 3
+        available.add("bos_choch")
+        # the re-run of that slot: the recorded episode with its recorded example (a new one now ranks
+        # first), Facebook only, a second entry
+        other_first[0] = True
+        assert run("--session", "lesson", "--scheduled") == 0, logs
+        assert made[-1]["id"] == "bos-vs-choch" and [e["asset"] for e in made[-1]["examples"]] == ["BTC/USD"], made
+        assert len(yt) == n_yt and len(fb) == n_fb + 1 and fb[-1]["title"] == "FB bos-vs-choch", (yt, fb)
+        h = history()
+        assert len(h) == 4 and h[3]["episode"] == "bos-vs-choch" and h[3]["fb_video_id"] and not h[3].get("video_id"), h
+        assert h[3]["platforms"] == ["facebook"]
+        other_first[0] = False
+        # a third run: both platforms out → nothing made
+        n_made = len(made)
+        assert run("--session", "lesson", "--scheduled") == 0 and len(made) == n_made, logs
+
+        # Sunday: every episode is published → "nothing to publish in this slot", exit 0, no entry
+        clock[0] = datetime(2026, 10, 18, 14, 35, tzinfo=timezone.utc)
+        n_fetch = len(fetched)
+        assert run("--session", "lesson", "--scheduled") == 0 and said("nothing to publish in this slot"), logs
+        assert len(made) == n_made and len(history()) == 4 and len(fetched) == n_fetch
+
+        # all held (fresh history, no detector finds anything) → empty slot
+        (tmp / "data" / "history.json").write_text(json.dumps({"videos": []}))
+        available.clear()
+        assert run("--session", "lesson", "--scheduled") == 0 and said("nothing to publish in this slot"), logs
+        assert said("Lesson top-down-reading held") and len(made) == n_made and not history()
+        available.update({"swings", "bos_choch", "top_down"})
+
+        # empty curriculum → empty slot, nothing fetched
+        (tmp / "lessons" / "curriculum.yaml").write_text("episodes: []\n", encoding="utf-8")
+        n_fetch = len(fetched)
+        assert run("--session", "lesson", "--scheduled") == 0 and said("the curriculum is empty"), logs
+        assert len(fetched) == n_fetch and len(made) == n_made and not history()
+
+        # curriculum problems → each logged, exit 1, nothing fetched or made
+        (tmp / "lessons" / "curriculum.yaml").write_text(
+            sample.replace("detector: swings", "detector: no_such_detector"), encoding="utf-8")
+        assert run("--session", "lesson", "--scheduled") == 1, logs
+        assert said("Curriculum problem: swing-structure: detector 'no_such_detector' is not registered"), logs
+        assert len(fetched) == n_fetch and len(made) == n_made
+        (tmp / "lessons" / "curriculum.yaml").write_text(sample, encoding="utf-8")
+
+        # a manual run works on any day (Monday) and doesn't fill the slot
+        clock[0] = datetime(2026, 10, 19, 9, 0, tzinfo=timezone.utc)
+        assert run("--session", "lesson") == 0, logs
+        h = history()
+        assert len(h) == 1 and h[0]["episode"] == "swing-structure" and h[0]["trigger"] == "manual", h
+        assert h[0]["counts"] is False and h[0]["video_id"] and h[0]["fb_video_id"]
+
+        # Tuesday, fresh history: the timed run gets YouTube up but Facebook fails
+        clock[0] = datetime(2026, 10, 20, 14, 35, tzinfo=timezone.utc)
+        (tmp / "data" / "history.json").write_text(json.dumps({"videos": []}))
+        fail_fb[0] = True
+        assert run("--session", "lesson", "--scheduled") == 1 and made[-1]["id"] == "swing-structure", logs
+        fail_fb[0] = False
+        # a manual run meanwhile takes the next unpublished episode (not the slot's), counts: false
+        assert run("--session", "lesson") == 0 and made[-1]["id"] == "bos-vs-choch", logs
+        # the backup timed run then publishes the slot's episode on Facebook once
+        assert run("--session", "lesson", "--scheduled") == 0 and made[-1]["id"] == "swing-structure", logs
+        h = history()
+        assert [(v["episode"], v["platforms"], v["counts"]) for v in h] == [
+            ("swing-structure", ["youtube"], True), ("bos-vs-choch", ["youtube", "facebook"], False),
+            ("swing-structure", ["facebook"], True)], h
+        assert len([v for v in h if v["episode"] == "swing-structure" and v.get("fb_video_id")]) == 1
+        # a manual run after the slot is full still publishes (the next unpublished episode)
+        n_yt, n_fb = len(yt), len(fb)
+        assert run("--session", "lesson") == 0 and made[-1]["id"] == "top-down-reading", logs
+        assert len(yt) == n_yt + 1 and len(fb) == n_fb + 1 and history()[-1]["counts"] is False
+        # --force on the full slot: the recorded episode again on both platforms
+        assert run("--session", "lesson", "--scheduled", "--force") == 0, logs
+        assert made[-1]["id"] == "swing-structure" and len(yt) == n_yt + 2 and len(fb) == n_fb + 2, (yt, fb)
+    finally:
+        lessons.DETECTORS.clear()
+        lessons.DETECTORS.update(saved_det)
+        (app.ROOT, app.datetime, app.make_lesson, app.log, lesson_data.fetch_history, youtube.upload_lesson,
+         facebook.publish_video, youtube.upload, youtube.set_thumbnail) = saved
+        for k, v in env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    # history merge: an entry with only fb_video_id is idempotent by it and counts as Facebook
+    hist = History(tmp / "merge.json")
+    e = {"brief_date": "2026-10-13", "session": "lesson", "kind": "lesson", "episode": "x", "fb_video_id": "F9"}
+    assert hist.add(dict(e)) and not hist.add(dict(e)) and len(hist.data["videos"]) == 1
+    assert hist.published_on("2026-10-13", "lesson", "facebook") and not hist.published_on("2026-10-13", "lesson", "youtube")
+    assert len(hist.uploaded()) == 1
+
+    # cron-job.org: lesson on its days, gold Mon-Fri, the rest every day
+    sessions = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))["sessions"]
+    wd = {k: setup_cronjobs.job_for(k, s, "T", True)["schedule"]["wdays"] for k, s in sessions.items()}
+    assert wd["lesson"] == [2, 4, 6, 0] and wd["gold"] == [1, 2, 3, 4, 5] and wd["asia"] == [-1], wd
+    assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "gold")), wd
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK lesson edition (days, disabled, both platforms, guard, held, FB failure + recorded-episode re-run, "
+          "empty slot, curriculum problems, manual any day, fb_video_id merge, cron days)")
 
 
 if __name__ == "__main__":

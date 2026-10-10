@@ -22,8 +22,10 @@ def _fmt(t: float) -> str:
 
 
 def build_captions(words: list[tuple], cap: dict, width: int, height: int, path: Path) -> None:
-    """words: [(start, end, text)] in absolute seconds."""
+    """words: [(start, end, text)] in absolute seconds. The line sits `cap["margin_v"]` px above the
+    bottom edge (default 30% of the height, the Shorts' caption spot)."""
     color, hi = _ass_color(cap["color"]), _ass_color(cap["highlight"])
+    margin_v = int(cap["margin_v"]) if cap.get("margin_v") is not None else int(height * 0.30)
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {width}
@@ -33,7 +35,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{cap['font']},{cap['size']},{color},{color},&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,{cap['outline']},3,2,80,80,{int(height * 0.30)},1
+Style: Cap,{cap['font']},{cap['size']},{color},{color},&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,{cap['outline']},3,2,80,80,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -63,9 +65,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: str = "0x0E0F12") -> None:
+def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: str = "0x0E0F12",
+             zoom: float = 0.035) -> None:
     """One scene: a still slide, either with a chart that draws itself left-to-right
-    (a background-coloured box slides off the chart) or with a gentle push-in."""
+    (a background-coloured box slides off the chart) or with a gentle push-in (`zoom` = growth by the end)."""
     img = str(Path(slide["image"]).resolve())
     base = ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", str(fps), "-t", f"{dur:.3f}", "-i", img]
     enc = ["-t", f"{dur:.3f}", "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
@@ -84,7 +87,6 @@ def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: s
         run(base + ["-f", "lavfi", "-i", f"color=c={bg}:s={cw}x{ch}:r={fps}:d={dur:.3f}",
                     "-filter_complex", filt, "-map", "[v]"] + enc)
     else:
-        zoom = 0.035
         vf = (f"scale=w='trunc({w}*(1+{zoom}*t/{dur:.3f})/2)*2':h=-2:eval=frame:flags=bicubic,"
               f"crop={w}:{h},setsar=1,format=yuv420p")
         run(base + ["-vf", vf] + enc)
@@ -111,7 +113,7 @@ def build_video(scene_audio: list[dict], slides: list[dict], cfg: dict, workdir:
     with open(workdir / "seg_list.txt", "w") as f:
         for i, (sa, slide) in enumerate(zip(scene_audio, slides)):
             seg = workdir / f"seg_{i:02d}.mp4"
-            _segment(slide, sa["duration"], seg, w, h, fps)
+            _segment(slide, sa["duration"], seg, w, h, fps, zoom=v.get("push_in", 0.035))
             f.write(f"file '{seg.resolve()}'\n")
     silent = workdir / "video_silent.mp4"
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
