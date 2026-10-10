@@ -35,6 +35,306 @@
         "Robinhood Adds Bitcoin To Its Balance Sheet: A Strategic Signal From A $100B Fintech",
         "US Dollar Rises Early Wednesday Ahead of Oil Stocks, New York Fed Inflation Expectations, FOMC Minutes"
       ]
+    },
+    {
+      "date": "2026-10-08T02:34:37+00:00",
+      "brief_date": "2026-10-08",
+      "session": "asia",
+      "title": "Pound & Yen Steady, Bitcoin Below $84K | Asia Open, Oct 8",
+      "video_id": "00Vt-HG7ch0",
+      "seconds": 53.8,
+      "headlines": [
+        "British Pound slips due to stable US Dollar, rising oil prices",
+        "Fed officials view another rate hike as ‘likely,’ meeting minutes show",
+        "Japanese Stocks Fall as Inflation Fears Hit Cyclical Shares",
+        "Vitalik Buterin backs crypto ‘bunker mode’ amid rapid AI math advances"
+      ]
+    },
+    {
+      "date": "2026-10-08T06:30:26+00:00",
+      "brief_date": "2026-10-08",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Bearish Below $4,141.2 | XAU/USD Oct 8, 2026",
+      "video_id": "IbkMnAXTDXA",
+      "seconds": 58.5,
+      "headlines": [
+        "Fed Hike Odds Drop to 18%, Cuts at 0%: What a Hold Means for Bitcoin",
+        "Gold Price Forecast: XAU/USD Rebounds From $4,070 as Fed Pause Bets Clash With 5.3% Yields"
+      ],
+      "outlook": {
+        "price": 4115.5,
+        "daily_bias": "bearish",
+        "time": "2026-10-08T06:27:14+00:00"
+      },
+      "trigger": "manual",
+      "counts": false
+    },
+    {
+      "date": "2026-10-08T11:16:21+00:00",
+      "brief_date": "2026-10-08",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Price Today: AI Warning Sparks Slide | London Open, Oct 8",
+      "video_id": "HlgD6NQwE0M",
+      "seconds": 46.5,
+      "headlines": [
+        "Ethereum researcher's AI security warning stirs debate as bitcoin extends slide: Crypto Markets Today",
+        "Bitcoin slips below $83,000 as Ethereum researcher's 'bunker mode' call divides crypto",
+        "Fed Hike Odds Drop to 18%, Cuts at 0%: What a Hold Means for Bitcoin"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "2679010929283833",
+      "trigger": "manual",
+      "counts": false,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-08T12:34:25+00:00",
+      "brief_date": "2026-10-08",
+      "session": "newyork",
+      "kind": "market",
+      "title": "Bitcoin Price Today: Crypto Falls as Oil Soars | NY Open, Oct 8",
+      "video_id": "sKf7ZG3_w0s",
+      "seconds": 50.4,
+      "headlines": [
+        "Bitcoin and ethereum prices today, Thursday, October 8, 2026: Crypto values fall as oil prices soar",
+        "Fed Hike Odds Drop to 18%, Cuts at 0%: What a Hold Means for Bitcoin"
+      ],
+      "lead": "BTC",
+      "fb_reel_id": "2599014117203945",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-08T16:32:54+00:00",
+      "brief_date": "2026-10-08",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "FED RATE HIKES FUEL INFLATION FEARS",
+      "fb_post_id": "462331040302049_122251667138610202",
+      "headlines": [
+        "Fed rate hikes and rising Treasury yields fuel inflation fears"
+      ],
+      "topic": "rates",
+      "source": "Fox Business",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-09T00:35:57+00:00",
+      "brief_date": "2026-10-09",
+      "session": "asia",
+      "kind": "market",
+      "title": "Solana Price Today: SOL Falls 6% as Crypto Drops | Asia Open, Oct 9",
+      "video_id": "-B0O2j9ZrWM",
+      "seconds": 58.4,
+      "headlines": [
+        "Securitize stock jumps over 10% after launching tokenized US equities on Solana"
+      ],
+      "lead": "SOL",
+      "fb_reel_id": "2587356401732255",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-09T03:03:07+00:00",
+      "brief_date": "2026-10-09",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "RECORD US HOLIDAY SPENDING",
+      "fb_post_id": "462331040302049_122251708022610202",
+      "headlines": [
+        "Americans are set to spend more this holiday season than ever. Thank inflation and tariffs."
+      ],
+      "topic": "tariffs",
+      "source": "NBC News",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-09T05:45:05+00:00",
+      "brief_date": "2026-10-09",
+      "session": "london",
+      "kind": "market",
+      "title": "Gold Price Today: Jumps 1.7% Past $4,200 | London Open, Oct 9",
+      "video_id": "VzYOVaJLQvU",
+      "seconds": 51.5,
+      "headlines": [
+        "Gold Price Forecast: XAU/USD Breaks Trendline as Softer Yields Put $4,227 in Focus",
+        "Gold Price Forecast: XAU/USD looks to regain $4,200 amid pre-US CPI repositioning",
+        "Fed Hike Odds Drop to 18% as Jobs and Inflation Data Soften"
+      ],
+      "lead": "XAU",
+      "fb_reel_id": "2002173217932354",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-09T06:19:23+00:00",
+      "brief_date": "2026-10-09",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Neutral Bias Between $4,153 and $4,200 | Oct 9",
+      "video_id": "bH1RKiWxf0I",
+      "seconds": 49.3,
+      "headlines": [
+        "XAUUSD: Gold Rebounds Toward $4,200 as Yields Ease Up, Dollar Pulls Back",
+        "Fed Hike Odds Drop to 18% as Jobs and Inflation Data Soften"
+      ],
+      "outlook": {
+        "price": 4193.6,
+        "daily_bias": "neutral",
+        "time": "2026-10-09T06:16:31+00:00"
+      },
+      "fb_reel_id": "1125309500008465",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-09T09:47:09+00:00",
+      "brief_date": "2026-10-09",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "US DOLLAR DIPS AS YIELDS DROP",
+      "fb_post_id": "462331040302049_122251978646610202",
+      "headlines": [
+        "Forex Today: US Dollar retreats alongside bond yields as mood improves"
+      ],
+      "topic": "macro",
+      "source": "www.tmgm.com",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-09T12:37:15+00:00",
+      "brief_date": "2026-10-09",
+      "session": "newyork",
+      "kind": "market",
+      "title": "Gold Price Today: XAU Near $4,188 on Iran Talks | NY Open, Oct 9",
+      "video_id": "HoMIv5wLwrU",
+      "seconds": 50.8,
+      "headlines": [
+        "Gold price today, Friday, October 9, 2026: Gold prices see modest gains after 'productive discussions' with Iran",
+        "Gold recovery stalls near $4,200 as US Dollar, Treasury yields stabilise",
+        "Bitcoin, Strategy, and Crypto Stocks Rebound as Trump Signal Cools Iran Attack Fears"
+      ],
+      "lead": "XAU",
+      "fb_reel_id": "1838962337459157",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-09T16:33:48+00:00",
+      "brief_date": "2026-10-09",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "LEDGER ADDS BITCOIN LOANS IN SELF-CUSTODY",
+      "fb_post_id": "462331040302049_122252081174610202",
+      "headlines": [
+        "Crypto Wallet Ledger Now Lets Users Borrow Stablecoins Against Their Bitcoin Without Giving Up Self-Custody"
+      ],
+      "topic": "regulation",
+      "source": "The Daily Hodl",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-10T03:04:27+00:00",
+      "brief_date": "2026-10-10",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "US DOLLAR STRENGTHENS ON FED FEARS",
+      "fb_post_id": "462331040302049_122252122478610202",
+      "headlines": [
+        "US Dollar strengthens as Fed rate hike fears grow"
+      ],
+      "topic": "rates",
+      "source": "MarketPulse",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-10T05:45:02+00:00",
+      "brief_date": "2026-10-10",
+      "session": "london",
+      "kind": "market",
+      "title": "Bitcoin Price Today: BTC Holds $82K as XRP Rallies | Oct 10",
+      "video_id": "T0Dcn4vZWoY",
+      "seconds": 50.4,
+      "headlines": [
+        "XRP Ledger patched decade-old bug that could create billions of dollars in XRP from nothing"
+      ],
+      "lead": "BTC",
+      "fb_reel_id": "2112494642807177",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-10T09:33:06+00:00",
+      "brief_date": "2026-10-10",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "GOLD PRICES RISE ON FED OUTLOOK",
+      "fb_post_id": "462331040302049_122252292008610202",
+      "headlines": [
+        "Gold Prices Rise as Investors Await US Interest Rate Outlook"
+      ],
+      "topic": "rates",
+      "source": "Fana News -",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
