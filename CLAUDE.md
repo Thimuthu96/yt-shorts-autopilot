@@ -51,7 +51,7 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
                             to publish in this slot", exit 0
   → make_lesson()           narration (lesson_script) → voice → 16:9 + 9:16 renders, thumbnail, chapters,
                             lesson_meta metadata (examples found by the hold check are passed through)
-  → publish_lesson(pending) youtube.upload_lesson() 16:9 (private + publishAt 24 h; track + Path playlists
+  → publish_lesson(pending) youtube.upload_lesson() 16:9 (public on upload, or private + publishAt with review_window_hours; playlists
                             only with lessons.playlists: true) · facebook.publish_video() 9:16
                             (/{page}/videos); one failure never blocks the other
   → history.json            kind: lesson, episode, track, examples (asset/timeframe/start/end), video_id,

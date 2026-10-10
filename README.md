@@ -208,8 +208,8 @@ To pause Facebook, set `facebook.enabled: false` in `config.yaml`.
 
 The `lesson` edition publishes the next episode of `lessons/curriculum.yaml` (list order is the
 queue) at 14:30 UTC (20:00 Sri Lanka) on **Tuesday, Thursday, Saturday and Sunday**: a 16:9 video on
-YouTube (Education, private for `lessons.review_window_hours` = 24 h, then public on its own; added
-to its track playlist "Track N · …" and the "Trading Lessons · The Path" playlist) and the same
+YouTube (Education, public on upload; set `lessons.review_window_hours` to keep it private that many
+hours first; playlists by hand in Studio unless `lessons.playlists: true`) and the same
 narration as a 9:16 video on the Facebook Page. Every chart is a real historical example a detector
 found in the free price history; an episode with no clean example is **held** (logged, retried next
 time) and the next one goes out instead. If every episode is published or held, the run logs

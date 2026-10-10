@@ -1522,6 +1522,13 @@ def test_youtube_lesson(cfg):
         assert not [o for o, _ in fake.calls if o.startswith("playlist")], fake.calls
         scopes_seen.clear()
 
+        # review_hours 0 (config default): public straight away, no publishAt
+        fake = use(FakeYouTube())
+        res = youtube.upload_lesson(video, meta, thumb, None, None, review_hours=0, log=logs.append, playlists=False)
+        st0 = next(kw["body"]["status"] for o, kw in fake.calls if o == "videos.insert")
+        assert st0["privacyStatus"] == "public" and "publishAt" not in st0 and res["publish_at"] is None, st0
+        scopes_seen.clear()
+
         # delete (owner's test cleanup) uses the lesson scopes
         fake = use(FakeYouTube())
         youtube.delete_video("VID1", log=logs.append)
@@ -1710,7 +1717,7 @@ def test_lesson_edition(cfg):
         assert [m["id"] for m in made] == ["swing-structure"] and made[0]["examples"], made
         assert made[0]["next"] == "bos-vs-choch" and len(fetched) == 1
         assert yt == [{"video": "lesson_16x9.mp4", "title": "Lesson swing-structure", "track": "Track 0 · Structure",
-                       "path": "Trading Lessons · The Path", "review": 24, "playlists": False}], yt  # config default
+                       "path": "Trading Lessons · The Path", "review": 0, "playlists": False}], yt  # config default: public on upload
         assert fb == [{"video": "lesson_9x16.mp4", "title": "FB swing-structure", "published": True}], fb
         h = history()
         assert len(h) == 1 and h[0]["kind"] == "lesson" and h[0]["episode"] == "swing-structure", h

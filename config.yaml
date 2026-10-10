@@ -133,7 +133,7 @@ images:
 lessons:
   enabled: false
   max_seconds: 300            # narration limit; re-recorded faster when over
-  review_window_hours: 24     # YouTube: private, then public on its own this many hours later
+  review_window_hours: 0      # 0 = public on upload; N = private, then public on its own N hours later
   # Automatic playlists: false = add lessons to playlists by hand in YouTube Studio (works with the
   # current YT_REFRESH_TOKEN). true = needs a new token: `python get_token.py --lesson-scopes`.
   playlists: false

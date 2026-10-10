@@ -319,7 +319,7 @@ def publish_lesson(made: dict, pending: list[str], cfg: dict) -> tuple[dict, lis
             from autopilot import youtube
             track_pl, path_pl = lesson_playlists(cfg, made["track"])
             res = youtube.upload_lesson(made["videos"]["16x9"], meta, made["thumbnail"], track_pl, path_pl,
-                                        review_hours=lc.get("review_window_hours", 24),
+                                        review_hours=lc.get("review_window_hours", 0),
                                         notify=cfg["upload"].get("notify_subscribers", True), log=log,
                                         playlists=bool(lc.get("playlists", False)))
             entry["video_id"] = res["video_id"]
