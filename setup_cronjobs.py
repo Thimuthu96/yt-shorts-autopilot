@@ -1,12 +1,14 @@
 """Create or fix the cron-job.org timers (the "outside timer") for every edition in config.yaml.
 
 Each edition gets one job titled "CryptoFX · <edition>" that POSTs workflow_dispatch to GitHub at
-its start_utc (gold: Monday-Friday). Jobs with that title are updated, missing ones are created,
+its start_utc on the edition's `days` (e.g. lesson: [tue, thu, sat, sun]; gold without `days`:
+Monday-Friday; otherwise every day). Jobs with that title are updated, missing ones are created,
 so running it again after changing a time in config.yaml is safe. Other jobs are left alone.
 
     python setup_cronjobs.py --dry-run          # show what it would do (no keys needed)
     python setup_cronjobs.py                    # asks for both keys (hidden input)
     python setup_cronjobs.py --disable news_morning,news_midday,news_evening   # create them paused
+    python setup_cronjobs.py --disable lesson   # the lesson timer paused until lessons.enabled is true
 
 Keys (asked for if not set as environment variables; never stored):
   CRONJOB_API_KEY   cron-job.org → Settings → API → Create API key
@@ -29,11 +31,27 @@ REPO = "Thimuthu96/yt-shorts-autopilot"
 DISPATCH = f"https://api.github.com/repos/{REPO}/actions/workflows/autopilot.yml/dispatches"
 PREFIX = "CryptoFX · "
 POST = 1  # cron-job.org requestMethod code
+WDAYS = {"sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6}  # cron-job.org: 0 = Sunday
+GOLD_DAYS = ["mon", "tue", "wed", "thu", "fri"]
+
+
+def days_of(session: dict) -> list[str]:
+    """The edition's run days as mon..sun keys; [] = every day. Gold without `days` keeps Mon-Fri."""
+    days = session.get("days") or (GOLD_DAYS if session.get("kind") == "gold" else [])
+    out = [str(d).strip().lower()[:3] for d in days]
+    bad = [d for d in out if d not in WDAYS]
+    if bad:
+        sys.exit(f"Unknown day(s) {bad} in config.yaml; use {', '.join(WDAYS)}")
+    return out
+
+
+def wdays(session: dict) -> list[int]:
+    """cron-job.org `wdays` for the edition: [-1] = every day."""
+    return [WDAYS[d] for d in days_of(session)] or [-1]
 
 
 def job_for(key: str, session: dict, token: str, enabled: bool) -> dict:
     h, m = (int(x) for x in str(session["start_utc"]).split(":"))
-    weekdays = [1, 2, 3, 4, 5] if session.get("kind") == "gold" else [-1]  # 0 = Sunday
     return {
         "title": PREFIX + key,
         "url": DISPATCH,
@@ -41,7 +59,7 @@ def job_for(key: str, session: dict, token: str, enabled: bool) -> dict:
         "saveResponses": True,
         "requestMethod": POST,
         "schedule": {"timezone": "UTC", "expiresAt": 0, "hours": [h], "minutes": [m],
-                     "mdays": [-1], "months": [-1], "wdays": weekdays},
+                     "mdays": [-1], "months": [-1], "wdays": wdays(session)},
         "extendedData": {
             "headers": {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
                         "Content-Type": "application/json", "X-GitHub-Api-Version": "2022-11-28"},
@@ -66,7 +84,8 @@ def main() -> int:
 
     print("Timers (UTC; Sri Lanka = UTC+5:30):")
     for k, s in sorted(sessions.items(), key=lambda kv: kv[1]["start_utc"]):
-        days = "Mon-Fri" if s.get("kind") == "gold" else "every day"
+        d = days_of(s)
+        days = ("Mon-Fri" if d == GOLD_DAYS else "/".join(x.title() for x in d)) if d else "every day"
         print(f"  {PREFIX + k:<26} {s['start_utc']} UTC, {days}{'  (paused)' if k in paused else ''}")
     if args.dry_run:
         print("Dry run: nothing changed.")

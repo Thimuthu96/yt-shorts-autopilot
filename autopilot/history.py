@@ -1,7 +1,8 @@
 """Record of published editions: avoids double posts and repeating earlier stories.
 
 One entry per run that published anywhere. It carries the id of each platform it reached:
-"video_id" (YouTube), "fb_reel_id" (Facebook Reel), "fb_post_id" (Facebook news image post).
+"video_id" (YouTube), "fb_reel_id" (Facebook Reel), "fb_post_id" (Facebook news image post),
+"fb_video_id" (Facebook Page video: a trading lesson). Lesson entries also carry "episode" (curriculum id).
 A run that publishes a platform the edition missed earlier (e.g. Facebook after a failure) adds a
 second entry for the same edition, so each platform's guard is checked on its own.
 
@@ -15,8 +16,8 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-ID_KEYS = ("video_id", "fb_reel_id", "fb_post_id")
-PLATFORM_IDS = {"youtube": ("video_id",), "facebook": ("fb_reel_id", "fb_post_id")}
+ID_KEYS = ("video_id", "fb_reel_id", "fb_post_id", "fb_video_id")
+PLATFORM_IDS = {"youtube": ("video_id",), "facebook": ("fb_reel_id", "fb_post_id", "fb_video_id")}
 
 
 class History:
@@ -32,9 +33,9 @@ class History:
         return [v for v in self.data["videos"] if any(v.get(k) for k in ID_KEYS)]
 
     def used_headlines(self) -> list[str]:
-        """Headlines of recent video editions (news image posts are tracked separately)."""
+        """Headlines of recent video editions (news image posts are tracked separately; lessons have none)."""
         out = []
-        for v in [v for v in self.uploaded() if v.get("kind") != "post"][-15:]:
+        for v in [v for v in self.uploaded() if v.get("kind") not in ("post", "lesson")][-15:]:
             out += v.get("headlines", [])
         return out
 

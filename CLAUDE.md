@@ -42,6 +42,20 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → images.background()     Cloudflare FLUX.1 schnell → assets/backgrounds/<topic>/ → drawn
   → images.render_card()    post.jpg 1080x1350; news_post.caption() → caption_fb.txt
   → facebook.publish_photo()  POST /{page}/photos
+  trading lesson (kind: lesson, make_lesson_edition() + publish_lesson()):
+  → lessons.validate()      lessons/curriculum.yaml + glossary.yaml; problems → logged, exit 1
+  → lessons.pick()          counting run, slot already recorded `episode: X` → X again (missing platforms
+                            only, recorded examples preferred, can't be re-made → exit 1);
+                            else first unpublished entry whose detector finds a clean example in
+                            lesson_data.fetch_history() (held entries logged, never stored); none → "nothing
+                            to publish in this slot", exit 0
+  → make_lesson()           narration (lesson_script) → voice → 16:9 + 9:16 renders, thumbnail, chapters,
+                            lesson_meta metadata (examples found by the hold check are passed through)
+  → publish_lesson(pending) youtube.upload_lesson() 16:9 (public on upload, or private + publishAt with review_window_hours; playlists
+                            only with lessons.playlists: true) · facebook.publish_video() 9:16
+                            (/{page}/videos); one failure never blocks the other
+  → history.json            kind: lesson, episode, track, examples (asset/timeframe/start/end), video_id,
+                            fb_video_id
 ```
 
 Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishing in
@@ -49,7 +63,7 @@ Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishi
 rule and the once-per-edition-per-day-per-platform guard:
 `pending = session platforms ∩ enabled − platforms published today for this session`.
 
-## Editions (3 market briefs + 1 gold outlook + 3 FB news posts a day; weekends: London + news)
+## Editions (3 market briefs + 1 gold outlook + 3 FB news posts a day; weekends: London + news; lessons Tue/Thu/Sat/Sun)
 
 | key | label | due (`start_utc`) | Sri Lanka | outside timer | backup cron (UTC) | platforms |
 |---|---|---|---|---|---|---|
@@ -60,10 +74,22 @@ rule and the once-per-edition-per-day-per-platform guard:
 | `news_midday` | Midday News | 09:30 | 15:00 | cron-job.org 15:00 Asia/Colombo | `47 9 * * *` | FB post |
 | `newyork` | New York Open | 12:30 | 18:00 | cron-job.org 18:00 Asia/Colombo | `47 12 * * *` | YT + FB Reel |
 | `news_evening` | Evening News | 16:30 | 22:00 | cron-job.org 22:00 Asia/Colombo | `47 16 * * *` | FB post |
+| `lesson` | Trading Lesson | 14:30 | 20:00 | cron-job.org 20:00 Asia/Colombo, Tue/Thu/Sat/Sun | `47 14 * * 0,2,4,6` | YT 16:9 + FB video 9:16 |
 
 - Defined in `config.yaml → sessions` (label, short, start_utc, focus text, `kind: gold` for gold,
   `kind: post` + `platforms: [facebook]` for news posts; video editions default to
-  `[youtube, facebook]`). `main.py` has `DEFAULT_SESSIONS` as a fallback if config lacks them.
+  `[youtube, facebook]`; `kind: lesson` + `days: [tue, thu, sat, sun]` for the lesson). `main.py` has
+  `DEFAULT_SESSIONS` as a fallback if config lacks them (no lesson there).
+- **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
+  work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (gold without `days` = Mon–Fri).
+- **Lessons are off until `lessons.enabled: true`** (owner: after merging the curriculum; the existing
+  `YT_REFRESH_TOKEN` works while `lessons.playlists: false`, the owner's choice — playlists by hand). While off, lesson runs log why and exit 0 without
+  fetching or publishing; a manual `--no-upload` run still makes one. An episode whose detector finds
+  no clean example is held (logged, never stored) and the next one goes out. Manual lesson runs
+  (without `--as-edition`) always take the next unpublished episode (`counts: false`). A counting run
+  (timed or `--as-edition`) on a slot that already recorded an episode re-makes that episode with its
+  recorded examples (history keeps each example's asset, timeframe and region start/end) and publishes
+  only the platforms it's missing (`--force`: all); if it can't be re-made, the run fails (exit 1).
 - **News posts every day, weekends included, never skipped:** no fresh unused story → the best
   story of the last 48 h not used by an earlier FB post → any story (only "no news at all" fails).
 - **Gold time (06:15 UTC):** the Asian session (00:00–06:00 GMT) has set its range, London opens
@@ -84,7 +110,8 @@ rule and the once-per-edition-per-day-per-platform guard:
   happens. Tick `as_edition` to make a manual run fill today's slot (timed run then skips).
 - **History saving** is safe with parallel runs: `main.py` writes `output/<stamp>/history_entry.json`;
   the workflow resets to the latest `origin/main`, merges entries with
-  `python -m autopilot.history add …` (idempotent by any of `video_id`, `fb_reel_id`, `fb_post_id`)
+  `python -m autopilot.history add …` (idempotent by any of `video_id`, `fb_reel_id`, `fb_post_id`,
+  `fb_video_id`)
   and retries the push 5×. A platform added by a later run is a second entry for the same edition.
 - Timed runs are skipped if they start > `max_late_minutes` (180) after `start_utc`, or > 30 min
   before it — so a very late run never posts the wrong edition. Manual runs aren't checked.
@@ -93,23 +120,26 @@ rule and the once-per-edition-per-day-per-platform guard:
   the cron line and the matching string in both places.**
 - Run names in Actions: "Timer · asia", "Backup schedule · 47 0 * * *", "Manual · gold".
 - Weekends: timed runs only make editions in `weekend_sessions` (`[london, news_morning,
-  news_midday, news_evening]`; no gold).
+  news_midday, news_evening, lesson]`; no gold; the lesson then follows its own `days`).
+- Job `timeout-minutes: 90` (a lesson renders two videos and polls Facebook up to 10 min).
 - Timed runs make each edition once per UTC day (`--force` overrides, CLI only). Old history
   entries without `session` count as `london`; without `counts` they count.
 - Market briefs keep only news since the previous *market* upload (if ≥6 fresh stories).
 
 Manual runs: Actions → Shorts autopilot → Run workflow → `session` (auto/asia/london/newyork/gold/
-news_morning/news_midday/news_evening), `platforms` (all/youtube/facebook, limited to the edition's
+news_morning/news_midday/news_evening/lesson), `platforms` (all/youtube/facebook, limited to the edition's
 own), optional `as_edition`. `auto` = market edition by current UTC hour (<5 asia, <12 london, else newyork).
 **YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific).
-Autopilot uses 4 on weekdays, so about 2 manual uploads a day fit.
+Autopilot uses 4 on weekdays (5 on Tue/Thu with lessons on), so about 1–2 manual uploads a day fit.
 
 ## Files
 
 ```
-main.py                  orchestration, CLI: --session, --platforms, --scheduled (timed), --as-edition, --force, --no-upload
-config.yaml              all settings (channel, llm, market, sessions, voice, video, upload)
-get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets
+main.py                  orchestration, CLI: --session, --platforms, --scheduled (timed), --as-edition, --force, --no-upload,
+                         --lesson-sample; lessons: make_lesson_edition, make_lesson, publish_lesson
+config.yaml              all settings (channel, llm, market, sessions, lessons, voice, video, upload)
+get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets (--lesson-scopes adds playlists)
+setup_cronjobs.py        creates / fixes the cron-job.org jobs from config.yaml sessions (start_utc, days)
 autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frankfurter FX, gold, macro
 autopilot/focus.py       lead story + related assets (keywords, scoring, typical market links)
 autopilot/gold.py        gold outlook: levels, liquidity, 1H/4H/daily bias, scenarios, review
@@ -119,18 +149,29 @@ autopilot/thumbnail.py   4 thumbnail templates (Pillow) + choose() + clean_hook(
 autopilot/slides.py      per-scene graphics (Pillow + matplotlib)
 autopilot/render.py      ffmpeg segments, chart draw-in, push-in, ASS captions, mix
 autopilot/voice.py       edge-tts per scene, WordBoundary timings
-autopilot/youtube.py     metadata assembly, upload (+ clear quota error), set_thumbnail
-autopilot/facebook.py    Graph API v26.0: publish_reel, publish_photo, classified errors/retries, reel_caption
+autopilot/youtube.py     metadata assembly, upload (+ clear quota error), set_thumbnail; upload_lesson (publishAt
+                         review window; playlists + LESSON_SCOPES only when asked), delete_video
+autopilot/facebook.py    Graph API v26.0: publish_reel, publish_photo, publish_video (lessons, chunked /videos),
+                         classified errors/retries, reel_caption
 autopilot/news_post.py   FB news posts: pick_story, write_post (Gemini + fact_check + fallback), caption
 autopilot/images.py      news post background (Cloudflare FLUX → library → drawn) + render_card 1080x1350
 autopilot/seo.py         keyword-first titles (fallback built from data), description blocks, hashtags, tag seeds
-autopilot/history.py     data/history.json helpers (per-platform published_on, fb_post_headlines, merge CLI)
+autopilot/history.py     data/history.json helpers (ID_KEYS / PLATFORM_IDS, per-platform published_on, merge CLI)
+autopilot/lessons.py     curriculum + glossary formats, validate, DETECTORS registry, pick (episode picker), scene_plan
+autopilot/detectors/     example detectors (structure, mtf, trendlines, liquidity, smc); importing registers them
+autopilot/lesson_data.py multi-timeframe candles for the detectors (Coinbase, Kraken PAXG + Swissquote, Frankfurter)
+autopilot/lesson_script.py  lesson narration from approved key points (Gemini + checks + fact_check)
+autopilot/lesson_slides.py  lesson slides + thumbnail, 16:9 (LANDSCAPE) and 9:16 (PORTRAIT), TRACKS names
+autopilot/lesson_meta.py lesson chapters, SEO title, description, hashtags, tags (YouTube + Facebook)
+lessons/                 curriculum.yaml (episode queue, list order) + glossary.yaml
 autopilot/media.py       ffmpeg/ffprobe helpers
 assets/fonts/            Anton + Space Grotesk (SIL OFL) for thumbnails
-tests/test_offline.py    full offline render test with sample data + mocked LLM
+tests/test_offline.py    full offline render test with sample data + mocked LLM (incl. the lesson edition)
+tests/test_lessons.py    curriculum/glossary validator, detectors on fixture candles, lesson data, narration
+tests/lessons/           sample curriculum + glossary + fixture candles
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
-.github/workflows/autopilot.yml   7 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled)
+.github/workflows/autopilot.yml   8 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled)
 ```
 
 ## Data sources (all free, no API keys)
@@ -224,12 +265,18 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
 
 ## Upload / YouTube
 
-- OAuth secrets: `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` (from `get_token.py`,
-  scope `youtube.upload`). Google Cloud project "Everyday Science", OAuth app "Tiny Whys
+- OAuth secrets: `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` (from `get_token.py`).
+  Daily Shorts (`youtube.upload()` / `set_thumbnail()`) and lessons with `lessons.playlists: false`
+  (owner's choice, playlists managed by hand) request only `youtube.upload` (`SCOPES`), so the existing
+  token serves both. Only `lessons.playlists: true` (and `delete_video()` / `test-lesson --playlists`)
+  request `LESSON_SCOPES` = + `youtube` + `yt-analytics.readonly`, which needs `get_token.py --lesson-scopes`. Google Cloud project "Everyday Science", OAuth app "Tiny Whys
   Uploader" (old name, harmless), **In production** (Testing mode would expire tokens in 7 days).
   Branding page uses a GitHub Pages home page + privacy policy (`<user>.github.io`).
 - Un-audited API projects upload as **private**; the YouTube API Services audit form removes it.
   Check status in Studio if uploads aren't public.
+- Lessons: category 27 (Education), 16:9, private with `publishAt` = `lessons.review_window_hours` (24) later,
+  custom thumbnail, added to "Track N · <name>" (`lessons.track_playlist`) and `lessons.path_playlist`
+  playlists (created if missing). Facebook gets the 9:16 render via `publish_video` (`lessons.fb_published`).
 - Category 25 (News & Politics). SEO (`seo.py`): the title must have the lead asset name / "Gold price"
   in its first 45 chars, else a data-built title ("XRP Price Today: Down 5.0% | London Open, Oct 8",
   "Gold Price Today: Bearish Below $4,142 | XAU/USD Outlook Oct 8"). Description = keyword-first
@@ -327,7 +374,7 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
 - GitHub scheduled runs can start hours late or never (hence the outside timer); schedules
   also pause after 60 days of repo inactivity. A green 1-min run = a skip; read its last log line.
 - Run times in the Actions UI are in the browser's time zone (GMT+5:30), not UTC.
-- cron-job.org `401` = PAT expired (1-year expiry) → new token into all seven jobs.
+- cron-job.org `401` = PAT expired (1-year expiry) → new token into all eight jobs.
   `422` = `main`'s workflow lacks the `scheduled` input.
 - A cron expression in YAML must stay on one line inside `${{ }}`.
 - Node 20 deprecation warning for actions/checkout@v4, setup-python@v5, upload-artifact@v4 —
