@@ -399,6 +399,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-10T16:35:26+00:00",
+      "brief_date": "2026-10-10",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "US HOME PRICES OUTPACE INFLATION SINCE 1984",
+      "fb_post_id": "462331040302049_122252323514610202",
+      "headlines": [
+        "U.S. home prices rise more than twice as fast as inflation since 1984, study finds"
+      ],
+      "topic": "macro",
+      "source": "KOTA Territory News",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
