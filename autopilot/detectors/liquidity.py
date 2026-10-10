@@ -37,8 +37,9 @@ swings shown, sessions' takes; then end time, asset, timeframe). Facts hold only
 from datetime import datetime, timezone
 
 from autopilot import lessons
-from autopilot.detectors.common import RIGHT, _atr, _find, _fits, _ranked, _runs, find_swings
+from autopilot.detectors.common import _atr, _find, _fits, _ranked, _runs, find_swings, known
 from autopilot.lesson_data import TF_SECONDS
+from autopilot.lessons import to_datetime
 
 MIN_SWINGS = 4  # agreeing swings that make a trend (as structure.py)
 POOLS = 2  # nearest pools shown per side
@@ -50,10 +51,6 @@ ASIA_DRIFT = 0.5  # Asia range: |last close - first open| <= this x (high - low)
 LOOKBACK = 20  # a sweep / breakout level is the extreme of this many candles before it
 HOLD = 3  # closes after the sweep / breakout candle
 MINOR = 1  # inducement's minor swings: fractal width
-
-
-def _known(s: dict) -> int:
-    return s["i"] + RIGHT  # the candle that confirms the swing
 
 
 def _taken(candles: list[dict], s: dict, start: int | None = None) -> int | None:
@@ -73,11 +70,11 @@ def _point(s: dict) -> dict:
 
 def _pools_case(candles: list[dict], swings: list[dict]) -> dict | None:
     taken = [_taken(candles, s) for s in swings]
-    known, trend = -1, None
+    n_known, trend = -1, None
     for m in range(len(candles) - 1, -1, -1):  # most recent clean candle first
-        p = sum(1 for s in swings if _known(s) <= m)
-        if p != known:
-            known, trend = p, None
+        p = sum(1 for s in swings if known(s) <= m)
+        if p != n_known:
+            n_known, trend = p, None
             runs = _runs(swings[:p])
             if runs and runs[-1][2] == p - 1 and runs[-1][2] - runs[-1][1] + 1 >= MIN_SWINGS:
                 trend = runs[-1][0]
@@ -127,8 +124,7 @@ def _equal_case(candles: list[dict], swings: list[dict]) -> dict | None:
 # ─── session highs / lows ──────────────────────────────────────────────────
 
 def _utc(t) -> datetime:
-    d = datetime.fromisoformat(t) if isinstance(t, str) else t
-    return d.astimezone(timezone.utc) if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    return to_datetime(t).astimezone(timezone.utc)
 
 
 def _slots(hours: int, start: int, end: int) -> int:
@@ -203,12 +199,12 @@ def _events(candles: list[dict], swings: list[dict]) -> list[dict]:
         if not _obvious(candles, s):
             continue
         up, level = s["side"] == "high", s["price"]
-        k = _taken(candles, s, _known(s))  # the fractal's right side never trades beyond it
+        k = _taken(candles, s, known(s))  # the fractal's right side never trades beyond it
         if k is None:
             continue
         beyond = (lambda c: c > level) if up else (lambda c: c < level)  # noqa: E731
         j = next((x for x in range(k, n) if beyond(closes[x])), None)
-        twin = any(0 <= x < len(swings) and _known(swings[x]) < k
+        twin = any(0 <= x < len(swings) and known(swings[x]) < k
                    and _equal(atr, *sorted((s, swings[x]), key=lambda o: o["i"]))
                    for x in (p - 2, p + 2))  # an equal high / low known before the level is traded
         kind = None
@@ -230,7 +226,7 @@ def _events(candles: list[dict], swings: list[dict]) -> list[dict]:
 
 def find_sweeps(candles: list[dict], swings: list[dict]) -> list[dict]:
     """Clean liquidity sweeps, oldest first: [{kind, i, t, side, level, swing, level_type, extreme,
-    close, next_closes}]. For the SMC detectors (entry 8)."""
+    close, next_closes}]. Also used by the SMC detectors (smc.py)."""
     return [e for e in _events(candles, swings) if e["kind"] == "sweep"]
 
 

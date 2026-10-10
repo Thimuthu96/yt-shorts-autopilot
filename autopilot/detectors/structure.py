@@ -26,14 +26,11 @@ Per (asset, timeframe) the most recent clean case is kept; cases rank by (swings
 desc, asset order, timeframe order 1D/4H/1H). Example 1 is the top case, example 2 the best
 remaining one on another asset, else on another timeframe.
 
-The swing finder, ATR, chart window, example builder and ranking live in common.py (shared with
-the Track 1-2 detectors) and are imported back here under the same names.
+The swing finder, swing confirmation, chart window, example builder and ranking live in common.py
+(shared with every detector module).
 """
 from autopilot import lessons
-from autopilot.detectors.common import (  # noqa: F401  (re-exported: mtf.py and the tests use structure.X)
-    ATR_MULT, ATR_N, DOWN, LEFT, MAX_CANDLES, PAD, REFERENCE_FIX, RIGHT, UP, _atr, _day, _example, _find, _fits,
-    _order, _ranked, _runs, _ts, _two, _window, find_swings,
-)
+from autopilot.detectors.common import _find, _fits, _runs, known
 
 MIN_SWINGS = 4  # = 2 agreeing swing pairs
 
@@ -57,12 +54,8 @@ def structure_events(candles: list[dict], swings: list[dict]) -> list[dict]:
     of the broken swing in `swings`), swing, trend (the run's trend)}]. A CHoCH also carries bos_pos /
     bos_i (the last BOS before it), run_start, run_end (last run swing formed before the CHoCH) and
     last (last case swing: run_end, or the one disagreeing swing right after the run).
-    For the SMC detectors (entry 8)."""
+    Also used by the SMC detectors (smc.py)."""
     closes = [c["c"] for c in candles]
-
-    def known(pos: int) -> int:
-        return swings[pos]["i"] + RIGHT  # the candle that confirms the swing
-
     events = []
     for trend, a, b in _runs(swings):
         if b - a + 1 < MIN_SWINGS:
@@ -72,14 +65,14 @@ def structure_events(candles: list[dict], swings: list[dict]) -> list[dict]:
         beyond = (lambda c, p: c > p) if up else (lambda c, p: c < p)  # noqa: E731  (in the trend's direction)
         behind = (lambda c, p: c < p) if up else (lambda c, p: c > p)  # noqa: E731  (against it)
         # a swing is only known once its fractal is confirmed, at candle i + RIGHT
-        outside = known(b + 2) if b + 2 < len(swings) else len(candles)  # 2nd swing after the run
+        outside = known(swings[b + 2]) if b + 2 < len(swings) else len(candles)  # 2nd swing after the run
         last_with = last_against = bos = None
         broken = set()
         p = a  # next run swing not yet confirmed
         for m in range(swings[a]["i"] + 1, len(candles)):
             if m >= outside:
                 break  # the structure moved on without a CHoCH of this run
-            while p <= b and known(p) <= m:
+            while p <= b and known(swings[p]) <= m:
                 if swings[p]["side"] == with_side:
                     last_with = p
                 else:
@@ -88,7 +81,7 @@ def structure_events(candles: list[dict], swings: list[dict]) -> list[dict]:
             if (bos is not None and last_against is not None and p - a >= MIN_SWINGS
                     and behind(closes[m], swings[last_against]["price"])):
                 run_end = p - 1  # the run's swings formed before the CHoCH
-                last = b + 1 if p > b and b + 1 < len(swings) and known(b + 1) <= m else run_end
+                last = b + 1 if p > b and b + 1 < len(swings) and known(swings[b + 1]) <= m else run_end
                 events.append({"kind": "CHoCH", "i": m, "pos": last_against, "swing": swings[last_against],
                                "trend": trend, "bos_pos": bos[0], "bos_i": bos[1], "run_start": a,
                                "run_end": run_end, "last": last})

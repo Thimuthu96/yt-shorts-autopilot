@@ -32,7 +32,7 @@ kept; cases rank by (touches desc, end time desc, asset order, timeframe order).
 candle values (touch prices and times, the break / pierce candle's close and wick), counts and kinds.
 """
 from autopilot import lessons
-from autopilot.detectors.common import MAX_CANDLES, PAD, RIGHT, _atr, _find, _fits, _window
+from autopilot.detectors.common import MAX_CANDLES, PAD, _atr, _find, _fits, _window, known
 
 TOL = 0.25  # touch tolerance, in ATRs
 MIN_TOUCHES = 3
@@ -148,7 +148,7 @@ def _break_case(candles: list[dict], swings: list[dict]) -> dict | None:
         last = line["last"]
         m = next((k for k in range(last["i"] + 1, len(candles))
                   if _beyond(line, candles[k]["c"], line_at(line, k))), None)
-        if m is None or m < last["i"] + RIGHT:
+        if m is None or m < known(last):
             continue  # never broken, or broken before its last touch was confirmed
         res = _classify(candles, atr, line, m)
         if res is None or not _fits(candles, line["first"]["i"], res[1]):
@@ -182,7 +182,7 @@ def _liquidity_case(candles: list[dict], swings: list[dict]) -> dict | None:
             wick = c["l"] if support else c["h"]
             if _beyond(line, c["c"], level):
                 break  # closed through the line: a break, not a wick into the stops
-            if k >= last["i"] + RIGHT and abs(wick - level) >= PIERCE * atr[k] and _beyond(line, wick, level):
+            if k >= known(last) and abs(wick - level) >= PIERCE * atr[k] and _beyond(line, wick, level):
                 if _fits(candles, line["first"]["i"], k):
                     found.append((k, len(line["touches"]), last["i"], -line["first"]["i"], line["side"], line))
                 break

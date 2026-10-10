@@ -1,8 +1,9 @@
-"""Lesson chapters and publishing metadata (no upload: entries 10/11 publish what this builds).
+"""Lesson chapters and publishing metadata (no upload: youtube.upload_lesson / facebook.publish_video
+publish what this builds).
 
     chapters(plan, audio, examples, glossary=None)
         -> [{"start": s, "time": "m:ss", "title", "scenes": [ids]}]   from the scene timings
-    build_lesson_metadata(entry, pkg, examples, chapters, cfg)
+    build_lesson_metadata(entry, examples, chapters, cfg)
         -> {title, description, tags, category_id: "27", fb_title, fb_description}
 
 Chapters follow the scenes: the first starts at 0:00, a scene starts a new chapter only when it is at
@@ -158,10 +159,9 @@ def _tags(entry: dict, examples: list[dict]) -> list[str]:
     return tags
 
 
-def build_lesson_metadata(entry: dict, pkg: dict, examples: list[dict], chapters: list[dict], cfg: dict,
-                          log=print) -> dict:
-    """YouTube + Facebook metadata for one lesson. `pkg` (the narration) is accepted for the caller's
-    convenience but never quoted: the text comes from the entry and the examples' facts only."""
+def build_lesson_metadata(entry: dict, examples: list[dict], chapters: list[dict], cfg: dict, log=print) -> dict:
+    """YouTube + Facebook metadata for one lesson: the text comes from the entry and the examples' facts
+    only (never the narration)."""
     title = seo_title(entry)
     about = summary(entry)
     tags = hashtags(entry, examples)

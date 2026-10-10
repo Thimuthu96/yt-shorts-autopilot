@@ -1,5 +1,5 @@
-"""Shared detector pieces: the swing finder, ATR, chart window, example builder and ranking. Used by
-structure.py (which imports them back under the old names), mtf.py, trendlines.py and liquidity.py.
+"""Shared detector pieces: the swing finder, swing confirmation, ATR, chart window, example builder and
+ranking. Every detector module (structure, mtf, trendlines, liquidity, smc) imports them from here.
 
 Deterministic: no randomness, no clock. Input series are lesson_data.fetch_history()'s candles
 [{t, o, h, l, c}], oldest first.
@@ -9,7 +9,7 @@ consecutive same-type swings collapse to the more extreme; a swing whose leg fro
 opposite swing is under `atr_mult` x ATR(14) is dropped (1.0 by default, 0 keeps every leg). Highs
 are labelled HH/LH against the previous high, lows HL/LL against the previous low (the first high /
 low, or an exact tie, stay plain "high" / "low"). A swing at candle i is only known from its
-confirming candle i + width (i + RIGHT for the default swings).
+confirming candle i + width (`known(s)` = i + RIGHT for the default swings).
 
 Case -> example (`_example`): a case is {start, end, swings?, trend?, breaks?, primitives?, facts?,
 glossary?, rank?}. Swing markers come first, then each break's level + label (BOS / CHoCH), then the
@@ -23,9 +23,8 @@ Example 1 is the top case, example 2 the best remaining one on another asset, el
 The fractal / ATR code is a separate copy of gold.py's helpers on purpose: the daily gold outlook
 must not drift when the lessons change.
 """
-from datetime import datetime
-
 from autopilot.lesson_data import ASSETS, SOURCES, TIMEFRAMES
+from autopilot.lessons import day, timestamp
 
 LEFT = RIGHT = 3  # fractal width
 ATR_N = 14
@@ -94,6 +93,11 @@ def find_swings(candles: list[dict], width: int = LEFT, atr_mult: float = ATR_MU
     return out
 
 
+def known(s: dict) -> int:
+    """The candle that confirms a default (width RIGHT) swing: it counts from here, never earlier."""
+    return s["i"] + RIGHT
+
+
 def _runs(swings: list[dict]) -> list[tuple[str, int, int]]:
     """Maximal runs of agreeing labels: [(trend, first pos, last pos)] in time order."""
     runs, p = [], 0
@@ -123,10 +127,6 @@ def _fits(candles: list[dict], start: int, end: int) -> bool:
 
 # ─── examples ──────────────────────────────────────────────────────────────
 
-def _day(t) -> str:
-    return datetime.fromisoformat(t).date().isoformat() if isinstance(t, str) else t.date().isoformat()
-
-
 def _example(detector: str, glossary: str, asset: str, tf: str, candles: list[dict], case: dict) -> dict:
     lo, hi = _window(candles, case["start"], case["end"])
     span = candles[case["start"]:case["end"] + 1]
@@ -150,7 +150,7 @@ def _example(detector: str, glossary: str, asset: str, tf: str, candles: list[di
     last_t = candles[case["end"]]["t"]
     return {
         "detector": detector, "glossary": case.get("glossary", glossary), "asset": asset, "timeframe": tf,
-        "date": _day(last_t),
+        "date": day(last_t),
         "candles": [{k: c[k] for k in ("t", "o", "h", "l", "c")} for c in candles[lo:hi + 1]],
         "region": {"start": candles[case["start"]]["t"], "end": last_t,
                    "low": min(c["l"] for c in span), "high": max(c["h"] for c in span)},
@@ -161,10 +161,6 @@ def _example(detector: str, glossary: str, asset: str, tf: str, candles: list[di
 
 def _order(seq: tuple, key: str) -> tuple[int, str]:
     return (seq.index(key), "") if key in seq else (len(seq), key)
-
-
-def _ts(t) -> float:
-    return (datetime.fromisoformat(t) if isinstance(t, str) else t).timestamp()
 
 
 def _ranked(history: dict, case_fn, detector: str, glossary: str, timeframes: tuple | None = None,
@@ -184,7 +180,7 @@ def _ranked(history: dict, case_fn, detector: str, glossary: str, timeframes: tu
             if case:
                 ex = _example(detector, glossary, asset, tf, candles, case)
                 size = case.get("rank", len(case.get("swings", [])))
-                key = (-size, -_ts(ex["region"]["end"]), _order(ASSETS, asset), _order(TIMEFRAMES, tf))
+                key = (-size, -timestamp(ex["region"]["end"]), _order(ASSETS, asset), _order(TIMEFRAMES, tf))
                 ranked.append((key, ex))
     ranked.sort(key=lambda r: r[0])
     return [ex for _, ex in ranked]

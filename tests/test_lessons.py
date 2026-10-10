@@ -188,6 +188,28 @@ def test_examples():
     bad["candles"][0]["h"] = 62000.0
     assert lessons.validate_example(bad) == ["candle 0: low/high don't contain open/close"]
     assert set(lessons.PRIMITIVES) == {"level", "trendline", "zone", "swing", "label"}
+    # mixed offsets: an aware start against a naive or date-only end (naive = UTC) is compared, never raises
+    reversed_ = ["region start/end or low/high are reversed"]
+    for end, problems in (("2026-09-30T01:00:00", []), ("2026-09-30", []), ("2026-09-29", reversed_),
+                          (datetime(2026, 9, 30, 1), []), (datetime(2026, 9, 29).date(), reversed_)):
+        bad = example()
+        bad["region"]["end"] = end
+        assert lessons.validate_example(bad) == problems, (end, lessons.validate_example(bad))
+    bad = example()
+    bad["region"]["start"] = "2026-09-30T05:30:00+05:30"  # = 00:00 UTC, before the naive end read as UTC
+    bad["region"]["end"] = "2026-09-30T00:30:00"
+    assert lessons.validate_example(bad) == [], lessons.validate_example(bad)
+    # an unhashable primitive type is an unknown type, not an exception
+    e = lessons.validate_example(example(primitives=[{"type": ["zone"]}, {"type": {"a": 1}}]))
+    assert e == ["primitive 0: unknown primitive type '['zone']'", "primitive 1: unknown primitive type '{'a': 1}'"], e
+    # shared time helpers: naive values and dates read as UTC, aware ones keep their offset
+    assert lessons.to_datetime("2026-09-30T01:00:00") == datetime(2026, 9, 30, 1, tzinfo=timezone.utc)
+    assert lessons.to_datetime(datetime(2026, 9, 30).date()) == datetime(2026, 9, 30, tzinfo=timezone.utc)
+    assert lessons.timestamp("2026-09-30T05:30:00+05:30") == lessons.timestamp("2026-09-30") == \
+        datetime(2026, 9, 30, tzinfo=timezone.utc).timestamp()
+    assert lessons.day("2026-09-30T23:30:00-02:00") == "2026-09-30" and lessons.day(datetime(2026, 9, 30, 4)) == "2026-09-30"
+    for v in (None, 5, "yesterday"):
+        assert not lessons._is_time(v), v
 
     # mtf: an optional `lower` panel, checked by the same rules, each problem prefixed "lower: "
     good = mtf_example()
@@ -214,7 +236,8 @@ def test_examples():
     del bad["lower"]["region"]
     assert lessons.validate_example(bad) == ["primitive 0: unknown primitive type 'arrow'",
                                              "lower: missing field 'region'"], lessons.validate_example(bad)
-    print("OK examples (valid example, unknown primitive, missing field, bad time/kind, candles; "
+    print("OK examples (valid example, unknown primitive, missing field, bad time/kind, candles, mixed offsets, "
+          "unhashable primitive type, time helpers; "
           "mtf lower panel: missing candles, unknown primitive, bad candle/region, timeframe, not a mapping)")
 
 
@@ -881,6 +904,18 @@ def track12_digest() -> str:
     return hashlib.sha256("".join(out[k] for k in sorted(out)).encode()).hexdigest()
 
 
+# sha256 of the track 3 detectors' examples on every fixture, taken at the 1.12 commit (before the refactor sweep)
+TRACK3_DIGEST = "574a4e56e12004e18c048fb7685c703f28e3a8257f190103a94ad418ac3ce78b"
+
+
+def track3_digest() -> str:
+    import hashlib
+    names = sorted(p.stem for p in CANDLES.glob("*.json"))
+    out = {n: json.dumps({d: find(d, {"BTC/USD": {"1H": candles(n)}}) for d in sorted(TRACK3)}, sort_keys=True)
+           for n in names}
+    return hashlib.sha256("".join(out[k] for k in sorted(out)).encode()).hexdigest()
+
+
 def _idx(series: list[dict], t: str) -> int:
     return next(i for i, c in enumerate(series) if c["t"] == t)
 
@@ -1063,13 +1098,15 @@ def test_detectors_track_3():
         assert a and json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True), name
     assert json.dumps(h, sort_keys=True) == before
 
-    # earlier detectors: 1.2 (swings / bos_choch) and 1.7 (tracks 1-2) outputs on the existing fixtures unchanged
+    # earlier detectors: 1.2 (swings / bos_choch) and 1.7 (tracks 1-2) outputs on the existing fixtures unchanged,
+    # and track 3's own outputs as at the 1.12 commit
     assert structure_digest() == STRUCTURE_DIGEST
     assert track12_digest() == TRACK12_DIGEST
+    assert track3_digest() == TRACK3_DIGEST
     print(f"OK track 3 detectors ({', '.join(new)}: clean case per fixture, FVG fill / open, OB + BOS + revisit, "
           "breaker vs mitigation + return from the other side, EQ + premium / discount + confirmation, "
           "sweep -> CHoCH -> OB/FVG in time order, CHoCH before sweep / beyond the sweep / tested gap -> none, choppy / short / daily fix -> [], "
-          "second example, repeat runs identical, facts from candles, 1.2 and 1.7 outputs unchanged)")
+          "second example, repeat runs identical, facts from candles, 1.2, 1.7 and 1.12 outputs unchanged)")
 
 
 # ─── lesson price history (network mocked) ─────────────────────────────────

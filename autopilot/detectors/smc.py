@@ -48,7 +48,7 @@ then end time, asset, timeframe). Facts hold only candle values (prices and time
 booleans and kinds: never derived numbers (the 50% level and gap sizes stay in the primitives / rank).
 """
 from autopilot import lessons
-from autopilot.detectors.common import RIGHT, _atr, _find, _fits, _runs, _window
+from autopilot.detectors.common import _atr, _find, _fits, _runs, _window, known
 from autopilot.detectors.liquidity import find_sweeps
 from autopilot.detectors.structure import MIN_SWINGS, structure_events
 
@@ -56,10 +56,6 @@ FVG_MIN = 0.3  # gap, in ATRs
 RETURN_N = 30  # mitigation / breaker: candles after the failure for the return
 RANGE_MIN = 3.0  # premium / discount: dealing range, in ATRs
 MODEL_N = 20  # sweep -> CHoCH: at most this many candles
-
-
-def _known(s: dict) -> int:
-    return s["i"] + RIGHT  # the candle that confirms the swing
 
 
 def _point(s: dict) -> dict:
@@ -141,7 +137,7 @@ def find_order_blocks(candles: list[dict], swings: list[dict]) -> list[dict]:
 
 def _shown(swings: list[dict], start: int, end: int) -> list[dict]:
     """Swings on the chart [start, end] that are confirmed by its last candle."""
-    return [s for s in swings if start <= s["i"] and _known(s) <= end]
+    return [s for s in swings if start <= s["i"] and known(s) <= end]
 
 
 # ─── fair value gap ────────────────────────────────────────────────────────
@@ -215,7 +211,7 @@ def _mb_case(candles: list[dict], swings: list[dict]) -> dict | None:
         if f is None:
             continue
         side = "high" if up else "low"  # the with-trend side the move after the BOS pushed
-        pos = [p for p, s in enumerate(swings) if s["side"] == side and s["i"] > ob["i"] and _known(s) <= f]
+        pos = [p for p, s in enumerate(swings) if s["side"] == side and s["i"] > ob["i"] and known(s) <= f]
         if not pos:
             continue
         w = swings[pos[-1]]
@@ -270,9 +266,9 @@ def _pd_case(candles: list[dict], swings: list[dict]) -> dict | None:
         if hi - lo < RANGE_MIN * atr[y["i"]]:
             continue
         eq = (lo + hi) / 2
-        stop = _known(swings[q + 2]) if q + 2 < len(swings) else n  # the next swing replaces the pair
+        stop = known(swings[q + 2]) if q + 2 < len(swings) else n  # the next swing replaces the pair
         hit = None
-        for m in range(_known(y), min(stop, n)):
+        for m in range(known(y), min(stop, n)):
             c = candles[m]
             if (c["h"] > hi) if up else (c["l"] < lo):
                 break  # the range expanded beyond its far end

@@ -1028,6 +1028,19 @@ def test_lesson_slides(cfg):
             raise AssertionError("an mtf scene without its panels must fail")
         except ValueError as e:
             assert "mtf" in str(e), e
+    # a malformed `lower` panel: ValueError naming the missing field (never a KeyError)
+    for field in ("region", "candles", "timeframe"):
+        broken = dict(mtf_ex, lower={k: v for k, v in mtf_ex["lower"].items() if k != field})
+        try:
+            ls.mtf_panels(broken)
+            raise AssertionError(f"an mtf lower panel without {field} must fail")
+        except ValueError as e:
+            assert field in str(e), e
+    try:
+        ls.mtf_panels(dict(mtf_ex, lower=dict(mtf_ex["lower"], region={"start": mtf_ex["lower"]["region"]["start"]})))
+        raise AssertionError("an mtf lower region without its end must fail")
+    except ValueError as e:
+        assert "region" in str(e), e
     shutil.rmtree(work / "bad", ignore_errors=True)
     # recap: the "Next:" title and the ICT non-affiliation line are drawn when set (each changes the slide;
     # _flow never drops or cuts them, it raises instead), and the captions stay clear
@@ -1282,7 +1295,7 @@ def test_lesson_render(cfg):
         ("0:00", "Intro", ["hook", "concept"]), ("0:16", "Example 1: BTC/USD 4H", ["example_1", "recap"])], got
     # fewer than 3 chapters: YouTube ignores them, so the description has no "Chapters:" block (logged)
     logs = []
-    two = lesson_meta.build_lesson_metadata(entry, {}, made["examples"], got, cfg, log=logs.append)
+    two = lesson_meta.build_lesson_metadata(entry, made["examples"], got, cfg, log=logs.append)
     assert "Chapters:" not in two["description"] and "0:16" not in two["description"], two["description"]
     assert any("No chapters" in m and "2" in m for m in logs), logs
     assert lesson_meta.timestamp(75.9) == "1:15" and lesson_meta.timestamp(3725) == "1:02:05"

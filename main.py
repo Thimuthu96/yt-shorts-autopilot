@@ -254,7 +254,7 @@ def make_lesson(cfg: dict, entry: dict, glossary: dict, history: dict, workdir: 
         videos[layout.name] = out
         log(f"Rendered {out}")
 
-    meta = lesson_meta.build_lesson_metadata(entry, pkg, examples, chapters, cfg, log=log)
+    meta = lesson_meta.build_lesson_metadata(entry, examples, chapters, cfg, log=log)
     (workdir / "metadata.json").write_text(json.dumps({**meta, "chapters": chapters}, indent=2, ensure_ascii=False))
     log(f"Lesson title: {meta['title']}")
     return {"videos": videos, "thumbnail": thumb, "meta": meta, "chapters": chapters, "seconds": round(total, 1),

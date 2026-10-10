@@ -19,6 +19,8 @@ Glossary: `terms: {key: {term, definition}}`.
 Example (what a detector returns, up to 2 per episode; [] = no clean example):
     {detector, glossary, asset, timeframe, date, candles: [{t, o, h, l, c}],
      region: {start, end, low, high}, primitives: [...], facts: {...}}   times ISO-8601
+Times are read by to_datetime / timestamp / day (naive values and dates as UTC), shared with the
+detectors and lesson_slides.
 An `mtf` example adds a lower-timeframe panel checked by the same rules (problems prefixed "lower: "):
     lower: {timeframe, candles, region, primitives}
 
@@ -26,7 +28,7 @@ The picker is pure: history and the hold check are passed in, holds are never st
 """
 import re
 from dataclasses import dataclass, field
-from datetime import date as _date, datetime
+from datetime import date as _date, datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -166,28 +168,40 @@ def validate(curriculum: list[dict], glossary: dict, detectors: dict | None = No
 
 # ─── examples ──────────────────────────────────────────────────────────────
 
+def to_datetime(v) -> datetime:
+    """An example time (ISO-8601 text, datetime or date) as an aware datetime: naive values and dates read
+    as UTC, an aware value keeps its own offset. ValueError / TypeError on anything else."""
+    if isinstance(v, datetime):
+        d = v
+    elif isinstance(v, _date):
+        d = datetime(v.year, v.month, v.day)
+    elif isinstance(v, str):
+        d = datetime.fromisoformat(v)
+    else:
+        raise TypeError(f"not a time: {v!r}")
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
+def timestamp(v) -> float:
+    """POSIX seconds of an example time (naive = UTC)."""
+    return to_datetime(v).timestamp()
+
+
+def day(v) -> str:
+    """The calendar date ("YYYY-MM-DD") of an example time, in the time's own offset."""
+    return to_datetime(v).date().isoformat()
+
+
 def _is_time(v) -> bool:
-    if isinstance(v, (datetime, _date)):
-        return True
-    if not isinstance(v, str):
-        return False
     try:
-        datetime.fromisoformat(v)
+        to_datetime(v)
         return True
-    except ValueError:
+    except (TypeError, ValueError):
         return False
 
 
 def _num(v) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool)
-
-
-def _ts(v) -> datetime:
-    if isinstance(v, datetime):
-        return v
-    if isinstance(v, _date):
-        return datetime(v.year, v.month, v.day)
-    return datetime.fromisoformat(v)
 
 
 def _panel_problems(ex: dict) -> list[str]:
@@ -211,7 +225,7 @@ def _panel_problems(ex: dict) -> list[str]:
             errors.append("region needs start, end, low, high")
         elif not (_is_time(r["start"]) and _is_time(r["end"]) and _num(r["low"]) and _num(r["high"])):
             errors.append("region start/end must be ISO-8601 and low/high numbers")
-        elif _ts(r["start"]) > _ts(r["end"]) or r["low"] > r["high"]:
+        elif to_datetime(r["start"]) > to_datetime(r["end"]) or r["low"] > r["high"]:
             errors.append("region start/end or low/high are reversed")
     if "primitives" in ex:
         if not isinstance(ex["primitives"], list):
@@ -220,7 +234,7 @@ def _panel_problems(ex: dict) -> list[str]:
             for i, p in enumerate(ex["primitives"]):
                 kind = p.get("type") if isinstance(p, dict) else None
                 name = f"primitive {i} ({kind})"
-                if kind not in PRIMITIVES:
+                if not isinstance(kind, str) or kind not in PRIMITIVES:
                     errors.append(f"primitive {i}: unknown primitive type '{kind}'")
                     continue
                 for f in PRIMITIVES[kind]:

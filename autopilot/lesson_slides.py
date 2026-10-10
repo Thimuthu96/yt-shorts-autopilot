@@ -28,7 +28,6 @@ The daily editions' modules are only imported from (helpers), never changed.
 """
 from bisect import bisect_left
 from dataclasses import dataclass
-from datetime import date as _date, datetime
 from functools import lru_cache
 from math import ceil, floor, log10
 from pathlib import Path
@@ -36,6 +35,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from autopilot import lessons
+from autopilot.lessons import day, timestamp, to_datetime
 from autopilot.slides import BG, DOWN, FG, MUTED, PANEL, UP, _font as _dejavu, _hex, _wrap
 from autopilot.thumbnail import FONT_DIR, GRID, _fit, _mini_logo
 
@@ -73,6 +73,7 @@ FULL_PAD = 0.12
 SWING_ROOM = 18  # px between a swing's price and the far edge of its kind text (label_room)
 MTF_GUTTER = 40  # px between the two mtf panels
 MTF_ROLES = ("Higher timeframe", "Lower timeframe")
+MTF_LOWER_FIELDS = ("timeframe", "candles", "region")  # what mtf_panels reads from an example's `lower` panel
 
 
 # ─── fonts / text ──────────────────────────────────────────────────────────
@@ -146,14 +147,6 @@ def _flow(d: ImageDraw.ImageDraw, items: list[dict], box, layout: Layout, valign
 
 # ─── chart ─────────────────────────────────────────────────────────────────
 
-def _ts(v) -> float:
-    if isinstance(v, datetime):
-        return v.timestamp()
-    if isinstance(v, _date):
-        return datetime(v.year, v.month, v.day).timestamp()
-    return datetime.fromisoformat(v).timestamp()
-
-
 def _ticks(lo: float, hi: float, n: int = 4) -> tuple[list[float], int]:
     raw = (hi - lo) / n or abs(hi) * 0.01 or 1.0
     mag = 10 ** floor(log10(raw))
@@ -173,9 +166,9 @@ def _fmt_tick(v: float, dec: int) -> str:
 
 
 def _time_label(t, timeframe: str) -> str:
-    dt = datetime.fromisoformat(t) if isinstance(t, str) else t
-    day = f"{dt:%b} {dt.day}, {dt.year}" if timeframe == "1D" else f"{dt:%b} {dt.day} {dt:%H:%M}"
-    return day + ("" if timeframe == "1D" else " UTC")
+    dt = to_datetime(t)
+    text = f"{dt:%b} {dt.day}, {dt.year}" if timeframe == "1D" else f"{dt:%b} {dt.day} {dt:%H:%M}"
+    return text + ("" if timeframe == "1D" else " UTC")
 
 
 def _is_line(example: dict) -> bool:
@@ -225,12 +218,12 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
 
     candles = example["candles"]
     n = len(candles)
-    times = [_ts(c["t"]) for c in candles]
+    times = [timestamp(c["t"]) for c in candles]
     prims = list(example.get("primitives") or []) if primitives is None else list(primitives)
     region = example.get("region")
 
     def index(t) -> int:
-        ts = _ts(t)
+        ts = timestamp(t)
         j = bisect_left(times, ts)
         if j <= 0:
             return 0
@@ -272,7 +265,7 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
         return ph - (p - lo) / (hi - lo) * ph
 
     def xt(t) -> float:  # fractional candle position of a time (between candles when it falls between)
-        ts = _ts(t)
+        ts = timestamp(t)
         j = bisect_left(times, ts)
         if j < n and times[j] == ts or j == 0:
             return X(min(j, n - 1))
@@ -457,28 +450,30 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
             "y_range": (lo, hi), "drawn": drawn, "label": " ".join(t for t, _, _ in strip), "line": line}
 
 
-def _day(t) -> str:
-    return (datetime.fromisoformat(t) if isinstance(t, str) else t).date().isoformat()
-
-
 def mtf_panels(example: dict) -> tuple[dict, dict]:
     """(higher, lower) chart examples of an mtf example. The higher one gets a zone over the lower
     panel's window (its region; it ends with the higher candle holding the window's end), labelled with
     the lower timeframe; the lower one carries the asset,
-    the date its window ends and the data source. Every value comes from the example."""
+    the date its window ends and the data source. Every value comes from the example.
+    ValueError naming the field when the `lower` panel lacks one it needs (timeframe, candles, region)."""
     lower = example.get("lower")
     if not isinstance(lower, dict):
         raise ValueError("mtf visual needs an example with a `lower` panel")
+    missing = [f for f in MTF_LOWER_FIELDS if f not in lower]
+    if missing:
+        raise ValueError(f"mtf visual: the `lower` panel is missing {', '.join(repr(f) for f in missing)}")
     r = lower["region"]
+    if not isinstance(r, dict) or any(k not in r for k in ("start", "end", "low", "high")):
+        raise ValueError("mtf visual: the `lower` panel's 'region' needs start, end, low, high")
     # the zone ends with the higher-timeframe candle that contains the lower window's end
-    end = _ts(r["end"])
-    t2 = next((c["t"] for c in reversed(example["candles"]) if _ts(c["t"]) <= end), r["end"])
+    end = timestamp(r["end"])
+    t2 = next((c["t"] for c in reversed(example["candles"]) if timestamp(c["t"]) <= end), r["end"])
     zone = {"type": "zone", "t1": r["start"], "t2": t2, "low": r["low"], "high": r["high"],
             "label": lower["timeframe"]}
     higher = {k: v for k, v in example.items() if k != "lower"}
     higher["primitives"] = list(example.get("primitives") or []) + [zone]
     facts = {k: v for k, v in (example.get("facts") or {}).items() if k in ("source", "daily_reference_fix")}
-    panel = {"asset": example.get("asset"), "timeframe": lower["timeframe"], "date": _day(r["end"]),
+    panel = {"asset": example.get("asset"), "timeframe": lower["timeframe"], "date": day(r["end"]),
              "candles": lower["candles"], "region": r, "primitives": list(lower.get("primitives") or []),
              "facts": facts}
     return higher, panel
