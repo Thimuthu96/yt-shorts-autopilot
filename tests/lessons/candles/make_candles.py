@@ -33,6 +33,21 @@ Tracks 1-2 (trendlines, liquidity); a leg may carry a third value, the wick of i
                               that closes above the new high and holds 3 closes (breakout) -> sweep_vs_breakout
     inducement.json           HH/HL uptrend; after the HH the first minor pullback low is taken on the way
                               to the HL, then a close above the HH (BOS) -> inducement
+
+Track 3 (SMC):
+    fvg.json                  HH/HL uptrend; one big candle breaks the last HH (BOS) leaving a gap, a later
+                              pullback trades back to its far edge -> fvg (bullish, filled)
+    order_block.json          LH/LL downtrend; the leg from the last LH closes below the LL (BOS), then a
+                              rally back into the up-close candle at that LH -> order_block (bearish, revisited)
+    breaker.json              LH/LL downtrend whose last leg makes a new low (BOS), then a rally that closes
+                              above the block, holds above it, comes back into it -> mitigation_breaker (breaker)
+    mitigation.json           the same, but a HL (failed to make a new low) before the rally -> (mitigation)
+    premium_discount.json     HH/HL uptrend, then a pullback that closes below 50% of the last HL -> HH
+                              range, still above its low -> premium_discount (discount)
+    sweep_choch_model.json    LH/LL downtrend; a wick below the last LL closing back above (sweep), a rally
+                              closing above the last LH (CHoCH), a pullback into its OB / FVG -> sweep_choch_model
+    choch_before_sweep.json   LH/LL downtrend; the LL is a close break, then the CHoCH, then a sweep of
+                              that LL -> no sweep_choch_model
 """
 import json
 import random
@@ -80,6 +95,25 @@ TRACK12 = {
                                (8, 106)]),
     "inducement": (100.0, [(8, 92), (10, 108), (8, 100), (10, 116), (3, 112, 111.6), (1, 113.8, 114.6), (5, 106), (12, 120),
                            (4, 118)]),
+}
+
+# Track 3 fixtures (SMC), same leg format as TRACK12
+TRACK3 = {
+    "fvg": (100.0, [(8, 92), (10, 108), (8, 101), (10, 116), (8, 109), (4, 112), (1, 119), (5, 124), (8, 111),
+                    (6, 118)]),
+    "order_block": (200.0, [(8, 208), (10, 190), (8, 197), (10, 184), (8, 191), (10, 177), (6, 183), (8, 168),
+                            (8, 182.8), (8, 174)]),
+    "breaker": (200.0, [(8, 208), (10, 190), (8, 197), (10, 184), (8, 191), (10, 177), (8, 184), (10, 170), (8, 177),
+                        (10, 163), (12, 186), (6, 176.8), (8, 188)]),
+    "mitigation": (200.0, [(8, 208), (10, 190), (8, 197), (10, 184), (8, 191), (10, 177), (8, 184), (10, 170),
+                           (8, 177), (10, 163), (8, 175), (8, 168), (12, 186), (6, 176.5), (8, 185)]),
+    "premium_discount": (100.0, [(8, 92), (10, 108), (8, 101), (10, 116), (8, 109), (10, 124), (8, 117), (10, 132),
+                                 (8, 122)]),
+    "sweep_choch_model": (200.0, [(8, 208), (10, 190), (8, 197), (10, 184), (8, 191), (10, 177), (8, 184), (10, 170),
+                                  (8, 177), (10, 164), (6, 170.5), (5, 165, 162.5), (3, 168), (4, 180), (6, 172),
+                                  (6, 178)]),
+    "choch_before_sweep": (200.0, [(8, 208), (10, 190), (8, 197), (10, 184), (8, 191), (10, 177), (8, 184), (10, 170),
+                                   (8, 177), (10, 163), (12, 180), (8, 170), (2, 166, 162.0), (8, 175)]),
 }
 
 UP_WAVE, DOWN_WAVE = (6, 1.0), (3, 0.8)  # 1H waves inside an up leg: (candles, price step per candle)
@@ -131,6 +165,10 @@ def main():
         (HERE / f"{name}.json").write_text(json.dumps(candles, indent=1) + "\n", encoding="utf-8")
         print(f"{name}.json: {len(candles)} candles")
     for seed, (name, (start, legs)) in enumerate(TRACK12.items(), len(SERIES) + len(NESTED) + 1):
+        candles = make(start, legs, seed)
+        (HERE / f"{name}.json").write_text(json.dumps(candles, indent=1) + "\n", encoding="utf-8")
+        print(f"{name}.json: {len(candles)} candles")
+    for seed, (name, (start, legs)) in enumerate(TRACK3.items(), len(SERIES) + len(NESTED) + len(TRACK12) + 1):
         candles = make(start, legs, seed)
         (HERE / f"{name}.json").write_text(json.dumps(candles, indent=1) + "\n", encoding="utf-8")
         print(f"{name}.json: {len(candles)} candles")

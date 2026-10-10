@@ -19,6 +19,8 @@ dropped. Highs are labelled HH/LH against the previous high, lows HL/LL against 
                disagreeing swing right before it (e.g. the HL that failed to make a LL); if a
                second swing outside the run forms first, the run has no clean CHoCH.
                A swing only counts from its confirming candle (i + 3), never earlier.
+               The walk itself is public as `structure_events` (every BOS and CHoCH it finds), used by
+               the Track 3 SMC detectors (smc.py).
 
 Per (asset, timeframe) the most recent clean case is kept; cases rank by (swings desc, end time
 desc, asset order, timeframe order 1D/4H/1H). Example 1 is the top case, example 2 the best
@@ -49,14 +51,19 @@ def _swing_case(candles: list[dict], swings: list[dict]) -> dict | None:
     return None
 
 
-def _bos_choch_case(candles: list[dict], swings: list[dict]) -> dict | None:
-    """The most recent trend -> BOS -> CHoCH sequence that fits on one chart."""
+def structure_events(candles: list[dict], swings: list[dict]) -> list[dict]:
+    """The BOS / CHoCH walk behind `bos_choch`, as events in run order (each run's BOS events in time
+    order, then its CHoCH if it has one): [{kind: "BOS" | "CHoCH", i (the closing candle), pos (index
+    of the broken swing in `swings`), swing, trend (the run's trend)}]. A CHoCH also carries bos_pos /
+    bos_i (the last BOS before it), run_start, run_end (last run swing formed before the CHoCH) and
+    last (last case swing: run_end, or the one disagreeing swing right after the run).
+    For the SMC detectors (entry 8)."""
     closes = [c["c"] for c in candles]
 
     def known(pos: int) -> int:
         return swings[pos]["i"] + RIGHT  # the candle that confirms the swing
 
-    found = []  # (choch candle, bos candle, run start, last run swing, last case swing, bos swing, choch swing, trend)
+    events = []
     for trend, a, b in _runs(swings):
         if b - a + 1 < MIN_SWINGS:
             continue
@@ -82,11 +89,21 @@ def _bos_choch_case(candles: list[dict], swings: list[dict]) -> dict | None:
                     and behind(closes[m], swings[last_against]["price"])):
                 run_end = p - 1  # the run's swings formed before the CHoCH
                 last = b + 1 if p > b and b + 1 < len(swings) and known(b + 1) <= m else run_end
-                found.append((m, bos[1], a, run_end, last, bos[0], last_against, trend))
+                events.append({"kind": "CHoCH", "i": m, "pos": last_against, "swing": swings[last_against],
+                               "trend": trend, "bos_pos": bos[0], "bos_i": bos[1], "run_start": a,
+                               "run_end": run_end, "last": last})
                 break
             if last_with is not None and last_with not in broken and beyond(closes[m], swings[last_with]["price"]):
                 broken.add(last_with)
                 bos = (last_with, m)  # the latest BOS so far
+                events.append({"kind": "BOS", "i": m, "pos": last_with, "swing": swings[last_with], "trend": trend})
+    return events
+
+
+def _bos_choch_case(candles: list[dict], swings: list[dict]) -> dict | None:
+    """The most recent trend -> BOS -> CHoCH sequence that fits on one chart."""
+    found = [(e["i"], e["bos_i"], e["run_start"], e["run_end"], e["last"], e["bos_pos"], e["pos"], e["trend"])
+             for e in structure_events(candles, swings) if e["kind"] == "CHoCH"]
     for m, bos, a, run_end, last, j, opp, trend in sorted(found, key=lambda f: -f[0]):  # most recent CHoCH first
         # trim from the front to fit one chart, keeping >= 4 run swings and both broken swings
         while a < min(j, opp) and run_end - a >= MIN_SWINGS and not _fits(candles, swings[a]["i"], m):

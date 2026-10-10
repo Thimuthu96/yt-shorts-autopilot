@@ -1,6 +1,6 @@
 """Offline check of the lesson formats: curriculum + glossary validator, episode picker, example
-schema (incl. the mtf `lower` panel) and scene plan, the structure, top-down and Track 1-2 trendline /
-liquidity detectors (candle fixtures in tests/lessons/candles/), the lesson price-history fetch with
+schema (incl. the mtf `lower` panel) and scene plan, the structure, top-down, Track 1-2 trendline /
+liquidity and Track 3 SMC detectors (candle fixtures in tests/lessons/candles/), the lesson price-history fetch with
 sources._get mocked and the lesson narration with Gemini mocked (no API keys, no network).
 
     python tests/test_lessons.py
@@ -856,6 +856,222 @@ def structure_digest() -> str:
     return hashlib.sha256("".join(out[k] for k in sorted(out)).encode()).hexdigest()
 
 
+# ─── track 3 detectors (SMC) ───────────────────────────────────────────────
+
+TRACK3 = {  # detector -> (its own fixture, primitive types its example must draw)
+    "fvg": ("fvg", {"zone"}),
+    "order_block": ("order_block", {"swing", "zone", "level", "label"}),
+    "mitigation_breaker": ("breaker", {"swing", "zone", "level", "label"}),
+    "premium_discount": ("premium_discount", {"swing", "zone", "level", "label"}),
+    "sweep_choch_model": ("sweep_choch_model", {"swing", "zone", "level", "label"}),
+}
+SMC_KEYS = {"fair_value_gap", "order_block", "mitigation_block", "breaker_block", "premium_discount", "equilibrium",
+            "sweep_choch_model"}
+# sha256 of the tracks 1-2 detectors' examples on every pre-track-3 fixture, taken at the 1.7 commit
+TRACK12_DIGEST = "80b6e1afcc1061533f8b5aae6e9c2bd3ace30085b2b4ad8a77ed089b800752ac"
+
+
+def track12_digest() -> str:
+    import hashlib
+    names = ("uptrend", "downtrend_bos_choch", "choppy", "downtrend_hl_choch", "range_after_trend", "top_down_1h",
+             "trendline_retest", "trendline_fakeout", "trendline_liquidity", "liquidity_pools", "equal_highs",
+             "sessions_1h", "sweep_breakout", "inducement")
+    out = {n: json.dumps({d: find(d, {"BTC/USD": {"1H": candles(n)}}) for d in sorted(TRACK12)}, sort_keys=True)
+           for n in names}
+    return hashlib.sha256("".join(out[k] for k in sorted(out)).encode()).hexdigest()
+
+
+def _idx(series: list[dict], t: str) -> int:
+    return next(i for i, c in enumerate(series) if c["t"] == t)
+
+
+def test_detectors_track_3():
+    new = sorted(TRACK3)
+    assert set(new) <= set(lessons.DETECTORS), sorted(lessons.DETECTORS)
+    glo = lessons.load_glossary(lessons.GLOSSARY)
+    assert SMC_KEYS <= set(glo), SMC_KEYS - set(glo)
+    assert {k for name in new for k in lessons.DETECTORS[name].glossary_keys()} == SMC_KEYS
+
+    # clean case per detector: its own seeded fixture -> >= 1 example with its primitives and glossary key
+    found = {}
+    for name, (fixture, prims) in TRACK3.items():
+        h = {"BTC/USD": {"1H": candles(fixture)}}
+        ex = find(name, h)
+        check_track12(ex, h)
+        assert ex and all(e["detector"] == name for e in ex), name
+        assert prims <= {p["type"] for p in ex[0]["primitives"]}, (name, ex[0]["primitives"])
+        found[name] = ex
+
+    # fvg: bullish gap between candle k-1's high and k+1's low, >= 0.3 ATR, zone from k-1 to the fill
+    e = found["fvg"][0]
+    f, zone = e["facts"], next(p for p in e["primitives"] if p["type"] == "zone")
+    src = candles("fvg")
+    k0 = _idx(src, f["before"]["t"])
+    assert f["kind"] == "bullish" and e["glossary"] == "fair_value_gap" and zone["label"] == "FVG"
+    assert (f["gap"]["low"], f["gap"]["high"]) == (src[k0]["h"], src[k0 + 2]["l"]) == (zone["low"], zone["high"])
+    assert f["gap"]["high"] - f["gap"]["low"] >= 0.3 * detectors.common._atr(src)[k0 + 1]
+    assert f["filled"] and f["fill"]["low"] < f["gap"]["low"] and zone["t1"] == f["before"]["t"]
+    assert zone["t2"] == f["fill"]["t"] == e["region"]["end"]
+    assert all(c["l"] >= f["gap"]["low"] for c in src[k0 + 2:_idx(src, f["fill"]["t"])])  # the first candle through
+    # the same gap left open (series cut before the fill): unfilled, zone to the window end
+    cut = src[:_idx(src, f["fill"]["t"])]
+    e2 = find("fvg", {"BTC/USD": {"1H": cut}})[0]
+    assert not e2["facts"]["filled"] and "fill" not in e2["facts"] and e2["facts"]["gap"] == f["gap"]
+    assert next(p for p in e2["primitives"] if p["type"] == "zone")["t2"] == e2["candles"][-1]["t"]
+
+    # order_block: the up-close candle at the last LH before the leg that closed below the LL (BOS), revisited
+    e = found["order_block"][0]
+    f, zone = e["facts"], next(p for p in e["primitives"] if p["type"] == "zone")
+    src = candles("order_block")
+    ob = src[_idx(src, f["block"]["t"])]
+    assert f["trend"] == "downtrend" and f["block"]["kind"] == "bearish" and ob["c"] > ob["o"]
+    assert (zone["low"], zone["high"], zone["label"]) == (ob["l"], ob["h"], "OB") == (f["block"]["low"], f["block"]["high"], "OB")
+    assert f["bos"]["close"] < f["bos"]["level"] and f["block"]["t"] < f["bos"]["t"]
+    assert [p for p in e["primitives"] if p["type"] == "level"] == [{"type": "level", "price": f["bos"]["level"], "label": "BOS"}]
+    assert f["revisited"] and f["bos"]["t"] < f["revisit"]["t"] == zone["t2"] == e["region"]["end"]
+    assert f["revisit"]["price"] >= ob["l"]
+    assert detectors.smc.find_order_blocks(src, detectors.common.find_swings(src))  # public helper
+
+    # mitigation vs breaker: a new low before the rally (swept) -> breaker; a HL (failed) -> mitigation
+    for fixture, kind in (("breaker", "breaker"), ("mitigation", "mitigation")):
+        h = {"BTC/USD": {"1H": candles(fixture)}}
+        ex = find("mitigation_breaker", h)
+        check_track12(ex, h)
+        e, src = ex[0], candles(fixture)
+        f, zone = e["facts"], next(p for p in e["primitives"] if p["type"] == "zone")
+        assert f["kind"] == kind and e["glossary"] == f"{kind}_block" and zone["label"] == kind.capitalize(), f
+        assert f["move"]["swept"] == (kind == "breaker")
+        assert (f["move"]["extreme"]["price"] < f["move"]["prior"]["price"]) == (kind == "breaker")
+        assert f["block"]["kind"] == "bearish" and f["failure"]["close"] > f["block"]["high"]
+        fi, ri = _idx(src, f["failure"]["t"]), _idx(src, f["return"]["t"])
+        assert f["bos"]["t"] < f["failure"]["t"] < f["return"]["t"] == e["region"]["end"] and ri - fi <= 30
+        assert any(c["l"] > f["block"]["high"] for c in src[fi + 1:ri])  # left the zone on the other side first
+        assert f["block"]["low"] <= f["return"]["price"] <= f["block"]["high"]
+        assert [p["text"] for p in e["primitives"] if p["type"] == "label"] == ["BOS", "Fail", "Return"]
+    # the return cut off: that block failed but price never came back -> it is not an example (an older
+    # block that failed and returned earlier may be)
+    src = candles("breaker")
+    full = found["mitigation_breaker"][0]["facts"]
+    ex = find("mitigation_breaker", {"BTC/USD": {"1H": src[:_idx(src, full["return"]["t"])]}})
+    assert all(x["facts"]["block"]["t"] != full["block"]["t"] for x in ex), ex
+
+    # premium_discount: HL -> HH range ending a 4-swing uptrend, EQ at 50%, a close enters discount
+    e = found["premium_discount"][0]
+    f = e["facts"]
+    lo, hi = f["range"]["low"]["price"], f["range"]["high"]["price"]
+    eq = next(p for p in e["primitives"] if p["type"] == "level")
+    zones = {p["label"]: p for p in e["primitives"] if p["type"] == "zone"}
+    assert f["trend"] == "uptrend" and [s["kind"] for s in f["swings"]] == ["HL", "HH"] and e["glossary"] == "premium_discount"
+    assert eq == {"type": "level", "price": (lo + hi) / 2, "label": "EQ"}
+    assert (zones["Premium"]["low"], zones["Premium"]["high"]) == (eq["price"], hi)
+    assert (zones["Discount"]["low"], zones["Discount"]["high"]) == (lo, eq["price"])
+    assert f["enters"]["zone"] == "discount" and lo <= f["enters"]["close"] < eq["price"] and f["enters"]["t"] == e["region"]["end"]
+    assert hi - lo >= 3 * detectors.common._atr(candles("premium_discount"))[_idx(candles("premium_discount"), f["range"]["high"]["t"])]
+    # the HH counts only from its confirming candle (+3): cut just before it, that range is never used
+    src = candles("premium_discount")
+    top = _idx(src, f["range"]["high"]["t"])
+    ex = find("premium_discount", {"BTC/USD": {"1H": src[:top + 3]}})
+    assert all(x["facts"]["range"]["high"]["t"] != f["range"]["high"]["t"] for x in ex), ex
+    entered = _idx(src, f["enters"]["t"])
+    assert entered >= top + 3  # the entering close comes after the confirmation
+    assert find("premium_discount", {"BTC/USD": {"1H": src[:entered + 1]}})[0]["facts"]["range"] == f["range"]
+
+    # sweep_choch_model: sweep of the last LL, then within 20 candles a CHoCH above the last LH, then a
+    # pullback into the leg's OB / FVG; all three marked in time order
+    ex = found["sweep_choch_model"]
+    assert len(ex) == 1
+    e, src = ex[0], candles("sweep_choch_model")
+    f = e["facts"]
+    assert f["trend"] == "downtrend" and e["glossary"] == "sweep_choch_model"
+    assert f["sweep"]["t"] < f["choch"]["t"] < f["return"]["t"] == e["region"]["end"]
+    assert _idx(src, f["choch"]["t"]) - _idx(src, f["sweep"]["t"]) <= 20
+    assert f["sweep"]["low"] < f["sweep"]["level"] <= f["sweep"]["close"] and f["choch"]["close"] > f["choch"]["level"]
+    assert f["choch"]["swing_kind"] == "LH" and f["zone"]["kind"] in ("OB", "FVG")
+    labels = {p["text"]: p for p in e["primitives"] if p["type"] == "label"}
+    assert set(labels) == {"Sweep", "CHoCH"} and labels["Sweep"]["t"] == f["sweep"]["t"] < labels["CHoCH"]["t"]
+    assert [p["price"] for p in e["primitives"] if p["type"] == "level"] == [f["choch"]["level"]]
+    zone = next(p for p in e["primitives"] if p["type"] == "zone")
+    assert (zone["label"], zone["low"], zone["high"]) == (f["zone"]["kind"], f["zone"]["low"], f["zone"]["high"])
+    assert f["sweep"]["t"] <= zone["t1"] <= f["choch"]["t"] and zone["t2"] == f["return"]["t"]
+    assert f["zone"]["low"] <= f["return"]["price"] <= f["zone"]["high"]
+    # out of order: the CHoCH comes first, the sweep after it -> no model example
+    src = candles("choch_before_sweep")
+    sw = detectors.common.find_swings(src)
+    choch = [ev["i"] for ev in detectors.structure.structure_events(src, sw) if ev["kind"] == "CHoCH"]
+    sweeps = [s["i"] for s in detectors.liquidity.find_sweeps(src, sw)]
+    assert choch and sweeps and min(sweeps) > max(choch), (choch, sweeps)
+    assert find("sweep_choch_model", {"BTC/USD": {"1H": src}}) == []
+    # price trades beyond the sweep's low before the CHoCH: the sweep was not the turn -> no model example
+    src = candles("sweep_choch_model")
+    si, mi = _idx(src, f["sweep"]["t"]), _idx(src, f["choch"]["t"])
+    deeper = [dict(c) for c in src]
+    deeper[si + 2]["l"] = f["sweep"]["low"] - 0.5  # a wick below it, closes unchanged
+    sw = detectors.common.find_swings(deeper)
+    assert [s["i"] for s in detectors.liquidity.find_sweeps(deeper, sw)] == [si] and si + 2 < mi
+    assert [ev["i"] for ev in detectors.structure.structure_events(deeper, sw) if ev["kind"] == "CHoCH"] == [mi]
+    assert find("sweep_choch_model", {"BTC/USD": {"1H": deeper}}) == []
+    # an FVG of the leg traded into before the CHoCH is not untested: a dip into the gap of candles
+    # si+1..si+3 before the CHoCH, then a pullback wick into it and the CHoCH's own gap on one candle
+    # -> the model shows the CHoCH's gap, never the one already entered
+    gaps = {g["i"]: g for g in detectors.smc.find_fvgs(src)}
+    old = gaps[si + 2]
+    assert old["up"] and old["fill"] is None and mi == si + 4
+    t0 = datetime.fromisoformat(src[si + 3]["t"])
+    dip = {"t": (t0 + timedelta(hours=1)).isoformat(), "o": src[si + 3]["c"], "h": src[si + 3]["c"] + 0.2,
+           "l": old["high"] - 0.21, "c": src[si + 3]["c"] - 0.1}
+    tested = src[:si + 4] + [dip] + [dict(c, t=(datetime.fromisoformat(c["t"]) + timedelta(hours=1)).isoformat())
+                                     for c in src[si + 4:]]
+    tested[mi + 5] = dict(tested[mi + 5], l=dip["l"])  # dives into both gaps, stays above the OB
+    ex = find("sweep_choch_model", {"BTC/USD": {"1H": tested}})
+    check_track12(ex, {"BTC/USD": {"1H": tested}})
+    z = ex[0]["facts"]["zone"]
+    assert z["t"] != src[si + 1]["t"] and (z["kind"], z["low"]) == ("FVG", dip["h"]), z
+    choch_i = _idx(tested, ex[0]["facts"]["choch"]["t"])
+    assert all(c["l"] > z["high"] for c in tested[_idx(tested, z["t"]) + 2:choch_i + 1])  # untouched until the CHoCH
+
+    # second example on another asset, else another timeframe
+    h = {"BTC/USD": {"1H": candles("breaker")}, "ETH/USD": {"1H": candles("mitigation")}}
+    ex = find("mitigation_breaker", h)
+    check_track12(ex, h)
+    assert len(ex) == 2 and {e["asset"] for e in ex} == {"BTC/USD", "ETH/USD"}
+    assert {e["facts"]["kind"] for e in ex} == {"breaker", "mitigation"}
+    h = {"XAU/USD": {"1H": candles("premium_discount"), "4H": candles("premium_discount")}}
+    ex = find("premium_discount", h)
+    check_track12(ex, h)
+    assert [e["timeframe"] for e in ex] == ["4H", "1H"]
+
+    # no clean case: choppy range, its daily-fix twin, empty and too-short series -> [] from every SMC detector
+    chop, short = candles("choppy"), candles("sweep_choch_model")[:6]
+    for h in ({"BTC/USD": {"1H": chop}}, {"EUR/USD": {"1D": daily_fix(chop)}}, {}, {"BTC/USD": {"1H": short}},
+              {"BTC/USD": {"1H": candles("sweep_choch_model")[:20]}},
+              {"BTC/USD": {"1H": chop, "4H": aggregate(chop, 4 * 3600)}}):
+        for name in new:
+            assert find(name, h) == [], (name, h.keys())
+    # a daily fix has no candle bodies or wicks: no gap, order block or sweep is read from it
+    h = {"EUR/USD": {"1D": daily_fix(candles("sweep_choch_model"))}}
+    for name in ("fvg", "order_block", "mitigation_breaker", "sweep_choch_model"):
+        assert find(name, h) == [], name
+
+    # repeat run: same history -> identical examples, byte for byte; input untouched
+    h = {"BTC/USD": {"1H": candles("sweep_choch_model"), "4H": candles("fvg")},
+         "ETH/USD": {"1H": candles("breaker")}, "XAU/USD": {"1H": candles("premium_discount")},
+         "EUR/USD": {"1D": daily_fix(candles("order_block"))}}
+    before = json.dumps(h, sort_keys=True)
+    for name in new:
+        a, b = find(name, h), find(name, copy.deepcopy(h))
+        check_track12(a, h)
+        assert a and json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True), name
+    assert json.dumps(h, sort_keys=True) == before
+
+    # earlier detectors: 1.2 (swings / bos_choch) and 1.7 (tracks 1-2) outputs on the existing fixtures unchanged
+    assert structure_digest() == STRUCTURE_DIGEST
+    assert track12_digest() == TRACK12_DIGEST
+    print(f"OK track 3 detectors ({', '.join(new)}: clean case per fixture, FVG fill / open, OB + BOS + revisit, "
+          "breaker vs mitigation + return from the other side, EQ + premium / discount + confirmation, "
+          "sweep -> CHoCH -> OB/FVG in time order, CHoCH before sweep / beyond the sweep / tested gap -> none, choppy / short / daily fix -> [], "
+          "second example, repeat runs identical, facts from candles, 1.2 and 1.7 outputs unchanged)")
+
+
 # ─── lesson price history (network mocked) ─────────────────────────────────
 
 class _Resp:
@@ -1167,6 +1383,7 @@ def main():
     test_detectors()
     test_top_down()
     test_detectors_tracks_1_2()
+    test_detectors_track_3()
     test_fetch()
     test_narration()
 
