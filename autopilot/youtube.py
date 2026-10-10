@@ -1,7 +1,7 @@
 """Upload to YouTube with SEO metadata (YouTube Data API v3).
 
 Daily Shorts: upload() / set_thumbnail() request only SCOPES (youtube.upload), as always.
-Lessons: upload_lesson() / delete_video() use their own client with LESSON_SCOPES (adds playlists and
+Lessons: upload_lesson(playlists=False) needs only SCOPES; with playlists, upload_lesson() / delete_video() use LESSON_SCOPES (adds playlists and
 analytics read); they need a refresh token made by get_token.py with those scopes.
 Owner's live test: python -m autopilot.youtube test-lesson <mp4> <thumbnail> [--days 30]
 """
@@ -217,11 +217,13 @@ def ensure_playlist(yt, title: str, description: str, log=print, privacy: str = 
     return res["id"]
 
 
-def upload_lesson(video: Path, meta: dict, thumbnail: Path, track_playlist: str, path_playlist: str,
+def upload_lesson(video: Path, meta: dict, thumbnail: Path, track_playlist: str | None, path_playlist: str | None,
                   review_hours: float = 24, notify: bool = True, log=print,
-                  playlist_privacy: str = "public") -> dict:
+                  playlist_privacy: str = "public", playlists: bool = True) -> dict:
     """Upload a 16:9 lesson (Education), private with publishAt review_hours later; set its custom
-    thumbnail; add it to its track playlist and the master Path playlist (each created if missing).
+    thumbnail; with `playlists`, add it to its track playlist and the master Path playlist (each created
+    if missing). Without `playlists` it needs only the youtube.upload scope the daily Shorts already use,
+    so the existing token works; the owner manages playlists in Studio.
 
     meta = lesson_meta.build_lesson_metadata() ({title, description, tags, category_id}); chapters are the
     "0:00 Intro" lines of its description. A thumbnail refusal or a playlist failure is logged and reported,
@@ -245,13 +247,15 @@ def upload_lesson(video: Path, meta: dict, thumbnail: Path, track_playlist: str,
         },
         "status": status,
     }
-    yt = _client(LESSON_SCOPES)
+    yt = _client(LESSON_SCOPES if playlists else SCOPES)
     vid = _insert(yt, video, body, bool(notify), log)
     log(f"Uploaded lesson: https://youtube.com/watch?v={vid} (status: {status['privacyStatus']}"
         + (f", goes public {publish_at}" if publish_at else "") + ")")
     result = {"video_id": vid, "publish_at": publish_at, "thumbnail_set": False, "playlists": {}, "errors": []}
     result["thumbnail_set"] = _set_thumbnail(yt, vid, thumbnail, log, "YouTube picks a frame instead")
 
+    if not playlists:
+        return result
     for title, desc in ((track_playlist, f"{LESSON_BRAND} · {track_playlist}"),
                         (path_playlist, f"{LESSON_BRAND} in curriculum order")):
         result["playlists"][title] = None
@@ -305,11 +309,13 @@ def _main(argv: list[str] | None = None) -> int:
     tl.add_argument("mp4", type=Path)
     tl.add_argument("thumbnail", type=Path)
     tl.add_argument("--days", type=float, default=30, help="publishAt this many days ahead (default 30)")
+    tl.add_argument("--playlists", action="store_true",
+                    help="also test playlists and delete afterwards (needs a token with the lesson scopes)")
     args = ap.parse_args(argv)
 
     missing = [k for k in ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN") if not os.environ.get(k)]
     if missing:
-        print(f"set {', '.join(missing)} first (a refresh token from get_token.py with the lesson scopes)")
+        print(f"set {', '.join(missing)} first")
         return 2
     for f in (args.mp4, args.thumbnail):
         if not f.is_file():
@@ -323,25 +329,32 @@ def _main(argv: list[str] | None = None) -> int:
     vid, rc = None, 0
     try:
         res = upload_lesson(args.mp4, _test_meta(duration), args.thumbnail, TEST_TRACK, TEST_PATH,
-                            review_hours=args.days * 24, notify=False, playlist_privacy="private")
+                            review_hours=args.days * 24, notify=False, playlist_privacy="private",
+                            playlists=args.playlists)
         vid = res["video_id"]
         print(json.dumps(res, indent=2))
         rc = 1 if res["errors"] or not res["thumbnail_set"] else 0
         if sys.stdin.isatty():
-            input(f"Check https://studio.youtube.com/video/{vid}/edit (private, chapters, thumbnail, playlists), "
-                  "then press Enter to delete it… ")
+            input(f"Check https://studio.youtube.com/video/{vid}/edit (private, chapters, thumbnail"
+                  + (", playlists" if args.playlists else "") + "), then press Enter… ")
     except Exception as e:
         print(f"test upload failed: {e}")
         rc = 1
     finally:  # never leave the test video or test playlists on the channel
-        rc = max(rc, _cleanup_test(vid))
+        rc = max(rc, _cleanup_test(vid, args.playlists))
     return rc
 
 
-def _cleanup_test(vid: str | None) -> int:
-    """Delete what the test created; playlists are only made after a successful upload."""
+def _cleanup_test(vid: str | None, playlists: bool = True) -> int:
+    """Delete what the test created; playlists are only made after a successful upload. Deleting a video
+    needs the `youtube` scope, so with an upload-only token the owner deletes it in Studio (it stays
+    private, scheduled far ahead, so it never goes public on its own before that)."""
     if not vid:
         print("nothing to clean up (no video was uploaded)")
+        return 0
+    if not playlists:
+        print(f"delete the test video in YouTube Studio: https://studio.youtube.com/video/{vid}/edit "
+              "(it is private and scheduled far ahead)")
         return 0
     rc = 0
     try:

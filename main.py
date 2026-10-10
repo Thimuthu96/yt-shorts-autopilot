@@ -308,8 +308,8 @@ def lesson_playlists(cfg: dict, track: int) -> tuple[str, str]:
 
 def publish_lesson(made: dict, pending: list[str], cfg: dict) -> tuple[dict, list[str]]:
     """Publish one made lesson to each pending platform on its own (as publish() does for the daily
-    editions): YouTube gets the 16:9 video through youtube.upload_lesson (lesson scopes, playlists,
-    review window), Facebook the 9:16 video through facebook.publish_video. A failure on one is logged
+    editions): YouTube gets the 16:9 video through youtube.upload_lesson (review window; playlists only
+    with lessons.playlists: true, which needs the lesson-scope token), Facebook the 9:16 video through facebook.publish_video. A failure on one is logged
     and never blocks (or repeats) the other. Returns (entry with the ids it got, failed platforms)."""
     entry, failed = made["entry"], []
     lc = cfg.get("lessons") or {}
@@ -320,7 +320,8 @@ def publish_lesson(made: dict, pending: list[str], cfg: dict) -> tuple[dict, lis
             track_pl, path_pl = lesson_playlists(cfg, made["track"])
             res = youtube.upload_lesson(made["videos"]["16x9"], meta, made["thumbnail"], track_pl, path_pl,
                                         review_hours=lc.get("review_window_hours", 24),
-                                        notify=cfg["upload"].get("notify_subscribers", True), log=log)
+                                        notify=cfg["upload"].get("notify_subscribers", True), log=log,
+                                        playlists=bool(lc.get("playlists", False)))
             entry["video_id"] = res["video_id"]
             if res.get("publish_at"):
                 entry["publish_at"] = res["publish_at"]

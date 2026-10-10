@@ -1513,6 +1513,15 @@ def test_youtube_lesson(cfg):
         fake = use(FakeYouTube(playlists=[track, path], fail={"videos.insert": _http_error(503, "backendError")}))
         assert youtube.upload_lesson(video, meta, thumb, track, path, log=logs.append)["video_id"] == "VID1"
 
+        # playlists off (owner manages them by hand): only the upload scope, no playlist calls
+        fake = use(FakeYouTube())
+        scopes_seen.clear()
+        res = youtube.upload_lesson(video, meta, thumb, None, None, log=logs.append, playlists=False)
+        assert res["video_id"] == "VID1" and res["thumbnail_set"] and res["playlists"] == {}, res
+        assert scopes_seen == [youtube.SCOPES], scopes_seen
+        assert not [o for o, _ in fake.calls if o.startswith("playlist")], fake.calls
+        scopes_seen.clear()
+
         # delete (owner's test cleanup) uses the lesson scopes
         fake = use(FakeYouTube())
         youtube.delete_video("VID1", log=logs.append)
@@ -1524,13 +1533,13 @@ def test_youtube_lesson(cfg):
         import contextlib
         import io
 
-        def cli(fake, creds=FakeCreds):
+        def cli(fake, creds=FakeCreds, extra=("--playlists",)):
             use(fake)
             youtube.Credentials, out, stdin = creds, io.StringIO(), sys.stdin
             sys.stdin = io.StringIO()
             try:
                 with contextlib.redirect_stdout(out):
-                    rc = youtube._main(["test-lesson", str(video), str(thumb), "--days", "30"])
+                    rc = youtube._main(["test-lesson", str(video), str(thumb), "--days", "30", *extra])
             finally:
                 youtube.Credentials, sys.stdin = FakeCreds, stdin
             return rc, out.getvalue()
@@ -1548,6 +1557,14 @@ def test_youtube_lesson(cfg):
         fake = FakeYouTube(fail={"videos.delete": _http_error(500, "backendError")})
         rc, out = cli(fake)
         assert rc == 1 and "could not delete test video VID1" in out and fake.count("playlists.delete") == 2, out
+
+        # default test (no --playlists): works with the upload-only token, nothing deleted via the API
+        fake = FakeYouTube()
+        scopes_seen.clear()
+        rc, out = cli(fake, extra=())
+        assert rc == 0 and "delete the test video in YouTube Studio" in out, out
+        assert scopes_seen == [youtube.SCOPES] and fake.count("videos.delete") == 0, (scopes_seen, out)
+        assert not [o for o, _ in fake.calls if o.startswith("playlist")], fake.calls
 
         # old token without the lesson scopes → upload fails, nothing to clean, no false "delete in Studio"
         class OldToken(FakeCreds):
@@ -1638,9 +1655,9 @@ def test_lesson_edition(cfg):
                          "fb_title": f"FB {entry['id']}", "fb_description": "fd"}}
 
     def fake_upload_lesson(video, meta, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
-                           log=print, playlist_privacy="public"):
+                           log=print, playlist_privacy="public", playlists=True):
         yt.append({"video": Path(video).name, "title": meta["title"], "track": track_playlist,
-                   "path": path_playlist, "review": review_hours})
+                   "path": path_playlist, "review": review_hours, "playlists": playlists})
         return {"video_id": f"Y{len(yt)}", "publish_at": "2026-10-14T14:40:00.000Z", "thumbnail_set": True,
                 "playlists": {}, "errors": []}
 
@@ -1693,7 +1710,7 @@ def test_lesson_edition(cfg):
         assert [m["id"] for m in made] == ["swing-structure"] and made[0]["examples"], made
         assert made[0]["next"] == "bos-vs-choch" and len(fetched) == 1
         assert yt == [{"video": "lesson_16x9.mp4", "title": "Lesson swing-structure", "track": "Track 0 · Structure",
-                       "path": "Trading Lessons · The Path", "review": 24}], yt
+                       "path": "Trading Lessons · The Path", "review": 24, "playlists": False}], yt  # config default
         assert fb == [{"video": "lesson_9x16.mp4", "title": "FB swing-structure", "published": True}], fb
         h = history()
         assert len(h) == 1 and h[0]["kind"] == "lesson" and h[0]["episode"] == "swing-structure", h

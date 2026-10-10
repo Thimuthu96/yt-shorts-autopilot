@@ -218,9 +218,11 @@ the backup run re-makes the same episode (same examples) and publishes only the 
 that episode can't be re-made, the run fails so you see it.
 
 To switch them on:
-1. **YouTube token with the lesson scopes:** run `python get_token.py` again (it now also asks for
-   playlist and analytics access) and replace the **`YT_REFRESH_TOKEN`** secret with the new token.
-   The daily Shorts keep working with it (they still ask only for `youtube.upload`).
+1. **YouTube:** nothing to change: lessons upload with the existing `YT_REFRESH_TOKEN` and you add
+   them to playlists by hand in YouTube Studio (`lessons.playlists: false`). Only if you want automatic
+   playlists: add the `youtube` and `yt-analytics.readonly` scopes to the OAuth consent screen, run
+   `python get_token.py --lesson-scopes`, replace **`YT_REFRESH_TOKEN`**, set `lessons.playlists: true`.
+   Custom thumbnails on long videos need a phone-verified channel (youtube.com/verify).
 2. **Curriculum:** merge the approved `lessons/curriculum.yaml` and `lessons/glossary.yaml`;
    `python tests/test_lessons.py` must pass (a run with curriculum problems lists them and fails).
 3. Set **`lessons.enabled: true`** in `config.yaml` and push.

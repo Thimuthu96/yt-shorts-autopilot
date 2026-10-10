@@ -51,9 +51,9 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
                             to publish in this slot", exit 0
   → make_lesson()           narration (lesson_script) → voice → 16:9 + 9:16 renders, thumbnail, chapters,
                             lesson_meta metadata (examples found by the hold check are passed through)
-  → publish_lesson(pending) youtube.upload_lesson() 16:9 (LESSON_SCOPES, private + publishAt 24 h, track +
-                            Path playlists) · facebook.publish_video() 9:16 (/{page}/videos); one failure
-                            never blocks the other
+  → publish_lesson(pending) youtube.upload_lesson() 16:9 (private + publishAt 24 h; track + Path playlists
+                            only with lessons.playlists: true) · facebook.publish_video() 9:16
+                            (/{page}/videos); one failure never blocks the other
   → history.json            kind: lesson, episode, track, examples (asset/timeframe/start/end), video_id,
                             fb_video_id
 ```
@@ -82,8 +82,8 @@ rule and the once-per-edition-per-day-per-platform guard:
   `DEFAULT_SESSIONS` as a fallback if config lacks them (no lesson there).
 - **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
   work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (gold without `days` = Mon–Fri).
-- **Lessons are off until `lessons.enabled: true`** (owner: after swapping `YT_REFRESH_TOKEN` for one
-  with the lesson scopes and merging the curriculum). While off, lesson runs log why and exit 0 without
+- **Lessons are off until `lessons.enabled: true`** (owner: after merging the curriculum; the existing
+  `YT_REFRESH_TOKEN` works while `lessons.playlists: false`, the owner's choice — playlists by hand). While off, lesson runs log why and exit 0 without
   fetching or publishing; a manual `--no-upload` run still makes one. An episode whose detector finds
   no clean example is held (logged, never stored) and the next one goes out. Manual lesson runs
   (without `--as-edition`) always take the next unpublished episode (`counts: false`). A counting run
@@ -138,7 +138,7 @@ Autopilot uses 4 on weekdays (5 on Tue/Thu with lessons on), so about 1–2 manu
 main.py                  orchestration, CLI: --session, --platforms, --scheduled (timed), --as-edition, --force, --no-upload,
                          --lesson-sample; lessons: make_lesson_edition, make_lesson, publish_lesson
 config.yaml              all settings (channel, llm, market, sessions, lessons, voice, video, upload)
-get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets (daily + lesson scopes)
+get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets (--lesson-scopes adds playlists)
 setup_cronjobs.py        creates / fixes the cron-job.org jobs from config.yaml sessions (start_utc, days)
 autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frankfurter FX, gold, macro
 autopilot/focus.py       lead story + related assets (keywords, scoring, typical market links)
@@ -149,8 +149,8 @@ autopilot/thumbnail.py   4 thumbnail templates (Pillow) + choose() + clean_hook(
 autopilot/slides.py      per-scene graphics (Pillow + matplotlib)
 autopilot/render.py      ffmpeg segments, chart draw-in, push-in, ASS captions, mix
 autopilot/voice.py       edge-tts per scene, WordBoundary timings
-autopilot/youtube.py     metadata assembly, upload (+ clear quota error), set_thumbnail; upload_lesson (LESSON_SCOPES,
-                         playlists, publishAt review window), delete_video
+autopilot/youtube.py     metadata assembly, upload (+ clear quota error), set_thumbnail; upload_lesson (publishAt
+                         review window; playlists + LESSON_SCOPES only when asked), delete_video
 autopilot/facebook.py    Graph API v26.0: publish_reel, publish_photo, publish_video (lessons, chunked /videos),
                          classified errors/retries, reel_caption
 autopilot/news_post.py   FB news posts: pick_story, write_post (Gemini + fact_check + fallback), caption
@@ -266,10 +266,10 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
 ## Upload / YouTube
 
 - OAuth secrets: `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN` (from `get_token.py`).
-  Daily Shorts (`youtube.upload()` / `set_thumbnail()`) request only `youtube.upload` (`SCOPES`); lessons
-  (`upload_lesson()` / `delete_video()`) request `LESSON_SCOPES` = `youtube.upload` + `youtube` (playlists,
-  delete) + `yt-analytics.readonly`. `get_token.py` asks for all three, so one refresh token serves both;
-  a token made with only `youtube.upload` makes lesson uploads fail (daily ones keep working). Google Cloud project "Everyday Science", OAuth app "Tiny Whys
+  Daily Shorts (`youtube.upload()` / `set_thumbnail()`) and lessons with `lessons.playlists: false`
+  (owner's choice, playlists managed by hand) request only `youtube.upload` (`SCOPES`), so the existing
+  token serves both. Only `lessons.playlists: true` (and `delete_video()` / `test-lesson --playlists`)
+  request `LESSON_SCOPES` = + `youtube` + `yt-analytics.readonly`, which needs `get_token.py --lesson-scopes`. Google Cloud project "Everyday Science", OAuth app "Tiny Whys
   Uploader" (old name, harmless), **In production** (Testing mode would expire tokens in 7 days).
   Branding page uses a GitHub Pages home page + privacy policy (`<user>.github.io`).
 - Un-audited API projects upload as **private**; the YouTube API Services audit form removes it.

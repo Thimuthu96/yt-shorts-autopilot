@@ -134,7 +134,10 @@ lessons:
   enabled: false
   max_seconds: 300            # narration limit; re-recorded faster when over
   review_window_hours: 24     # YouTube: private, then public on its own this many hours later
-  path_playlist: "Trading Lessons · The Path"   # every lesson, curriculum order
+  # Automatic playlists: false = add lessons to playlists by hand in YouTube Studio (works with the
+  # current YT_REFRESH_TOKEN). true = needs a new token: `python get_token.py --lesson-scopes`.
+  playlists: false
+  path_playlist: "Trading Lessons · The Path"   # every lesson, curriculum order (only with playlists: true)
   track_playlist: "Track {n} · {name}"          # {n} = track number, {name} = track name
   fb_published: true          # false = Facebook videos are uploaded unpublished
 
