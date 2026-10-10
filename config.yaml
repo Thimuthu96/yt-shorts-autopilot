@@ -80,9 +80,20 @@ sessions:
     start_utc: "16:30"
     kind: post
     platforms: [facebook]
+  # Trading lesson (kind: lesson): the next curriculum episode as a 16:9 YouTube video (Education)
+  # and a 9:16 Facebook Page video, Tue/Thu/Sat/Sun only (`days`: timed runs skip other days; a
+  # manual run works any day). 14:30 UTC = 20:00 Sri Lanka. Off until `lessons.enabled: true`.
+  lesson:
+    label: Trading Lesson
+    short: Lesson
+    start_utc: "14:30"
+    kind: lesson
+    days: [tue, thu, sat, sun]
+    platforms: [youtube, facebook]
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
-# (automatic runs only; a manual run can still choose any edition). News posts run every day.
-weekend_sessions: [london, news_morning, news_midday, news_evening]
+# (automatic runs only; a manual run can still choose any edition). News posts run every day;
+# the lesson runs on its own `days` (Saturday and Sunday included).
+weekend_sessions: [london, news_morning, news_midday, news_evening, lesson]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180
@@ -114,6 +125,18 @@ images:
   provider: cloudflare
   model: "@cf/black-forest-labs/flux-1-schnell"
   steps: 6                    # 4-8; ~60 of the free 10k daily neurons per image
+
+# ─── Trading lessons (the `lesson` edition) ─────────────────────────────────
+# Curriculum: lessons/curriculum.yaml (list order = queue), glossary: lessons/glossary.yaml.
+# Keep enabled: false until YT_REFRESH_TOKEN has the lesson scopes (python get_token.py) and the
+# owner's curriculum is merged; while false, lesson runs log why and stop (nothing fetched or posted).
+lessons:
+  enabled: false
+  max_seconds: 300            # narration limit; re-recorded faster when over
+  review_window_hours: 24     # YouTube: private, then public on its own this many hours later
+  path_playlist: "Trading Lessons · The Path"   # every lesson, curriculum order
+  track_playlist: "Track {n} · {name}"          # {n} = track number, {name} = track name
+  fb_published: true          # false = Facebook videos are uploaded unpublished
 
 # ─── Gold outlook ───────────────────────────────────────────────────────────
 gold:

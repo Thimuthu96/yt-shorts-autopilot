@@ -211,6 +211,7 @@ def main():
     test_lesson_slides(cfg)
     test_lesson_render(cfg)
     test_youtube_lesson(cfg)
+    test_lesson_edition(cfg)
 
 
 def test_gold(cfg, small, data):
@@ -291,6 +292,11 @@ def test_history():
         assert "Fed holds rates" not in h.used_headlines() and "Story L" in h.used_headlines()
         assert h.last("post")["topic"] == "rates" and h.last("market")["fb_reel_id"] == "r1"
         assert not h.add({"fb_post_id": "p1"})
+        # lessons have no headlines and don't take places in the videos' last-15 "don't repeat" window
+        for i in range(16):
+            h.add({"brief_date": "2026-10-07", "session": "lesson", "kind": "lesson", "episode": f"e{i}",
+                   "video_id": f"l{i}", "date": "2026-10-07T14:35:00+00:00"})
+        assert "Story L" in h.used_headlines(), h.used_headlines()
     print("OK history")
 
 
@@ -1547,6 +1553,269 @@ def test_youtube_lesson(cfg):
                 os.environ[k] = v
     print("OK YouTube lesson publishing (Education, private + publishAt 24 h, thumbnail, track + Path playlists, "
           "daily scopes unchanged)")
+
+
+def test_lesson_edition(cfg):
+    """The lesson edition through main() (entry 12): days rule, lessons.enabled, next episode on both
+    platforms, the guard, a held episode, one platform failing + the re-run of the slot's recorded
+    episode, empty slots, curriculum problems, a manual run on another day, history merge by
+    fb_video_id and the cron-job.org days. Price history, make_lesson and both publishers are faked."""
+    import main as app
+    import setup_cronjobs
+    from autopilot import lesson_data, lessons, youtube
+
+    clock = [datetime(2026, 10, 13, 14, 35, tzinfo=timezone.utc)]  # a Tuesday, 5 min after 14:30
+
+    class FixedNow(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock[0].astimezone(tz) if tz else clock[0].replace(tzinfo=None)
+
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "lessons").mkdir()
+    shutil.copy(ROOT / "tests" / "lessons" / "glossary.yaml", tmp / "lessons" / "glossary.yaml")
+    sample = (ROOT / "tests" / "lessons" / "curriculum.yaml").read_text(encoding="utf-8")
+    (tmp / "lessons" / "curriculum.yaml").write_text(sample, encoding="utf-8")
+    ids = [e["id"] for e in lessons.load_curriculum(tmp / "lessons" / "curriculum.yaml")]
+    assert ids == ["swing-structure", "bos-vs-choch", "top-down-reading"], ids
+
+    def write_cfg(enabled: bool):
+        c = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+        c["lessons"]["enabled"] = enabled
+        (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
+
+    def history() -> list[dict]:
+        f = tmp / "data" / "history.json"
+        return json.loads(f.read_text())["videos"] if f.exists() else []
+
+    available = {"swings", "bos_choch", "top_down"}  # detectors that find a clean example
+    fetched, made, yt, fb, logs = [], [], [], [], []
+    fail_fb, other_first = [False], [False]
+    region = {"start": "2026-09-01T00:00:00+00:00", "end": "2026-09-02T00:00:00+00:00", "low": 1, "high": 2}
+
+    def fake_detector(name):
+        real = lessons.DETECTORS[name]
+
+        def find(hist):
+            assert hist == {"BTC/USD": {"1H": [{"t": "x"}]}}, hist
+            if name not in available:
+                return []
+            ex = {"asset": "BTC/USD", "timeframe": "1H", "date": "2026-09-01", "detector": name, "region": region}
+            other = {**ex, "asset": "ETH/USD", "region": {**region, "start": "2026-09-05T00:00:00+00:00"}}
+            return [other, ex] if other_first[0] else [ex]  # other_first: a new example now ranks first
+        return lessons.Detector(name, real.glossary, find)
+
+    def fake_fetch(log=print, now=None):
+        fetched.append(1)
+        return {"BTC/USD": {"1H": [{"t": "x"}]}}
+
+    def fake_make_lesson(cfg_, entry, glossary, hist, workdir=None, next_entry=None, log=print, examples=None):
+        if examples is None:  # as the real one: run the detector itself
+            examples = lessons.DETECTORS[entry["detector"]].find(hist)
+            if not examples:
+                return {"held": f"{entry['id']}: no clean example"}
+        made.append({"id": entry["id"], "examples": examples, "next": (next_entry or {}).get("id"),
+                     "glossary": sorted(glossary)})
+        wd = Path(workdir)
+        wd.mkdir(parents=True, exist_ok=True)
+        return {"videos": {"16x9": wd / "lesson_16x9.mp4", "9x16": wd / "lesson_9x16.mp4"},
+                "thumbnail": wd / "thumbnail.jpg", "seconds": 120.0, "chapters": [], "workdir": wd,
+                "examples": examples,
+                "meta": {"title": f"Lesson {entry['id']}", "description": "d", "tags": [], "category_id": "27",
+                         "fb_title": f"FB {entry['id']}", "fb_description": "fd"}}
+
+    def fake_upload_lesson(video, meta, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
+                           log=print, playlist_privacy="public"):
+        yt.append({"video": Path(video).name, "title": meta["title"], "track": track_playlist,
+                   "path": path_playlist, "review": review_hours})
+        return {"video_id": f"Y{len(yt)}", "publish_at": "2026-10-14T14:40:00.000Z", "thumbnail_set": True,
+                "playlists": {}, "errors": []}
+
+    def fake_publish_video(video, title, description, cfg_, published=True, poll_minutes=None, log=print):
+        fb.append({"video": Path(video).name, "title": title, "published": published})
+        if fail_fb[0]:
+            e = RuntimeError("Facebook video V9 failed: bad codec")
+            e.video_id = "V9"
+            raise e
+        return f"F{len(fb)}"
+
+    def run(*argv) -> int:
+        logs.clear()
+        return app.main(list(argv))
+
+    def said(text: str) -> bool:
+        return any(text in m for m in logs)
+
+    saved_det = dict(lessons.DETECTORS)
+    saved = (app.ROOT, app.datetime, app.make_lesson, app.log, lesson_data.fetch_history, youtube.upload_lesson,
+             facebook.publish_video, youtube.upload, youtube.set_thumbnail)
+    env = {k: os.environ.get(k) for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN")}
+    for name in available:
+        lessons.DETECTORS[name] = fake_detector(name)
+    app.ROOT, app.datetime, app.make_lesson, app.log = tmp, FixedNow, fake_make_lesson, logs.append
+    lesson_data.fetch_history, youtube.upload_lesson, facebook.publish_video = (fake_fetch, fake_upload_lesson,
+                                                                                fake_publish_video)
+    youtube.upload = youtube.set_thumbnail = lambda *a, **k: (_ for _ in ()).throw(AssertionError("daily upload"))
+    os.environ["FB_PAGE_ID"], os.environ["FB_PAGE_TOKEN"] = "PAGE", "TOKEN"
+    try:
+        # disabled: timed and manual runs log why and stop before fetching; manual --no-upload still makes
+        write_cfg(False)
+        assert run("--session", "lesson", "--scheduled") == 0 and said("lessons.enabled is false"), logs
+        assert run("--session", "lesson") == 0 and said("lessons.enabled is false"), logs
+        assert not fetched and not made and not yt and not fb
+        assert run("--session", "lesson", "--no-upload") == 0 and made[-1]["id"] == "swing-structure", logs
+        assert not yt and not fb and not history()
+        made.clear()
+        fetched.clear()
+
+        write_cfg(True)
+        # wrong day: a timed run on Monday is skipped before anything is fetched
+        clock[0] = datetime(2026, 10, 12, 14, 35, tzinfo=timezone.utc)
+        assert run("--session", "lesson", "--scheduled") == 0 and said("runs only on tue, thu, sat, sun"), logs
+        assert not fetched and not made
+
+        # Tuesday: episode 1 made once (examples from the hold check passed through), both platforms
+        clock[0] = datetime(2026, 10, 13, 14, 35, tzinfo=timezone.utc)
+        assert run("--session", "lesson", "--scheduled") == 0, logs
+        assert [m["id"] for m in made] == ["swing-structure"] and made[0]["examples"], made
+        assert made[0]["next"] == "bos-vs-choch" and len(fetched) == 1
+        assert yt == [{"video": "lesson_16x9.mp4", "title": "Lesson swing-structure", "track": "Track 0 · Structure",
+                       "path": "Trading Lessons · The Path", "review": 24}], yt
+        assert fb == [{"video": "lesson_9x16.mp4", "title": "FB swing-structure", "published": True}], fb
+        h = history()
+        assert len(h) == 1 and h[0]["kind"] == "lesson" and h[0]["episode"] == "swing-structure", h
+        assert h[0]["video_id"] == "Y1" and h[0]["fb_video_id"] == "F1" and h[0]["platforms"] == ["youtube", "facebook"]
+        assert h[0]["session"] == "lesson" and h[0]["brief_date"] == "2026-10-13" and h[0]["counts"] is True
+        assert h[0]["examples"] == [{"asset": "BTC/USD", "timeframe": "1H", "start": region["start"],
+                                     "end": region["end"]}], h[0]["examples"]  # identity only, no candles
+        assert list((tmp / "output").glob("*/history_entry.json"))
+        # the backup run of the same slot: everything is out → nothing fetched or made
+        assert run("--session", "lesson", "--scheduled") == 0 and said("already published"), logs
+        assert len(made) == 1 and len(fetched) == 1 and len(history()) == 1
+
+        # Thursday: episode 2's detector finds nothing → held (logged with its reason, not stored), episode 3 made
+        clock[0] = datetime(2026, 10, 15, 14, 35, tzinfo=timezone.utc)
+        available.discard("bos_choch")
+        assert run("--session", "lesson", "--scheduled") == 0, logs
+        assert said("Lesson bos-vs-choch held: no clean bos_choch example"), logs
+        assert made[-1]["id"] == "top-down-reading" and made[-1]["next"] is None, made
+        h = history()
+        assert len(h) == 2 and h[1]["episode"] == "top-down-reading" and "held" not in json.dumps(h), h
+        available.add("bos_choch")
+
+        # Saturday: episode 2 is clean again; Facebook fails → YouTube id still logged, exit 1
+        clock[0] = datetime(2026, 10, 17, 14, 35, tzinfo=timezone.utc)
+        fail_fb[0] = True
+        n_yt = len(yt)
+        assert run("--session", "lesson", "--scheduled") == 1, logs
+        assert said("Facebook lesson video failed") and said("V9") and said("Not published on: facebook"), logs
+        h = history()
+        assert len(h) == 3 and h[2]["episode"] == "bos-vs-choch" and h[2]["video_id"] == f"Y{n_yt + 1}", h
+        assert not h[2].get("fb_video_id") and h[2]["platforms"] == ["youtube"]
+        fail_fb[0] = False
+        # a re-run while the recorded episode has no clean example now: can't be re-made → exit 1, said so
+        available.discard("bos_choch")
+        n_yt, n_fb, n_made = len(yt), len(fb), len(made)
+        assert run("--session", "lesson", "--scheduled") == 1, logs
+        assert said("recorded episode bos-vs-choch can't be re-made"), logs
+        assert len(made) == n_made and len(fb) == n_fb and len(history()) == 3
+        available.add("bos_choch")
+        # the re-run of that slot: the recorded episode with its recorded example (a new one now ranks
+        # first), Facebook only, a second entry
+        other_first[0] = True
+        assert run("--session", "lesson", "--scheduled") == 0, logs
+        assert made[-1]["id"] == "bos-vs-choch" and [e["asset"] for e in made[-1]["examples"]] == ["BTC/USD"], made
+        assert len(yt) == n_yt and len(fb) == n_fb + 1 and fb[-1]["title"] == "FB bos-vs-choch", (yt, fb)
+        h = history()
+        assert len(h) == 4 and h[3]["episode"] == "bos-vs-choch" and h[3]["fb_video_id"] and not h[3].get("video_id"), h
+        assert h[3]["platforms"] == ["facebook"]
+        other_first[0] = False
+        # a third run: both platforms out → nothing made
+        n_made = len(made)
+        assert run("--session", "lesson", "--scheduled") == 0 and len(made) == n_made, logs
+
+        # Sunday: every episode is published → "nothing to publish in this slot", exit 0, no entry
+        clock[0] = datetime(2026, 10, 18, 14, 35, tzinfo=timezone.utc)
+        n_fetch = len(fetched)
+        assert run("--session", "lesson", "--scheduled") == 0 and said("nothing to publish in this slot"), logs
+        assert len(made) == n_made and len(history()) == 4 and len(fetched) == n_fetch
+
+        # all held (fresh history, no detector finds anything) → empty slot
+        (tmp / "data" / "history.json").write_text(json.dumps({"videos": []}))
+        available.clear()
+        assert run("--session", "lesson", "--scheduled") == 0 and said("nothing to publish in this slot"), logs
+        assert said("Lesson top-down-reading held") and len(made) == n_made and not history()
+        available.update({"swings", "bos_choch", "top_down"})
+
+        # empty curriculum → empty slot, nothing fetched
+        (tmp / "lessons" / "curriculum.yaml").write_text("episodes: []\n", encoding="utf-8")
+        n_fetch = len(fetched)
+        assert run("--session", "lesson", "--scheduled") == 0 and said("the curriculum is empty"), logs
+        assert len(fetched) == n_fetch and len(made) == n_made and not history()
+
+        # curriculum problems → each logged, exit 1, nothing fetched or made
+        (tmp / "lessons" / "curriculum.yaml").write_text(
+            sample.replace("detector: swings", "detector: no_such_detector"), encoding="utf-8")
+        assert run("--session", "lesson", "--scheduled") == 1, logs
+        assert said("Curriculum problem: swing-structure: detector 'no_such_detector' is not registered"), logs
+        assert len(fetched) == n_fetch and len(made) == n_made
+        (tmp / "lessons" / "curriculum.yaml").write_text(sample, encoding="utf-8")
+
+        # a manual run works on any day (Monday) and doesn't fill the slot
+        clock[0] = datetime(2026, 10, 19, 9, 0, tzinfo=timezone.utc)
+        assert run("--session", "lesson") == 0, logs
+        h = history()
+        assert len(h) == 1 and h[0]["episode"] == "swing-structure" and h[0]["trigger"] == "manual", h
+        assert h[0]["counts"] is False and h[0]["video_id"] and h[0]["fb_video_id"]
+
+        # Tuesday, fresh history: the timed run gets YouTube up but Facebook fails
+        clock[0] = datetime(2026, 10, 20, 14, 35, tzinfo=timezone.utc)
+        (tmp / "data" / "history.json").write_text(json.dumps({"videos": []}))
+        fail_fb[0] = True
+        assert run("--session", "lesson", "--scheduled") == 1 and made[-1]["id"] == "swing-structure", logs
+        fail_fb[0] = False
+        # a manual run meanwhile takes the next unpublished episode (not the slot's), counts: false
+        assert run("--session", "lesson") == 0 and made[-1]["id"] == "bos-vs-choch", logs
+        # the backup timed run then publishes the slot's episode on Facebook once
+        assert run("--session", "lesson", "--scheduled") == 0 and made[-1]["id"] == "swing-structure", logs
+        h = history()
+        assert [(v["episode"], v["platforms"], v["counts"]) for v in h] == [
+            ("swing-structure", ["youtube"], True), ("bos-vs-choch", ["youtube", "facebook"], False),
+            ("swing-structure", ["facebook"], True)], h
+        assert len([v for v in h if v["episode"] == "swing-structure" and v.get("fb_video_id")]) == 1
+        # a manual run after the slot is full still publishes (the next unpublished episode)
+        n_yt, n_fb = len(yt), len(fb)
+        assert run("--session", "lesson") == 0 and made[-1]["id"] == "top-down-reading", logs
+        assert len(yt) == n_yt + 1 and len(fb) == n_fb + 1 and history()[-1]["counts"] is False
+        # --force on the full slot: the recorded episode again on both platforms
+        assert run("--session", "lesson", "--scheduled", "--force") == 0, logs
+        assert made[-1]["id"] == "swing-structure" and len(yt) == n_yt + 2 and len(fb) == n_fb + 2, (yt, fb)
+    finally:
+        lessons.DETECTORS.clear()
+        lessons.DETECTORS.update(saved_det)
+        (app.ROOT, app.datetime, app.make_lesson, app.log, lesson_data.fetch_history, youtube.upload_lesson,
+         facebook.publish_video, youtube.upload, youtube.set_thumbnail) = saved
+        for k, v in env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    # history merge: an entry with only fb_video_id is idempotent by it and counts as Facebook
+    hist = History(tmp / "merge.json")
+    e = {"brief_date": "2026-10-13", "session": "lesson", "kind": "lesson", "episode": "x", "fb_video_id": "F9"}
+    assert hist.add(dict(e)) and not hist.add(dict(e)) and len(hist.data["videos"]) == 1
+    assert hist.published_on("2026-10-13", "lesson", "facebook") and not hist.published_on("2026-10-13", "lesson", "youtube")
+    assert len(hist.uploaded()) == 1
+
+    # cron-job.org: lesson on its days, gold Mon-Fri, the rest every day
+    sessions = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))["sessions"]
+    wd = {k: setup_cronjobs.job_for(k, s, "T", True)["schedule"]["wdays"] for k, s in sessions.items()}
+    assert wd["lesson"] == [2, 4, 6, 0] and wd["gold"] == [1, 2, 3, 4, 5] and wd["asia"] == [-1], wd
+    assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "gold")), wd
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK lesson edition (days, disabled, both platforms, guard, held, FB failure + recorded-episode re-run, "
+          "empty slot, curriculum problems, manual any day, fb_video_id merge, cron days)")
 
 
 if __name__ == "__main__":

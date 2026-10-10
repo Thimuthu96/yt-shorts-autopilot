@@ -282,16 +282,17 @@ class Pick:
 
 
 def pick(curriculum: list[dict], history, date: str, session: str,
-         hold: Callable[[dict], str | None] | None = None) -> Pick:
+         hold: Callable[[dict], str | None] | None = None, slot_rerun: bool = True) -> Pick:
     """Next episode for (date, session). `history` is an autopilot.history.History.
 
-    A re-run of a slot whose counting entry recorded `episode: X` gets X again, published or held.
+    A re-run of a slot whose counting entry recorded `episode: X` gets X again, published or held
+    (slot_rerun=False, for runs that don't fill the slot, e.g. manual ones, skips this rule).
     Otherwise the first entry in curriculum order that no uploaded entry (manual or timed) has
     published and that `hold(entry)` doesn't hold. Same inputs → same answer.
     """
     by_id = {e["id"]: e for e in curriculum if isinstance(e, dict) and "id" in e}
     uploaded = history.uploaded()
-    for v in uploaded:  # same slot rule as History.published_on
+    for v in uploaded if slot_rerun else []:  # same slot rule as History.published_on
         if (v.get("brief_date") == date and v.get("session", "london") == session and v.get("counts", True)
                 and v.get("episode")):
             return Pick(by_id.get(v["episode"]), rerun=True)  # None if the episode left the curriculum

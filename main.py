@@ -11,6 +11,8 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
     python main.py --session asia --platforms facebook   # publish to Facebook only
     python main.py --session asia --scheduled   # timed run: weekend rule, late/early skip, once a day per platform
     python main.py --session asia --as-edition  # manual run that fills today's slot (timed run skips)
+    python main.py --session lesson --scheduled  # trading lesson: next curriculum episode (YouTube + Facebook video)
+    python main.py --session lesson --no-upload  # make the next lesson only (works with lessons.enabled false)
     python main.py --lesson-sample --no-upload  # sample trading lesson (16:9 + 9:16) on fixture candles
 
 Manual runs always make and publish and don't stop the timed run of that edition.
@@ -25,9 +27,10 @@ from pathlib import Path
 
 import yaml
 
-from autopilot import (facebook, focus, gold, images, lesson_meta, lesson_script, lesson_slides, lessons, news_post,
-                       render, script, slides, sources, thumbnail, voice)
-from autopilot.history import History
+from autopilot import (facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides, lessons,
+                       news_post, render, script, slides, sources, thumbnail, voice)
+from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
+from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
 ROOT = Path(__file__).parent
 
@@ -57,6 +60,9 @@ LESSON_MAX_SECONDS = 300  # lessons' own limit (cfg lessons.max_seconds); the Sh
 LESSON_CAPTIONS = {"16x9": {"size": 56, "outline": 5}, "9x16": {"words_per_line": 2}}
 LESSON_CAPTION_PAD = 2  # px above the bottom of the caption band (outline, shadow and descender space come on top)
 LESSON_PUSH_IN = 0.012  # push-in growth per scene: small enough that the slide footers stay in frame
+LESSON_PATH_PLAYLIST = "Trading Lessons · The Path"  # cfg lessons.path_playlist
+LESSON_TRACK_PLAYLIST = "Track {n} · {name}"  # cfg lessons.track_playlist
+WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")  # a session's `days`, datetime.weekday() order
 
 
 def log(msg: str) -> None:
@@ -191,14 +197,16 @@ def lesson_video_cfg(cfg: dict, layout) -> dict:
 
 
 def make_lesson(cfg: dict, entry: dict, glossary: dict, history: dict, workdir: Path | None = None,
-                next_entry: dict | None = None, log=log) -> dict:
+                next_entry: dict | None = None, log=log, examples: list[dict] | None = None) -> dict:
     """One curriculum entry → a 16:9 and a 9:16 lesson video from the same narration, the lesson
     thumbnail, chapters and metadata (written to the workdir; nothing is uploaded).
-    `history` is lesson_data.fetch_history's {asset: {timeframe: candles}}.
+    `history` is lesson_data.fetch_history's {asset: {timeframe: candles}}; `examples` = what the
+    entry's detector already found on it (the edition's hold check), else the detector is run here.
     Returns {"held": reason} when the detector finds no clean example (nothing is rendered), else
     {"videos": {"16x9", "9x16"}, "thumbnail", "meta", "chapters", "seconds", "examples", "workdir"}."""
     det = lessons.DETECTORS.get(entry.get("detector"))
-    examples = det.find(history) if det else []
+    if examples is None:
+        examples = det.find(history) if det else []
     if not examples:
         reason = (f"{entry['id']}: no clean {entry.get('detector')} example in the price history" if det
                   else f"{entry['id']}: detector '{entry.get('detector')}' is not registered")
@@ -254,7 +262,7 @@ def make_lesson(cfg: dict, entry: dict, glossary: dict, history: dict, workdir: 
 
 
 def lesson_sample(cfg: dict) -> int:
-    """The tests/lessons sample entry on fixture candles, made only (lessons aren't published yet)."""
+    """The tests/lessons sample entry on fixture candles, made only (the sample is never published)."""
     entry, glossary, history, nxt = lesson_script.sample_inputs()
     try:
         made = make_lesson(cfg, entry, glossary, history, next_entry=nxt)
@@ -288,6 +296,160 @@ def publish(made: dict, platforms: list[str], cfg: dict) -> tuple[dict, list[str
             log(f"Facebook Reel failed: {e}")
             failed.append("facebook")
     return entry, failed
+
+
+def lesson_playlists(cfg: dict, track: int) -> tuple[str, str]:
+    """(track playlist, Path playlist) titles for a lesson of this track."""
+    lc = cfg.get("lessons") or {}
+    name = lesson_slides.TRACKS.get(track, f"Track {track}")
+    track_title = str(lc.get("track_playlist") or LESSON_TRACK_PLAYLIST).format(n=track, name=name)
+    return track_title, str(lc.get("path_playlist") or LESSON_PATH_PLAYLIST)
+
+
+def publish_lesson(made: dict, pending: list[str], cfg: dict) -> tuple[dict, list[str]]:
+    """Publish one made lesson to each pending platform on its own (as publish() does for the daily
+    editions): YouTube gets the 16:9 video through youtube.upload_lesson (lesson scopes, playlists,
+    review window), Facebook the 9:16 video through facebook.publish_video. A failure on one is logged
+    and never blocks (or repeats) the other. Returns (entry with the ids it got, failed platforms)."""
+    entry, failed = made["entry"], []
+    lc = cfg.get("lessons") or {}
+    meta = made["meta"]
+    if "youtube" in pending:
+        try:
+            from autopilot import youtube
+            track_pl, path_pl = lesson_playlists(cfg, made["track"])
+            res = youtube.upload_lesson(made["videos"]["16x9"], meta, made["thumbnail"], track_pl, path_pl,
+                                        review_hours=lc.get("review_window_hours", 24),
+                                        notify=cfg["upload"].get("notify_subscribers", True), log=log)
+            entry["video_id"] = res["video_id"]
+            if res.get("publish_at"):
+                entry["publish_at"] = res["publish_at"]
+            for err in res.get("errors") or []:
+                log(f"YouTube lesson uploaded, but: {err}")
+        except Exception as e:
+            log(f"YouTube lesson upload failed: {e}")
+            failed.append("youtube")
+    if "facebook" in pending:
+        try:
+            entry["fb_video_id"] = facebook.publish_video(
+                made["videos"]["9x16"], meta.get("fb_title") or meta["title"],
+                meta.get("fb_description") or meta["description"], cfg,
+                published=bool(lc.get("fb_published", True)), log=log)
+        except Exception as e:
+            vid = getattr(e, "video_id", None)
+            log(f"Facebook lesson video failed: {e}"
+                + (f" (video {vid} exists on the Page; check or delete it there)" if vid else ""))
+            failed.append("facebook")
+    return entry, failed
+
+
+def example_id(ex: dict) -> dict:
+    """What identifies an example in history (never the candles): asset, timeframe, region start/end."""
+    region = ex.get("region") or {}
+    return {"asset": ex.get("asset"), "timeframe": ex.get("timeframe"),
+            "start": str(region["start"]) if region.get("start") is not None else None,
+            "end": str(region["end"]) if region.get("end") is not None else None}
+
+
+def make_lesson_edition(cfg: dict, history: History, date: str, session_key: str, pending: list[str],
+                        no_upload: bool = False, counts: bool = True,
+                        force: bool = False) -> tuple[dict | None, list[str]]:
+    """Pick and make this slot's lesson. Returns (made, pending) with made = make_lesson's result plus
+    "entry" and "track", or (None, pending) when there is nothing to publish in this slot.
+
+    The curriculum is validated first (problems → logged, RuntimeError). lessons.pick chooses the
+    episode: on a counting run (`counts`: timed or --as-edition) of a slot that recorded `episode: X`,
+    X again with the recorded examples where they are found again (only the platforms X is still
+    missing, unless `force`; X can't be re-made → RuntimeError); else the first unpublished entry
+    whose detector finds a clean example in the price history (held entries are logged, never stored)."""
+    curriculum = lessons.load_curriculum(ROOT / "lessons" / "curriculum.yaml")
+    glossary = lessons.load_glossary(ROOT / "lessons" / "glossary.yaml")
+    problems = lessons.validate(curriculum, glossary)
+    if problems:
+        for msg in problems:
+            log(f"Curriculum problem: {msg}")
+        raise RuntimeError(f"lessons/curriculum.yaml has {len(problems)} problem(s) (listed above); "
+                           "fix them (python tests/test_lessons.py) before lessons can run")
+
+    candles: dict = {}
+    found: dict[str, list[dict]] = {}  # entry id → examples, so make_lesson doesn't search again
+
+    def price_history() -> dict:
+        if not candles:
+            log("Fetching the lesson price history...")
+            candles.update(lesson_data.fetch_history(log=log))
+            if not candles:
+                raise RuntimeError("no lesson price history could be loaded (every source failed)")
+        return candles
+
+    def hold(e: dict) -> str | None:
+        det = lessons.DETECTORS.get(e.get("detector"))
+        if det is None:
+            return f"detector '{e.get('detector')}' is not registered"
+        found[e["id"]] = det.find(price_history())
+        return None if found[e["id"]] else f"no clean {e['detector']} example in the price history"
+
+    picked = lessons.pick(curriculum, history, date, session_key, hold, slot_rerun=counts)
+    for eid, reason in picked.held:
+        log(f"Lesson {eid} held: {reason}")
+    if picked.entry is None and picked.rerun:
+        raise RuntimeError("this slot's recorded episode is no longer in the curriculum, so it can't be "
+                           "re-made for the missing platform(s)")
+    if picked.entry is None:
+        why = "the curriculum is empty" if not curriculum else "every episode is published or held"
+        log(f"Lessons: nothing to publish in this slot ({why}).")
+        return None, pending
+    entry = picked.entry
+    if picked.rerun:
+        log(f"This slot already recorded episode {entry['id']}: making it again")
+        if not force:
+            done = [x for x in pending if history.published_on(date, session_key, x)]
+            if done:
+                log(f"Episode {entry['id']} is already published on {', '.join(done)} for this slot.")
+                pending = [x for x in pending if x not in done]
+                if not pending and not no_upload:
+                    log("Nothing to do.")
+                    return None, pending
+        hold(entry)  # re-run the detector (pick skipped the hold check for the recorded episode)
+        again = found.get(entry["id"]) or []
+        recorded = [x for v in history.uploaded() if v.get("brief_date") == date
+                    and v.get("session", "london") == session_key and v.get("counts", True)
+                    and v.get("episode") == entry["id"] for x in (v.get("examples") or []) if isinstance(x, dict)]
+        same = [ex for ex in again if example_id(ex) in recorded]
+        if recorded and again and not same:
+            log(f"The recorded examples of {entry['id']} weren't found again; using the ones found now")
+        if not again:
+            raise RuntimeError(f"this slot's recorded episode {entry['id']} can't be re-made: no clean "
+                               f"{entry.get('detector')} example in the price history now")
+        found[entry["id"]] = same or again
+    log(f"Lesson episode: {entry['id']} · {entry['title']} (track {entry['track']})")
+
+    i = next(n for n, e in enumerate(curriculum) if e is entry)
+    next_entry = curriculum[i + 1] if i + 1 < len(curriculum) else None
+    workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    made = make_lesson(cfg, entry, glossary, price_history(), workdir, next_entry, log=log,
+                       examples=found.get(entry["id"]))
+    if made.get("held"):
+        if picked.rerun:
+            raise RuntimeError(f"this slot's recorded episode can't be re-made: {made['held']}")
+        log(f"Lessons: nothing to publish in this slot ({made['held']}).")
+        return None, pending
+    made["track"] = entry["track"]
+    made["entry"] = {
+        "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "brief_date": date,
+        "session": session_key,
+        "kind": "lesson",
+        "episode": entry["id"],
+        "track": entry["track"],
+        "title": made["meta"]["title"],
+        "video_id": None,
+        "fb_video_id": None,
+        "seconds": made["seconds"],
+        "examples": [example_id(e) for e in made["examples"]],  # a re-run re-makes these
+        "workdir": str(Path(made["workdir"]).relative_to(ROOT)),
+    }
+    return made, pending
 
 
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
@@ -357,7 +519,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-upload", action="store_true", help="make it only, publish nowhere")
     p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
     p.add_argument("--session", default="auto",
-                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | "
+                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | "
                         "auto (market edition by UTC time)")
     p.add_argument("--platforms", default="all",
                    help="all | youtube | facebook | youtube,facebook (limited to the edition's own platforms)")
@@ -377,7 +539,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg.setdefault("max_late_minutes", 180)
     if args.lesson_sample:
         if not args.no_upload:
-            log("Lessons aren't published yet: --lesson-sample makes it only (as with --no-upload).")
+            log("The sample lesson is never published: --lesson-sample makes it only (as with --no-upload).")
         return lesson_sample(cfg)
     history = History(ROOT / "data" / "history.json")
 
@@ -410,6 +572,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.scheduled and now.weekday() >= 5 and session_key not in cfg.get("weekend_sessions", []):
         log(f"Weekend: forex is closed, so the {label} edition is skipped today.")
+        return 0
+    days = [str(d).strip().lower()[:3] for d in session.get("days") or []]
+    if args.scheduled and days and WEEKDAYS[now.weekday()] not in days:
+        log(f"The {label} edition runs only on {', '.join(days)}; skipped today ({WEEKDAYS[now.weekday()]}).")
+        return 0
+    if kind == "lesson" and not (cfg.get("lessons") or {}).get("enabled", False) \
+            and (args.scheduled or not args.no_upload):
+        log("Lessons are off (lessons.enabled is false in config.yaml), so the lesson is skipped. "
+            "Use --no-upload on a manual run to make one anyway.")
         return 0
     if args.scheduled and start:
         late = minutes_late(now, start)
@@ -457,19 +628,24 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if kind == "post":
             entry, failed = make_post(cfg, history, args, session_key, pending)
+        elif kind == "lesson":
+            made, pending = make_lesson_edition(cfg, history, today, session_key, pending, args.no_upload,
+                                                counts=bool(args.scheduled or args.as_edition), force=args.force)
+            if made is None:
+                return 0
+            entry, failed = publish_lesson(made, pending, cfg)
         else:
             # re-making an edition for a platform it missed: use the history the first run saw
             made = make_brief(cfg, history.excluding_slot(today, session_key) if remake else history,
                               args, session_key)
             entry, failed = publish(made, pending, cfg)
     except Exception as e:
-        log(f"{'Post' if kind == 'post' else 'Brief'} failed: {e}")
+        log(f"{dict(post='Post', lesson='Lesson').get(kind, 'Brief')} failed: {e}")
         return 1
-    if any(entry.get(k) for k in ("video_id", "fb_reel_id", "fb_post_id")):
+    if any(entry.get(k) for k in ID_KEYS):
         entry["trigger"] = "timed" if args.scheduled else "manual"
         entry["counts"] = bool(args.scheduled or args.as_edition)
-        entry["platforms"] = [x for x, k in (("youtube", "video_id"), ("facebook", "fb_reel_id"),
-                                             ("facebook", "fb_post_id")) if entry.get(k)]
+        entry["platforms"] = [x for x, keys in PLATFORM_IDS.items() if any(entry.get(k) for k in keys)]
         workdir = ROOT / entry.pop("workdir")
         # the workflow merges this file into the latest data/history.json (safe with parallel runs)
         (workdir / "history_entry.json").write_text(json.dumps(entry, indent=2, ensure_ascii=False))

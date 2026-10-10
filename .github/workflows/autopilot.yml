@@ -15,12 +15,13 @@ on:
     - cron: "17 3 * * *"     # Morning News   (Facebook post, due 03:00 UTC → 08:30 Sri Lanka)
     - cron: "47 9 * * *"     # Midday News    (Facebook post, due 09:30 UTC → 15:00 Sri Lanka)
     - cron: "47 16 * * *"    # Evening News   (Facebook post, due 16:30 UTC → 22:00 Sri Lanka)
+    - cron: "47 14 * * 0,2,4,6"   # Trading Lesson (due 14:30 UTC → 20:00 Sri Lanka), Tue/Thu/Sat/Sun
   workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
     inputs:
       session:
-        description: "Edition to make (news_* = Facebook news image post)"
+        description: "Edition to make (news_* = Facebook news image post, lesson = trading lesson)"
         type: choice
-        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening]
+        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening, lesson]
         default: auto
       platforms:
         description: "Where to publish (limited to the edition's own platforms)"
@@ -42,11 +43,12 @@ permissions:
 jobs:
   make-and-upload:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # a lesson renders two videos (16:9 + 9:16) and waits for Facebook to process its video
+    timeout-minutes: 90
     # Timed runs of the same edition (timer + backup) queue one after the other, so the second sees
     # the first's upload and stops. Manual runs get their own group: they never wait or cancel anything.
     concurrency:
-      group: "${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || 'newyork') || inputs.session) || format('manual-{0}', github.run_id) }}"
+      group: "${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || github.event.schedule == '47 14 * * 0,2,4,6' && 'lesson' || 'newyork') || inputs.session) || format('manual-{0}', github.run_id) }}"
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -74,7 +76,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           # which edition: from the backup cron that fired, or from the timer's / manual run's choice
-          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || 'newyork') || inputs.session || 'auto' }}"
+          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || github.event.schedule == '47 14 * * 0,2,4,6' && 'lesson' || 'newyork') || inputs.session || 'auto' }}"
           SCHEDULED: ${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && '--scheduled' || '' }}
           AS_EDITION: ${{ inputs.as_edition && '--as-edition' || '' }}
           PLATFORMS: ${{ inputs.platforms || 'all' }}
@@ -103,13 +105,14 @@ jobs:
           echo "::error::Could not save data/history.json"
           exit 1
 
-      - name: Keep the video / post and logs for 7 days
+      - name: Keep the video / post / lesson and logs for 7 days
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: short-${{ github.run_number }}
           path: |
             output/*/short.mp4
+            output/*/lesson_*.mp4
             output/*/package.json
             output/*/metadata.json
             output/*/data.json
