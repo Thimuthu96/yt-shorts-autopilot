@@ -1286,7 +1286,7 @@ def test_narration():
     facts = lesson_script.lesson_facts(entry, glossary, examples)
     assert set(facts) == {"title", "key_points", "glossary", "examples"}
     assert set(facts["glossary"]) == {"break_of_structure", "change_of_character", "swing_point"}
-    assert all(set(x) == {"scene", "asset", "timeframe", "date", "facts"} for x in facts["examples"])
+    assert all(set(x) == {"scene", "chart", "facts"} for x in facts["examples"])  # no dates (owner)
     f1 = examples[0]["facts"]
     level, close = f"{f1['bos']['level']:.2f}", f"{f1['choch']['close']:.2f}"
 
@@ -1320,7 +1320,8 @@ def test_narration():
     assert pkg["fact_check"] == {"verdict": "revised", "issues": ["tightened wording"]}
     assert lesson_script.check_lesson(pkg, entry, plan, facts) == []
     writer, checker = prompts
-    assert "intermediate traders" in writer and "calm, precise trading educator" in writer
+    assert "friendly, patient teacher" in writer and "short sentences" in writer
+    assert "Never say a date, day, month, year or clock time" in writer and "Bitcoin hourly chart" in writer
     assert all(k in writer for k in entry["key_points"]) and glossary["swing_point"]["definition"] in writer
     assert all(f'- "{p["id"]}": {p["covers"]}' in writer for p in plan)
     assert '"candles"' not in writer and '"primitives"' not in writer and '"region"' not in writer
@@ -1367,9 +1368,20 @@ def test_narration():
                       ("Volume reached 1234567 contracts.", "1,234,567")):
         p = lesson_script.check_lesson(draft(plan, 600, {"example_1": said}), entry, plan, facts)
         assert p == [f"numbers not in the facts: {num}"], (said, p)
+    # dates and clock times are never spoken (hard to follow, owner 2026-10-10): rejected, and not in the facts
     d, dt = examples[0]["date"], datetime.fromisoformat(examples[0]["date"])
-    spoken = f"On {dt:%B} {dt.day}, {dt.year}, at 12:00 UTC ({d}), price closed above {close}."
-    assert lesson_script.check_lesson(draft(plan, 600, {"example_1": spoken}), entry, plan, facts) == [], spoken
+    for spoken in (f"On {dt:%B} {dt.day}, {dt.year}, price closed above {close}.", f"At 12:00 price closed above {close}.",
+                   f"On {d} price closed above {close}.", f"That week in {dt.year} it closed above {close}.",
+                   "It happened during the September session, in UTC hours."):
+        p = lesson_script.check_lesson(draft(plan, 600, {"example_1": spoken}), entry, plan, facts)
+        assert len(p) == 1 and p[0].startswith("says a date or time: "), (spoken, p)
+    assert lesson_script.check_lesson(draft(plan, 600, {"example_1": f"You may see it close above {close}."}),
+                                      entry, plan, facts) == []  # "may" is just a word
+    lf = lesson_script.lesson_facts(entry, glossary, examples)
+    assert "date" not in json.dumps(lf) and d not in json.dumps(lf) and "T" not in "".join(
+        k for ex in lf["examples"] for k in ex["facts"]), lf
+    assert lf["examples"][0]["chart"] == lessons.spoken_chart(examples[0]) and "chart" in lf["examples"][0]["chart"]
+    assert all(d not in s["covers"] for s in plan), [s["covers"] for s in plan]
 
     # missing disclaimer; track 4 also needs the non-affiliation line
     no_disc = draft(plan, 600, recap_tail="That is the whole lesson.")

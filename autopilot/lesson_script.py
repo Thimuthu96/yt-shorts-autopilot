@@ -46,11 +46,16 @@ SPOKEN_TIME = re.compile(
     rf"|\b(?:{_MONTHS})\.? \d{{1,2}}(?:st|nd|rd|th)?\b(?:,? \d{{4}}\b)?"
     rf"|\b\d{{1,2}}(?:st|nd|rd|th)? (?:of )?(?:{_MONTHS})\b(?:,? \d{{4}}\b)?", re.I)
 
+# spoken dates beyond SPOKEN_TIME: years 2010-2039, month names ("may"/"march" excluded: ordinary words), UTC
+SPOKEN_DATE_WORDS = re.compile(r"\b20[1-3]\d\b|\b(?:january|february|april|june|july|august|september|"
+                               r"october|november|december|sept?|oct|nov|dec)\b|\butc\b|\bgmt\b", re.I)
+
 LESSON_RULES = """
    This is a trading LESSON, not a news brief. DATA holds the episode's approved key points, its
    glossary definitions and historical examples. The narration may teach only those key points and
    definitions: remove any other concept, indicator, pattern or strategy. Examples are historical,
-   told in the past tense from their facts only. Remove "buy" / "sell" (except "buy-side" /
+   told in the past tense from their facts only. Remove any date, day, month, year or clock time.
+   Keep sentences short and simple. Remove "buy" / "sell" (except "buy-side" /
    "sell-side" liquidity), "entry", "stop loss", "take profit", "target", "win rate", "profit",
    "guaranteed", predictions ("will reach / hit / go / drop / rise") and performance claims.
    Keep each scene's "id". The "recap" scene must keep: "This is education, not financial advice." """
@@ -68,15 +73,15 @@ def _glossary_keys(entry: dict) -> list[str]:
 
 def lesson_facts(entry: dict, glossary: dict, examples: list[dict]) -> dict:
     """Everything the narration may use: title, key points, glossary entries for the entry's concepts
-    and detector keys, and each example's asset, timeframe, date and facts (no candles, no drawing)."""
+    and detector keys, and each example's chart name and facts. No dates or times (they are hard to follow
+    when spoken, owner 2026-10-10), no candles, no drawing."""
     terms = {k: {"term": glossary[k].get("term", k), "definition": glossary[k].get("definition", "")}
              for k in _glossary_keys(entry) if k in glossary}
     return {
         "title": entry["title"],
         "key_points": list(entry["key_points"]),
         "glossary": terms,
-        "examples": [{"scene": f"example_{n}", "asset": ex["asset"], "timeframe": ex["timeframe"],
-                      "date": str(ex["date"]), "facts": ex["facts"]}
+        "examples": [{"scene": f"example_{n}", "chart": lessons.spoken_chart(ex), "facts": _no_times(ex["facts"])}
                      for n, ex in enumerate(examples[:2], 1)],
     }
 
@@ -92,8 +97,8 @@ def write_lesson(cfg: dict, entry: dict, glossary: dict, plan: list[dict], examp
     scenes = "\n".join(f'- "{p["id"]}": {p["covers"]}' for p in plan)
     ict = (f'\n- "recap" also says: "{NON_AFFILIATION}"' if _affiliated(entry, plan) else "")
     prompt = f"""You write the narration of a {MIN_WORDS}-{MAX_WORDS} word TRADING LESSON video: "{entry['title']}".
-Channel: {ch.get('display_name', 'CryptoFX Daily')}. Audience: intermediate traders.
-Tone: a calm, precise trading educator.
+Channel: {ch.get('display_name', 'CryptoFX Daily')}. Audience: traders who want to learn this concept.
+Tone: a friendly, patient teacher. The viewer should finish the video able to spot the concept themselves.
 
 FACTS (the approved key points, glossary definitions and historical examples; the only things you may teach or quote):
 {json.dumps(facts, ensure_ascii=False, indent=1)}
@@ -104,9 +109,14 @@ Write narration for each scene, in this order (2-6 spoken sentences each):
 Rules:
 - Teach only the key points and the glossary definitions above. Add no other concept, indicator,
   pattern or strategy.
-- The examples are historical examples: describe each in the past tense from its facts only
-  (its asset, timeframe, date and facts), in the scene with the same id.
-- Numbers as digits, exactly as they appear in the facts. No other numbers.
+- Keep it easy to follow: short sentences (under 20 words), one idea per sentence, plain words.
+  Explain each term in simple words the first time you use it.
+- The examples are historical examples on the chart the viewer is looking at. Describe each in the
+  past tense from its facts only, in the scene with the same id. Call it by its chart, e.g. "on this
+  Bitcoin hourly chart", and guide the eye: "first look at…", "then notice…".
+- Never say a date, day, month, year or clock time.
+- Avoid reading prices. Use at most one price per example, rounded, and only if it helps;
+  otherwise say "the last high", "that level". No other numbers.
 - No predictions, no advice, no performance claims. Never say buy, sell, entry, stop loss, take
   profit, target, win rate, profit, guaranteed, or "will" + reach / hit / go / drop / rise.
   "Buy-side" and "sell-side" liquidity are allowed terms.
@@ -148,6 +158,9 @@ def check_lesson(pkg: dict, entry: dict, plan: list[dict], facts: dict) -> list[
     if not MIN_WORDS <= words <= MAX_WORDS:
         problems.append(f"{words} words (target {MIN_WORDS}-{MAX_WORDS})")
     narration = DASHES.sub("-", "\n".join(texts.get(p["id"], "") for p in plan))
+    said = [m.group(0) for rx in (SPOKEN_TIME, SPOKEN_DATE_WORDS) for m in rx.finditer(narration)]
+    if said:
+        problems.append("says a date or time: " + ", ".join(dict.fromkeys(s.strip() for s in said)))
     hits = []
     for rx in BANNED:
         hits += [m.group(0) for m in rx.finditer(narration)]
@@ -155,7 +168,7 @@ def check_lesson(pkg: dict, entry: dict, plan: list[dict], facts: dict) -> list[
         problems.append("banned wording: " + ", ".join(dict.fromkeys(h.lower() for h in hits)))
     # numbers may come from the facts or the scene list the writer was given (e.g. next episode title)
     known = _no_times({"facts": facts, "covers": [p["covers"] for p in plan]})
-    bad = unverified_numbers(SPOKEN_TIME.sub(" ", narration), known)
+    bad = unverified_numbers(SPOKEN_DATE_WORDS.sub(" ", SPOKEN_TIME.sub(" ", narration)), known)  # dates: own problem
     if bad:
         problems.append("numbers not in the facts: " + ", ".join(_fmt(v) for v in dict.fromkeys(bad)))
     recap = texts.get("recap", "").lower().replace("’", "'")

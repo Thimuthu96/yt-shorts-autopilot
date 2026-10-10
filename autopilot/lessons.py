@@ -282,6 +282,17 @@ def validate_example(ex: dict) -> list[str]:
     return errors
 
 
+SPOKEN_ASSETS = {"BTC/USD": "Bitcoin", "ETH/USD": "Ethereum", "XAU/USD": "gold", "EUR/USD": "euro-dollar"}
+SPOKEN_TIMEFRAMES = {"1H": "hourly", "4H": "four-hour", "1D": "daily"}
+
+
+def spoken_chart(ex: dict) -> str:
+    """How narration names an example's chart: "Bitcoin hourly chart" (never its date)."""
+    asset = SPOKEN_ASSETS.get(ex.get("asset"), str(ex.get("asset", "")))
+    tf = SPOKEN_TIMEFRAMES.get(ex.get("timeframe"), str(ex.get("timeframe", "")))
+    return f"{asset} {tf} chart".strip()
+
+
 def example_label(ex: dict) -> str:
     return f"Historical example · {ex['asset']} · {ex['date']}"
 
@@ -340,8 +351,8 @@ def scene_plan(entry: dict, examples: list[dict], next_entry: dict | None = None
     for n, ex in enumerate(examples[:2], 1):
         plan.append({"id": f"example_{n}",
                      "visual": {"type": entry["visual"], "example": ex, "label": example_label(ex)},
-                     "covers": f"real example {n}: {ex['asset']} {ex['timeframe']} on {ex['date']}, "
-                               f"the '{ex['glossary']}' the detector found, using only its facts"})
+                     "covers": f"real example {n}: the {spoken_chart(ex)} on screen, walking the viewer through "
+                               f"the marked '{ex['glossary']}' step by step, using only its facts"})
     plan.append({"id": "misreads", "visual": {"type": "misreads"},
                  "covers": "common misreads, only within the approved key points"})
     nxt = next_entry["title"] if next_entry else None
