@@ -296,6 +296,26 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-10T05:45:02+00:00",
+      "brief_date": "2026-10-10",
+      "session": "london",
+      "kind": "market",
+      "title": "Bitcoin Price Today: BTC Holds $82K as XRP Rallies | Oct 10",
+      "video_id": "T0Dcn4vZWoY",
+      "seconds": 50.4,
+      "headlines": [
+        "XRP Ledger patched decade-old bug that could create billions of dollars in XRP from nothing"
+      ],
+      "lead": "BTC",
+      "fb_reel_id": "2112494642807177",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
