@@ -131,7 +131,7 @@ images:
 # Keep enabled: false until YT_REFRESH_TOKEN has the lesson scopes (python get_token.py) and the
 # owner's curriculum is merged; while false, lesson runs log why and stop (nothing fetched or posted).
 lessons:
-  enabled: false
+  enabled: true
   max_seconds: 300            # narration limit; re-recorded faster when over
   review_window_hours: 0      # 0 = public on upload; N = private, then public on its own N hours later
   # Automatic playlists: false = add lessons to playlists by hand in YouTube Studio (works with the
