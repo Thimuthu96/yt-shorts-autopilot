@@ -335,6 +335,38 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-10T11:16:55+00:00",
+      "brief_date": "2026-10-10",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "swing-structure",
+      "track": 0,
+      "title": "Structure #1: Swing Points and Market Structure Explained | Structure Lesson",
+      "video_id": "Q9ZkgyE1cS8",
+      "fb_video_id": "1069134919270512",
+      "seconds": 255.5,
+      "examples": [
+        {
+          "asset": "BTC/USD",
+          "timeframe": "1H",
+          "start": "2026-10-07T02:00:00+00:00",
+          "end": "2026-10-08T17:00:00+00:00"
+        },
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-10-06T19:00:00+00:00",
+          "end": "2026-10-07T17:00:00+00:00"
+        }
+      ],
+      "trigger": "manual",
+      "counts": false,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
