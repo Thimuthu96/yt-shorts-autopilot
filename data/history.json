@@ -277,6 +277,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-10T03:04:27+00:00",
+      "brief_date": "2026-10-10",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "US DOLLAR STRENGTHENS ON FED FEARS",
+      "fb_post_id": "462331040302049_122252122478610202",
+      "headlines": [
+        "US Dollar strengthens as Fed rate hike fears grow"
+      ],
+      "topic": "rates",
+      "source": "MarketPulse",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
