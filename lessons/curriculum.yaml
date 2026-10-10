@@ -1,19 +1,205 @@
 # Lesson curriculum: one entry per episode. LIST ORDER IS THE QUEUE: the picker publishes the first
 # entry not yet in history, so reordering, inserting or dropping entries changes the next episode
-# with no code change. Drafted by hand, approved by the owner via PR (entry 9 fills this in).
-# Checked by `python tests/test_lessons.py` (autopilot.lessons.validate); see
-# tests/lessons/curriculum.yaml for a worked sample.
+# with no code change. Drafted in ChatGPT Go, cross-checked by a second model, approved by the owner.
+# Checked by `python tests/test_lessons.py` (autopilot.lessons.validate).
 #
-# Format:
-#   episodes:
-#     - id: swing-structure            # stable slug; history's `episode` stores it. Never rename
-#                                      # a published one.
-#       track: 0                       # 0-6
-#       title: "Structure #1: Swing Points"
-#       key_points:                    # non-empty; narration never adds concepts beyond these
-#         - "..."
-#       concepts: [swing_point]        # glossary keys the key points use (lessons/glossary.yaml)
-#       prerequisites: []              # ids of earlier episodes
-#       visual: chart                  # chart, or mtf (higher + lower timeframe panels)
-#       detector: swings               # registered detector that finds the real examples
-episodes: []
+# Fields: id (stable slug; never rename a published one), track (0-6), title, key_points (narration
+# teaches only these), concepts (glossary keys), prerequisites (earlier ids), visual (chart | mtf),
+# detector (registered detector that finds the real examples).
+episodes:
+  # ── Track 0 · Structure ──
+  - id: swing-structure
+    track: 0
+    title: "Structure #1: Swing Points and Market Structure"
+    key_points:
+      - "Identify swing highs and swing lows by comparing each turning point with the candles on both sides."
+      - "Label each new swing high as a higher high or lower high against the previous swing high."
+      - "Label each new swing low as a higher low or lower low against the previous swing low."
+      - "Read the sequence of swing highs and lows together to describe the current structural direction."
+    concepts: [swing_point, market_structure]
+    prerequisites: []
+    visual: chart
+    detector: swings
+  - id: bos-vs-choch
+    track: 0
+    title: "Structure #2: BOS vs CHoCH"
+    key_points:
+      - "A BOS is a candle close beyond the latest swing in the direction of the existing structure."
+      - "A CHoCH is the first candle close beyond the latest swing against the existing structure."
+      - "Use the preceding swing points to decide whether a break continues the structure or challenges it."
+      - "A CHoCH marks a possible structural shift; later swings show whether a new sequence forms."
+    concepts: [break_of_structure, change_of_character, swing_point]
+    prerequisites: [swing-structure]
+    visual: chart
+    detector: bos_choch
+  - id: top-down-reading
+    track: 0
+    title: "Structure #3: Top-Down Multi-Timeframe Reading"
+    key_points:
+      - "Establish the sequence of swing highs and lows on the higher timeframe before looking at the lower timeframe."
+      - "Read the lower timeframe's swings inside the higher timeframe's latest leg to see the local movement within it."
+      - "A change in the lower timeframe's swing sequence does not by itself change the higher timeframe's structure."
+      - "Note when the two timeframes show different sequences instead of treating the difference as a contradiction."
+    concepts: [top_down_analysis, market_structure]
+    prerequisites: [bos-vs-choch]
+    visual: mtf
+    detector: top_down
+  # ── Track 1 · Trendlines ──
+  - id: valid-trendlines
+    track: 1
+    title: "Trendlines #1: Identifying Valid Trendlines"
+    key_points:
+      - "Connect swing lows for a rising trendline, or swing highs for a falling trendline."
+      - "A valid trendline needs at least three touches, with no candle closing beyond it between the first and last touch."
+      - "Check that the line follows the swing sequence instead of cutting through unrelated price movement."
+      - "Read a trendline alongside the nearby swing structure to see which movements it connects."
+    concepts: [trendline]
+    prerequisites: [swing-structure]
+    visual: chart
+    detector: trendline
+  - id: trendline-breaks
+    track: 1
+    title: "Trendlines #2: Breaks, Fakeouts and Retests"
+    key_points:
+      - "A trendline break is a candle close through a previously respected line, not just a touch."
+      - "A fakeout is a close through the line that fails, with price closing back on the original side within a few candles."
+      - "A retest is a return to the broken trendline from the new side after the break."
+      - "Compare what price does after the break with the retest to tell sustained movement from a failed break."
+    concepts: [trendline_break, fakeout, retest]
+    prerequisites: [valid-trendlines]
+    visual: chart
+    detector: trendline_break
+  - id: trendline-liquidity
+    track: 1
+    title: "Trendlines #3: Trendline Liquidity"
+    key_points:
+      - "Stop orders tend to cluster just beyond a widely watched trendline with repeated touches."
+      - "Each extra touch makes the line more obvious and the cluster of stops beyond it larger."
+      - "A candle that pierces the line and closes back on its original side has reached that liquidity without breaking the line."
+      - "Compare where the line was pierced with nearby swing levels to see overlapping liquidity."
+    concepts: [trendline_liquidity, trendline]
+    prerequisites: [trendline-breaks]
+    visual: chart
+    detector: trendline_liquidity
+  # ── Track 2 · Liquidity ──
+  - id: bsl-ssl
+    track: 2
+    title: "Liquidity #1: Buy-Side and Sell-Side Liquidity"
+    key_points:
+      - "Buy-side liquidity sits above visible swing highs, where stop orders cluster."
+      - "Sell-side liquidity sits below visible swing lows, where stop orders cluster."
+      - "Mark the nearest untouched highs above price and lows below price as the current liquidity pools."
+      - "A level stops being a pool once price has traded through it."
+    concepts: [buy_side_liquidity, sell_side_liquidity]
+    prerequisites: [swing-structure]
+    visual: chart
+    detector: liquidity_pools
+  - id: equal-highs-lows
+    track: 2
+    title: "Liquidity #2: Equal Highs and Lows"
+    key_points:
+      - "Equal highs are two or more swing highs formed at almost the same price."
+      - "Equal lows are two or more swing lows formed at almost the same price."
+      - "Equal highs mark buy-side liquidity above them; equal lows mark sell-side liquidity below them."
+      - "Check that the swings are clearly separate and close in price before treating them as equal."
+    concepts: [equal_highs_lows, buy_side_liquidity, sell_side_liquidity]
+    prerequisites: [bsl-ssl]
+    visual: chart
+    detector: equal_highs_lows
+  - id: session-highs-lows
+    track: 2
+    title: "Liquidity #3: Session Highs and Lows"
+    key_points:
+      - "Mark the highest and lowest prices traded during each session: Asia, London and New York."
+      - "Keep the session times the same when comparing highs and lows across days."
+      - "The Asia session's high and low often become the first reference levels for the London session."
+      - "Note when a later session trades beyond an earlier session's high or low."
+    concepts: [session_high_low]
+    prerequisites: [bsl-ssl]
+    visual: chart
+    detector: session_highs_lows
+  - id: sweep-vs-breakout
+    track: 2
+    title: "Liquidity #4: Sweeps vs Breakouts"
+    key_points:
+      - "A liquidity sweep trades beyond a visible high or low and closes back on the original side of it."
+      - "A breakout closes beyond a visible level and the following closes stay beyond it."
+      - "The closes after the level is crossed tell a sweep from a breakout, not the first move through it."
+      - "Read the surrounding structure before naming a move as either one."
+    concepts: [liquidity_sweep, breakout]
+    prerequisites: [equal-highs-lows]
+    visual: chart
+    detector: sweep_vs_breakout
+  - id: inducement
+    track: 2
+    title: "Liquidity #5: Inducement"
+    key_points:
+      - "Inducement is a small, obvious swing inside a pullback that sits in front of a larger swing."
+      - "Price often takes out that small swing first, sweeping the liquidity around it."
+      - "Only the movement that follows confirms the small swing acted as inducement."
+      - "Compare the swept small swing with the larger swing behind it to see its place in the sequence."
+    concepts: [inducement, liquidity_sweep]
+    prerequisites: [sweep-vs-breakout]
+    visual: chart
+    detector: inducement
+  # ── Track 3 · SMC ──
+  - id: order-blocks
+    track: 3
+    title: "SMC #1: Order Blocks"
+    key_points:
+      - "An order block is the last opposite-colour candle before a strong move that breaks structure."
+      - "Mark the zone from that candle's low to its high, the same way every time."
+      - "The move away from the zone must close beyond a swing level for the zone to count."
+      - "An order block is a chart-defined zone, not a view of actual institutional orders."
+    concepts: [order_block, break_of_structure]
+    prerequisites: [bos-vs-choch]
+    visual: chart
+    detector: order_block
+  - id: fair-value-gaps
+    track: 3
+    title: "SMC #2: Fair Value Gaps"
+    key_points:
+      - "A bullish fair value gap forms when the first candle's high is below the third candle's low."
+      - "A bearish fair value gap forms when the first candle's low is above the third candle's high."
+      - "Mark the gap between the first and third candles as the zone."
+      - "The gap counts as filled once price trades back through its far edge."
+    concepts: [fair_value_gap]
+    prerequisites: [order-blocks]
+    visual: chart
+    detector: fvg
+  - id: mitigation-breaker
+    track: 3
+    title: "SMC #3: Mitigation and Breaker Blocks"
+    key_points:
+      - "Both start as an order block that fails when price closes through it."
+      - "It is a breaker block when price swept a prior high or low just before the failure."
+      - "It is a mitigation block when price failed to make a new high or low before the failure."
+      - "In both cases price later returns to the zone from the opposite side."
+    concepts: [mitigation_block, breaker_block, order_block]
+    prerequisites: [order-blocks]
+    visual: chart
+    detector: mitigation_breaker
+  - id: premium-discount
+    track: 3
+    title: "SMC #4: Premium, Discount and Equilibrium"
+    key_points:
+      - "Define the dealing range with a clearly selected swing high and swing low."
+      - "Equilibrium is the 50% midpoint between those two levels."
+      - "Prices above equilibrium are in premium; prices below it are in discount."
+      - "Redraw the range when a new swing high or low takes over."
+    concepts: [premium_discount, equilibrium]
+    prerequisites: [fair-value-gaps]
+    visual: chart
+    detector: premium_discount
+  - id: sweep-choch-model
+    track: 3
+    title: "SMC #5: The Sweep → CHoCH → OB/FVG Model"
+    key_points:
+      - "Step one is a liquidity sweep of a visible high or low."
+      - "Step two is a CHoCH: the first close beyond the latest swing against the prior structure."
+      - "Step three is an order block or fair value gap left in the move that made the CHoCH, which price later returns to."
+      - "The model only counts when the sweep, the CHoCH and the zone appear in that order."
+    concepts: [sweep_choch_model, liquidity_sweep, change_of_character, order_block, fair_value_gap]
+    prerequisites: [premium-discount]
+    visual: chart
+    detector: sweep_choch_model

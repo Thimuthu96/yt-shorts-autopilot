@@ -1,40 +1,38 @@
 # Lesson glossary: every concept is defined once here; narration and the example detectors both
-# follow it. Drafted by hand (ChatGPT Go), cross-checked by a second model, approved by the owner
-# via PR. Checked by `python tests/test_lessons.py` (autopilot.lessons.validate).
+# follow it. Drafted in ChatGPT Go, cross-checked by a second model, approved by the owner.
+# Checked by `python tests/test_lessons.py` (autopilot.lessons.validate).
 #
 # Format:
 #   terms:
 #     <key>:                # snake_case; curriculum `concepts` and detectors name this key
 #       term: "Display name"
 #       definition: "One or two plain sentences."   # must be filled before an episode uses it
-#
-# The keys below are stubs for every tracks 0-3 detector (definitions filled by the owner).
 terms:
-  # ── track 0 · structure (detectors: entry 2) ──
-  swing_point: {term: "Swing point", definition: ""}
-  market_structure: {term: "Market structure (HH / HL / LH / LL)", definition: ""}
-  break_of_structure: {term: "Break of structure (BOS)", definition: ""}
-  change_of_character: {term: "Change of character (CHoCH)", definition: ""}
-  top_down_analysis: {term: "Top-down multi-timeframe reading", definition: ""}
-  # ── track 1 · trendlines (detectors: entry 7) ──
-  trendline: {term: "Valid trendline", definition: ""}
-  trendline_break: {term: "Trendline break", definition: ""}
-  fakeout: {term: "Fakeout", definition: ""}
-  retest: {term: "Retest", definition: ""}
-  trendline_liquidity: {term: "Trendline liquidity", definition: ""}
-  # ── track 2 · liquidity (detectors: entry 7) ──
-  buy_side_liquidity: {term: "Buy-side liquidity (BSL)", definition: ""}
-  sell_side_liquidity: {term: "Sell-side liquidity (SSL)", definition: ""}
-  equal_highs_lows: {term: "Equal highs / equal lows", definition: ""}
-  session_high_low: {term: "Session high / low", definition: ""}
-  liquidity_sweep: {term: "Liquidity sweep", definition: ""}
-  breakout: {term: "Breakout", definition: ""}
-  inducement: {term: "Inducement", definition: ""}
-  # ── track 3 · SMC (detectors: entry 8) ──
-  fair_value_gap: {term: "Fair value gap (FVG)", definition: ""}
-  order_block: {term: "Order block", definition: ""}
-  mitigation_block: {term: "Mitigation block", definition: ""}
-  breaker_block: {term: "Breaker block", definition: ""}
-  premium_discount: {term: "Premium and discount", definition: ""}
-  equilibrium: {term: "Equilibrium", definition: ""}
-  sweep_choch_model: {term: "Sweep → CHoCH → OB/FVG model", definition: ""}
+  # ── track 0 · structure ──
+  swing_point: {term: "Swing point", definition: "A swing point is a local turning point in price. A swing high is a candle whose high stands above the highs on both sides of it; a swing low is a candle whose low sits below the lows on both sides of it."}
+  market_structure: {term: "Market structure (HH / HL / LH / LL)", definition: "Market structure describes how successive swing highs and lows relate to one another. Higher highs (HH) and higher lows (HL) form a rising sequence; lower highs (LH) and lower lows (LL) form a falling sequence."}
+  break_of_structure: {term: "Break of structure (BOS)", definition: "A break of structure is a candle close beyond the most recent swing point in the direction of the existing structure, such as a close above the last high in a rising sequence. It shows the structure continuing."}
+  change_of_character: {term: "Change of character (CHoCH)", definition: "A change of character is the first candle close beyond the most recent swing point against the existing structure, such as a close above the last lower high in a falling sequence. It marks a possible structural shift, not a confirmed reversal."}
+  top_down_analysis: {term: "Top-down multi-timeframe reading", definition: "Top-down reading examines the higher timeframe first to identify the broad structure, then uses a lower timeframe to study the swings inside the higher timeframe's latest leg. It helps separate local movements from the larger structural context."}
+  # ── track 1 · trendlines ──
+  trendline: {term: "Valid trendline", definition: "A valid trendline connects at least three swing lows in a rising sequence, or three swing highs in a falling sequence, with no candle closing beyond the line between the first and last touch. It follows the actual swing structure rather than being forced through unrelated prices."}
+  trendline_break: {term: "Trendline break", definition: "A trendline break is a candle close through a previously respected trendline. The break alone does not establish a structural reversal, so what price does next gives the context."}
+  fakeout: {term: "Fakeout", definition: "A fakeout is a close beyond a visible line or level that fails to hold, with price closing back on the original side within a few candles."}
+  retest: {term: "Retest", definition: "A retest is a return to a line or level that price has just broken through, from the new side. The reaction there shows whether the broken level is now holding from the other side."}
+  trendline_liquidity: {term: "Trendline liquidity", definition: "Trendline liquidity is the cluster of stop orders that tends to rest just beyond a widely watched trendline. Each additional touch makes the line more obvious, so price that pierces it can reach those stops."}
+  # ── track 2 · liquidity ──
+  buy_side_liquidity: {term: "Buy-side liquidity (BSL)", definition: "Buy-side liquidity is the concentration of stop orders resting above visible highs. Common reference areas are swing highs, equal highs and session highs that price has not yet traded through."}
+  sell_side_liquidity: {term: "Sell-side liquidity (SSL)", definition: "Sell-side liquidity is the concentration of stop orders resting below visible lows. Common reference areas are swing lows, equal lows and session lows that price has not yet traded through."}
+  equal_highs_lows: {term: "Equal highs / equal lows", definition: "Equal highs are two or more swing highs formed at almost the same price; equal lows are swing lows formed at almost the same price. These visible clusters mark buy-side liquidity above the highs or sell-side liquidity below the lows."}
+  session_high_low: {term: "Session high / low", definition: "A session high or low is the highest or lowest price traded during a defined trading session: Asia, London or New York. These levels stay visible reference points after the session ends."}
+  liquidity_sweep: {term: "Liquidity sweep", definition: "A liquidity sweep is a candle that trades beyond a visible high or low, where stop orders rest, and then closes back on the original side of that level. The close back inside is what separates a sweep from a breakout."}
+  breakout: {term: "Breakout", definition: "A breakout is a candle close beyond a visible high, low or range boundary that holds, with the following closes staying beyond it. Holding beyond the level is what separates it from a sweep or a fakeout."}
+  inducement: {term: "Inducement", definition: "Inducement is a small, obvious swing inside a pullback that gets taken out before price reaches the larger swing behind it. It draws attention to the wrong level first and is only recognised from the price movement that follows."}
+  # ── track 3 · SMC ──
+  fair_value_gap: {term: "Fair value gap (FVG)", definition: "A fair value gap is a three-candle imbalance in which the first and third candles' ranges do not overlap. A bullish gap lies between the first candle's high and the third candle's low; a bearish gap lies between the third candle's high and the first candle's low."}
+  order_block: {term: "Order block", definition: "An order block is the last opposite-colour candle before a strong move that breaks structure, marked from that candle's low to its high. It is a chart-based zone, not proof of actual institutional orders."}
+  mitigation_block: {term: "Mitigation block", definition: "A mitigation block is a failed order block where price could not make a new high or low before closing through the zone. When price later returns to the zone from the other side, that return is the mitigation."}
+  breaker_block: {term: "Breaker block", definition: "A breaker block is a failed order block where price first swept a prior high or low and then closed through the zone. Price later returns to the zone from the opposite side."}
+  premium_discount: {term: "Premium and discount", definition: "Premium and discount are the upper and lower halves of a dealing range measured between a selected swing high and swing low. Prices above the midpoint are in premium; prices below it are in discount."}
+  equilibrium: {term: "Equilibrium", definition: "Equilibrium is the 50% midpoint of a dealing range, halfway between its selected high and low. It separates the premium half from the discount half."}
+  sweep_choch_model: {term: "Sweep → CHoCH → OB/FVG model", definition: "The sweep → CHoCH → OB/FVG model is a sequence in which price sweeps a visible high or low, then closes beyond the latest swing against the prior structure (a CHoCH), leaving an order block or fair value gap in that move that price later returns to. All three steps must appear in that order."}
