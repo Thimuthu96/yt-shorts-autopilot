@@ -476,6 +476,38 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-11T14:49:56+00:00",
+      "brief_date": "2026-10-11",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "top-down-reading",
+      "track": 0,
+      "title": "Structure #3: Top-Down Multi-Timeframe Reading Explained | Structure Lesson",
+      "video_id": "65bXblK14yE",
+      "fb_video_id": "1797443477972774",
+      "seconds": 267.4,
+      "examples": [
+        {
+          "asset": "XAU/USD",
+          "timeframe": "1D",
+          "start": "2026-09-02T00:00:00+00:00",
+          "end": "2026-10-07T00:00:00+00:00"
+        },
+        {
+          "asset": "XAU/USD",
+          "timeframe": "4H",
+          "start": "2026-10-06T00:00:00+00:00",
+          "end": "2026-10-08T00:00:00+00:00"
+        }
+      ],
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
