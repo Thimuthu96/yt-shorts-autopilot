@@ -457,6 +457,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-11T09:45:00+00:00",
+      "brief_date": "2026-10-11",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BANK REPORTS AND INFLATION DATA LAND",
+      "fb_post_id": "462331040302049_122252452376610202",
+      "headlines": [
+        "What to Expect in Markets This Week: Big Bank Reports Fire Up Earnings Season; Inflation, Retail Sales Figures Land"
+      ],
+      "topic": "macro",
+      "source": "Investopedia",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
