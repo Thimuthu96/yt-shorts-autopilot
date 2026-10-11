@@ -508,6 +508,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-11T16:33:53+00:00",
+      "brief_date": "2026-10-11",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "WALLER PIVOTS ON RATE BETS",
+      "fb_post_id": "462331040302049_122252490128610202",
+      "headlines": [
+        "Fed’s Waller pivots on interest-rate bet as worried consumers sound inflation alarms"
+      ],
+      "topic": "central_bank",
+      "source": "TheStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
