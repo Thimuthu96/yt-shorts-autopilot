@@ -418,6 +418,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-11T03:02:55+00:00",
+      "brief_date": "2026-10-11",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "GOLD TRADES NEAR $4,195",
+      "fb_post_id": "462331040302049_122252419706610202",
+      "headlines": [
+        "Gold Price on 10 October 2026"
+      ],
+      "topic": "gold",
+      "source": "Gold Price",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
