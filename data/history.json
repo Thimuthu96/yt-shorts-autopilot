@@ -437,6 +437,26 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-11T05:43:12+00:00",
+      "brief_date": "2026-10-11",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Steadies at $2,505 Despite ETF Outflows | Crypto Update, Oct 11",
+      "video_id": "Bg9gmFtsya8",
+      "seconds": 54.9,
+      "headlines": [
+        "Ethereum ETFs Have Had Nine Straight Days of Outflows and Lost $2 Billion in Assets. Is Wall Street Giving Up on ETH?"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "2696532064137142",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
