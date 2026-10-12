@@ -588,6 +588,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-12T09:37:26+00:00",
+      "brief_date": "2026-10-12",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "DOLLAR FIRM NEAR 18-MONTH HIGH",
+      "fb_post_id": "462331040302049_122252618384610202",
+      "headlines": [
+        "Dollar firm near 18-month highs, as Gulf unrest, US inflation keep investors on edge"
+      ],
+      "topic": "macro",
+      "source": "Euronext Markets: Real-time Stock Market Data | live",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
