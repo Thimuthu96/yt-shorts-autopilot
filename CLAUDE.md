@@ -261,6 +261,9 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
   Other scenes: slow push-in (`scale=...:eval=frame`).
 - Footer on every slide: "Not financial advice · Data: Coinbase, ECB/Frankfurter, ForexFactory".
 - Voice: edge-tts `en-US-AndrewMultilingualNeural`, `+10%`; re-recorded faster if > max_seconds.
+  Each scene retries edge-tts with waits 0/10/30/60 s (`voice.EDGE_WAITS`); if it still fails, the
+  whole video is voiced by `voice.fallback` (Piper `en_US-ryan-high`, free, local, downloaded on first
+  use ~120 MB; word timings estimated) and the rest of the run uses Piper. No `fallback` → the run fails.
 - Optional background music: any `.mp3` in `music/` (royalty-free only).
 
 ## Upload / YouTube
@@ -365,6 +368,9 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
 
 ## Gotchas we hit
 
+- edge-tts 403 "Invalid response status" (2026-10-12, 05:41–06:30 UTC): Microsoft refused GitHub's
+  runners for a while (it worked from a home IP, same version 7.2.8 = latest) → retries with waits +
+  the Piper fallback voice.
 - `.github/` and `.gitignore` are hidden folders/files — drag-and-drop uploads skip them; use git.
 - A config.yaml that didn't get committed broke editions ("Choose one of:" empty) → hence
   `DEFAULT_SESSIONS`. After unzipping updates, check `git status` lists every changed file.

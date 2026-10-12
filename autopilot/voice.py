@@ -1,10 +1,25 @@
-"""Narration with word timings via edge-tts (free Microsoft Edge neural voices)."""
+"""Narration with word timings via edge-tts (free Microsoft Edge neural voices).
+
+Microsoft's endpoint sometimes refuses GitHub's runners for a while (403 on the websocket, Oct 2026),
+so each scene is retried with growing waits (EDGE_WAITS). If a scene still fails, the whole video is
+voiced by the `fallback` Piper voice instead (free, runs on the runner, can't be blocked; one voice
+per video), and the rest of the run goes straight to Piper. Piper gives no word timings, so caption
+timings are estimated from word lengths over the spoken span.
+"""
 import asyncio
+import os
+import re
+import time
+import wave
 from pathlib import Path
 
 import edge_tts
 
 from .media import probe_duration, run
+
+EDGE_WAITS = (0, 10, 30, 60)  # seconds before each edge-tts attempt (~100 s per scene before falling back)
+PIPER_DIR = Path(os.environ.get("PIPER_VOICES", Path.home() / ".cache" / "piper"))
+_edge_down = False  # set once edge-tts failed in this run: later calls (e.g. a faster re-record) use Piper
 
 
 async def _speak(text: str, voice: str, rate: str, mp3_path: Path) -> list[tuple]:
@@ -21,26 +36,96 @@ async def _speak(text: str, voice: str, rate: str, mp3_path: Path) -> list[tuple
     return words
 
 
-def synthesize(scenes: list[dict], voice: str, rate: str, workdir: Path, log=print) -> list[dict]:
-    """One audio file per scene, so scene lengths are exact.
-
-    Returns [{"audio": wav_path, "duration": seconds, "words": [(start, end, text), ...]}]
-    with word times relative to the start of that scene.
-    """
+def _edge(scenes: list[dict], voice: str, rate: str, workdir: Path, log) -> list[dict] | None:
+    """edge-tts for every scene, or None when a scene still fails after all EDGE_WAITS."""
     out = []
     for i, scene in enumerate(scenes):
         mp3 = workdir / f"voice_{i:02d}.mp3"
         wav = workdir / f"voice_{i:02d}.wav"
-        for attempt in range(4):
+        for attempt, wait in enumerate(EDGE_WAITS):
+            if wait:
+                time.sleep(wait)
             try:
                 words = asyncio.run(_speak(scene["text"], voice, rate, mp3))
                 if mp3.stat().st_size > 1000:
                     break
-            except Exception as e:  # network hiccups from the TTS service
-                log(f"TTS attempt {attempt + 1} failed for scene {i + 1}: {e}")
+            except Exception as e:  # network hiccups or a refused runner (403)
+                log(f"TTS attempt {attempt + 1} failed for scene {i + 1}: {str(e)[:120]}")
         else:
-            raise RuntimeError(f"TTS failed for scene {i + 1}")
+            return None
         # decode to wav so durations (and caption timing) are exact
         run(["ffmpeg", "-y", "-v", "error", "-i", str(mp3), "-ar", "44100", "-ac", "1", str(wav)])
         out.append({"audio": wav, "duration": probe_duration(wav), "words": words})
+    return out
+
+
+def _piper_voice(model: str):
+    """The Piper voice, downloaded once into PIPER_DIR (~60-120 MB from Hugging Face)."""
+    from piper import PiperVoice
+    PIPER_DIR.mkdir(parents=True, exist_ok=True)
+    onnx = PIPER_DIR / f"{model}.onnx"
+    if not (onnx.exists() and onnx.with_suffix(".onnx.json").exists()):
+        from piper.download_voices import download_voice
+        download_voice(model, PIPER_DIR)
+    return PiperVoice.load(str(onnx))
+
+
+def length_scale(rate: str) -> float:
+    """edge-tts rate ("+10%") → Piper length_scale (smaller = faster)."""
+    pct = int(re.sub(r"[^\d-]", "", rate) or 0)
+    return round(1 / max(1 + pct / 100, 0.5), 3)
+
+
+def estimate_words(text: str, duration: float, lead: float = 0.08, tail: float = 0.2) -> list[tuple]:
+    """Word timings spread over the spoken span by word length (+ a pause after punctuation)."""
+    words = text.split()
+    if not words:
+        return []
+    weights = [len(w) + 1 + (3 if w.endswith((".", ",", "?", "!", ";", ":")) else 0) for w in words]
+    span = max(duration - lead - tail, 0.1)
+    unit, t, out = span / sum(weights), lead, []
+    for w, k in zip(words, weights):
+        talk = (len(w) + 1) * unit
+        out.append((round(t, 3), round(t + talk, 3), w))
+        t += k * unit
+    return out
+
+
+def _piper(scenes: list[dict], model: str, rate: str, workdir: Path) -> list[dict]:
+    from piper.config import SynthesisConfig
+    pv = _piper_voice(model)
+    syn = SynthesisConfig(length_scale=length_scale(rate))
+    out = []
+    for i, scene in enumerate(scenes):
+        raw = workdir / f"voice_{i:02d}_piper.wav"
+        wav = workdir / f"voice_{i:02d}.wav"
+        with wave.open(str(raw), "wb") as w:
+            pv.synthesize_wav(scene["text"], w, syn_config=syn)
+        run(["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-ar", "44100", "-ac", "1", str(wav)])
+        dur = probe_duration(wav)
+        out.append({"audio": wav, "duration": dur, "words": estimate_words(scene["text"], dur)})
+    return out
+
+
+def synthesize(scenes: list[dict], voice: str, rate: str, workdir: Path, log=print,
+               fallback: str | None = None) -> list[dict]:
+    """One audio file per scene, so scene lengths are exact.
+
+    Returns [{"audio": wav_path, "duration": seconds, "words": [(start, end, text), ...]}]
+    with word times relative to the start of that scene. `fallback` = Piper voice name
+    (e.g. "en_US-ryan-high") used when edge-tts keeps failing; None = fail instead.
+    """
+    global _edge_down
+    if not _edge_down:
+        out = _edge(scenes, voice, rate, workdir, log)
+        if out is not None:
+            return out
+        _edge_down = True
+        if not fallback:
+            raise RuntimeError("TTS failed (edge-tts) and no fallback voice is set (voice.fallback)")
+        log(f"edge-tts keeps failing; voicing this video with the fallback Piper voice {fallback}")
+    elif not fallback:
+        raise RuntimeError("TTS failed (edge-tts) and no fallback voice is set (voice.fallback)")
+    out = _piper(scenes, fallback, rate, workdir)
+    log(f"Narration by Piper ({fallback}); caption timings estimated")
     return out
