@@ -26,7 +26,8 @@ background. Three posts every day, weekends included: if every fresh story was u
 unused one from the last 48 h is posted instead.
 
 **One story per brief:** each market brief picks the day's lead story (scored from headlines,
-price moves and upcoming events), researches how it spreads (e.g. a Bitcoin story → Ether and
+price moves and upcoming events; big crypto moves are favoured, a currency pair needs a scheduled
+event or a clearly bigger story to lead), researches how it spreads (e.g. a Bitcoin story → Ether and
 Solana; a Fed story → EUR/USD, gold, USD/JPY), and charts only those assets, instead of reading
 out every market. Each brief only uses news since the previous one.
 
@@ -77,11 +78,17 @@ board, headline card, calendar table), so there's no stock footage to mismatch. 
 may only use numbers from the data, and a second pass checks it against the data before
 anything is recorded. Market briefs make no predictions; the gold outlook's bias comes only from
 its fixed rules and is worded as conditional ("bearish while below $4,142"). No buy/sell calls;
-every video carries a not-financial-advice note. News photos aren't used (copyright).
+"Not financial advice" is in every slide's footer and in the YouTube description and Facebook
+caption (not spoken, and there's no outro card). News photos aren't used (copyright).
+
+**Built to be watched:** each Short is 30–40 seconds (`video.max_seconds: 42`; longer narration is
+re-recorded faster), opens with a line that has a real number and a reason to keep watching, and
+ends on a line that loops back to the opening fact instead of a sign-off.
 
 **Thumbnail / opening frame:** every video opens on a thumbnail design picked from the day's
 data, so the first frame (what the feed shows, and what YouTube usually uses as the
-thumbnail) is built to stop the scroll:
+thumbnail) is built to stop the scroll. It starts moving straight away (a quick push-in), holds
+about a second, then the chart of the asset it shows draws in (gold: the gold chart) and the captions start:
 
 | Template | Used when | Example |
 |---|---|---|
@@ -217,6 +224,12 @@ time) and the next one goes out instead. If every episode is published or held, 
 the backup run re-makes the same episode (same examples) and publishes only the missing one; if
 that episode can't be re-made, the run fails so you see it.
 
+Each episode opens on its first real example, already marked, under the lesson title (no title card),
+so the payoff is on screen from the first frame; the recap ends on "Next: <episode>". Chapters go in
+the description automatically. **End screen (once, by hand):** the API can't set end screens, so in
+YouTube Studio make an end-screen template (Video element → "Best for viewer" or the series playlist +
+Subscribe) and apply it to each lesson; the recap's last ~20 s are where it shows.
+
 To switch them on:
 1. **YouTube:** nothing to change: lessons upload with the existing `YT_REFRESH_TOKEN` and you add
    them to playlists by hand in YouTube Studio (`lessons.playlists: false`). Only if you want automatic
@@ -243,6 +256,7 @@ While `lessons.enabled` is false, lesson runs log why and stop without fetching 
 |---|---|
 | `channel.niche` / `audience` / `tone` | What the channel is about and how it sounds |
 | `voice.name` | Narrator voice. List them: `edge-tts --list-voices` |
+| `voice.fallback` | Piper voice used when edge-tts is down (`en_US-ryan-high`); remove to fail instead |
 | `upload.review_window_hours` | `0` = public immediately. e.g. `6` = sits private for 6 h so you can watch and delete it first, then goes public on its own |
 | `channel.display_name` | Brand line at the top of every graphic |
 | `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
@@ -298,8 +312,10 @@ What helps most from your side, even if it's 10 minutes a week:
 - Forex rates are daily reference rates (not live quotes); the script says "yesterday's close".
 - Free data sources can change or go down. A source that fails is skipped; if no price data
   at all is available, the run stops instead of guessing.
-- edge-tts uses Microsoft's free Edge read-aloud service; if it ever stops working, swap
-  `autopilot/voice.py` for a paid TTS (the rest of the pipeline doesn't change).
+- edge-tts uses Microsoft's free Edge read-aloud service. When it refuses GitHub's runner (it did on
+  12 Oct 2026, "403 Invalid response status"), each scene is retried for ~100 s, then that video is
+  voiced by a free local Piper voice (`voice.fallback`, a different male US voice; downloaded on first
+  use). The log says "Narration by Piper" when that happens.
 - The Gemini model name may be retired over time; update `llm.model` if runs start failing with 404.
 - The free Gemini tier may use your prompts to improve Google's products.
 - Facebook may refuse a custom Reel cover through the API; the Reel then uses its own frame.

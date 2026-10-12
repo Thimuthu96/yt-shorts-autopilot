@@ -292,25 +292,6 @@ def slide_calendar(cv: Canvas, data: dict, v: dict):
     return img, None
 
 
-def slide_outro(cv: Canvas, data: dict, v: dict):
-    img, d = cv.base()
-    f = _font(84, True)
-    y = 380
-    what = f"{cv.edition} brief" if cv.edition else "brief"
-    for line in _wrap(d, f"That's your {what} for {cv.date_only.title()}.", f, W - 120, 3):
-        d.text((60, y), line, font=f, fill=FG)
-        y += 100
-    y += 40
-    nxt = v.get("next") or "Next brief at the next session open."
-    for line in ("Not financial advice.", "Do your own research."):
-        d.text((60, y), line, font=_font(48, True), fill=MUTED)
-        y += 70
-    for line in _wrap(d, nxt, _font(48, True), W - 120, 2):
-        d.text((60, y), line, font=_font(48, True), fill=cv.accent)
-        y += 70
-    return img, None
-
-
 # ─── gold outlook slides (from data["gold_analysis"]) ──────────────────────
 
 BIAS_COL = {"bullish": UP, "bearish": DOWN, "neutral": GOLD}
@@ -465,7 +446,7 @@ def slide_drivers(cv: Canvas, data: dict, v: dict):
 
 
 RENDERERS = {"title": slide_title, "price": slide_price, "fx": slide_fx, "gold": slide_gold, "board": slide_board,
-             "news": slide_news, "calendar": slide_calendar, "outro": slide_outro,
+             "news": slide_news, "calendar": slide_calendar,
              "gold_chart": slide_gold_chart, "review": slide_review, "bias": slide_bias,
              "liquidity": slide_liquidity, "scenarios": slide_scenarios, "drivers": slide_drivers}
 
@@ -473,18 +454,23 @@ RENDERERS = {"title": slide_title, "price": slide_price, "fx": slide_fx, "gold":
 def render_slides(cfg: dict, data: dict, scenes: list[dict], workdir: Path,
                   cover: Path | None = None, edition: str = "", footer: str | None = None) -> list[dict]:
     """Returns [{"image": path, "reveal": (x, y, w, h) | None, "cover": bool}] per scene.
-    With `cover`, scene 1 shows the thumbnail design (so the opening frame is the thumbnail)."""
+    With `cover`, scene 1 opens on the thumbnail design (so the opening frame is the thumbnail) and
+    carries `follow`: the slide that takes over after ~1 s, from scene 1's `visual.follow` (the lead
+    asset's chart, which draws in; gold → the gold chart), else the board."""
     dt = datetime.fromisoformat(data["date_utc"])
     date_label = f"{dt:%b} {dt.day}, {dt.year}".upper()
     cv = Canvas(cfg, date_label, edition, footer)
     out = []
     for i, s in enumerate(scenes):
-        if i == 0 and cover:
-            out.append({"image": Path(cover), "reveal": None, "cover": True})
-            continue
         v = s.get("visual") or {"type": "board"}
+        if i == 0 and cover:
+            v = v.get("follow") or {"type": "board"}
         img, reveal = RENDERERS.get(v.get("type"), slide_board)(cv, data, v)
         path = workdir / f"slide_{i:02d}.png"
         img.save(path)
-        out.append({"image": path, "reveal": reveal})
+        if i == 0 and cover:
+            out.append({"image": Path(cover), "reveal": None, "cover": True,
+                        "follow": {"image": path, "reveal": reveal}})
+        else:
+            out.append({"image": path, "reveal": reveal})
     return out

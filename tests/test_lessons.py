@@ -255,6 +255,10 @@ def test_scene_plan():
     plan = lessons.scene_plan(cur[0], [example()], next_entry=cur[1])
     assert [s["id"] for s in plan] == ["hook", "concept", "example_1", "misreads", "recap"]
     assert plan[-1]["visual"]["next"] == cur[1]["title"] and cur[1]["title"] in plan[-1]["covers"]
+    # the recap ends on the next episode (after the disclaimer); the hook opens on example 1, marked
+    assert plan[-1]["covers"].index("not financial advice") < plan[-1]["covers"].index(cur[1]["title"])
+    assert plan[0]["visual"]["example"] is plan[2]["visual"]["example"] and plan[0]["visual"]["still"]
+    assert plan[0]["visual"]["type"] == plan[2]["visual"]["type"] and plan[0]["visual"]["heading"] == cur[0]["title"]
     ict = dict(cur[0], track=4)
     assert lessons.scene_plan(ict, [example()])[-1]["visual"]["non_affiliation"]
     # mtf entry: example scenes take the entry's visual type, the example (with its lower panel) as is

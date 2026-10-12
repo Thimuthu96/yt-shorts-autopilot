@@ -69,7 +69,9 @@ LINKS = {
     ("USDJPY", "BTC"): "Sharp yen rallies can force carry-trade unwinds that hit risk assets like crypto.",
 }
 
-MOVE_SCALE = {"crypto": 4.0, "fx": 0.8, "gold": 1.5}  # a move this big scores 1.0
+# a move this big scores 1.0. Crypto at 3%: big crypto moves led all six top videos (Oct 2026).
+MOVE_SCALE = {"crypto": 3.0, "fx": 0.8, "gold": 1.5}
+FX_LEAD_WEIGHT = 0.75  # FX-pair leads (not USD, not gold) without a calendar event: FX-led briefs didn't chart
 EVENT_ASSETS = {"USD", "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF"}
 
 
@@ -153,9 +155,13 @@ def pick(data: dict, last_lead: str | None = None, used_headlines: list[str] | N
                     break
         if hits == 0:
             move *= 0.7  # a move with no story behind it makes a thin Short; only a big one should lead
-        total = move + news_score + event - (0.3 if key == last_lead else 0.0)
-        scores[key] = total
+        total = move + news_score + event
         why[key] = [f"move {move:.2f}", f"news {news_score:.2f}", f"event {event:.1f}"]
+        if moves.get(key, ("",))[0] == "fx" and not event:
+            total *= FX_LEAD_WEIGHT
+            why[key].append(f"fx x{FX_LEAD_WEIGHT}")
+        total -= 0.3 if key == last_lead else 0.0
+        scores[key] = total
 
     if not scores:
         data["focus"] = {}

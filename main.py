@@ -144,13 +144,13 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
 
     v = cfg["voice"]
     scenes = pkg["scenes"]
-    audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log)
+    audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log, fallback=v.get("fallback"))
     total = sum(a["duration"] for a in audio)
     limit = cfg["video"]["max_seconds"]
     if total > limit:
         rate = faster_rate(v["rate"], total / limit)
         log(f"Narration {total:.1f}s is over {limit}s, re-recording at {rate}")
-        audio = voice.synthesize(scenes, v["name"], rate, workdir, log=log)
+        audio = voice.synthesize(scenes, v["name"], rate, workdir, log=log, fallback=v.get("fallback"))
         total = sum(a["duration"] for a in audio)
     log(f"Narration: {total:.1f}s")
 
@@ -228,13 +228,13 @@ def make_lesson(cfg: dict, entry: dict, glossary: dict, history: dict, workdir: 
 
     v = cfg["voice"]
     scenes = pkg["scenes"]
-    audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log)
+    audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log, fallback=v.get("fallback"))
     total = sum(a["duration"] for a in audio)
     limit = (cfg.get("lessons") or {}).get("max_seconds", LESSON_MAX_SECONDS)
     if total > limit:
         rate = faster_rate(v["rate"], total / limit)
         log(f"Lesson narration {total:.1f}s is over {limit}s, re-recording at {rate}")
-        audio = voice.synthesize(scenes, v["name"], rate, workdir, log=log)
+        audio = voice.synthesize(scenes, v["name"], rate, workdir, log=log, fallback=v.get("fallback"))
         total = sum(a["duration"] for a in audio)
     log(f"Lesson narration: {total:.1f}s")
 

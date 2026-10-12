@@ -342,9 +342,14 @@ def scene_plan(entry: dict, examples: list[dict], next_entry: dict | None = None
     if not examples:
         raise ValueError(f"{entry['id']}: no example; the episode should have been held")
     concepts = ", ".join(entry.get("concepts", []))
+    first = examples[0]
     plan = [
-        {"id": "hook", "visual": {"type": "title", "title": entry["title"], "track": entry["track"]},
-         "covers": f"the hook: what the viewer will be able to spot after \"{entry['title']}\""},
+        # the payoff first: example 1's chart, already marked and fully drawn from frame 0, under the title
+        {"id": "hook", "visual": {"type": entry["visual"], "example": first, "label": example_label(first),
+                                  "heading": entry["title"], "still": True},
+         "covers": f"the hook: a short first sentence points at the marked '{first['glossary']}' "
+                   f"on the {spoken_chart(first)} on screen; then promise that by the end of \"{entry['title']}\" "
+                   "the viewer will spot it on their own charts"},
         {"id": "concept", "visual": {"type": "concept", "concepts": list(entry.get("concepts", []))},
          "covers": f"the concept, stated from its glossary entries ({concepts}) and the approved key points"},
     ]
@@ -359,8 +364,8 @@ def scene_plan(entry: dict, examples: list[dict], next_entry: dict | None = None
     affiliation = entry["track"] == 4  # ICT track: not affiliated with the concept's author
     plan.append({"id": "recap",
                  "visual": {"type": "outro", "next": nxt, "disclaimer": True, "non_affiliation": affiliation},
-                 "covers": "recap of the key points, "
-                           + (f"next episode: \"{nxt}\", " if nxt else "")
-                           + "then: this is education, not financial advice"
-                           + ("; plus the non-affiliation line" if affiliation else "")})
+                 "covers": "a short recap of the key points (a few short sentences), then: this is education, "
+                           "not financial advice"
+                           + ("; plus the non-affiliation line" if affiliation else "")
+                           + (f"; the last sentence names the next episode: \"{nxt}\"" if nxt else "")})
     return plan

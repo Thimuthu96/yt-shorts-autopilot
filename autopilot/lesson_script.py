@@ -58,7 +58,8 @@ LESSON_RULES = """
    Keep sentences short and simple. Remove "buy" / "sell" (except "buy-side" /
    "sell-side" liquidity), "entry", "stop loss", "take profit", "target", "win rate", "profit",
    "guaranteed", predictions ("will reach / hit / go / drop / rise") and performance claims.
-   Keep each scene's "id". The "recap" scene must keep: "This is education, not financial advice." """
+   Keep each scene's "id". The "recap" scene must keep: "This is education, not financial advice."
+   If the recap names the next episode, keep that sentence last. """
 ICT_RULE = f"""
    The "recap" scene must also keep: "{NON_AFFILIATION}" """
 
@@ -120,7 +121,10 @@ Rules:
 - No predictions, no advice, no performance claims. Never say buy, sell, entry, stop loss, take
   profit, target, win rate, profit, guaranteed, or "will" + reach / hit / go / drop / rise.
   "Buy-side" and "sell-side" liquidity are allowed terms.
-- "recap" ends with: "{DISCLAIMER}"{ict}
+- "hook": no title card is shown; example 1's chart is already on screen, marked. Point at the marked
+  concept by name and where it sits on the chart, without its numbers; walk through it in "example_1".
+- "recap" says: "{DISCLAIMER}"{ict}
+  If the recap scene names a next episode, its last sentence names that episode; else it ends with the line above.
 - No greetings, no "in this video", no "like and subscribe".
 
 Return JSON: {{"scenes": [{{"id": "{plan[0]['id']}", "text": "..."}}, ...]}}"""

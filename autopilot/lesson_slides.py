@@ -10,7 +10,9 @@
     draw_mtf(img, box, example, layout, label=None) -> [higher info, lower info]
 
 Scene types (RENDERERS): title, concept, chart, mtf, schematic, misreads, outro. An unknown type raises
-ValueError. Charts are drawn with Pillow from the example's own candles and primitives (swing, level,
+ValueError. A chart/mtf visual may carry `heading` (replaces the glossary term, e.g. the lesson
+title on the hook, up to 2 lines) and `still: true` (no draw-in: fully marked from frame 0, as the
+hook is). The recap (outro) ends on "Next: <episode>" when there is one. Charts are drawn with Pillow from the example's own candles and primitives (swing, level,
 trendline, zone, label); every number on a chart comes from them. Real charts carry the strip
 "Historical example · asset · date · timeframe" + "Data: source"; a schematic is labelled "Schematic"
 and draws no numbers. Portrait charts zoom to the example's region (± 3 candles, ± 8% of its range);
@@ -584,8 +586,8 @@ def _base(ctx: _Ctx):
     return img, d
 
 
-def _heading(ctx: _Ctx, text: str) -> dict:
-    return {"text": text, "size": 48, "bold": True, "fill": ctx.accent, "gap": 34, "max_lines": 1}
+def _heading(ctx: _Ctx, text: str, lines: int = 1) -> dict:
+    return {"text": text, "size": 48, "bold": True, "fill": ctx.accent, "gap": 34, "max_lines": lines}
 
 
 def slide_title(ctx: _Ctx, v: dict):
@@ -628,11 +630,11 @@ def _chart_slide(ctx: _Ctx, v: dict, schematic: bool):
     img, d = _base(ctx)
     L = ctx.layout
     x0, y0, x1, y1 = L.content_box
-    head = _chart_heading(ctx, ex, "How it looks" if schematic else "Real example")
-    y = _flow(d, [_heading(ctx, head)], (x0, y0, x1, y1), L)
+    head = v.get("heading") or _chart_heading(ctx, ex, "How it looks" if schematic else "Real example")
+    y = _flow(d, [_heading(ctx, head, 2 if v.get("heading") else 1)], (x0, y0, x1, y1), L)
     label = SCHEMATIC if schematic else (v.get("label") or lessons.example_label(ex))
     info = draw_chart(img, (x0, y, x1, y1), ex, L, zoom=L.h > L.w, label=label, accent=ctx.accent)
-    return img, info["box"]
+    return img, None if v.get("still") else info["box"]
 
 
 def slide_chart(ctx: _Ctx, v: dict):
@@ -646,9 +648,10 @@ def slide_mtf(ctx: _Ctx, v: dict):
     img, d = _base(ctx)
     L = ctx.layout
     x0, y0, x1, y1 = L.content_box
-    y = _flow(d, [_heading(ctx, _chart_heading(ctx, ex, "Top-down reading"))], (x0, y0, x1, y1), L)
+    head = v.get("heading") or _chart_heading(ctx, ex, "Top-down reading")
+    y = _flow(d, [_heading(ctx, head, 2 if v.get("heading") else 1)], (x0, y0, x1, y1), L)
     infos = draw_mtf(img, (x0, y, x1, y1), ex, L, label=v.get("label"), accent=ctx.accent)
-    return img, mtf_reveal(infos, L)
+    return img, None if v.get("still") else mtf_reveal(infos, L)
 
 
 def slide_schematic(ctx: _Ctx, v: dict):
@@ -672,14 +675,13 @@ def slide_outro(ctx: _Ctx, v: dict):
     for kp in ctx.entry.get("key_points") or []:
         items.append({"text": kp, "size": 42, "fill": FG, "gap": 20, "bullet": "•", "bullet_fill": ctx.accent,
                       "keep": True})
-    if v.get("next"):
-        items.append({"text": f"Next: {v['next']}", "size": 46, "bold": True, "fill": ctx.accent, "gap": 26,
-                      "keep": True})
     if v.get("disclaimer", True):
         items.append({"text": "Education only. Not financial advice.", "size": 40, "bold": True, "fill": MUTED,
-                      "gap": 14, "keep": True})
+                      "gap": 14 if v.get("non_affiliation") else 26, "keep": True})
     if v.get("non_affiliation"):
-        items.append({"text": NON_AFFILIATION, "size": 36, "fill": MUTED, "keep": True})
+        items.append({"text": NON_AFFILIATION, "size": 36, "fill": MUTED, "gap": 26, "keep": True})
+    if v.get("next"):  # last, so the video ends pointing at the next episode
+        items.append({"text": f"Next: {v['next']}", "size": 46, "bold": True, "fill": ctx.accent, "keep": True})
     _flow(d, items, ctx.layout.content_box, ctx.layout, max_scale=1.4, who=f"{ctx.entry.get('id')} recap")
     return img, None
 

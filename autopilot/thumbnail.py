@@ -135,7 +135,7 @@ def choose(data: dict) -> dict:
             series, label, badge, sub = gold["series"][-48:], "GOLD", "XAU", "24-HOUR MOVE"
         else:
             series, label, badge, sub = fx[key]["series"][-15:], name, "FX", "DAILY MOVE"
-        return {"template": "move", "label": label, "badge": badge, "sublabel": sub, "up": up,
+        return {"template": "move", "asset": key, "label": label, "badge": badge, "sublabel": sub, "up": up,
                 "hero": _pct(chg), "series": series,
                 "default_hook": "WHAT HAPPENED?" if not up else "WHAT'S DRIVING IT?",
                 "facts": f"{name} {'up' if up else 'down'} {abs(chg):.1f}% ({sub.lower()})"}
@@ -182,7 +182,7 @@ def choose(data: dict) -> dict:
         level = (int(price // step) + 1) * step
         dist = (level - price) / price * 100
         if 0.15 <= dist <= 2.0:
-            return {"template": "level", "label": f"{c['name'].upper()} IS", "dist": f"{dist:.1f}% AWAY",
+            return {"template": "level", "asset": sym, "label": f"{c['name'].upper()} IS", "dist": f"{dist:.1f}% AWAY",
                     "level": _short_money(level), "now": f"NOW ${price:,.0f}", "target": f"${level:,.0f}",
                     "fill": 0.72 + 0.26 * (1 - dist / 2.0), "default_hook": "SO CLOSE.",
                     "facts": f"{c['name']} at ${price:,.0f}, {dist:.1f}% below ${level:,.0f}"}

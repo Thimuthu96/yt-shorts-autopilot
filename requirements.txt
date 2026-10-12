@@ -1,4 +1,5 @@
 edge-tts>=7.2.8
+piper-tts>=1.8
 google-api-python-client>=2.150
 google-auth>=2.30
 google-auth-oauthlib>=1.2
