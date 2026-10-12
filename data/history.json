@@ -527,6 +527,27 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-12T00:35:44+00:00",
+      "brief_date": "2026-10-12",
+      "session": "asia",
+      "kind": "market",
+      "title": "Bitcoin Price Today: BTC Holds Below $85K at Asia Open | Oct 12",
+      "video_id": "MGskyNnMsbI",
+      "seconds": 55.5,
+      "headlines": [
+        "Bitcoin's Adam Back critiques Ethereum's design amid Blockstream's $319M crypto theft and legal troubles.",
+        "Treasury Yields Are Now Above 5%. Here's Why That's Bearish For Bitcoin."
+      ],
+      "lead": "BTC",
+      "fb_reel_id": "2063600227626342",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
