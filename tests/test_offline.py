@@ -1025,7 +1025,8 @@ def test_lesson_slides(cfg):
     plan.insert(2, {"id": "schematic", "visual": {"type": "schematic", "example": schematic}})
     plan.insert(5, dict(mtf_scene, id="mtf"))
     types = [s["visual"]["type"] for s in plan]
-    assert types == ["title", "concept", "schematic", "chart", "chart", "mtf", "misreads", "outro"], types
+    assert types == ["chart", "concept", "schematic", "chart", "chart", "mtf", "misreads", "outro"], types
+    assert plan[0]["visual"]["still"] and plan[0]["visual"]["heading"] == cur[1]["title"]  # hook: marked example 1
 
     work = ROOT / "output" / "test_lessons"
     shutil.rmtree(work, ignore_errors=True)
@@ -1040,7 +1041,9 @@ def test_lesson_slides(cfg):
                 assert im.size == (layout.w, layout.h), (layout.name, s["id"], im.size)
                 band = im.convert("RGB").crop((0, layout.caption_band[0], layout.w, layout.caption_band[1]))
                 assert band.getextrema() == tuple((c, c) for c in bg), (layout.name, s["id"], "drew into captions")
-            if s["visual"]["type"] in ("chart", "schematic", "mtf"):
+            if s["visual"].get("still"):
+                assert p["reveal"] is None, (layout.name, s["id"])  # the hook is fully drawn from frame 0
+            elif s["visual"]["type"] in ("chart", "schematic", "mtf"):
                 x, y, w, h = p["reveal"]
                 assert w >= 0.85 * layout.w and x >= 0 and x + w <= layout.w, (layout.name, p["reveal"])
                 assert y >= layout.rule_y and y + h <= layout.caption_band[0], (layout.name, p["reveal"])
@@ -1309,7 +1312,8 @@ def test_lesson_render(cfg):
     work = ROOT / "output" / "test_lesson"
     shutil.rmtree(work, ignore_errors=True)
     plan = lessons.scene_plan(entry, lessons.DETECTORS[entry["detector"]].find(history), nxt)
-    draft.update(_lesson_draft(plan, lesson_script.DISCLAIMER))
+    draft.update(_lesson_draft(plan, f"{lesson_script.DISCLAIMER} Next, {nxt['title']}." if nxt
+                               else lesson_script.DISCLAIMER))  # the recap ends on the next episode
     made = make(entry, cfg, work)
     assert set(made) == {"videos", "thumbnail", "meta", "chapters", "seconds", "examples", "workdir"}, set(made)
     assert voice_calls == [cfg["voice"]["rate"]]  # under 300 s: recorded once

@@ -386,7 +386,10 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
 - **Retention pass (owner, 2026-10-12):** viewers left almost at once (YT ~14 s average on 45–58 s
   videos, FB ~2.7 s), so briefs and the gold outlook are 30–40 s, open with motion (cover push-in →
   the cover asset's chart at ~1 s, captions on), have tension hooks and no outro card / spoken disclaimer (footer +
-  description keep it). Lessons are unchanged (they keep their own outro).
+  description keep it). Lessons keep their own recap outro, but (same day) open on example 1's chart
+  fully marked under the lesson title (`scene_plan` hook: `heading` + `still`, no title card, no draw-in)
+  and the recap ends on "Next: <episode>" (slide and narration; disclaimer/ICT line before it). End
+  screens can't be set via the API: a Studio template, by hand (README).
 
 ## Gotchas we hit
 

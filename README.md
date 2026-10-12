@@ -224,6 +224,12 @@ time) and the next one goes out instead. If every episode is published or held, 
 the backup run re-makes the same episode (same examples) and publishes only the missing one; if
 that episode can't be re-made, the run fails so you see it.
 
+Each episode opens on its first real example, already marked, under the lesson title (no title card),
+so the payoff is on screen from the first frame; the recap ends on "Next: <episode>". Chapters go in
+the description automatically. **End screen (once, by hand):** the API can't set end screens, so in
+YouTube Studio make an end-screen template (Video element → "Best for viewer" or the series playlist +
+Subscribe) and apply it to each lesson; the recap's last ~20 s are where it shows.
+
 To switch them on:
 1. **YouTube:** nothing to change: lessons upload with the existing `YT_REFRESH_TOKEN` and you add
    them to playlists by hand in YouTube Studio (`lessons.playlists: false`). Only if you want automatic
