@@ -18,7 +18,7 @@ Owner is a developer (Flutter/Dart background), timezone Asia/Colombo (UTC+5:30)
 ```
 sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   market brief:
-  → focus.pick()        lead story + the 1-3 assets it moves (scores: headlines, move, events)
+  → focus.pick()        lead story + the 1-3 assets it moves (scores: headlines, move, events; crypto-first)
   → thumbnail.choose()  pick 1 of 4 templates, staying on the focus assets
   → script.make_script()  research() analyst note → write() one-story script → fact_check()
   gold outlook:
@@ -26,7 +26,7 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → thumbnail.choose_gold()  "BEARISH / BELOW $4,142" card
   → script.make_gold_script()  fixed scene plan, Gemini only narrates it + fact_check()
   both:
-  → thumbnail.render()  thumbnail.jpg (1080x1920), also used as scene 1 of the video
+  → thumbnail.render()  thumbnail.jpg (1080x1920), also the video's first ~1 s (push-in), then its asset's chart
   → voice.synthesize()  edge-tts narration per scene + word timings
   → slides.render_slides()  one PNG graphic per scene (charts, board, news card, calendar…)
   → render.build_video()  ffmpeg: segments + animations + word-highlight captions + audio mix
@@ -218,22 +218,38 @@ assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or g
   impact on each focus asset with its number, macro context, what to watch), `write()` (one
   story, only the focus assets' data is in the prompt, story arc), `fact_check()` (full data).
   Typical market links (`focus.LINKS`) may be said as tendencies ("usually"), never as today's cause.
-- `script.write()` rules: only numbers from the data; "why" only if a headline says so;
-  no predictions/targets/buy-sell; not-financial-advice line; scene 1 must state the thumbnail
-  fact; returns `thumbnail_hook`. `fix_visuals()` forces scene 1 = `title`, swaps charts of
-  non-focus assets for an unused focus asset, degrades bad visuals to `board`.
-- Scene visual types: `title, price{asset}, fx{asset}, gold, board, news{source,headline}, calendar, outro`;
-  gold outlook adds `gold_chart, review, bias, liquidity, scenarios, drivers`.
+- `script.write()` rules: 80–100 words (`llm.min_words/max_words`, ~35 s), 5–6 scenes; arc hook →
+  what happened → why (headline-backed only) → spread to 1–2 related assets → what to watch; macro
+  context only when a headline makes it the cause; only numbers from the data; no predictions/targets/
+  buy-sell; **no spoken disclaimer, no outro, no sign-off** — the last line loops back to the opening
+  fact; first line is a tension opener with a real number (`HOOKS`, e.g. "Ethereum just lost 5.7%.
+  Here's who's selling." — "who" only if a headline names them); scene 1 must state the thumbnail
+  fact; returns `thumbnail_hook`. `validate()`: 4–7 scenes, last scene not sign-off-only.
+  `fix_visuals(data, pkg, cover, log)` forces scene 1 = `{"type": "title", "follow": opening_chart()}`
+  (the cover's asset — move/level card `asset`, gold card → gold chart — else the lead's chart, else
+  board), swaps later charts of that asset or of non-focus assets for an unused focus asset, degrades
+  bad visuals to `board`; a stray `outro` is dropped if it only signs off, else becomes the board;
+  spoken disclaimer/goodbye phrases (`SIGN_OFF`, `GOODBYE`) are cut from the last line (rest of the
+  sentence kept); an all-sign-off last scene is dropped if ≥ 4 scenes remain. Each change is logged.
+- Scene visual types: `title, price{asset}, fx{asset}, gold, board, news{source,headline}, calendar`
+  (no `outro` in Shorts since Oct 2026); gold outlook adds `gold_chart, review, bias, liquidity, scenarios, drivers`.
 - Gold outlook = 2 calls: `write_gold()` narrates the fixed `gold_plan()` scenes (by id) from
   `gold.analyze()` only; biases worded as conditional reads ("bearish while below…"); never buy/
-  sell/long/short/entry/stop/target. `fact_check(…, GOLD_RULES)`.
+  sell/long/short/entry/stop/target. `fact_check(…, GOLD_RULES)`. Plan: `open` (cover → gold chart)
+  → `review` (if any) → `bias` (price folded in) → `levels` (liquidity + scenarios, `scenarios`
+  visual) → one watch scene (`drivers` if macro/odds/USD events, else gold `news`, else none); no
+  `close`/outro, no spoken disclaimer (the last line's sign-off phrases are cut after `_merge_plan`; a
+  scene left empty fails validation). If that leaves < 4 scenes, `liquidity` gets its own scene again.
 
 ## Thumbnails
 
 Shorts custom thumbnails can't be set via API for this channel (YouTube only allows custom
-Shorts thumbnails for YPP members, in Studio desktop). So **scene 1 of every video is the
-thumbnail design** (first frame = exact design, no captions over it, slow push-in) and
-`set_thumbnail()` is attempted and its refusal ignored. `thumbnail.jpg` is kept as an artifact.
+Shorts thumbnails for YPP members, in Studio desktop). So **every video opens on the thumbnail
+design** for ~1 s (`render.COVER_HOLD`; frame 0 = the exact design, then an eased push-in to 1.06
+within 0.35 s and hold, no captions over it), then scene 1's `follow` slide takes over for the rest
+of that scene: the chart of the asset the cover names (else the lead's; gold edition: the gold chart;
+no chart → board) drawing in, with captions from that moment. `set_thumbnail()` is attempted and its refusal ignored; `thumbnail.jpg` is kept
+as an artifact and is the Facebook Reel cover.
 
 Templates (`thumbnail.choose()` priority):
 1. **move** — any coin |24h| ≥ 4% or FX pair |1d| ≥ 0.8% (score = move/threshold). Hero "−6.2%",
@@ -255,11 +271,13 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
 
 ## Video design
 
-- 1080×1920, 30 fps, ≤59 s. Dark ground `#0E0F12`, accent `#FFD400`, up `#22C55E`, down `#EF4444`.
+- 1080×1920, 30 fps, aim 30–40 s (`video.max_seconds: 42`; over it → re-recorded faster). Dark ground `#0E0F12`, accent `#FFD400`, up `#22C55E`, down `#EF4444`.
 - Slides keep y 1230–1480 free for burned-in captions (ASS, 3 words/line, current word yellow).
 - Chart scenes draw in left→right (background-coloured box slides off via ffmpeg overlay).
   Other scenes: slow push-in (`scale=...:eval=frame`).
-- Footer on every slide: "Not financial advice · Data: Coinbase, ECB/Frankfurter, ForexFactory".
+- Footer on every slide: "Not financial advice · Data: Coinbase, ECB/Frankfurter, ForexFactory" (gold:
+  `gold.footer`). With the description / Reel caption disclaimer this is the only disclaimer: no spoken
+  one, no outro card.
 - Voice: edge-tts `en-US-AndrewMultilingualNeural`, `+10%`; re-recorded faster if > max_seconds.
 - Optional background music: any `.mp3` in `music/` (royalty-free only).
 
@@ -362,6 +380,13 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
   repeatable and auditable; tomorrow's video reviews today's call honestly (`review`).
 - **"All markets" briefs:** replaced Oct 2026 by one-story briefs (owner: videos mixed BTC, ETH,
   EUR, GBP regardless of the news). Lead needs headlines: a move with no headline counts 0.7×.
+  Crypto-first (Oct 2026: big crypto drops were all six top videos, FX-led briefs didn't chart):
+  `MOVE_SCALE` crypto 3% = 1.0; FX-pair leads (not `USD`, not `XAU`) score ×0.75 (`FX_LEAD_WEIGHT`, shown as
+  "fx x0.75" in the lead's logged parts) unless a calendar event applies.
+- **Retention pass (owner, 2026-10-12):** viewers left almost at once (YT ~14 s average on 45–58 s
+  videos, FB ~2.7 s), so briefs and the gold outlook are 30–40 s, open with motion (cover push-in →
+  the cover asset's chart at ~1 s, captions on), have tension hooks and no outro card / spoken disclaimer (footer +
+  description keep it). Lessons are unchanged (they keep their own outro).
 
 ## Gotchas we hit
 

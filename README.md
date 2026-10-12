@@ -26,7 +26,8 @@ background. Three posts every day, weekends included: if every fresh story was u
 unused one from the last 48 h is posted instead.
 
 **One story per brief:** each market brief picks the day's lead story (scored from headlines,
-price moves and upcoming events), researches how it spreads (e.g. a Bitcoin story → Ether and
+price moves and upcoming events; big crypto moves are favoured, a currency pair needs a scheduled
+event or a clearly bigger story to lead), researches how it spreads (e.g. a Bitcoin story → Ether and
 Solana; a Fed story → EUR/USD, gold, USD/JPY), and charts only those assets, instead of reading
 out every market. Each brief only uses news since the previous one.
 
@@ -77,11 +78,17 @@ board, headline card, calendar table), so there's no stock footage to mismatch. 
 may only use numbers from the data, and a second pass checks it against the data before
 anything is recorded. Market briefs make no predictions; the gold outlook's bias comes only from
 its fixed rules and is worded as conditional ("bearish while below $4,142"). No buy/sell calls;
-every video carries a not-financial-advice note. News photos aren't used (copyright).
+"Not financial advice" is in every slide's footer and in the YouTube description and Facebook
+caption (not spoken, and there's no outro card). News photos aren't used (copyright).
+
+**Built to be watched:** each Short is 30–40 seconds (`video.max_seconds: 42`; longer narration is
+re-recorded faster), opens with a line that has a real number and a reason to keep watching, and
+ends on a line that loops back to the opening fact instead of a sign-off.
 
 **Thumbnail / opening frame:** every video opens on a thumbnail design picked from the day's
 data, so the first frame (what the feed shows, and what YouTube usually uses as the
-thumbnail) is built to stop the scroll:
+thumbnail) is built to stop the scroll. It starts moving straight away (a quick push-in), holds
+about a second, then the chart of the asset it shows draws in (gold: the gold chart) and the captions start:
 
 | Template | Used when | Example |
 |---|---|---|

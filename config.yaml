@@ -15,8 +15,8 @@ llm:
   model: gemini-3.8-flash     # free tier; see https://ai.google.dev/gemini-api/docs/models
   # Tried in order if the main model is retired or unavailable (404).
   fallback_models: [gemini-3.7-flash, gemini-3.5-flash, gemini-flash-latest, gemini-3.5-flash-lite]
-  min_words: 115              # narration length → roughly 45–55 seconds
-  max_words: 145
+  min_words: 80               # narration length → roughly 30–40 seconds at ~2.5 words/s
+  max_words: 100
 
 # ─── Market data (all free, no keys) ────────────────────────────────────────
 market:
@@ -155,7 +155,7 @@ video:
   width: 1080
   height: 1920
   fps: 30
-  max_seconds: 59             # keep under a minute for the classic Shorts shelf
+  max_seconds: 42             # Shorts/Reels aim for 30–40 s (retention); re-recorded faster when over
   accent: "FFD400"            # brand colour on the graphics
   footer: "Not financial advice · Data: Coinbase, ECB/Frankfurter, ForexFactory"
   captions:

@@ -65,6 +65,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     path.write_text(header + "\n".join(lines) + "\n", encoding="utf-8")
 
 
+COVER_HOLD = 1.0      # seconds the opening card (thumbnail design) holds before the lead chart takes over
+COVER_PUNCH = 0.06    # the opening card (frame 0 = the exact design) pushes in this much...
+COVER_PUNCH_S = 0.35  # ...within this many seconds (eased out), then holds
+
+
 def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: str = "0x0E0F12",
              zoom: float = 0.035) -> None:
     """One scene: a still slide, either with a chart that draws itself left-to-right
@@ -74,9 +79,11 @@ def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: s
     enc = ["-t", f"{dur:.3f}", "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
            "-pix_fmt", "yuv420p", str(out)]
     if slide.get("cover"):
-        # opening card = thumbnail: frame 1 is the exact design, then a slow push-in
+        # opening card = thumbnail design: frame 0 is the exact design (the auto-thumbnail), then a quick
+        # eased push-in (1.0 → 1.06 in 0.35 s) and hold, so the feed sees motion in the first second
+        k = f"{COVER_PUNCH}*(1-pow(max(0,1-t/{COVER_PUNCH_S}),2))"
         vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},"
-              f"scale=w='trunc({w}*(1+0.03*t/{dur:.3f})/2)*2':h=-2:eval=frame:flags=bicubic,"
+              f"scale=w='trunc({w}*(1+{k})/2)*2':h=-2:eval=frame:flags=bicubic,"
               f"crop={w}:{h},setsar=1,format=yuv420p")
         run(base + ["-vf", vf] + enc)
     elif slide.get("reveal"):
@@ -109,19 +116,31 @@ def build_video(scene_audio: list[dict], slides: list[dict], cfg: dict, workdir:
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
          "-i", workdir / "voice_list.txt", "-c", "copy", narration])
 
-    # 2) one video segment per scene, same length as that scene's narration
+    # 2) one video segment per scene, same length as that scene's narration. A Shorts opening card
+    #    (`cover` + `follow`) holds ~COVER_HOLD s, then scene 1's follow-up slide (the lead chart) runs
+    #    for the rest of that scene.
+    skip = 0.0
     with open(workdir / "seg_list.txt", "w") as f:
         for i, (sa, slide) in enumerate(zip(scene_audio, slides)):
-            seg = workdir / f"seg_{i:02d}.mp4"
-            _segment(slide, sa["duration"], seg, w, h, fps, zoom=v.get("push_in", 0.035))
-            f.write(f"file '{seg.resolve()}'\n")
+            parts = [(slide, sa["duration"], "")]
+            if slide.get("cover"):
+                skip = sa["duration"]
+                if slide.get("follow"):
+                    skip = min(COVER_HOLD, sa["duration"] / 2)
+                    parts = [(slide, skip, ""), (slide["follow"], sa["duration"] - skip, "b")]
+            for part, dur, tag in parts:
+                seg = workdir / f"seg_{i:02d}{tag}.mp4"
+                _segment(part, dur, seg, w, h, fps, zoom=v.get("push_in", 0.035))
+                f.write(f"file '{seg.resolve()}'\n")
     silent = workdir / "video_silent.mp4"
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
          "-i", workdir / "seg_list.txt", "-c", "copy", silent])
 
-    # 3) captions (none over the opening card, so it stays clean as a thumbnail)
-    skip = scene_audio[0]["duration"] if slides and slides[0].get("cover") else 0.0
-    build_captions([wd for wd in words if wd[0] >= skip], v["captions"], w, h, workdir / "captions.ass")
+    # 3) captions (none over the opening card, so it stays clean as a thumbnail); a word already
+    #    being spoken when the card hands over gets its caption from that moment
+    if skip:
+        words = [(max(s, skip), e, t) for s, e, t in words if e > skip]
+    build_captions(words, v["captions"], w, h, workdir / "captions.ass")
 
     # 4) final mix: burn captions, loudness-normalise voice, optional quiet music
     cmd = ["ffmpeg", "-y", "-v", "error", "-i", silent.name, "-i", narration.name]

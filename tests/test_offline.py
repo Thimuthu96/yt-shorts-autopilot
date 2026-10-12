@@ -106,9 +106,8 @@ PKG = {
         {"text": "Bitcoin is near sixty-two thousand dollars, down on the day.", "visual": {"type": "price", "asset": "BTC"}},
         {"text": "Spot bitcoin funds saw a third day of outflows.", "visual": {"type": "news", "source": "CoinDesk", "headline": "Bitcoin ETFs log a third straight day of outflows"}},
         {"text": "The euro held near one point oh nine at yesterday's fix.", "visual": {"type": "fx", "asset": "EURUSD"}},
-        {"text": "Here is the whole board.", "visual": {"type": "board"}},
         {"text": "Today, US core inflation lands at twelve thirty GMT.", "visual": {"type": "calendar"}},
-        {"text": "Not financial advice. See you tomorrow.", "visual": {"type": "outro"}},
+        {"text": "So that Bitcoin slip comes with a third day of fund outflows.", "visual": {"type": "board"}},
     ],
     "description": "Bitcoin dips ahead of CPI; euro steady.",
     "tags": ["bitcoin price today", "forex news today", "bitcoin price today"],
@@ -158,13 +157,58 @@ def main():
     charted = [s["visual"].get("asset") for s in fpkg["scenes"] if s["visual"]["type"] in ("price", "fx")]
     assert "EURUSD" not in charted and set(charted) <= set(f["assets"]), charted
     assert '"EURUSD"' not in prompts[1].split("TODAY'S DATA")[1].split("Headlines already")[0]
+    # opening: the cover hands over to the chart of the cover's asset (else the lead's), which later
+    # scenes don't repeat; no outro, no spoken disclaimer asked for
+    follow = fpkg["scenes"][0]["visual"]["follow"]
+    opened = follow.get("asset") or ("XAU" if follow["type"] == "gold" else None)
+    assert follow == script.opening_chart(data, fcover) and opened == (fcover.get("asset") or "BTC"), (follow, fcover)
+    assert opened not in charted, charted
+    assert all(s["visual"]["type"] != "outro" for p_ in (pkg, fpkg) for s in p_["scenes"])
+    assert "5-6 scenes" in prompts[1] and '"outro"' not in prompts[1] and " chart drawing in" in prompts[1]
+    assert "~35-second" in prompts[0] and "End with a short spoken note" not in prompts[1]
+    # a cover about a non-lead asset (ETH move card): scene 1 follows with ETH, later ETH charts are swapped
+    eth = json.loads(json.dumps(PKG))
+    eth["scenes"][1]["visual"] = {"type": "price", "asset": "ETH"}
+    script.fix_visuals(data, eth, {"template": "move", "asset": "ETH"}, log=lambda m: None)
+    assert eth["scenes"][0]["visual"]["follow"] == {"type": "price", "asset": "ETH"}, eth["scenes"][0]
+    assert all(s["visual"].get("asset") != "ETH" for s in eth["scenes"][1:]), eth["scenes"]
+    assert script.opening_chart(data, {"template": "level", "asset": "SOL"}) == {"type": "price", "asset": "SOL"}
+    assert script.opening_chart(data, {"template": "event"}) == {"type": "price", "asset": "BTC"}  # → the lead
+    # sign-offs: phrases are cut, the content of the sentence stays; "subscribers" is not a sign-off
+    assert script.strip_sign_off("So that 5.7% drop came with ETF outflows — not financial advice.") == \
+        "So that 5.7% drop came with ETF outflows."
+    assert script.strip_sign_off("Fund subscribers rose 5%. That's your London brief.") == "Fund subscribers rose 5%."
+    assert script.strip_sign_off("Not financial advice. See you tomorrow.") == ""
+    logs = []
+    only = json.loads(json.dumps(PKG))
+    only["scenes"].append({"text": "Not financial advice. See you tomorrow.", "visual": {"type": "board"}})
+    script.fix_visuals(data, only, log=logs.append)  # a sign-off-only last scene (not typed outro) goes
+    assert len(only["scenes"]) == len(PKG["scenes"]) and any("sign-off" in m for m in logs), logs
+    short = {"title": "t", "scenes": json.loads(json.dumps(PKG["scenes"][:3])) +
+             [{"text": "Not financial advice. See you tomorrow.", "visual": {"type": "board"}}]}
+    script.fix_visuals(data, short, log=lambda m: None)  # dropping would leave < 4 scenes: validate rejects
+    assert len(short["scenes"]) == 4 and "last scene is only a sign-off" in script.validate(small, data, short)
+    # a stray outro from the LLM: a pure sign-off is dropped, one with content becomes the board
+    stray = json.loads(json.dumps(PKG))
+    stray["scenes"].append({"text": "That's your London brief. Not financial advice.", "visual": {"type": "outro"}})
+    script.fix_visuals(data, stray, log=lambda m: None)
+    assert len(stray["scenes"]) == len(PKG["scenes"]) and all(s["visual"]["type"] != "outro" for s in stray["scenes"])
+    stray = json.loads(json.dumps(PKG))
+    stray["scenes"][-1] = {"text": "Bitcoin funds saw a third day of outflows. Not financial advice.",
+                           "visual": {"type": "outro"}}
+    script.fix_visuals(data, stray, log=lambda m: None)
+    assert stray["scenes"][-1] == {"text": "Bitcoin funds saw a third day of outflows.", "visual": {"type": "board"}}, \
+        stray["scenes"][-1]
+    assert not script.validate(small, data, stray), script.validate(small, data, stray)
     cover["hook"] = thumbnail.clean_hook(pkg.get("thumbnail_hook"), cover["default_hook"])
-    thumb = thumbnail.render(cover, cfg, data["date_utc"], work / "thumbnail.jpg")
-    pics = slides.render_slides(cfg, data, PKG["scenes"], work, cover=thumb)
-    assert pics[0]["cover"]
+    fcover["hook"] = thumbnail.clean_hook(fpkg.get("thumbnail_hook"), fcover["default_hook"])
+    thumb = thumbnail.render(fcover, cfg, data["date_utc"], work / "thumbnail.jpg")  # the focused brief's card
+    scenes = fpkg["scenes"]  # after fix_visuals: the opening card hands over to its asset's chart
+    pics = slides.render_slides(cfg, data, scenes, work, cover=thumb)
+    assert pics[0]["cover"] and pics[0]["follow"]["reveal"], pics[0]  # the lead chart draws in after the card
 
     audio = []
-    for i, s in enumerate(PKG["scenes"]):
+    for i, s in enumerate(scenes):
         words = s["text"].split()
         dur = 0.32 * len(words) + 0.4
         wav = work / f"voice_{i:02d}.wav"
@@ -178,14 +222,18 @@ def main():
     total = render.build_video(audio, pics, cfg, work, out)
     got = probe_duration(out)
     assert abs(got - total) < 0.25, (got, total)
+    assert got <= cfg["video"]["max_seconds"], got
+    check_opening(out, work)
 
-    # contact sheet: one frame from the middle of each scene, plus the chart mid-reveal
-    t, stamps = 0.0, []
+    # contact sheet: the first frame (the exact cover design), the follow chart mid-reveal, then the
+    # middle of every later scene
+    t, stamps = 0.0, [0.0, render.COVER_HOLD + 0.6]
     for a in audio:
         stamps.append(t + a["duration"] * 0.6)
         t += a["duration"]
-    stamps[0] = 0.0  # the very first frame must be the thumbnail design
-    stamps.insert(2, audio[0]["duration"] + 0.6)  # chart scene, mid-reveal
+    del stamps[2]  # scene 1's middle is already the chart mid-reveal
+    for old in work.glob("frame_*.png"):  # no stale frames from an earlier, longer run
+        old.unlink()
     for k, ts in enumerate(stamps):
         run(["ffmpeg", "-y", "-v", "error", "-ss", f"{ts:.2f}", "-i", out, "-frames:v", "1",
              "-vf", "scale=360:640", work / f"frame_{k:02d}.png"])
@@ -194,14 +242,17 @@ def main():
 
     meta = build_metadata(PKG, data, cfg, "London Open")
     assert "not financial advice" in meta["description"].lower()
+    assert "not financial advice" in cfg["video"]["footer"].lower() and "not financial advice" in cfg["gold"]["footer"].lower()
+    assert "not financial advice" in facebook.reel_caption(meta, PKG, data, cfg).lower()
     assert meta["tags"][0] == "bitcoin price today" and len(meta["tags"]) == len({t.lower() for t in meta["tags"]})
     assert "bitcoin" in meta["title"][:45].lower() and "Key numbers:" in meta["description"]
     assert meta["description"].split()[-5:][0] == "#Bitcoin" and meta["description"].endswith("#Shorts")
     assert cover["hook"] == cover["default_hook"]  # "Buy the dip now" is rejected
-    print(f"OK: {out} ({got:.1f}s) · thumbnail {cover['template']} '{cover['hook']}' · contact sheet {work / 'contact.png'}")
+    print(f"OK: {out} ({got:.1f}s) · thumbnail {fcover['template']} '{fcover['hook']}' · contact sheet {work / 'contact.png'}")
     print(meta["description"])
 
     test_gold(cfg, small, gdata)
+    test_focus_crypto_first()
     test_history()
     test_facebook(cfg, PKG, data, meta, out, work / "thumbnail.jpg")
     test_facebook_video(cfg)
@@ -212,6 +263,55 @@ def main():
     test_lesson_render(cfg)
     test_youtube_lesson(cfg)
     test_lesson_edition(cfg)
+
+
+def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
+    """Frame 0 is the cover design, it moves by 0.3 s (push-in) and captions start when it hands over (≤ 1.2 s)."""
+    from PIL import Image, ImageChops
+    shots = []
+    for k, ts in enumerate((0.0, 0.3)):
+        png = work / f"opening_{k}.png"
+        run(["ffmpeg", "-y", "-v", "error", "-ss", f"{ts:.2f}", "-i", video, "-frames:v", "1", png])
+        shots.append(Image.open(png).convert("L"))
+    def mean_diff(a, b):
+        d = ImageChops.difference(a, b)
+        return sum(d.getdata()) / (d.width * d.height)
+    design = Image.open(work / "thumbnail.jpg").convert("L").resize(shots[0].size)
+    motion, exact = mean_diff(*shots), mean_diff(shots[0], design)
+    assert motion > 2, f"no motion in the opening card's first 0.3 s ({motion:.2f})"
+    assert exact < 2 and exact < motion / 2, f"frame 0 isn't the exact cover design ({exact:.2f} vs {motion:.2f})"
+    first = next(ln for ln in (work / "captions.ass").read_text().splitlines() if ln.startswith("Dialogue:"))
+    h_, m_, s_ = first.split(",")[1].split(":")
+    start = int(h_) * 3600 + int(m_) * 60 + float(s_)
+    assert hold - 0.05 <= start <= 1.2, (start, hold)
+
+
+def test_focus_crypto_first():
+    """Bitcoin −3.2% beats EUR/USD +0.8% with one headline each (old scoring: EUR/USD 1.5 vs BTC 1.3)."""
+    now = datetime.now(timezone.utc).isoformat()
+    flat = {"change_24h": 0.2, "price": 1.0}
+    data = {"weekend": False, "calendar": [], "gold": None,
+            "crypto": {"BTC": {"name": "Bitcoin", "change_24h": -3.2, "price": 60000.0},
+                       "ETH": dict(flat, name="Ethereum"), "SOL": dict(flat, name="Solana")},
+            "fx": {"EURUSD": {"name": "EUR/USD", "change_1d": 0.8, "price": 1.1},
+                   "GBPUSD": {"name": "GBP/USD", "change_1d": 0.05, "price": 1.3}},
+            "news": [{"category": "crypto", "source": "CoinDesk", "title": "Bitcoin slides as miners sell",
+                      "summary": "", "body": "", "published": now},
+                     {"category": "fx", "source": "Reuters", "title": "Euro edges up after Lagarde speech",
+                      "summary": "", "body": "", "published": now}]}
+    f = focus.pick(data, None, [])
+    assert f["lead"] == "BTC" and f["scores"]["BTC"] > f["scores"]["EURUSD"], f["scores"]
+    assert abs(f["scores"]["BTC"] - 1.57) < 0.01 and abs(f["scores"]["EURUSD"] - 1.12) < 0.01, f["scores"]
+    # with a euro-area event today the FX discount doesn't apply
+    soon = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    data["calendar"] = [{"currency": "EUR", "datetime": soon, "event": "ECB Rate Decision"}]
+    fe = focus.pick(data, None, [])
+    assert fe["scores"]["EURUSD"] > f["scores"]["EURUSD"] and "fx x0.75" not in fe["why"]
+    # an FX lead with the weight applied says so in its printed parts
+    data["calendar"], data["crypto"]["BTC"]["change_24h"], data["news"] = [], 0.1, data["news"][1:]
+    fx_lead = focus.pick(data, None, [])
+    assert fx_lead["lead"] == "EURUSD" and "fx x0.75" in fx_lead["why"], fx_lead
+    print("OK focus: crypto-first lead scoring")
 
 
 def test_gold(cfg, small, data):
@@ -230,10 +330,30 @@ def test_gold(cfg, small, data):
         if sc and sc.get("objective"):
             assert abs(sc["objective"]["price"] - sc["trigger"]["price"]) >= 0.6 * a["typical_move"]["next_4h"] - 0.2
     cover = thumbnail.choose_gold(data)
-    pkg = script.make_gold_script(small, data, [], cover, log=lambda m: None)
+    llm = script.generate_json
+
+    def signing_off(prompt, models, temperature=0.9):  # the writer adds a spoken disclaimer to the last scene
+        res = llm(prompt, models, temperature)
+        if "DAILY GOLD OUTLOOK" in prompt:
+            res["scenes"][-1]["text"] += " This is not financial advice."
+        return res
+    script.generate_json, logs = signing_off, []
+    try:
+        pkg = script.make_gold_script(small, data, [], cover, log=logs.append)
+    finally:
+        script.generate_json = llm
+    assert "financial advice" not in pkg["scenes"][-1]["text"].lower() and pkg["scenes"][-1]["text"], pkg["scenes"][-1]
+    assert any("sign-off" in m for m in logs), logs
     types = [s["visual"]["type"] for s in pkg["scenes"]]
-    assert types[0] == "title" and types[-1] == "outro" and {"review", "gold_chart", "bias", "liquidity", "scenarios",
-                                                              "drivers", "news"} <= set(types), types
+    assert types == ["title", "review", "bias", "scenarios", "drivers"], types  # no gold_chart repeat, no outro
+    assert pkg["scenes"][0]["visual"]["follow"] == {"type": "gold_chart"}
+    # thin day (no review, no macro / USD events / gold news): still ≥ 4 scenes, ends on the levels
+    thin = dict(data, macro={}, rate_expectations=[], news=[],
+                gold_analysis=dict(a, review=None, events_usd=[]))
+    plan = script.gold_plan(thin, [])
+    assert [p["id"] for p in plan] == ["open", "bias", "liquidity", "levels"], plan
+    nogold = dict(data, macro={}, rate_expectations=[], gold_analysis=dict(a, events_usd=[]))
+    assert [p["id"] for p in script.gold_plan(nogold, [])] == ["open", "review", "bias", "levels", "news"]
     work = ROOT / "output" / "test_gold"
     work.mkdir(parents=True, exist_ok=True)
     cover["hook"] = thumbnail.clean_hook(pkg["thumbnail_hook"], cover["default_hook"])
@@ -243,13 +363,24 @@ def test_gold(cfg, small, data):
     audio = []
     for i, s in enumerate(pkg["scenes"]):
         wav = work / f"voice_{i:02d}.wav"
-        run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"sine=frequency={300 + 30 * i}:duration=1.2",
+        run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"sine=frequency={300 + 30 * i}:duration=2.0",
              "-ar", "44100", "-ac", "1", wav])
-        audio.append({"audio": wav, "duration": probe_duration(wav), "words": [(0.1, 0.5, s["id"])]})
+        audio.append({"audio": wav, "duration": probe_duration(wav),
+                      "words": [(0.1, 0.6, s["id"]), (0.7, 1.4, "gold")]})
     out = work / "short.mp4"
-    render.build_video(audio, pics, cfg, work, out)
-    for k, pic in enumerate(pics):
-        run(["ffmpeg", "-y", "-v", "error", "-i", pic["image"], "-vf", "scale=360:640", work / f"frame_{k:02d}.png"])
+    total = render.build_video(audio, pics, cfg, work, out)
+    assert total <= cfg["video"]["max_seconds"] and pics[0]["follow"]["reveal"], pics[0]
+    check_opening(out, work, hold=min(render.COVER_HOLD, audio[0]["duration"] / 2))
+    # contact sheet from the video: frame 0 (the cover), the gold chart mid-reveal, then each later scene
+    stamps, t = [0.0, min(render.COVER_HOLD, audio[0]["duration"] / 2) + 0.4], audio[0]["duration"]
+    for a in audio[1:]:
+        stamps.append(t + a["duration"] * 0.6)
+        t += a["duration"]
+    for old in work.glob("frame_*.png"):
+        old.unlink()
+    for k, ts in enumerate(stamps):
+        run(["ffmpeg", "-y", "-v", "error", "-ss", f"{ts:.2f}", "-i", out, "-frames:v", "1",
+             "-vf", "scale=360:640", work / f"frame_{k:02d}.png"])
     run(["ffmpeg", "-y", "-v", "error", "-i", work / "frame_%02d.png", "-vf", "tile=5x2:padding=8",
          "-frames:v", "1", work / "contact.png"])
     meta = build_metadata(pkg, data, cfg, "Gold Outlook")
@@ -1281,7 +1412,7 @@ def test_lesson_render(cfg):
     assert any("re-recording" in m for m in logs), logs
     assert [(s["width"], s["height"], s["captions"]["size"]) for s in shapes] == \
         [(1920, 1080, 56), (1080, 1920, cfg["video"]["captions"]["size"])], shapes
-    assert cfg["video"]["max_seconds"] == 59 and "margin_v" not in cfg["video"]["captions"]  # Shorts cfg untouched
+    assert cfg["video"]["max_seconds"] == 42 and "margin_v" not in cfg["video"]["captions"]  # Shorts cfg untouched
     assert ls.NON_AFFILIATION in made["meta"]["description"] and ls.NON_AFFILIATION in made["meta"]["fb_description"]
     assert made["meta"]["title"].endswith("| ICT concepts Lesson"), made["meta"]["title"]
     shutil.rmtree(ROOT / "output" / "test_lesson_ict", ignore_errors=True)

@@ -7,6 +7,7 @@ Gold outlook: a fixed scene plan built from gold.analyze(); the LLM only narrate
 """
 import json
 import random
+import re
 
 from . import seo
 from .llm import generate_json
@@ -19,21 +20,32 @@ SCENE_TYPES = {
     "board": "table of the assets in this brief with their % change",
     "news": 'one headline card; needs "source" and "headline" (your own max-12-word paraphrase)',
     "calendar": "table of today's high-impact economic events (only if there are any)",
-    "outro": "closing card with the not-financial-advice note",
 }
 GOLD_TYPES = {"gold_chart", "review", "bias", "liquidity", "scenarios", "drivers"}
 
+# Opening lines with tension: a real number from the data + an open question the next scenes answer.
 HOOKS = [
-    "the single biggest move of the day, stated with its number",
-    "a question about why something moved, answered right away",
-    "what traders are watching today and why it matters",
+    'the move as a hard fact with its number, then a tension line the next scenes answer, e.g. '
+    '"Ethereum just lost 5.7%. Here\'s who\'s selling." (only say "who" if a headline names them)',
+    'the number first, then the question it raises, e.g. "Bitcoin dropped 4.2% overnight. One headline '
+    'explains it." (only if a headline in the data does)',
+    'the number set against what comes next on the calendar, e.g. "The euro slid 0.6% before today\'s '
+    'ECB call."',
 ]
+# Spoken disclaimer / goodbye phrases, cut out of the narration (the rest of a sentence stays). The
+# disclaimer lives in the slide footers and the description, so the narration never speaks it.
+SIGN_OFF = re.compile(r"[\s,;:\u2014\u2013-]*\b(?:(?:this|that|it)(?: is|[\u2019']s) )?(?:not financial advice|"
+                      r"do your own research|thanks for watching|stay tuned|until next time|"
+                      r"(?:like and )?\bsubscribe\b|see you (?:tomorrow|next time|soon|later|then|at the next \w+))",
+                      re.I)
+# Sentences that are only a goodbye ("That's your London brief.", "See you at the open.")
+GOODBYE = re.compile(r"^\W*(?:that[\u2019']?s (?:your|all for)|see you|catch you|bye\b)", re.I)
 
 SCHEMA = """{
   "title": "YouTube title, max 70 chars, include the date like 'Oct 7'",
   "scenes": [
     {"text": "narration (1-2 short spoken sentences)",
-     "visual": {"type": "title|price|fx|gold|board|news|calendar|outro", "...": "fields for that type"}}
+     "visual": {"type": "title|price|fx|gold|board|news|calendar", "...": "fields for that type"}}
   ],
   "description": "2-3 sentences summarising the brief",
   "tags": ["search phrase", "..."],
@@ -102,7 +114,7 @@ def research(cfg: dict, data: dict) -> dict:
     focus = data["focus"]
     story = focus.get("story")
     prompt = f"""RESEARCH TASK. You are a senior crypto and forex market analyst preparing notes for a
-60-second news Short about ONE story. Work only from the material below.
+~35-second news Short about ONE story. Work only from the material below.
 
 LEAD: {focus['label']} (assets in this brief: {', '.join(focus['asset_names'].values())})
 LEAD STORY: {json.dumps(_news_row(story, body=True), ensure_ascii=False) if story else "(no single story; lead is the price move)"}
@@ -119,7 +131,8 @@ Write notes:
 - impact: for each other asset in this brief, what it actually did in the data (number) and how
   it connects to the lead story: either a headline that says so, or a typical relationship
   marked "typical". Say plainly if an asset did NOT follow.
-- context: up to 3 relevant facts from us_macro / fed_rate_odds_headlines (quote the source for odds).
+- context: facts from us_macro / fed_rate_odds_headlines ONLY if a headline ties them to this move
+  (quote the source for odds); else [].
 - watch: upcoming calendar events that matter for these assets (time GMT).
 - angle: the one question this Short answers, max 12 words.
 
@@ -151,11 +164,17 @@ ANALYST NOTES (built from the data; use them, they don't add new facts):
 {json.dumps(note or {}, ensure_ascii=False, indent=1)}
 
 Story arc: hook with the number → what happened (lead story) → why (only if a headline says) →
-impact on the related assets (their actual numbers, the link) → context (rates/inflation/yields
-only if it explains the story) → what to watch next → not-financial-advice close.
+spread to 1-2 related assets (their actual numbers, the link) → what to watch next. Rates, inflation
+or yields only when a headline says they are the cause. The last line loops back to the opening fact.
 """
     else:
         topic = ""
+    follow = opening_chart(data, cover)
+    names = {**{s: c["name"] for s, c in data.get("crypto", {}).items()},
+             **{p: f["name"] for p, f in data.get("fx", {}).items()}, "XAU": "gold"}
+    shown = cover.get("asset") if follow and cover.get("asset") else focus.get("lead")
+    opening = (f"the {names.get(shown, focus.get('label', shown))} chart drawing in"
+               if follow else "the board of the brief's assets")
     key = seo.primary(data)
     if key:
         seo_rules = f"""- title (max 70 chars): START with "{key[1]}" or "{key[0]}" (the search keyword must be in the
@@ -196,8 +215,10 @@ Rules:
 - The calendar has times, forecasts and previous values only, never results: don't state an
   actual figure unless a headline in the data reports it.
 - No predictions, price targets, buy/sell calls or "this could explode". Neutral, factual.
-  End with a short spoken note that this is not financial advice.
-- First line (under 12 words) opens with {random.choice(HOOKS)}.
+- No spoken disclaimer and no sign-off: "not financial advice" is already on screen and in the
+  description. No "that's your brief", "see you", "stay tuned". The last line loops back to the
+  opening fact (e.g. "So that 5.7% drop came with...", restating the number), so the video can loop.
+- First line (under 12 words) opens with {random.choice(HOOKS)}
 - No greetings, no "in this video", no "like and subscribe".
 
 OPENING CARD (also the video's thumbnail) — already designed from the data, it shows:
@@ -208,8 +229,9 @@ OPENING CARD (also the video's thumbnail) — already designed from the data, it
   the answer, e.g. "{cover['default_hook']}". It must be answered by this video. No predictions,
   no "moon", "buy", "sell", "will", "guaranteed", no emojis.
 
-Structure: 6-9 scenes. Scene 1 uses visual "title"; the last uses "outro". Pick a fitting
-visual for every scene from these types:
+Structure: 5-6 scenes (about 35 seconds spoken). Scene 1 uses visual "title"; it shows the opening
+card and then {opening}. Don't chart that asset again in later scenes. Pick a fitting visual for every
+other scene from these types:
 {types}
 
 SEO:
@@ -246,7 +268,7 @@ Return JSON: {{"issues": ["..."], "verdict": "ok|revised|reject", "package": <fu
 def validate(cfg: dict, data: dict, pkg: dict) -> list[str]:
     problems = []
     scenes = pkg.get("scenes") or []
-    if not 4 <= len(scenes) <= 11:
+    if not 4 <= len(scenes) <= 7:
         problems.append(f"{len(scenes)} scenes")
     for i, s in enumerate(scenes):
         v = s.get("visual") or {}
@@ -263,6 +285,8 @@ def validate(cfg: dict, data: dict, pkg: dict) -> list[str]:
             problems.append(f"scene {i + 1}: no gold data")
         elif t == "news" and not (v.get("headline") or "").strip():
             problems.append(f"scene {i + 1}: news card without headline")
+    if len(scenes) > 1 and (scenes[-1].get("text") or "").strip() and not strip_sign_off(scenes[-1]["text"]):
+        problems.append("last scene is only a sign-off")
     words = sum(len(s.get("text", "").split()) for s in scenes)
     lo, hi = cfg["llm"]["min_words"], cfg["llm"]["max_words"]
     if not lo - 30 <= words <= hi + 25:
@@ -282,23 +306,87 @@ def _chart_for(asset: str, data: dict) -> dict | None:
     return None
 
 
-def fix_visuals(data: dict, pkg: dict) -> None:
-    """Degrade gracefully instead of failing. Scene 1 is always the opening card (the thumbnail).
-    A chart of an asset outside the brief's focus becomes a chart of an unused focus asset
-    (or the board); unusable visuals become the board."""
+def opening_chart(data: dict, cover: dict | None = None) -> dict | None:
+    """The chart that takes over from the opening card in scene 1: the cover's asset when the cover
+    names one (move / level card; gold outlook card → gold chart), else the lead asset's chart (None if
+    the lead has no chart of its own, e.g. the US dollar; the board is shown then)."""
+    cover = cover or {}
+    if cover.get("template") == "gold":
+        return {"type": "gold_chart"} if data.get("gold_analysis") else _chart_for("XAU", data)
+    chart = _chart_for(cover["asset"], data) if cover.get("asset") else None
+    lead = (data.get("focus") or {}).get("lead")
+    return chart or (_chart_for(lead, data) if lead else None)
+
+
+def strip_sign_off(text: str) -> str:
+    """The text without spoken disclaimer / goodbye phrases; sentences left empty or goodbye-only go."""
+    out = []
+    for part in re.split(r"(?<=[.!?])\s+", (text or "").strip()):
+        rest = SIGN_OFF.sub("", part).strip()
+        rest = re.sub(r"^[\s,;:\u2014\u2013-]+", "", rest)
+        if not re.search(r"\w", rest) or GOODBYE.match(rest):
+            continue
+        if rest != part:
+            rest = rest[0].upper() + rest[1:]
+            if part[-1] in ".!?" and rest[-1] not in ".!?":
+                rest += part[-1]
+        out.append(rest)
+    return " ".join(out)
+
+
+def _clean_last_line(scenes: list[dict], log=print, can_drop: bool = True) -> None:
+    """Cut a spoken disclaimer / goodbye from the last scene. An all-sign-off last scene is dropped if
+    ≥ 4 scenes remain (can_drop), else emptied (fixed plans) or left for validate() to reject."""
+    if len(scenes) < 2:
+        return
+    text = scenes[-1].get("text") or ""
+    rest = strip_sign_off(text)
+    if rest.split() == text.split():
+        return
+    if rest:
+        scenes[-1]["text"] = rest
+        log(f"Script: cut a sign-off from the last line: {text!r} -> {rest!r}")
+    elif can_drop and len(scenes) - 1 >= 4:
+        scenes.pop()
+        log(f"Script: dropped a sign-off-only last scene: {text!r}")
+    elif not can_drop:
+        scenes[-1]["text"] = ""
+        log(f"Script: the last scene was only a sign-off ({text!r}); left empty for validation")
+    else:
+        log(f"Script: the last scene is only a sign-off ({text!r}); too few scenes to drop it")
+
+
+def fix_visuals(data: dict, pkg: dict, cover: dict | None = None, log=print) -> None:
+    """Degrade gracefully instead of failing. Scene 1 is always the opening card (the thumbnail),
+    followed by the cover's asset chart or else the lead's (`follow`, see opening_chart(); board if
+    none), which later scenes don't repeat. A chart of an asset outside the brief's focus becomes a
+    chart of an unused focus asset (or the board); unusable visuals become the board. A stray "outro"
+    scene is dropped if it only signs off, else it becomes the board; sign-offs are cut from the last line."""
     scenes = pkg.get("scenes") or []
+    for s in list(scenes[1:]):
+        if (s.get("visual") or {}).get("type") == "outro":
+            rest = strip_sign_off(s.get("text", ""))
+            if len(rest.split()) < 3:
+                scenes.remove(s)
+                log(f"Script: dropped a stray outro scene: {s.get('text', '')!r}")
+            else:
+                s["text"], s["visual"] = rest, {"type": "board"}
+                log(f"Script: stray outro scene turned into the board: {rest!r}")
+    _clean_last_line(scenes, log)
+    follow = opening_chart(data, cover)
     if scenes:
-        scenes[0]["visual"] = {"type": "title"}
+        scenes[0]["visual"] = {"type": "title", "follow": follow or {"type": "board"}}
     focus = set((data.get("focus") or {}).get("assets") or [])
     asset_of = {"price": lambda v: v.get("asset"), "fx": lambda v: v.get("asset"), "gold": lambda v: "XAU"}
+    opened = asset_of[follow["type"]](follow) if follow and follow["type"] in asset_of else None
     shown = {asset_of[s["visual"]["type"]](s["visual"]) for s in scenes
-             if (s.get("visual") or {}).get("type") in asset_of}
-    for s in scenes:
+             if (s.get("visual") or {}).get("type") in asset_of} | ({opened} if opened else set())
+    for s in scenes[1:]:
         v = s.get("visual") or {}
         t = v.get("type")
         if t in asset_of:
             a = asset_of[t](v)
-            if _chart_for(a, data) and (not focus or a in focus):
+            if _chart_for(a, data) and (not focus or a in focus) and a != opened:
                 continue
             spare = next((x for x in (data.get("focus") or {}).get("assets", [])
                           if x not in shown and _chart_for(x, data)), None)
@@ -328,7 +416,7 @@ def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, s
         log(f"Draft: {pkg.get('title', '')}. Fact-checking against the data...")
         verdict, pkg, issues = fact_check(cfg, facts, pkg)
         log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))
-        fix_visuals(data, pkg)
+        fix_visuals(data, pkg, cover, log=log)
         problems = validate(cfg, data, pkg)
         if verdict != "reject" and not problems:
             pkg["fact_check"] = {"verdict": verdict, "issues": issues}
@@ -344,34 +432,41 @@ def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, s
 def gold_plan(data: dict, used_headlines: list[str]) -> list[dict]:
     """Fixed scene order for the daily gold outlook; each scene says what its narration covers."""
     a = data["gold_analysis"]
-    plan = [{"id": "open", "visual": {"type": "title"},
+    plan = [{"id": "open", "visual": {"type": "title", "follow": {"type": "gold_chart"}},
              "covers": "the hook: state the opening-card fact (today's daily bias and the key level)"}]
     if a.get("review"):
         plan.append({"id": "review", "visual": {"type": "review"},
                      "covers": "how the previous outlook did, honestly (review)"})
-    plan += [
-        {"id": "price", "visual": {"type": "gold_chart"},
-         "covers": "where gold is now: price, 24h change, previous day high/low, Asian session range"},
-        {"id": "bias", "visual": {"type": "bias"},
-         "covers": "the bias for the next hour (1H), the next 4 hours (4H) and the day, each with its main reason"},
-        {"id": "liquidity", "visual": {"type": "liquidity"},
-         "covers": "where liquidity rests: the nearest levels above (buy-side, stops above highs) and below "
-                   "(sell-side, stops below lows), and any sweep today"},
-        {"id": "scenarios", "visual": {"type": "scenarios"},
-         "covers": "if/then scenarios: above the bull trigger the next objective, below the bear trigger the "
-                   "next objective; typical moves per hour / 4 hours / day"},
-    ]
-    if data.get("macro") or data.get("rate_expectations") or a.get("events_usd"):
-        plan.append({"id": "drivers", "visual": {"type": "drivers"},
-                     "covers": "the macro drivers: dollar, US 10-year and real yields, CPI, Fed rate odds headlines, "
-                               "and today's USD events that can move gold (volatility risk)"})
+    plan.append({"id": "bias", "visual": {"type": "bias"},
+                 "covers": "where gold is now (price and 24h change, one short clause), then the bias for the next "
+                           "hour (1H), the next 4 hours (4H) and the day, each with its main reason"})
+    watch = None
     used = {h.lower() for h in used_headlines}
     story = next((n for n in data.get("news", []) if n["category"] == "gold" and n["title"].lower() not in used), None)
-    if story:
-        plan.append({"id": "news", "visual": {"type": "news", "source": story["source"], "headline": story["title"]},
-                     "covers": f"the gold headline from {story['source']}: \"{story['title']}\""})
-    plan.append({"id": "close", "visual": {"type": "outro", "next": "New gold outlook every weekday."},
-                 "covers": "one-line recap of the bias and the level to watch, then: not financial advice"})
+    if data.get("macro") or data.get("rate_expectations") or a.get("events_usd"):
+        watch = {"id": "drivers", "visual": {"type": "drivers"},
+                 "covers": "what to watch: today's USD events that can move gold (volatility risk, GMT time) and the "
+                           "macro drivers (dollar, US 10-year and real yields, Fed rate odds headlines); last line "
+                           "loops back to the key level from the opening"}
+    elif story:
+        watch = {"id": "news", "visual": {"type": "news", "source": story["source"], "headline": story["title"]},
+                 "covers": f"what to watch: the gold headline from {story['source']}: \"{story['title']}\"; "
+                           "last line loops back to the key level from the opening"}
+    levels = {"id": "levels", "visual": {"type": "scenarios"},
+              "covers": "the key levels: where liquidity rests above (buy-side, stops above highs) and below "
+                        "(sell-side, stops below lows), then the if/then scenarios: above the bull trigger the next "
+                        "objective, below the bear trigger the next objective"
+                        + ("" if watch else "; last line loops back to the key level from the opening")}
+    if len(plan) + 1 + (1 if watch else 0) < 4:  # too short: liquidity gets its own scene again
+        plan.append({"id": "liquidity", "visual": {"type": "liquidity"},
+                     "covers": "where liquidity rests: the nearest levels above (buy-side, stops above highs) and "
+                               "below (sell-side, stops below lows), and any sweep today"})
+        levels = dict(levels, covers="if/then scenarios: above the bull trigger the next objective, below the bear "
+                                     "trigger the next objective"
+                                     + ("" if watch else "; last line loops back to the key level from the opening"))
+    plan.append(levels)
+    if watch:
+        plan.append(watch)
     return plan
 
 
@@ -380,7 +475,7 @@ def write_gold(cfg: dict, data: dict, plan: list[dict], cover: dict, used_headli
     facts = gold_facts(data)
     scenes = "\n".join(f'- "{p["id"]}": {p["covers"]}' for p in plan)
     recent = "\n".join(f"- {h}" for h in used_headlines[-30:]) or "- (none)"
-    prompt = f"""You write a YouTube Short: a {llm['min_words']}-{llm['max_words']} word DAILY GOLD OUTLOOK
+    prompt = f"""You write a YouTube Short: a {llm['min_words']}-{llm['max_words']} word (about 35 seconds) DAILY GOLD OUTLOOK
 (XAU/USD) for {data['weekday']}, {data['date_utc']}.
 Channel: {ch['display_name']}. Audience: {ch['audience']}. Tone: a calm, precise market analyst.
 
@@ -402,8 +497,10 @@ Rules:
 - review: if the previous call did not play out, say so plainly.
 - Fed rate odds only from fed_rate_odds_headlines, naming the source.
 - Mention USD events today as volatility risk with their GMT time. No actual figures for them.
-- Scene "open" must state exactly: {cover['facts']}
-- "close" ends with: this is not financial advice.
+- Scene "open" must state exactly: {cover['facts']}, as a hook with tension (e.g. "Gold is bearish
+  below forty-one forty-three. Here's where the stops sit.").
+- No spoken disclaimer and no sign-off ("not financial advice" is on screen and in the description);
+  no "that's your outlook", "see you". The last scene ends by looping back to the opening key level.
 - No greetings, no "in this video", no "like and subscribe".
 
 Headlines already covered (don't repeat):
@@ -453,6 +550,7 @@ def make_gold_script(cfg: dict, data: dict, used_headlines: list[str], cover: di
         log(f"Draft: {pkg.get('title', '')}. Fact-checking against the analysis...")
         verdict, checked, issues = fact_check(cfg, gold_facts(data), pkg, GOLD_RULES)
         pkg = _merge_plan(plan, checked)
+        _clean_last_line(pkg["scenes"], log, can_drop=False)  # fixed plan: never drop a scene
         log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))
         problems = validate(cfg, data, pkg)
         if verdict != "reject" and not problems:
