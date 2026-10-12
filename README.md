@@ -256,6 +256,7 @@ While `lessons.enabled` is false, lesson runs log why and stop without fetching 
 |---|---|
 | `channel.niche` / `audience` / `tone` | What the channel is about and how it sounds |
 | `voice.name` | Narrator voice. List them: `edge-tts --list-voices` |
+| `voice.fallback` | Piper voice used when edge-tts is down (`en_US-ryan-high`); remove to fail instead |
 | `upload.review_window_hours` | `0` = public immediately. e.g. `6` = sits private for 6 h so you can watch and delete it first, then goes public on its own |
 | `channel.display_name` | Brand line at the top of every graphic |
 | `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
@@ -311,8 +312,10 @@ What helps most from your side, even if it's 10 minutes a week:
 - Forex rates are daily reference rates (not live quotes); the script says "yesterday's close".
 - Free data sources can change or go down. A source that fails is skipped; if no price data
   at all is available, the run stops instead of guessing.
-- edge-tts uses Microsoft's free Edge read-aloud service; if it ever stops working, swap
-  `autopilot/voice.py` for a paid TTS (the rest of the pipeline doesn't change).
+- edge-tts uses Microsoft's free Edge read-aloud service. When it refuses GitHub's runner (it did on
+  12 Oct 2026, "403 Invalid response status"), each scene is retried for ~100 s, then that video is
+  voiced by a free local Piper voice (`voice.fallback`, a different male US voice; downloaded on first
+  use). The log says "Narration by Piper" when that happens.
 - The Gemini model name may be retired over time; update `llm.model` if runs start failing with 404.
 - The free Gemini tier may use your prompts to improve Google's products.
 - Facebook may refuse a custom Reel cover through the API; the Reel then uses its own frame.

@@ -335,6 +335,238 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-10T11:16:55+00:00",
+      "brief_date": "2026-10-10",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "swing-structure",
+      "track": 0,
+      "title": "Structure #1: Swing Points and Market Structure Explained | Structure Lesson",
+      "video_id": "Q9ZkgyE1cS8",
+      "fb_video_id": "1069134919270512",
+      "seconds": 255.5,
+      "examples": [
+        {
+          "asset": "BTC/USD",
+          "timeframe": "1H",
+          "start": "2026-10-07T02:00:00+00:00",
+          "end": "2026-10-08T17:00:00+00:00"
+        },
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-10-06T19:00:00+00:00",
+          "end": "2026-10-07T17:00:00+00:00"
+        }
+      ],
+      "trigger": "manual",
+      "counts": false,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-10T14:55:56+00:00",
+      "brief_date": "2026-10-10",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "bos-vs-choch",
+      "track": 0,
+      "title": "Structure #2: BOS vs CHoCH Explained | Structure Lesson",
+      "video_id": "xB0EKBFEn8U",
+      "fb_video_id": "1424698269020704",
+      "seconds": 280.7,
+      "examples": [
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-10-06T19:00:00+00:00",
+          "end": "2026-10-08T02:00:00+00:00"
+        },
+        {
+          "asset": "BTC/USD",
+          "timeframe": "1D",
+          "start": "2026-04-02T00:00:00+00:00",
+          "end": "2026-05-22T00:00:00+00:00"
+        }
+      ],
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-10T16:35:26+00:00",
+      "brief_date": "2026-10-10",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "US HOME PRICES OUTPACE INFLATION SINCE 1984",
+      "fb_post_id": "462331040302049_122252323514610202",
+      "headlines": [
+        "U.S. home prices rise more than twice as fast as inflation since 1984, study finds"
+      ],
+      "topic": "macro",
+      "source": "KOTA Territory News",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-11T03:02:55+00:00",
+      "brief_date": "2026-10-11",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "GOLD TRADES NEAR $4,195",
+      "fb_post_id": "462331040302049_122252419706610202",
+      "headlines": [
+        "Gold Price on 10 October 2026"
+      ],
+      "topic": "gold",
+      "source": "Gold Price",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-11T05:43:12+00:00",
+      "brief_date": "2026-10-11",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Steadies at $2,505 Despite ETF Outflows | Crypto Update, Oct 11",
+      "video_id": "Bg9gmFtsya8",
+      "seconds": 54.9,
+      "headlines": [
+        "Ethereum ETFs Have Had Nine Straight Days of Outflows and Lost $2 Billion in Assets. Is Wall Street Giving Up on ETH?"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "2696532064137142",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-11T09:45:00+00:00",
+      "brief_date": "2026-10-11",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BANK REPORTS AND INFLATION DATA LAND",
+      "fb_post_id": "462331040302049_122252452376610202",
+      "headlines": [
+        "What to Expect in Markets This Week: Big Bank Reports Fire Up Earnings Season; Inflation, Retail Sales Figures Land"
+      ],
+      "topic": "macro",
+      "source": "Investopedia",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-11T14:49:56+00:00",
+      "brief_date": "2026-10-11",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "top-down-reading",
+      "track": 0,
+      "title": "Structure #3: Top-Down Multi-Timeframe Reading Explained | Structure Lesson",
+      "video_id": "65bXblK14yE",
+      "fb_video_id": "1797443477972774",
+      "seconds": 267.4,
+      "examples": [
+        {
+          "asset": "XAU/USD",
+          "timeframe": "1D",
+          "start": "2026-09-02T00:00:00+00:00",
+          "end": "2026-10-07T00:00:00+00:00"
+        },
+        {
+          "asset": "XAU/USD",
+          "timeframe": "4H",
+          "start": "2026-10-06T00:00:00+00:00",
+          "end": "2026-10-08T00:00:00+00:00"
+        }
+      ],
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-11T16:33:53+00:00",
+      "brief_date": "2026-10-11",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "WALLER PIVOTS ON RATE BETS",
+      "fb_post_id": "462331040302049_122252490128610202",
+      "headlines": [
+        "Fed’s Waller pivots on interest-rate bet as worried consumers sound inflation alarms"
+      ],
+      "topic": "central_bank",
+      "source": "TheStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-12T00:35:44+00:00",
+      "brief_date": "2026-10-12",
+      "session": "asia",
+      "kind": "market",
+      "title": "Bitcoin Price Today: BTC Holds Below $85K at Asia Open | Oct 12",
+      "video_id": "MGskyNnMsbI",
+      "seconds": 55.5,
+      "headlines": [
+        "Bitcoin's Adam Back critiques Ethereum's design amid Blockstream's $319M crypto theft and legal troubles.",
+        "Treasury Yields Are Now Above 5%. Here's Why That's Bearish For Bitcoin."
+      ],
+      "lead": "BTC",
+      "fb_reel_id": "2063600227626342",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-12T03:03:27+00:00",
+      "brief_date": "2026-10-12",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "DOLLAR HOLDS 18-MONTH HIGH",
+      "fb_post_id": "462331040302049_122252536346610202",
+      "headlines": [
+        "Dollar stays near 18-month high as Mideast conflict, inflation data in focus"
+      ],
+      "topic": "geopolitics",
+      "source": "Reuters",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }

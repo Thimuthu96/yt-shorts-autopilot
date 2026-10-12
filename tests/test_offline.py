@@ -253,6 +253,7 @@ def main():
 
     test_gold(cfg, small, gdata)
     test_focus_crypto_first()
+    test_voice_fallback()
     test_history()
     test_facebook(cfg, PKG, data, meta, out, work / "thumbnail.jpg")
     test_facebook_video(cfg)
@@ -387,6 +388,51 @@ def test_gold(cfg, small, data):
     assert "rule-based" in meta["description"].lower() and "Key levels:" in meta["description"]
     assert meta["title"].startswith("Gold Price Today")  # the mock's title has no keyword → data-built title
     print(f"OK gold: {out} · card {cover['hero']} {cover['line']} · contact sheet {work / 'contact.png'}")
+
+
+def test_voice_fallback():
+    """edge-tts refused (403) for every attempt → the whole video is voiced by the Piper fallback
+    (faked here: no download), with estimated word timings; later calls skip edge-tts."""
+    import wave
+    from autopilot import voice
+    work = Path(tempfile.mkdtemp())
+    tries, logs = [], []
+
+    async def refused(text, v, rate, mp3):
+        tries.append(text)
+        raise RuntimeError("403, message='Invalid response status'")
+
+    class FakePiper:
+        def synthesize_wav(self, text, w, syn_config=None):
+            w.setnchannels(1), w.setsampwidth(2), w.setframerate(22050)
+            w.writeframes(b"\x00\x01" * int(22050 * 0.25 * len(text.split()) * syn_config.length_scale))
+
+    saved = voice._speak, voice._piper_voice, voice.time.sleep, voice._edge_down
+    voice._speak, voice._piper_voice, voice.time.sleep = refused, lambda m: FakePiper(), lambda s: None
+    try:
+        scenes = [{"text": "Ethereum just rose two percent."}, {"text": "Solana followed, up four percent."}]
+        out = voice.synthesize(scenes, "en-US-AndrewMultilingualNeural", "+10%", work, log=logs.append,
+                               fallback="en_US-ryan-high")
+        assert len(tries) == len(voice.EDGE_WAITS) and len(out) == 2, (tries, out)  # gave up after scene 1's retries
+        for s, a in zip(scenes, out):
+            assert [w[2] for w in a["words"]] == s["text"].split() and a["words"][-1][1] < a["duration"], a
+            with wave.open(str(a["audio"])) as w:
+                assert w.getframerate() == 44100
+        assert any("fallback Piper voice en_US-ryan-high" in m for m in logs), logs
+        tries.clear()
+        voice.synthesize(scenes[:1], "x", "+25%", work, log=logs.append, fallback="en_US-ryan-high")
+        assert not tries  # the rest of the run goes straight to Piper
+        assert voice.length_scale("+10%") == round(1 / 1.1, 3) and voice.length_scale("-20%") == 1.25
+        voice._edge_down = False
+        try:
+            voice.synthesize(scenes[:1], "x", "+10%", work, log=logs.append, fallback=None)
+            raise AssertionError("no fallback should fail")
+        except RuntimeError as e:
+            assert "no fallback voice" in str(e)
+    finally:
+        voice._speak, voice._piper_voice, voice.time.sleep, voice._edge_down = saved
+        shutil.rmtree(work, ignore_errors=True)
+    print("OK voice fallback (edge-tts 403 → Piper, estimated timings, rest of run on Piper, no fallback → fail)")
 
 
 def test_history():
@@ -1269,7 +1315,7 @@ def test_lesson_render(cfg):
             return {"verdict": "ok", "issues": [], "package": pkg}
         return json.loads(json.dumps(draft))
 
-    def fake_voice(scenes, name, rate, workdir, log=print):
+    def fake_voice(scenes, name, rate, workdir, log=print, fallback=None):
         voice_calls.append(rate)
         step = per_word * 1.1 / (1 + int(rate.strip("%")) / 100)  # a faster rate → shorter words
         out = []
