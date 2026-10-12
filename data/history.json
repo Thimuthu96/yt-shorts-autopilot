@@ -567,6 +567,27 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-12T07:22:48+00:00",
+      "brief_date": "2026-10-12",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Rallies 3% as Prediction Bets Rise | London Open, Oct 12",
+      "video_id": "PXnU0H2L0dU",
+      "seconds": 42.9,
+      "headlines": [
+        "ETH price on Oct 12, 2026 at 3am EDT Crypto Prediction Market",
+        "Why is Bitcoin price stuck below $85,000?"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "1799422224632814",
+      "trigger": "manual",
+      "counts": false,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
