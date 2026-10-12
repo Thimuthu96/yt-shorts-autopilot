@@ -627,6 +627,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-12T16:33:12+00:00",
+      "brief_date": "2026-10-12",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "DOLLAR INDEX 18-MONTH HIGH",
+      "fb_post_id": "462331040302049_122252653946610202",
+      "headlines": [
+        "Dollar Index hits an 18-month high as the energy ceasefire fails"
+      ],
+      "topic": "geopolitics",
+      "source": "FXStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
