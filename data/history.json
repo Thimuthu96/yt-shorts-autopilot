@@ -607,6 +607,26 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-12T12:35:28+00:00",
+      "brief_date": "2026-10-12",
+      "session": "newyork",
+      "kind": "market",
+      "title": "Gold Price Today: Slips to $4,163 as Dollar Firms | NY Open, Oct 12",
+      "video_id": "eZ2u2_P5ceM",
+      "seconds": 32.1,
+      "headlines": [
+        "US Dollar Rises Early Monday; Focus on Inflation, Retail Sales This Week"
+      ],
+      "lead": "XAU",
+      "fb_reel_id": "2700535480393533",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
