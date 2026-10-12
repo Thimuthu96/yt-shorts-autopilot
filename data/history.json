@@ -548,6 +548,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-12T03:03:27+00:00",
+      "brief_date": "2026-10-12",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "DOLLAR HOLDS 18-MONTH HIGH",
+      "fb_post_id": "462331040302049_122252536346610202",
+      "headlines": [
+        "Dollar stays near 18-month high as Mideast conflict, inflation data in focus"
+      ],
+      "topic": "geopolitics",
+      "source": "Reuters",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
