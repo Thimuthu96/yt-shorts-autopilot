@@ -7,6 +7,9 @@
                               target, "10x" or "EXPLODE"; logged only on today's brief and gold titles,
                               enforced by the new formats
     thumbnail_text_problems(text)   1-4 words plus the title rules, for the new formats' thumbnails
+    DISCLOSURE / disclosure(cfg)    the disclosure line every description carries exactly once
+                              (config `upload.disclaimer`, `news_posts.disclaimer`; DISCLOSURE if unset)
+    without_disclosure(text, line)  writer text with any copy of the line removed, before it is appended
     SPOKEN_TIME / SPOKEN_DATE_WORDS / _MONTHS   date and clock-time patterns (lessons import them too)
 
 Rules: a data desk, not a person: no first person (except inside a quote attributed to a source),
@@ -245,3 +248,27 @@ def thumbnail_text_problems(text: str, max_words: int = THUMBNAIL_MAX_WORDS) -> 
     found = [] if 1 <= len(words) <= max_words else \
         [f'thumbnail words: "{" ".join(words)}" ({len(words)}, allowed 1-{max_words})']
     return found + title_problems(text)
+
+
+# ─── disclosure line (narration-rules.md: every description carries it exactly once) ───
+DISCLOSURE = "Narrated with a synthetic voice. Researched from public market data. Not financial advice."
+
+
+def disclosure(cfg: dict, *sections: str) -> str:
+    """The configured disclosure line: the first non-empty `<section>.disclaimer` of `sections`, then
+    `upload.disclaimer`, whitespace-collapsed; DISCLOSURE when none is set."""
+    for section in (*sections, "upload"):
+        text = " ".join(str((cfg.get(section) or {}).get("disclaimer") or "").split())
+        if text:
+            return text
+    return DISCLOSURE
+
+
+def without_disclosure(text: str, line: str) -> str:
+    """`text` with every copy of the disclosure `line` removed (any case or spacing), so a description
+    that appends the line carries it exactly once."""
+    words = line.split()
+    rx = re.compile(r"(?:\u26a0\ufe0f?\s*)?" + r"\s*".join(re.escape(w) for w in words), re.I) if words else None
+    if not text or not rx or not rx.search(text):
+        return text or ""
+    return re.sub(r"\n{3,}", "\n\n", re.sub(r"[ \t]{2,}", " ", rx.sub("", text))).strip()

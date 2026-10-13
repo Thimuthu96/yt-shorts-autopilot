@@ -14,7 +14,7 @@ write_post()  Gemini writes the card text (kicker, 2-3 line headline, subline), 
               calls, first person, dates or clock times); a failing Gemini post is replaced by the
               deterministic one, and when that fails too the post stops (RuntimeError naming the rule).
 caption()     the final Facebook caption: hook first, source named, key numbers from fetched data,
-              disclaimer, ≤5 hashtags, no links.
+              the disclosure line once (rules.disclosure), ≤5 hashtags, no links.
 """
 import json
 import re
@@ -475,9 +475,9 @@ def hashtags(post: dict, story: dict, data: dict, limit: int = 5) -> list[str]:
 
 def caption(post: dict, story: dict, data: dict, cfg: dict, ai_image: bool = False) -> str:
     """Hook first (Facebook shows ~280 characters before "See more"), then the body, the source,
-    key numbers from the fetched data, what's next, disclaimer and ≤5 hashtags. No links."""
-    np_cfg = cfg.get("news_posts") or {}
-    parts = [clean_text(post["caption"])]
+    key numbers from the fetched data, what's next, the disclosure line once and ≤5 hashtags. No links."""
+    disclosure = rules.disclosure(cfg, "news_posts")
+    parts = [rules.without_disclosure(clean_text(post["caption"]), disclosure)]
     if story["source"].lower() not in parts[0].lower():
         parts.append(f"Source: {story['source']}.")
     numbers = key_numbers(story, data)
@@ -494,9 +494,7 @@ def caption(post: dict, story: dict, data: dict, cfg: dict, ai_image: bool = Fal
     evs = [e for e in data.get("calendar", []) if e.get("currency") in cur and ahead(e)][:2]
     if evs:
         parts.append("Coming up (GMT):\n" + "\n".join(f"• {e['time_utc']} {e['currency']} {e['event']}" for e in evs))
-    disclaimer = " ".join(str(np_cfg.get("disclaimer") or cfg.get("upload", {}).get("disclaimer") or "").split())
-    if disclaimer:
-        parts.append("⚠️ " + disclaimer)
+    parts.append("⚠️ " + disclosure)
     if ai_image:
         parts.append("Image: AI illustration, not a photo of the event.")
     tags = " ".join(hashtags(post, story, data, int((cfg.get("facebook") or {}).get("max_hashtags", 5))))

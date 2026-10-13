@@ -291,8 +291,12 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
 - Chart scenes draw in left→right (background-coloured box slides off via ffmpeg overlay).
   Other scenes: slow push-in (`scale=...:eval=frame`).
 - Footer on every slide: "Not financial advice · Data: Coinbase, ECB/Frankfurter, ForexFactory" (gold:
-  `gold.footer`). With the description / Reel caption disclaimer this is the only disclaimer: no spoken
-  one, no outro card.
+  `gold.footer`). With the description / Reel caption disclosure line this is the only disclaimer: no
+  spoken one, no outro card.
+- Disclosure line (narration-rules.md, CAP-7): "Narrated with a synthetic voice. Researched from public
+  market data. Not financial advice." in `upload.disclaimer` / `news_posts.disclaimer` (`rules.DISCLOSURE`
+  if unset). `youtube.build_metadata`, `facebook.reel_caption` and `news_post.caption` append it exactly
+  once (`rules.disclosure`; a copy in the writer's text is removed by `rules.without_disclosure`).
 - Voice: edge-tts `en-US-AndrewMultilingualNeural`, `+10%`; re-recorded faster if > max_seconds.
   Each scene retries edge-tts with waits 0/10/30/60 s (`voice.EDGE_WAITS`); if it still fails, the
   whole video is voiced by `voice.fallback` (Piper `en_US-ryan-high`, free, local, downloaded on first
@@ -317,7 +321,7 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
   in its first 45 chars, else a data-built title ("XRP Price Today: Down 5.0% | London Open, Oct 8",
   "Gold Price Today: Bearish Below $4,142 | XAU/USD Outlook Oct 8"). Description = keyword-first
   summary → Key numbers / Key levels → Stories mentioned → What to watch → posting schedule →
-  data credits → disclaimer → hashtags (lead asset, its market, related asset, …, #Shorts last;
+  data credits → disclosure line → hashtags (lead asset, its market, related asset, …, #Shorts last;
   the first 3 show above the title). Tags: keyword seeds first, then the writer's; ≤ ~480 chars.
 - `containsSyntheticMedia: false` (AI voice + data graphics don't require the label).
 
@@ -335,7 +339,7 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
 - Errors: 190 / 10 / 200–299 / 100 / 368 fail fast with a fix hint; 4/17/32/613/80001 (throttled)
   fail with a message; 1, 2, `is_transient`, HTTP 5xx retry 3× with backoff from 5 s.
 - Captions: hook first (cut at ~280 chars), source named, no links, ≤ 5 hashtags (no #Shorts),
-  disclaimer; Reel captions are built from the YouTube metadata (`reel_caption`, < 2,200 chars).
+  the disclosure line once; Reel captions are built from the YouTube metadata (`reel_caption`, < 2,200 chars).
 - Renders use a closed ~2 s GOP (`-g 2*fps`) and stereo AAC (`-ac 2`) for the Reels spec.
 
 ## News image posts (Facebook)

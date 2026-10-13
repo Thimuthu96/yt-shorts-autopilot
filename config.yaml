@@ -113,9 +113,8 @@ news_posts:
   # how much each kind of story matters (plus multi-outlet coverage and recency)
   topic_weights: {rates: 1.0, central_bank: 0.85, geopolitics: 0.9, tariffs: 0.9, regulation: 0.8,
                   macro: 0.8, crypto: 0.5, gold: 0.5, fx: 0.5}
-  disclaimer: >-
-    News for information only, not financial advice. Crypto and forex trading carry a high
-    risk of loss.
+  # the disclosure line (narration-rules.md), carried exactly once by every news-post caption
+  disclaimer: "Narrated with a synthetic voice. Researched from public market data. Not financial advice."
 
 # ─── News post backgrounds ──────────────────────────────────────────────────
 # cloudflare = Workers AI FLUX.1 schnell, free tier (secrets CF_ACCOUNT_ID + CF_API_TOKEN).
@@ -187,6 +186,6 @@ upload:
   # Also try to upload thumbnail.jpg as the custom thumbnail (YouTube only accepts this for
   # some channels, e.g. Partner Program members). Refusals are ignored.
   set_thumbnail: true
-  disclaimer: >-
-    This video is for information and education only and is not financial advice.
-    Crypto and forex trading carry a high risk of loss. Do your own research.
+  # the disclosure line (narration-rules.md), carried exactly once by every YouTube description and
+  # Reel caption; lesson descriptions read it too (trading-lessons 3.3 owns their check)
+  disclaimer: "Narrated with a synthetic voice. Researched from public market data. Not financial advice."

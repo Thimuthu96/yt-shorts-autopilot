@@ -78,8 +78,10 @@ board, headline card, calendar table), so there's no stock footage to mismatch. 
 may only use numbers from the data, and a second pass checks it against the data before
 anything is recorded. Market briefs make no predictions; the gold outlook's bias comes only from
 its fixed rules and is worded as conditional ("bearish while below $4,142"). No buy/sell calls;
-"Not financial advice" is in every slide's footer and in the YouTube description and Facebook
-caption (not spoken, and there's no outro card). News photos aren't used (copyright).
+"Not financial advice" is in every slide's footer, and the YouTube description and Facebook
+caption carry the disclosure line once ("Narrated with a synthetic voice. Researched from public market
+data. Not financial advice.", `upload.disclaimer`); none of it is spoken and there's no outro card.
+News photos aren't used (copyright).
 
 **Built to be watched:** each Short is 30–40 seconds (`video.max_seconds: 42`; longer narration is
 re-recorded faster), opens with a line that has a real number and a reason to keep watching, and

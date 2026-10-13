@@ -87,7 +87,8 @@ def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "", log=prin
     if problems:
         log(f"Title check (log-only until switch-over): {'; '.join(problems)}")
     hashtags = seo.hashtags(data, pkg.get("hashtags", []))
-    parts = [_safe(pkg.get("description", ""))]
+    disclosure = rules.disclosure(cfg)
+    parts = [rules.without_disclosure(_safe(pkg.get("description", "")), disclosure)]
     numbers = seo.key_numbers(data)
     if numbers:
         parts.append(("Key levels:\n" if data.get("kind") == "gold" else "Key numbers:\n") + "\n".join(numbers))
@@ -99,11 +100,9 @@ def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "", log=prin
         parts.append("What to watch:\n" + "\n".join(ahead))
     parts.append(seo.schedule(cfg))
     parts.append(_credits(data))
-    disclaimer = (cfg.get("upload", {}).get("disclaimer") or "").strip()
-    if disclaimer:
-        parts.append("⚠️ " + disclaimer)
-    parts.append(" ".join(hashtags))
-    description = "\n\n".join(p for p in parts if p)[:4900]
+    # narration-rules.md: the line exactly once; a long writer text is cut, never the line or the hashtags
+    tail = "\n\n".join(p for p in ("⚠️ " + disclosure, " ".join(hashtags)) if p)
+    description = "\n\n".join(p for p in parts if p)[:4900 - len(tail) - 2].rstrip() + "\n\n" + tail
 
     tags, seen, total = [], set(), 0
     for t in seo.tag_seeds(data, edition) + list(pkg.get("tags", [])):

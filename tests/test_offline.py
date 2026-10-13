@@ -254,6 +254,7 @@ def main():
     test_gold(cfg, small, gdata)
     test_narration_rules(small)
     test_title_rules(cfg, data)
+    test_disclosure(cfg, data, gdata)
     test_focus_crypto_first()
     test_voice_fallback()
     test_history()
@@ -335,6 +336,63 @@ def test_title_rules(cfg, data):
     assert meta["title"] == seo.fallback_title(data, "London Open") and len(logged) == 1, (meta["title"], logged)
     assert 'session stamp: "London Open"' in logged[0] and 'date: "Oct 7"' in logged[0], logged
     print("OK title rules")
+
+
+
+OLD_DISCLAIMERS = ("information and education only", "news for information only", "high risk of loss",
+                   "do your own research")
+
+
+def test_disclosure(cfg, data, gdata):
+    """narration-rules.md disclosure (CAP-7): a brief, a gold outlook, a Reel caption and a news post
+    each carry the line exactly once and none of the old disclaimer text, even when the writer copied it."""
+    line = rules.DISCLOSURE
+    assert line == "Narrated with a synthetic voice. Researched from public market data. Not financial advice."
+    assert cfg["upload"]["disclaimer"] == line and cfg["news_posts"]["disclaimer"] == line
+    quiet = lambda m: None  # noqa: E731
+
+    def once(text, what):  # counted in any case or spacing, so a writer echo that survived is caught
+        n = " ".join(text.split()).lower().count(line.lower())
+        assert n == 1 and text.count(line) == 1, (what, n, text)
+        assert not any(old in text.lower() for old in OLD_DISCLAIMERS), (what, text)
+
+    brief = build_metadata(PKG, data, cfg, "London Open", log=quiet)
+    once(brief["description"], "brief")
+    once(facebook.reel_caption(brief, PKG, data, cfg), "reel caption")
+    once(build_metadata(PKG, gdata, cfg, "Gold Outlook", log=quiet)["description"], "gold")
+    ndata = news_data()
+    story = news_post.pick_story(ndata, [], [], cfg, now=NOW, log=quiet)
+    once(news_post.caption(dict(GOOD_POST), story, ndata, cfg), "news post")
+
+    # the writer echoed the line (other case / spacing): still exactly once, the writer's text kept
+    echo = dict(PKG, description=PKG["description"] + "  narrated with a synthetic voice.\nResearched from "
+                                                     "public market data.  NOT financial advice.")
+    meta = build_metadata(echo, data, cfg, "London Open", log=quiet)
+    once(meta["description"], "brief echo")
+    assert meta["description"].startswith(PKG["description"].strip()[:40]), meta["description"]
+    once(facebook.reel_caption(meta, echo, data, cfg), "reel echo")
+    cap = news_post.caption(dict(GOOD_POST, caption=GOOD_POST["caption"] + "\n\n" + line), story, ndata, cfg)
+    once(cap, "news echo")
+    assert cap.startswith("Fed Chair Jerome Powell"), cap
+
+    # no configured value: the builders still carry the built-in line
+    bare = cfg | {"upload": {k: v for k, v in cfg["upload"].items() if k != "disclaimer"},
+                  "news_posts": {k: v for k, v in cfg["news_posts"].items() if k != "disclaimer"}}
+    once(build_metadata(PKG, data, bare, "London Open", log=quiet)["description"], "bare brief")
+    once(news_post.caption(dict(GOOD_POST), story, ndata, bare), "bare news post")
+    assert rules.disclosure({"news_posts": {"disclaimer": " A  b. "}}, "news_posts") == "A b."
+    assert rules.without_disclosure("No copy here.", line) == "No copy here."
+    assert rules.without_disclosure("Summary. \u26a0\ufe0f " + line, line) == "Summary."  # no stray warning sign
+    assert rules.without_disclosure(f"One.\n\n{line}\n\nTwo.", line) == "One.\n\nTwo."
+    # a long writer text is cut, never the line or the hashtags
+    long = dict(PKG, description="Bitcoin fell. " * 400)
+    meta = build_metadata(long, data, cfg, "London Open", log=quiet)
+    once(meta["description"], "long brief")
+    assert len(meta["description"]) <= 4900 and meta["description"].endswith("#Shorts"), len(meta["description"])
+    rc = facebook.reel_caption(meta, long, data, cfg)
+    once(rc, "long reel")
+    assert len(rc) < 2200 and rc.split()[-1].startswith("#"), rc[-200:]
+    print("OK disclosure")
 
 
 def test_focus_crypto_first():
