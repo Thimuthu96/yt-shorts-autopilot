@@ -705,6 +705,30 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-13T06:19:50+00:00",
+      "brief_date": "2026-10-13",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Neutral Range | XAU/USD Oct 13",
+      "video_id": "xQf4xJNVncY",
+      "seconds": 31.9,
+      "headlines": [
+        "Gold Price Forecast: XAU/USD Eyes $4,216 Breakout Ahead of CPI"
+      ],
+      "outlook": {
+        "price": 4190.7,
+        "daily_bias": "neutral",
+        "time": "2026-10-13T06:16:26+00:00"
+      },
+      "fb_reel_id": "2306847203188693",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
