@@ -154,10 +154,10 @@ def choose(data: dict) -> dict:
         if currencies and ev.get("currency") not in currencies:
             continue
         if now - timedelta(minutes=30) <= when <= now + timedelta(hours=12):
-            word = _event_word(ev)
+            word = _event_word(ev)  # the card shows the time; the narration fact never does (rules.py)
             return {"template": "event", "word": word, "currency": ev["currency"], "time": ev["time_utc"],
                     "default_hook": f"WATCH BEFORE {ev['time_utc']}",
-                    "facts": f"{ev['currency']} {ev['event']} at {ev['time_utc']} GMT today (shown as '{word} DAY')"}
+                    "facts": f"{ev['currency']} {ev['event']} later today (shown as '{word} DAY')"}
 
     # 3) bitcoin and the dollar moving opposite ways
     btc, usd = crypto.get("BTC"), _usd_strength(fx) if not data.get("weekend") else None

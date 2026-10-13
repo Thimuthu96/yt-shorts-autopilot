@@ -25,6 +25,8 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → gold.analyze()      rule-based levels, liquidity, 1H/4H/daily bias, scenarios, last call review
   → thumbnail.choose_gold()  "BEARISH / BELOW $4,142" card
   → script.make_gold_script()  fixed scene plan, Gemini only narrates it + fact_check()
+  → script.validate() → rules.narration_problems()  (briefs + gold) no first person, targets, 10x, buy/sell calls,
+                        dates/clock times/UTC → draft retried; 3 failures stop the edition (exit 1)
   both:
   → thumbnail.render()  thumbnail.jpg (1080x1920), also the video's first ~1 s (push-in), then its asset's chart
   → voice.synthesize()  edge-tts narration per scene + word timings
@@ -144,6 +146,7 @@ autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frank
 autopilot/focus.py       lead story + related assets (keywords, scoring, typical market links)
 autopilot/gold.py        gold outlook: levels, liquidity, 1H/4H/daily bias, scenarios, review
 autopilot/script.py      Gemini prompt, fact-check, validate, fix_visuals (scene types)
+autopilot/rules.py       shared narration rules: narration_problems(text) + NARRATION_RULES prompt text; date/time patterns
 autopilot/llm.py         Gemini REST client with model fallback + verbose logging
 autopilot/thumbnail.py   4 thumbnail templates (Pillow) + choose() + clean_hook()
 autopilot/slides.py      per-scene graphics (Pillow + matplotlib)

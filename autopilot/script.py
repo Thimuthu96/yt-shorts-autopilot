@@ -11,6 +11,7 @@ import re
 
 from . import seo
 from .llm import generate_json
+from .rules import NARRATION_RULES, narration_problems
 
 SCENE_TYPES = {
     "title": "opening card: a short headline (max 9 words) + a kicker (max 4 words)",
@@ -133,7 +134,8 @@ Write notes:
   marked "typical". Say plainly if an asset did NOT follow.
 - context: facts from us_macro / fed_rate_odds_headlines ONLY if a headline ties them to this move
   (quote the source for odds); else [].
-- watch: upcoming calendar events that matter for these assets (time GMT).
+- watch: upcoming calendar events that matter for these assets ("later today" / "this week", no
+  clock times or time zones).
 - angle: the one question this Short answers, max 12 words.
 
 Return JSON: {{"what_happened": "...", "why": ["..."], "impact": [{{"asset": "...", "observed": "...",
@@ -215,6 +217,8 @@ Rules:
 - The calendar has times, forecasts and previous values only, never results: don't state an
   actual figure unless a headline in the data reports it.
 - No predictions, price targets, buy/sell calls or "this could explode". Neutral, factual.
+- Calendar events: say "later today" / "this week", never their clock time or time zone.
+{NARRATION_RULES}
 - No spoken disclaimer and no sign-off: "not financial advice" is already on screen and in the
   description. No "that's your brief", "see you", "stay tuned". The last line loops back to the
   opening fact (e.g. "So that 5.7% drop came with...", restating the number), so the video can loop.
@@ -293,6 +297,7 @@ def validate(cfg: dict, data: dict, pkg: dict) -> list[str]:
         problems.append(f"{words} words (target {lo}-{hi})")
     if not (pkg.get("title") or "").strip():
         problems.append("missing title")
+    problems += narration_problems("\n".join((s.get("text") or "").strip() for s in scenes))
     return problems
 
 
@@ -414,7 +419,7 @@ def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, s
         log("Writing the script...")
         pkg = write(cfg, data, used_headlines, cover, session, note)
         log(f"Draft: {pkg.get('title', '')}. Fact-checking against the data...")
-        verdict, pkg, issues = fact_check(cfg, facts, pkg)
+        verdict, pkg, issues = fact_check(cfg, facts, pkg, NARRATION_RULES)
         log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))
         fix_visuals(data, pkg, cover, log=log)
         problems = validate(cfg, data, pkg)
@@ -424,7 +429,7 @@ def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, s
                 pkg["research"] = note
             return pkg
         log(f"Discarding draft: verdict={verdict} problems={problems}")
-    raise RuntimeError("Could not produce a valid script in 3 attempts")
+    raise RuntimeError(f"Could not produce a valid script in 3 attempts (last: verdict={verdict} problems={problems})")
 
 
 # ─── gold outlook ──────────────────────────────────────────────────────────
@@ -445,7 +450,7 @@ def gold_plan(data: dict, used_headlines: list[str]) -> list[dict]:
     story = next((n for n in data.get("news", []) if n["category"] == "gold" and n["title"].lower() not in used), None)
     if data.get("macro") or data.get("rate_expectations") or a.get("events_usd"):
         watch = {"id": "drivers", "visual": {"type": "drivers"},
-                 "covers": "what to watch: today's USD events that can move gold (volatility risk, GMT time) and the "
+                 "covers": "what to watch: today's USD events that can move gold (volatility risk, later today) and the "
                            "macro drivers (dollar, US 10-year and real yields, Fed rate odds headlines); last line "
                            "loops back to the key level from the opening"}
     elif story:
@@ -496,7 +501,10 @@ Rules:
   price often reaches for them.
 - review: if the previous call did not play out, say so plainly.
 - Fed rate odds only from fed_rate_odds_headlines, naming the source.
-- Mention USD events today as volatility risk with their GMT time. No actual figures for them.
+- Mention USD events today as volatility risk ("later today"), never their clock time or time zone.
+  No actual figures for them.
+- Scenarios: "if gold breaks above X, the next objective is Y", never "could / will hit or reach".
+{NARRATION_RULES}
 - Scene "open" must state exactly: {cover['facts']}, as a hook with tension (e.g. "Gold is bearish
   below forty-one forty-three. Here's where the stops sit.").
 - No spoken disclaimer and no sign-off ("not financial advice" is on screen and in the description);
@@ -548,7 +556,7 @@ def make_gold_script(cfg: dict, data: dict, used_headlines: list[str], cover: di
         log("Writing the gold outlook...")
         pkg = _merge_plan(plan, write_gold(cfg, data, plan, cover, used_headlines))
         log(f"Draft: {pkg.get('title', '')}. Fact-checking against the analysis...")
-        verdict, checked, issues = fact_check(cfg, gold_facts(data), pkg, GOLD_RULES)
+        verdict, checked, issues = fact_check(cfg, gold_facts(data), pkg, GOLD_RULES + NARRATION_RULES)
         pkg = _merge_plan(plan, checked)
         _clean_last_line(pkg["scenes"], log, can_drop=False)  # fixed plan: never drop a scene
         log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))
@@ -557,4 +565,5 @@ def make_gold_script(cfg: dict, data: dict, used_headlines: list[str], cover: di
             pkg["fact_check"] = {"verdict": verdict, "issues": issues}
             return pkg
         log(f"Discarding draft: verdict={verdict} problems={problems}")
-    raise RuntimeError("Could not produce a valid gold script in 3 attempts")
+    raise RuntimeError(f"Could not produce a valid gold script in 3 attempts (last: verdict={verdict} "
+                       f"problems={problems})")

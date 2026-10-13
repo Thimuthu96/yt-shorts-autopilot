@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 for _k in ("CF_ACCOUNT_ID", "CF_API_TOKEN", "FB_PAGE_ID", "FB_PAGE_TOKEN"):  # never reach real services
     os.environ.pop(_k, None)
 
-from autopilot import facebook, focus, gold, images, news_post, render, script, slides, thumbnail  # noqa: E402
+from autopilot import facebook, focus, gold, images, news_post, render, rules, script, slides, thumbnail  # noqa: E402
 from autopilot.history import History  # noqa: E402
 from autopilot.media import probe_duration, run  # noqa: E402
 from autopilot.youtube import build_metadata  # noqa: E402
@@ -106,7 +106,7 @@ PKG = {
         {"text": "Bitcoin is near sixty-two thousand dollars, down on the day.", "visual": {"type": "price", "asset": "BTC"}},
         {"text": "Spot bitcoin funds saw a third day of outflows.", "visual": {"type": "news", "source": "CoinDesk", "headline": "Bitcoin ETFs log a third straight day of outflows"}},
         {"text": "The euro held near one point oh nine at yesterday's fix.", "visual": {"type": "fx", "asset": "EURUSD"}},
-        {"text": "Today, US core inflation lands at twelve thirty GMT.", "visual": {"type": "calendar"}},
+        {"text": "Today, US core inflation lands.", "visual": {"type": "calendar"}},
         {"text": "So that Bitcoin slip comes with a third day of fund outflows.", "visual": {"type": "board"}},
     ],
     "description": "Bitcoin dips ahead of CPI; euro steady.",
@@ -252,6 +252,7 @@ def main():
     print(meta["description"])
 
     test_gold(cfg, small, gdata)
+    test_narration_rules(small)
     test_focus_crypto_first()
     test_voice_fallback()
     test_history()
@@ -315,6 +316,74 @@ def test_focus_crypto_first():
     print("OK focus: crypto-first lead scoring")
 
 
+def test_narration_rules(small):
+    """Shared narration rules (rules.py): every I/O row, the year decision, and the stop path: drafts
+    that always break a rule are retried 3 times, then make_script raises naming the rule."""
+    n = rules.narration_problems
+    assert n("Bitcoin fell 4% to $84,000 as liquidations hit $500M.") == []
+    assert n("a sell-off hit miners; buy-side liquidity rests above the high") == []  # past facts / liquidity
+    got = n("I'm buying ETH here.")
+    assert any(p.startswith("first person:") for p in got) and any(p.startswith("buy/sell call:") for p in got), got
+    assert n('"I think Bitcoin goes higher," said BlackRock\'s CEO.') == []  # attributed quote
+    assert n('"I think Bitcoin goes higher."') == ['first person: "I"']  # quote with no source named
+    assert n('"Bitcoin to $200,000," said an analyst.') == ['price target: "Bitcoin to $200,000"']
+    assert n("BTC to $150,000?") == ['price target: "BTC to $150,000"']
+    for t in ("Ethereum could hit $16,000", "Analysts raised their price target."):
+        assert any(p.startswith("price target:") for p in n(t)), (t, n(t))
+    for t in ("This coin could 10x", "A 100x gem."):
+        assert any(p.startswith("10x:") for p in n(t)), (t, n(t))
+    assert n("Rates were set on October 12.") == ['date/time: "October 12"']
+    assert n("CPI lands at 14:30 UTC.") == ['date/time: "14:30"', 'date/time: "UTC"']
+    assert n("Bitcoin hit the highest since 2021.") == []  # owner 2026-10-13: a bare year is fine in briefs
+    assert n("Up to $500M in longs were liquidated.") == []  # "Up to $N" is not a headline target
+    # a quote that ends its own sentence, or sits on another line (scene), can't borrow a later "said"
+    assert n('"I think Bitcoin goes higher." Analysts said prices fell.') == ['first person: "I"']
+    assert n('"I think Bitcoin goes higher,"\nCoinDesk reported outflows, according to Farside.') == ['first person: "I"']
+    # "mine" the noun and small multipliers are facts
+    assert n("Riot shut a Texas Bitcoin mine.") == [] and n("Gold mine output fell 3%.") == []
+    assert n("It launched a 2x leveraged ETF.") == [] and n("Volume hit 3x its average.") == []
+    # targets in words and forward forms; past moves in words stay legal
+    for t in ("Bitcoin to one hundred fifty thousand dollars?", "Bitcoin is heading to a hundred thousand dollars.",
+              "Targeting one hundred thousand dollars.", "Bitcoin is going to $200,000.",
+              "Analysts expect Bitcoin to rally to $100,000.", "Gold heads toward $4,400."):
+        assert any(p_.startswith("price target:") for p_ in n(t)), (t, n(t))
+    assert n("Bitcoin fell to $84,000. Ether rose 3% to $2,505.") == []
+    assert n("Bitcoin fell to eighty-four thousand dollars.") == []
+    # clock times in words (briefs + gold); amounts in words are not times
+    for t in ("CPI lands at eight thirty a.m. Eastern.", "The data is out at half past eight.", "Powell speaks at two p.m."):
+        assert any(p_.startswith("date/time:") for p_ in n(t)), (t, n(t))
+    assert n("Bitcoin is down two percent, near twelve thousand dollars above the low.") == []
+    # lessons keep their own (year-banning) patterns, now imported from rules.py
+    from autopilot import lesson_script
+    assert lesson_script.SPOKEN_TIME is rules.SPOKEN_TIME and lesson_script.SPOKEN_DATE_WORDS is rules.SPOKEN_DATE_WORDS
+    # validate names the rule; the 3-attempt loop stops the edition with it
+    data, prompts = sample_data(), []
+    bad = json.loads(json.dumps(PKG))
+    bad["scenes"][1]["text"] = "I'm buying ETH here, near sixty-two thousand dollars."
+    assert 'first person: "I\'m"' in script.validate(small, data, bad), script.validate(small, data, bad)
+
+    def buying(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        if prompt.startswith("RESEARCH TASK"):
+            return dict(NOTE)
+        if "strict financial news editor" in prompt:
+            return {"verdict": "ok", "package": json.loads(prompt.split("SCRIPT:\n", 1)[1].rsplit("\n\n1. Every", 1)[0])}
+        return json.loads(json.dumps(bad))
+    saved, script.generate_json = script.generate_json, buying
+    try:
+        script.make_script(small, data, [], thumbnail.choose(data), log=lambda m: None)
+        raise AssertionError("a draft that breaks a narration rule was accepted")
+    except RuntimeError as e:
+        assert "first person" in str(e) and "buy/sell call" in str(e), e
+    finally:
+        script.generate_json = saved
+    writes = [p for p in prompts if p.startswith("You write a YouTube Short")]
+    checks = [p for p in prompts if "strict financial news editor" in p]
+    assert len(writes) == 3 and len(checks) == 3, (len(writes), len(checks))
+    assert all(rules.NARRATION_RULES in p for p in writes + checks)
+    print("OK narration rules (first person / quotes, price targets, 10x, buy/sell calls, dates; 3 failing drafts stop)")
+
+
 def test_gold(cfg, small, data):
     """Daily gold outlook: analysis → card → plan + script (LLM mocked) → every gold slide → video."""
     now = datetime(2026, 10, 7, 6, 15, tzinfo=timezone.utc)
@@ -331,9 +400,10 @@ def test_gold(cfg, small, data):
         if sc and sc.get("objective"):
             assert abs(sc["objective"]["price"] - sc["trigger"]["price"]) >= 0.6 * a["typical_move"]["next_4h"] - 0.2
     cover = thumbnail.choose_gold(data)
-    llm = script.generate_json
+    llm, seen = script.generate_json, []
 
     def signing_off(prompt, models, temperature=0.9):  # the writer adds a spoken disclaimer to the last scene
+        seen.append(prompt)
         res = llm(prompt, models, temperature)
         if "DAILY GOLD OUTLOOK" in prompt:
             res["scenes"][-1]["text"] += " This is not financial advice."
@@ -345,6 +415,8 @@ def test_gold(cfg, small, data):
         script.generate_json = llm
     assert "financial advice" not in pkg["scenes"][-1]["text"].lower() and pkg["scenes"][-1]["text"], pkg["scenes"][-1]
     assert any("sign-off" in m for m in logs), logs
+    assert not any(rules.narration_problems(s["text"]) for s in pkg["scenes"]), pkg["scenes"]
+    assert len(seen) == 2 and all(rules.NARRATION_RULES in p_ for p_ in seen) and "GMT time" not in seen[0]
     types = [s["visual"]["type"] for s in pkg["scenes"]]
     assert types == ["title", "review", "bias", "scenarios", "drivers"], types  # no gold_chart repeat, no outro
     assert pkg["scenes"][0]["visual"]["follow"] == {"type": "gold_chart"}

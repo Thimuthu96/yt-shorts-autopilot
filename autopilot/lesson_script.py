@@ -20,6 +20,7 @@ from autopilot import detectors  # noqa: F401  (registers the detectors, so thei
 from autopilot import lessons
 from autopilot.llm import generate_json
 from autopilot.news_post import unverified_numbers
+from autopilot.rules import _MONTHS, SPOKEN_DATE_WORDS, SPOKEN_TIME  # noqa: F401  (moved; same names)
 from autopilot.script import _merge_plan, _models, fact_check
 
 MIN_WORDS, MAX_WORDS = 550, 700
@@ -36,19 +37,9 @@ BANNED = [re.compile(p, re.I) for p in (
 DASHES = re.compile("[\u2010-\u2015\u2212]")  # Unicode hyphens / dashes / minus → "-" before matching
 
 # times and dates are not numbers a viewer is told: dropped from the facts for the number check, and
-# spoken dates / clock times are taken out of the narration before it (else "2026-09-05" backs 9, 5, 2026)
+# spoken dates / clock times are taken out of the narration before it (else "2026-09-05" backs 9, 5, 2026);
+# SPOKEN_TIME / SPOKEN_DATE_WORDS (years included for lessons) live in rules.py
 TIME_KEYS = {"t", "t1", "t2", "swing_t", "date", "start", "end"}
-_MONTHS = ("jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
-           "sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
-SPOKEN_TIME = re.compile(
-    r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:\d{2}|Z)?)?"
-    r"|\b\d{1,2}:\d{2}\b"
-    rf"|\b(?:{_MONTHS})\.? \d{{1,2}}(?:st|nd|rd|th)?\b(?:,? \d{{4}}\b)?"
-    rf"|\b\d{{1,2}}(?:st|nd|rd|th)? (?:of )?(?:{_MONTHS})\b(?:,? \d{{4}}\b)?", re.I)
-
-# spoken dates beyond SPOKEN_TIME: years 2010-2039, month names ("may"/"march" excluded: ordinary words), UTC
-SPOKEN_DATE_WORDS = re.compile(r"\b20[1-3]\d\b|\b(?:january|february|april|june|july|august|september|"
-                               r"october|november|december|sept?|oct|nov|dec)\b|\butc\b|\bgmt\b", re.I)
 
 LESSON_RULES = """
    This is a trading LESSON, not a news brief. DATA holds the episode's approved key points, its
