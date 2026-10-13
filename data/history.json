@@ -729,6 +729,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-13T09:37:21+00:00",
+      "brief_date": "2026-10-13",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "GOLD PRICES HOLD FIRM",
+      "fb_post_id": "462331040302049_122252734520610202",
+      "headlines": [
+        "Gold: Soft Debt Default Using Inflation (Commodity:XAUUSD:CUR)"
+      ],
+      "topic": "macro",
+      "source": "Seeking Alpha",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
