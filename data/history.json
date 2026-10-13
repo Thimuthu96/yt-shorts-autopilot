@@ -685,6 +685,26 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-13T05:44:59+00:00",
+      "brief_date": "2026-10-13",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Price Today: ETH Nears $2,500 | London Open, Oct 13",
+      "video_id": "7BE6TWYEV9s",
+      "seconds": 29.8,
+      "headlines": [
+        "Crypto News: AlphaPepe Closes In On Binance Listing While Ethereum Price Prediction Eyes $2,500"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "1405331745018831",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
