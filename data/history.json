@@ -748,6 +748,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-13T16:34:52+00:00",
+      "brief_date": "2026-10-13",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "COLOMBIA RATE HIKES ON TABLE",
+      "fb_post_id": "462331040302049_122252766500610202",
+      "headlines": [
+        "Columbia Central Bank official says further rate hikes on the table"
+      ],
+      "topic": "rates",
+      "source": "Newsquawk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
