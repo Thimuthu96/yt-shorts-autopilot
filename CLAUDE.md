@@ -40,7 +40,9 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → news_post.pick_story()  48 h of news (all feeds incl. geopolitics + regulation), topic weight +
                             coverage + recency, skips stories earlier FB posts used, never empty
   → news_post.write_post()  Gemini: kicker, 2-3 line headline, subline, caption, image prompt →
-                            script.fact_check() → number check vs facts → deterministic fallback
+                            script.fact_check() → number check vs facts → deterministic fallback;
+                            rules.narration_problems() on kicker/headline/subline/caption: a failing
+                            Gemini post → fallback_post, a failing fallback → post stops (exit 1)
   → images.background()     Cloudflare FLUX.1 schnell → assets/backgrounds/<topic>/ → drawn
   → images.render_card()    post.jpg 1080x1350; news_post.caption() → caption_fb.txt
   → facebook.publish_photo()  POST /{page}/photos
@@ -93,7 +95,8 @@ rule and the once-per-edition-per-day-per-platform guard:
   recorded examples (history keeps each example's asset, timeframe and region start/end) and publishes
   only the platforms it's missing (`--force`: all); if it can't be re-made, the run fails (exit 1).
 - **News posts every day, weekends included, never skipped:** no fresh unused story → the best
-  story of the last 48 h not used by an earlier FB post → any story (only "no news at all" fails).
+  story of the last 48 h not used by an earlier FB post → any story (only "no news at all" fails, or a
+  post that breaks the narration rules even as `fallback_post`).
 - **Gold time (06:15 UTC):** the Asian session (00:00–06:00 GMT) has set its range, London opens
   next (07:00 GMT summer / 08:00 winter) and usually tests the Asian high/low first, and US data
   (12:30–14:00 GMT) is still ahead, so the levels are fresh and useful for the whole day.
@@ -338,6 +341,9 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
 - Gemini output is used only if it passes `fact_check()` and a deterministic number check against
   the facts; card text also fails on `thumbnail.BANNED` words; caption sentences with banned words
   are dropped. Otherwise the post is built from the story's own title/summary (`fallback_post`).
+- The finished post must also pass `rules.narration_problems` (`news_post.post_problems`): a failing
+  Gemini post is replaced by `fallback_post` (which drops rule-breaking summary sentences); a failing
+  fallback raises and the post edition stops. The picker prefers stories whose title passes the rules.
 - History: `kind: post`, `fb_post_id`, `headlines: [story title]`, `topic`, `background`. These
   headlines don't feed the videos' "don't repeat" list (`used_headlines()` skips posts).
 

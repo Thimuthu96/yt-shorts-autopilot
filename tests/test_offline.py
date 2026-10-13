@@ -259,7 +259,9 @@ def main():
     test_facebook(cfg, PKG, data, meta, out, work / "thumbnail.jpg")
     test_facebook_video(cfg)
     test_news_post(cfg)
+    test_news_post_rules(cfg)
     test_news_edition(cfg)
+    test_news_post_stops(cfg)
     test_video_editions(cfg, out, work / "thumbnail.jpg")
     test_lesson_slides(cfg)
     test_lesson_render(cfg)
@@ -945,6 +947,110 @@ def test_news_post(cfg):
         os.environ.pop("CF_ACCOUNT_ID")
         os.environ.pop("CF_API_TOKEN")
     print(f"OK news post: {card} · caption {work / 'caption_fb.txt'} · story {s1['source']}: {s1['title']}")
+
+
+TARGET_TITLE = "Bitcoin to $150,000? Analysts weigh ETF inflows"
+
+
+def test_news_post_rules(cfg):
+    """CAP-7 on news posts: a rule-breaking Gemini post → the whole fallback post; a rule-breaking
+    fallback stops the post (RuntimeError naming the rule); a clean post is untouched."""
+    data = news_data()
+    quiet = lambda m: None  # noqa: E731
+    s1 = news_post.pick_story(data, [], [], cfg, now=NOW, log=quiet)
+    saved = news_post.generate_json, script.generate_json
+    try:
+        script.generate_json = _news_llm(GOOD_POST)
+        # clean Gemini post: published as before
+        news_post.generate_json = _news_llm(GOOD_POST)
+        post = news_post.write_post(cfg, data, s1, log=quiet)
+        assert post["writer"] == "gemini" and not news_post.post_problems(post), post
+        # Gemini caption with a price target → the deterministic post, rule logged
+        logs = []
+        news_post.generate_json = _news_llm(dict(GOOD_POST, caption=GOOD_POST["caption"]
+                                                 + " Bitcoin could hit a record next."))
+        fb = news_post.write_post(cfg, data, s1, log=logs.append)
+        assert fb["writer"] == "fallback" and "could hit" not in fb["caption"], fb
+        assert fb["headline"] == news_post.fallback_post(s1, data)["headline"] and not news_post.post_problems(fb)
+        assert any("narration rules" in m and "price target" in m for m in logs), logs
+        assert any("price target" in p for p in fb["fact_check"]["narration"]), fb["fact_check"]
+        # first person / buy call in the Gemini card → fallback too
+        news_post.generate_json = _news_llm(dict(GOOD_POST, subline="I'm buying the dip on this one"))
+        assert news_post.write_post(cfg, data, s1, log=quiet)["writer"] == "fallback"
+        # card lines are capitals: the headline is also checked sentence-cased
+        assert any("price target" in p for p in news_post.post_problems({"headline": ["BTC TO $150K", "SOON"]}))
+        assert any("10x" in p for p in news_post.post_problems({"headline": ["THIS COIN", "COULD 10X"]}))
+        for card in ({"headline": ["FED HOLDS", "BTC TO $150K"]}, {"headline": ["ETF INFLOWS:", "BTC TO $150K"]}):
+            assert any("price target" in p for p in news_post.post_problems(card)), card  # any line
+        for card in ({"headline": ["FED CUT", "IN MARCH"]}, {"headline": ["RATE CUT", "IN MAY"]},
+                     {"kicker": "MY PICK", "headline": ["FED", "HOLDS"]}):
+            assert news_post.post_problems(card), card
+        assert not news_post.post_problems({"kicker": "FED", "headline": ["FED MAY CUT", "RATES AGAIN"]})
+        dup = news_post.post_problems(news_post.fallback_post(dict(s1, title="Ether ETFs See Inflows Ahead of "
+                                                                   "December Fed Meeting"), data))
+        assert len(dup) == 1 and "december" in dup[0].lower(), dup  # one match reported once
+        assert not news_post.post_problems({"kicker": "FED SPEECH", "headline": ["POWELL SIGNALS", "PATIENCE"]})
+        # the fallback itself carries a price target → the post stops, rule named (both paths)
+        bad = dict(s1, title=TARGET_TITLE, body="", summary="")
+        for answer in (RuntimeError("All Gemini models failed"),
+                       dict(GOOD_POST, caption=GOOD_POST["caption"] + " Ether could reach a record.")):
+            news_post.generate_json = _news_llm(answer)
+            try:
+                news_post.write_post(cfg, data, bad, log=quiet)
+                raise AssertionError("a rule-breaking fallback post must stop")
+            except RuntimeError as e:
+                assert "narration rules" in str(e) and "price target" in str(e), e
+        # rule-breaking summary sentences are dropped from the fallback (the post still goes out)
+        news_post.generate_json = _news_llm(RuntimeError("All Gemini models failed"))
+        story = dict(s1, title="Bitcoin ETFs log record weekly inflows", summary="",
+                     body="Analysts expect Bitcoin to rally to $200,000 by year end. Spot ETFs took in $2B "
+                          "over the week, led by BlackRock.")
+        ok = news_post.write_post(cfg, data, story, log=quiet)
+        assert ok["writer"] == "fallback" and "200,000" not in ok["caption"] and "BlackRock" in ok["caption"], ok
+        assert not news_post.post_problems(ok)
+    finally:
+        news_post.generate_json, script.generate_json = saved
+    # picker: a rule-breaking title only as a last resort (never skip a post)
+    pdata = news_data()
+    pdata["news"] = [dict(pdata["news"][3], title=TARGET_TITLE, published=NOW.isoformat()), pdata["news"][4]]
+    assert news_post.pick_story(pdata, [], [], cfg, now=NOW, log=quiet)["title"] == pdata["news"][1]["title"]
+    pdata["news"] = pdata["news"][:1]
+    assert news_post.pick_story(pdata, [], [], cfg, now=NOW, log=quiet)["title"] == TARGET_TITLE
+    print("OK news post narration rules (fallback, stop, sanitized fallback, picker)")
+
+
+def test_news_post_stops(cfg):
+    """A news run whose only story breaks the narration rules even as the fallback post: exit 1,
+    nothing posted, nothing in history."""
+    import main as app
+    from autopilot import sources
+
+    class FixedNow(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return NOW.astimezone(tz) if tz else NOW.replace(tzinfo=None)
+
+    tmp = Path(tempfile.mkdtemp())
+    shutil.copy(ROOT / "config.yaml", tmp / "config.yaml")
+    fake = FakeGraph()
+    _fb_env(fake)
+    data = news_data()
+    data["news"] = [dict(data["news"][0], title=TARGET_TITLE, body="")]
+    saved = (app.ROOT, app.datetime, sources.gather, news_post.generate_json, script.generate_json)
+    app.ROOT, app.datetime = tmp, FixedNow
+    sources.gather = lambda cfg, kind="market", log=print: data
+    news_post.generate_json = script.generate_json = _news_llm(RuntimeError("All Gemini models failed"))
+    try:
+        assert app.main(["--session", "news_morning", "--scheduled"]) == 1
+    finally:
+        (app.ROOT, app.datetime, sources.gather, news_post.generate_json, script.generate_json) = saved
+        for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN"):
+            os.environ.pop(k, None)
+    assert fake.count(contains="/photos") == 0, fake.calls
+    hist = tmp / "data" / "history.json"
+    assert not hist.exists() or not json.loads(hist.read_text()).get("videos"), hist.read_text()
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK news post stops when the fallback breaks the narration rules")
 
 
 def test_news_edition(cfg):
