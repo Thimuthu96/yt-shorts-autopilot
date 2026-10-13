@@ -666,6 +666,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-13T03:03:15+00:00",
+      "brief_date": "2026-10-13",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "DOLLAR INDEX EASES BACK",
+      "fb_post_id": "462331040302049_122252702906610202",
+      "headlines": [
+        "United States Dollar Index eases as hawkish Fed, Iran risks support"
+      ],
+      "topic": "geopolitics",
+      "source": "FXStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
