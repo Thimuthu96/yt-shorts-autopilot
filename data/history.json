@@ -646,6 +646,26 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-13T00:35:51+00:00",
+      "brief_date": "2026-10-13",
+      "session": "asia",
+      "kind": "market",
+      "title": "Ethereum Price Today: Down 4.7% as Market Slides | Asia Open, Oct 13",
+      "video_id": "l_CJnaPF1u4",
+      "seconds": 34.9,
+      "headlines": [
+        "US Dollar Index Hits 18-Month High as Bitcoin and Stocks Slip"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "1105699358533337",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
