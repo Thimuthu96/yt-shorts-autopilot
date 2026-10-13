@@ -1,11 +1,13 @@
 """Pick each brief's lead story and the few assets it actually moves, so a Short tells one
 story ("Bitcoin liquidations → ETH and SOL follow") instead of reading out every market.
 
-Deterministic: scores come from the day's headlines, price moves and calendar.
+Crypto-only (CAP-9): only coins with crypto price data (BTC, ETH, SOL, XRP) can lead, so the lead
+and its charted assets are always crypto; FX pairs, gold and the dollar theme never lead a brief.
+Deterministic: scores come from the day's headlines and price moves.
 pick() writes data["focus"]; the script writer, thumbnail and slides then stay on it.
 """
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 # What each asset is called in headlines. "USD" is a theme (Fed, US data, the dollar), not a chart.
 KEYWORDS = {
@@ -71,8 +73,6 @@ LINKS = {
 
 # a move this big scores 1.0. Crypto at 3%: big crypto moves led all six top videos (Oct 2026).
 MOVE_SCALE = {"crypto": 3.0, "fx": 0.8, "gold": 1.5}
-FX_LEAD_WEIGHT = 0.75  # FX-pair leads (not USD, not gold) without a calendar event: FX-led briefs didn't chart
-EVENT_ASSETS = {"USD", "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD", "USDCHF"}
 
 
 def tag(item: dict) -> dict:
@@ -131,35 +131,17 @@ def pick(data: dict, last_lead: str | None = None, used_headlines: list[str] | N
 
     scores: dict[str, float] = {}
     why: dict[str, list[str]] = {}
+    # crypto-only: a coin with crypto price data leads; FX, gold and the USD theme are never candidates
     for key in KEYWORDS:
-        if key != "USD" and key not in moves:
+        if moves.get(key, ("",))[0] != "crypto":
             continue
         hits = sum(n["_tags"].get(key, 0) for n in items if n["title"].lower() not in used)
         news_score = min(hits / 2, 1.5)  # two headlines naming it ≈ a big move
-        if key == "USD":
-            fx = data.get("fx", {}) if not data.get("weekend") else {}
-            vals = [f["change_1d"] if p.startswith("USD") else -f["change_1d"] for p, f in fx.items()]
-            move = abs(sum(vals) / len(vals)) / 0.4 if vals else 0.0
-        else:
-            move = moves[key][2]
-        event = 0.0
-        if key in EVENT_ASSETS:  # a big scheduled release today makes its currency the story
-            soon = datetime.now(timezone.utc) + timedelta(hours=12)
-            for ev in data.get("calendar", []):
-                try:
-                    when = datetime.fromisoformat(ev["datetime"])
-                except (KeyError, ValueError):
-                    continue
-                if when <= soon and ev.get("currency") in CURRENCIES[key] - ({"USD"} if key != "USD" else set()):
-                    event = 0.6
-                    break
+        move = moves[key][2]
         if hits == 0:
             move *= 0.7  # a move with no story behind it makes a thin Short; only a big one should lead
-        total = move + news_score + event
-        why[key] = [f"move {move:.2f}", f"news {news_score:.2f}", f"event {event:.1f}"]
-        if moves.get(key, ("",))[0] == "fx" and not event:
-            total *= FX_LEAD_WEIGHT
-            why[key].append(f"fx x{FX_LEAD_WEIGHT}")
+        total = move + news_score
+        why[key] = [f"move {move:.2f}", f"news {news_score:.2f}"]
         total -= 0.3 if key == last_lead else 0.0
         scores[key] = total
 
@@ -169,18 +151,11 @@ def pick(data: dict, last_lead: str | None = None, used_headlines: list[str] | N
     lead = max(scores, key=scores.get)
     story = _story(items, lead, used)
 
-    # assets shown with charts: the lead (if it has prices) + the related assets that moved most
+    # assets shown with charts: the lead + the related coins that moved most
     related = [a for a in RELATED.get(lead, []) if a in moves]
     related.sort(key=lambda a: moves[a][2], reverse=True)
-    if lead == "USD":
-        assets = related[:3]
-    else:
-        assets = [lead] + related[:2]
+    assets = [lead] + related[:2]
     pairs = [(lead, a) for a in assets if (lead, a) in LINKS]
-    if lead not in ("USD",):
-        for a in assets[1:]:
-            if ("USD", a) in LINKS and moves.get(a, ("", 0, 0))[0] in ("fx", "gold"):
-                pairs.append(("USD", a))
 
     focus_keys = set(assets) | {lead}
     news = sorted((n for n in items if focus_keys & set(n["_tags"]) and n["title"].lower() not in used),

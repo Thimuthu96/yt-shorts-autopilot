@@ -37,14 +37,14 @@ ROOT = Path(__file__).parent
 # Used when config.yaml has no "sessions" section (e.g. an older config.yaml).
 DEFAULT_SESSIONS = {
     "asia": {"label": "Asia Open", "short": "Asia", "start_utc": "00:30",
-             "focus": "Cover what moved since the New York close, crypto overnight, the yen and the "
-                      "Australian dollar, and events coming up in the Asian and European sessions."},
+             "focus": "Cover what moved in crypto since the New York close: Bitcoin, Ether and the large coins "
+                      "overnight, ETF flows, liquidations and regulation news, and what crypto traders watch next."},
     "london": {"label": "London Open", "short": "London", "start_utc": "05:40",
-               "focus": "Cover what happened in the Asian session, the euro and the pound, and the "
-                        "day's biggest scheduled events."},
+               "focus": "Cover what moved in crypto during the Asian session: Bitcoin, Ether and the large coins, "
+                        "ETF flows, liquidations and regulation news, and what crypto traders watch next."},
     "newyork": {"label": "New York Open", "short": "New York", "start_utc": "12:30",
-                "focus": "Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and "
-                         "what is still ahead on today's calendar."},
+                "focus": "Cover crypto moves since the London open: Bitcoin, Ether and the large coins, spot ETF "
+                         "flows, liquidations and regulation news, and what crypto traders watch for the rest of the day."},
     "gold": {"label": "Gold Outlook", "short": "Gold", "start_utc": "06:15", "kind": "gold"},
     "news_morning": {"label": "Morning News", "short": "News", "start_utc": "03:00", "kind": "post",
                      "platforms": ["facebook"]},

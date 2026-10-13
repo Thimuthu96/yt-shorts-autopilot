@@ -35,22 +35,22 @@ sessions:
     short: Asia
     start_utc: "00:30"
     focus: >-
-      Cover what moved since the New York close, crypto overnight, the yen and the
-      Australian dollar, and events coming up in the Asian and European sessions.
+      Cover what moved in crypto since the New York close: Bitcoin, Ether and the large coins
+      overnight, ETF flows, liquidations and regulation news, and what crypto traders watch next.
   london:
     label: London Open
     short: London
     start_utc: "05:40"
     focus: >-
-      Cover what happened in the Asian session, the euro and the pound, and the day's
-      biggest scheduled events.
+      Cover what moved in crypto during the Asian session: Bitcoin, Ether and the large coins,
+      ETF flows, liquidations and regulation news, and what crypto traders watch next.
   newyork:
     label: New York Open
     short: New York
     start_utc: "12:30"
     focus: >-
-      Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and what is
-      still ahead on today's calendar.
+      Cover crypto moves since the London open: Bitcoin, Ether and the large coins, spot ETF
+      flows, liquidations and regulation news, and what crypto traders watch for the rest of the day.
   # Daily gold outlook (not a market brief): bias for the next 1h / 4h / day, liquidity, levels.
   # 06:15 UTC = after the Asian session has set its range (00:00-06:00 GMT), before London opens
   # (07:00 GMT summer / 08:00 GMT winter), when gold is most liquid and Asian highs/lows get tested,

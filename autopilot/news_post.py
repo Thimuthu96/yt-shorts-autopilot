@@ -1,8 +1,12 @@
-"""Facebook news image posts: one important story that moves crypto / forex (rate decisions,
-central-bank speeches and statements, war and geopolitics, tariffs, regulation, macro data…).
+"""Facebook news image posts: one important crypto or crypto-regulation story (CAP-9). Rate decisions,
+geopolitics, tariffs or macro data only qualify when the headline or its lead names crypto.
 
-pick_story()  scores the last 48 h of headlines (topic weight + multi-outlet coverage + recency),
-              skips stories earlier Facebook posts used, and never comes back empty.
+is_crypto()   a story is crypto-relevant when its title or summary (the RSS lead) names crypto, a coin,
+              stablecoins, crypto ETFs, crypto exchanges or digital assets; the body never counts, and
+              a bare "ETF", "exchange" or "coin" does not either.
+pick_story()  keeps only crypto-relevant stories, then scores the last 48 h of them (topic weight +
+              multi-outlet coverage + recency), skips stories earlier Facebook posts used, and never
+              comes back empty while a crypto story exists (none at all → RuntimeError, no post).
 write_post()  Gemini writes the card text (kicker, 2-3 line headline, subline), the caption and a
               symbolic image prompt; script.fact_check() checks it against the story; numbers are
               verified against the facts. Any failure → a deterministic post from the story itself.
@@ -43,6 +47,14 @@ TOPICS = {
     "fx": (r"\bdollar\b|\beuro\b|\byen\b|\bpound\b|sterling|forex|currenc|\bfx\b", "FOREX", ["#Forex"]),
 }
 _TRX = {k: re.compile(v[0], re.I) for k, v in TOPICS.items()}
+
+# CAP-9: what makes a story crypto-relevant (title or summary only). Not TOPICS["crypto"]: that
+# one matches a bare "ETF". A bare "exchange" or "coin" doesn't count either ([a-z]+coin needs a name).
+CRYPTO_RX = re.compile(
+    r"\bcrypto|\bbitcoins?\b|\bbtc\b|\bether(eum)?\b|\beth\b|\bsolana\b|\bxrp\b|"
+    r"\bripple\b(?![\s-]+(effects?|through|across|into)\b)|\b[a-z]+coins?\b|\b(meme|stable)[\s-]coins?\b|\btether\b|\busd[tc]\b|\bdigital (assets?|currenc(y|ies))\b|\bcbdcs?\b|"
+    r"\bblockchains?\b|\bdefi\b|\bnfts?\b|\bweb3\b|\bcoinbase\b|\bbinance\b|\bkraken\b|\bbybit\b|"
+    r"\bokx\b|\bbitfinex\b|microstrategy|\bsaylor\b", re.I)
 DEFAULT_WEIGHTS = {"rates": 1.0, "central_bank": 0.85, "geopolitics": 0.9, "tariffs": 0.9, "regulation": 0.8,
                    "macro": 0.8, "crypto": 0.5, "gold": 0.5, "fx": 0.5}
 
@@ -81,6 +93,15 @@ def topics(item: dict) -> dict:
     return out
 
 
+def is_crypto(item: dict) -> bool:
+    """CAP-9: the headline or its lead names crypto (the body never counts). Google News "summaries"
+    are the title plus the publisher, so the publisher's name ("Bitcoin.com News") never counts."""
+    summary, source = item.get("summary", ""), item.get("source", "")
+    if source:
+        summary = re.sub(re.escape(source), " ", summary, flags=re.I)
+    return bool(CRYPTO_RX.search(f"{item.get('title', '')} {summary}"))
+
+
 def _similar(a: str, b: str) -> bool:
     wa, wb = focus._words(a), focus._words(b)
     if not wa or not wb:
@@ -99,8 +120,9 @@ def _age_hours(n: dict, now: datetime) -> float:
 
 def pick_story(data: dict, fb_used: list[str], video_used: list[str] | None = None, cfg: dict | None = None,
                last_topic: str | None = None, now: datetime | None = None, log=print) -> dict:
-    """The most important story not used by an earlier Facebook post. Tiers: fresh (≤ fresh_hours)
-    → anything in the 48 h window → any story at all (never skips while there is news)."""
+    """The most important crypto story not used by an earlier Facebook post. Only crypto-relevant
+    stories (is_crypto) are considered (CAP-9). Tiers: fresh (≤ fresh_hours) → anything in the 48 h
+    window → any crypto story at all (never skips while there is one; none → RuntimeError)."""
     np_cfg = (cfg or {}).get("news_posts") or {}
     weights = DEFAULT_WEIGHTS | (np_cfg.get("topic_weights") or {})
     fresh_h = float(np_cfg.get("fresh_hours", 12))
@@ -109,6 +131,12 @@ def pick_story(data: dict, fb_used: list[str], video_used: list[str] | None = No
     items = [n for n in data.get("news", []) if n.get("title")]
     if not items:
         raise RuntimeError("No news to post about")
+    crypto = [n for n in items if is_crypto(n)]
+    skipped = len(items) - len(crypto)
+    if not crypto:
+        raise RuntimeError(f"No crypto story to post about ({skipped} non-crypto stories skipped)")
+    log(f"News post: {len(crypto)} crypto stories, {skipped} non-crypto skipped")
+    items = crypto
     used = [h for h in fb_used if h]
     video = {h.lower() for h in (video_used or [])}
 

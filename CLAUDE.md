@@ -18,7 +18,8 @@ Owner is a developer (Flutter/Dart background), timezone Asia/Colombo (UTC+5:30)
 ```
 sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   market brief:
-  → focus.pick()        lead story + the 1-3 assets it moves (scores: headlines, move, events; crypto-first)
+  → focus.pick()        lead story + the 1-3 assets it moves (scores: headlines, move; crypto-only: only a
+                        coin with crypto prices leads, never FX / gold / USD; no crypto prices → no focus)
   → thumbnail.choose()  pick 1 of 4 templates, staying on the focus assets
   → script.make_script()  research() analyst note → write() one-story script → fact_check()
   gold outlook:
@@ -37,8 +38,10 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
        facebook.publish_reel()  Graph API Reel (start → rupload → finish once → poll) + reel_caption()
   → history.json        logs the ids (dedupe + "don't repeat headlines")
   news image post (kind: post, Facebook only):
-  → news_post.pick_story()  48 h of news (all feeds incl. geopolitics + regulation), topic weight +
-                            coverage + recency, skips stories earlier FB posts used, never empty
+  → news_post.pick_story()  48 h of news (all feeds incl. geopolitics + regulation) filtered to crypto
+                            stories (is_crypto: crypto named in the headline or its lead, never only the
+                            body; CAP-9), then topic weight + coverage + recency, skips stories earlier FB
+                            posts used; no crypto story → RuntimeError, no post (exit 1)
   → news_post.write_post()  Gemini: kicker, 2-3 line headline, subline, caption, image prompt →
                             script.fact_check() → number check vs facts → deterministic fallback;
                             rules.narration_problems() on kicker/headline/subline/caption: a failing
@@ -94,9 +97,12 @@ rule and the once-per-edition-per-day-per-platform guard:
   (timed or `--as-edition`) on a slot that already recorded an episode re-makes that episode with its
   recorded examples (history keeps each example's asset, timeframe and region start/end) and publishes
   only the platforms it's missing (`--force`: all); if it can't be re-made, the run fails (exit 1).
-- **News posts every day, weekends included, never skipped:** no fresh unused story → the best
-  story of the last 48 h not used by an earlier FB post → any story (only "no news at all" fails, or a
-  post that breaks the narration rules even as `fallback_post`).
+- **News posts every day, weekends included, crypto only (CAP-9):** only crypto or crypto-regulation
+  stories (crypto, a coin, stablecoins, crypto ETFs, crypto exchanges or digital assets named in the
+  title or summary; a bare "ETF" / "exchange" / "coin" or a body-only mention doesn't count). No fresh
+  unused crypto story → the best crypto story of the last 48 h not used by an earlier FB post → any
+  crypto story. Fails (exit 1, nothing posted) only on no news, no crypto story at all, or a post that
+  breaks the narration rules even as `fallback_post`.
 - **Gold time (06:15 UTC):** the Asian session (00:00–06:00 GMT) has set its range, London opens
   next (07:00 GMT summer / 08:00 winter) and usually tests the Asian high/low first, and US data
   (12:30–14:00 GMT) is still ahead, so the levels are fresh and useful for the whole day.
@@ -207,7 +213,8 @@ assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or g
 - If **no** price data loads, the run stops (no guessing). Failed individual sources are skipped.
 - **News posts** (`gather(kind="post")`) read every feed incl. the FB-only `geopolitics`
   (war/sanctions/tariffs/conflict + markets) and `regulation` (SEC/CFTC/stablecoin) Google News
-  searches, 48 h window; prices only feed the caption's "Market check". Video editions read the
+  searches, 48 h window (`pick_story` then keeps only crypto-relevant items, CAP-9); prices only feed
+  the caption's "Market check". Video editions read the
   same feeds as before (`MARKET_FEEDS` / `GOLD_FEEDS`).
 
 ## LLM (Gemini, free tier)
@@ -377,7 +384,8 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
   owner's request. **Re-adopted Oct 2026 for the Facebook news-post backgrounds only** (owner's
   decision: AI per post, library and drawn fallbacks, "AI illustration" note on the card).
 - **Facebook (owner, 2026-10-08):** the 4 video editions also go out as Reels (same render), plus 3
-  news image posts a day at 03:00 / 09:30 / 16:30 UTC, every day, never skipped. Card style follows
+  news image posts a day at 03:00 / 09:30 / 16:30 UTC, every day (crypto stories only since the crypto
+  pivot, CAP-9: no crypto story → no post). Card style follows
   the owner's references; everything else goes in the caption with SEO hashtags.
 - **Publisher photos / scraping for news posts:** not allowed (copyright, ToS); backgrounds are
   AI, own library or drawn.
@@ -393,8 +401,9 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
 - **"All markets" briefs:** replaced Oct 2026 by one-story briefs (owner: videos mixed BTC, ETH,
   EUR, GBP regardless of the news). Lead needs headlines: a move with no headline counts 0.7×.
   Crypto-first (Oct 2026: big crypto drops were all six top videos, FX-led briefs didn't chart):
-  `MOVE_SCALE` crypto 3% = 1.0; FX-pair leads (not `USD`, not `XAU`) score ×0.75 (`FX_LEAD_WEIGHT`, shown as
-  "fx x0.75" in the lead's logged parts) unless a calendar event applies.
+  `MOVE_SCALE` crypto 3% = 1.0. **Crypto-only since the crypto pivot (CAP-9):** `focus.pick()` scores only
+  coins with crypto prices (BTC, ETH, SOL, XRP); FX pairs, gold and the `USD` theme never lead (the old
+  `FX_LEAD_WEIGHT` / calendar-event bonus is gone). Session `focus` texts ask only for crypto.
 - **Retention pass (owner, 2026-10-12):** viewers left almost at once (YT ~14 s average on 45–58 s
   videos, FB ~2.7 s), so briefs and the gold outlook are 30–40 s, open with motion (cover push-in →
   the cover asset's chart at ~1 s, captions on), have tension hooks and no outro card / spoken disclaimer (footer +

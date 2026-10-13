@@ -262,6 +262,7 @@ def main():
     test_news_post_rules(cfg)
     test_news_edition(cfg)
     test_news_post_stops(cfg)
+    test_news_post_crypto_only(cfg)
     test_video_editions(cfg, out, work / "thumbnail.jpg")
     test_lesson_slides(cfg)
     test_lesson_render(cfg)
@@ -291,31 +292,40 @@ def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> N
 
 
 def test_focus_crypto_first():
-    """Bitcoin −3.2% beats EUR/USD +0.8% with one headline each (old scoring: EUR/USD 1.5 vs BTC 1.3)."""
+    """CAP-9: only coins lead. EUR/USD +0.9% with an ECB event and gold/dollar headlines vs BTC −0.5%
+    with no headline → the lead is still a coin and no FX / USD / XAU key is scored."""
     now = datetime.now(timezone.utc).isoformat()
-    flat = {"change_24h": 0.2, "price": 1.0}
-    data = {"weekend": False, "calendar": [], "gold": None,
-            "crypto": {"BTC": {"name": "Bitcoin", "change_24h": -3.2, "price": 60000.0},
-                       "ETH": dict(flat, name="Ethereum"), "SOL": dict(flat, name="Solana")},
-            "fx": {"EURUSD": {"name": "EUR/USD", "change_1d": 0.8, "price": 1.1},
-                   "GBPUSD": {"name": "GBP/USD", "change_1d": 0.05, "price": 1.3}},
-            "news": [{"category": "crypto", "source": "CoinDesk", "title": "Bitcoin slides as miners sell",
-                      "summary": "", "body": "", "published": now},
-                     {"category": "fx", "source": "Reuters", "title": "Euro edges up after Lagarde speech",
-                      "summary": "", "body": "", "published": now}]}
-    f = focus.pick(data, None, [])
-    assert f["lead"] == "BTC" and f["scores"]["BTC"] > f["scores"]["EURUSD"], f["scores"]
-    assert abs(f["scores"]["BTC"] - 1.57) < 0.01 and abs(f["scores"]["EURUSD"] - 1.12) < 0.01, f["scores"]
-    # with a euro-area event today the FX discount doesn't apply
     soon = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
-    data["calendar"] = [{"currency": "EUR", "datetime": soon, "event": "ECB Rate Decision"}]
-    fe = focus.pick(data, None, [])
-    assert fe["scores"]["EURUSD"] > f["scores"]["EURUSD"] and "fx x0.75" not in fe["why"]
-    # an FX lead with the weight applied says so in its printed parts
-    data["calendar"], data["crypto"]["BTC"]["change_24h"], data["news"] = [], 0.1, data["news"][1:]
-    fx_lead = focus.pick(data, None, [])
-    assert fx_lead["lead"] == "EURUSD" and "fx x0.75" in fx_lead["why"], fx_lead
-    print("OK focus: crypto-first lead scoring")
+    flat = {"change_24h": 0.2, "price": 1.0}
+
+    def news(src, title):
+        return {"category": "fx", "source": src, "title": title, "summary": "", "body": "", "published": now}
+    data = {"weekend": False, "gold": {"change_24h": 2.5, "price": 4300.0},
+            "calendar": [{"currency": "EUR", "datetime": soon, "event": "ECB Rate Decision"}],
+            "crypto": {"BTC": {"name": "Bitcoin", "change_24h": -0.5, "price": 60000.0},
+                       "ETH": dict(flat, name="Ethereum"), "SOL": dict(flat, name="Solana")},
+            "fx": {"EURUSD": {"name": "EUR/USD", "change_1d": 0.9, "price": 1.1},
+                   "GBPUSD": {"name": "GBP/USD", "change_1d": 0.6, "price": 1.3}},
+            "news": [news("Reuters", "Euro jumps as ECB's Lagarde signals hike"),
+                     news("CNBC", "Dollar slides after Fed's Powell speech"),
+                     news("Kitco", "Gold surges to record as dollar weakens")]}
+    f = focus.pick(data, None, [])
+    assert f["lead"] in ("BTC", "ETH", "SOL", "XRP") and f["lead"] == "BTC", f
+    assert set(f["scores"]) <= {"BTC", "ETH", "SOL", "XRP"}, f["scores"]
+    assert set(f["assets"]) <= {"BTC", "ETH", "SOL", "XRP"} and f["assets"][0] == f["lead"], f["assets"]
+    assert not any("fx" in w or "event" in w for w in f["why"]), f["why"]
+    # a coin's headline makes it the lead; a repeat lead takes the −0.3 penalty
+    data["news"].append(dict(news("CoinDesk", "Ether slides as ETF outflows grow"), category="crypto"))
+    assert focus.pick(data, None, [])["lead"] == "ETH"
+    data["news"].pop()
+    assert focus.pick(data, "BTC", [])["lead"] != "BTC"
+    # weekend: FX and gold have no prices, the crypto lead stays
+    data["weekend"] = True
+    assert focus.pick(data, None, [])["lead"] in ("BTC", "ETH", "SOL")
+    # no crypto price data → no focus, never an FX / gold / USD lead
+    data.update(weekend=False, crypto={})
+    assert focus.pick(data, None, []) == {} and data["focus"] == {}
+    print("OK focus: crypto-only lead (FX / gold / USD never lead)")
 
 
 def test_narration_rules(small):
@@ -843,12 +853,15 @@ def news_data() -> dict:
     data.update(kind="post", date_utc="2026-10-08", weekday="Thursday")
     data["news"] = [
         item("forex", "Reuters", "Fed's Powell signals patience on rate cuts in policy speech", 2,
+             summary="Bitcoin and Ether slipped as traders weighed a slower path for US rate cuts.",
              body="Federal Reserve Chair Jerome Powell said the central bank can be patient before cutting "
                   "interest rates again, citing inflation of 3.4%."),
-        item("forex", "CNBC", "Powell signals patience on cuts as inflation stays sticky", 3),
-        item("geopolitics", "Bloomberg", "US slaps new tariffs on Chinese chips, markets slide", 5),
+        item("forex", "CNBC", "Powell signals patience on cuts as inflation stays sticky", 3,
+             summary="Crypto markets dipped as traders priced fewer cuts."),
+        item("geopolitics", "Bloomberg", "US slaps new tariffs on Chinese chips, markets slide", 5,
+             summary="Bitcoin fell with stocks as the chip tariffs hit risk appetite."),
         item("crypto", "Cointelegraph", "Bitcoin liquidations top $500M as BTC dips", 20, summary="Ether also fell."),
-        item("gold", "Kitco", "Gold holds near two-month low as dollar firms", 30),
+        item("gold", "Kitco", "Gold holds near two-month low as dollar firms", 30),  # not crypto (CAP-9)
     ]
     return data
 
@@ -886,8 +899,8 @@ def test_news_post(cfg):
     titles = [n["title"] for n in data["news"]]
     s3 = news_post.pick_story(data, titles[:3], [], cfg, now=NOW, log=quiet)
     assert s3["tier"] == "not used yet" and s3["title"] in titles[3:], s3
-    s4 = news_post.pick_story(data, titles, [], cfg, now=NOW, log=quiet)
-    assert s4["tier"].startswith("best available") and s4["title"] != titles[-1], s4
+    s4 = news_post.pick_story(data, titles[:4], [], cfg, now=NOW, log=quiet)  # every crypto story used
+    assert s4["tier"].startswith("best available") and s4["title"] != titles[3], s4  # not the last used
 
     # writer: Gemini output used when it checks out; bad numbers / failures → the story's own text
     news_post.generate_json = _news_llm(GOOD_POST)
@@ -1012,7 +1025,7 @@ def test_news_post_rules(cfg):
         news_post.generate_json, script.generate_json = saved
     # picker: a rule-breaking title only as a last resort (never skip a post)
     pdata = news_data()
-    pdata["news"] = [dict(pdata["news"][3], title=TARGET_TITLE, published=NOW.isoformat()), pdata["news"][4]]
+    pdata["news"] = [dict(pdata["news"][3], title=TARGET_TITLE, published=NOW.isoformat()), pdata["news"][3]]
     assert news_post.pick_story(pdata, [], [], cfg, now=NOW, log=quiet)["title"] == pdata["news"][1]["title"]
     pdata["news"] = pdata["news"][:1]
     assert news_post.pick_story(pdata, [], [], cfg, now=NOW, log=quiet)["title"] == TARGET_TITLE
@@ -1051,6 +1064,101 @@ def test_news_post_stops(cfg):
     assert not hist.exists() or not json.loads(hist.read_text()).get("videos"), hist.read_text()
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK news post stops when the fallback breaks the narration rules")
+
+
+def test_news_post_crypto_only(cfg):
+    """CAP-9: a news post is a crypto or crypto-regulation story, named in the headline or its lead
+    (the body never counts); a set with no crypto story posts nothing (exit 1)."""
+    import main as app
+    from autopilot import sources
+    quiet = lambda m: None  # noqa: E731
+
+    def item(src, title, hours=2, summary="", body=""):
+        return {"category": "news", "source": src, "title": title, "summary": summary, "body": body,
+                "published": (NOW - timedelta(hours=hours)).isoformat(), "link": "https://example.com/c"}
+    war = item("Reuters", "Missile strikes escalate Middle East conflict, oil jumps", 1,
+               summary="Traders fled to safety as the conflict widened.")
+    tariffs = item("Bloomberg", "US slaps new tariffs on Chinese chips, markets slide", 1)
+    rates = item("CNBC", "Fed holds interest rates steady, Powell signals patience", 1)
+    mention = item("AP", "Sanctions widen on Russian oil exports", 1,
+                   body="Analysts said bitcoin could see flows as sanctioned buyers look for workarounds.")
+    bare = item("FT", "ETF inflows hit record as exchange volumes rise", 1,
+                summary="Equity funds took in money; the coin toss on rates continues.")
+    headline = item("Cointelegraph", "Bitcoin liquidations top $500M", 4)
+    lead = item("Reuters", "SEC sues exchange operator over unregistered offers", 3,
+                summary="The regulator says Binance's US arm listed securities without registering.")
+    other = item("CoinDesk", "Stablecoin supply climbs as traders park cash", 5)
+
+    # the predicate: headline or lead names crypto; body-only, bare ETF / exchange / coin don't count
+    assert news_post.is_crypto(headline) and news_post.is_crypto(lead) and news_post.is_crypto(other)
+    for n in (war, tariffs, rates, mention, bare):
+        assert not news_post.is_crypto(n), n["title"]
+    for t in ("Spot bitcoin ETF sees outflows", "Dogecoin jumps", "Tether mints USDT", "Ether ETFs approved",
+              "Digital assets bill passes Senate", "Coinbase wins appeal", "XRP rallies"):
+        assert news_post.is_crypto({"title": t}), t
+    for t in ("Meme coin mania returns", "Stable-coin bill advances"):
+        assert news_post.is_crypto({"title": t}), t
+    for t in ("Exchange rates steady", "Coin collectors gather", "The ripple effects of tariffs",
+              "Tariff shock sends a ripple through Asian markets", "A ripple-effect on bonds"):
+        assert not news_post.is_crypto({"title": t}), t
+    # Google News: the summary is the title + publisher; a crypto publisher's name doesn't count
+    gn = item("Cryptopolitan", "Oil jumps as Iran strikes widen conflict", 1,
+              summary="Oil jumps as Iran strikes widen conflict Cryptopolitan")
+    assert not news_post.is_crypto(gn) and news_post.is_crypto(dict(gn, title="Bitcoin dips as oil jumps"))
+
+    # a crypto headline among bigger-weighted rates / war / tariff stories is the one picked
+    data = news_data()
+    data["news"] = [war, tariffs, rates, mention, bare, headline]
+    logs = []
+    s = news_post.pick_story(data, [], [], cfg, now=NOW, log=logs.append)
+    assert s["title"] == headline["title"] and news_post.is_crypto(s), s
+    assert any("5 non-crypto skipped" in m for m in logs), logs
+    # regulation named only in the lead (summary) can be picked
+    data["news"] = [war, rates, lead]
+    s = news_post.pick_story(data, [], [], cfg, now=NOW, log=quiet)
+    assert s["title"] == lead["title"], s
+    # every crypto story already used → "best available", still crypto
+    data["news"] = [war, tariffs, headline, other]
+    s = news_post.pick_story(data, [headline["title"], other["title"]], [], cfg, now=NOW, log=quiet)
+    assert s["tier"].startswith("best available") and news_post.is_crypto(s), s
+    # any news set: a returned story is always crypto
+    for mix in ([war, mention, other], [bare, lead, tariffs], [rates, headline]):
+        data["news"] = mix
+        assert news_post.is_crypto(news_post.pick_story(data, [], [], cfg, now=NOW, log=quiet))
+    # geopolitics / rates only → no story (RuntimeError naming the skipped count)
+    data["news"] = [war, tariffs, rates, mention, bare]
+    try:
+        news_post.pick_story(data, [], [], cfg, now=NOW, log=quiet)
+        raise AssertionError("a news set with no crypto story must not pick one")
+    except RuntimeError as e:
+        assert "No crypto story" in str(e) and "5 non-crypto" in str(e), e
+
+    # the edition: "Post failed", exit 1, nothing posted, nothing in history
+    class FixedNow(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return NOW.astimezone(tz) if tz else NOW.replace(tzinfo=None)
+
+    tmp = Path(tempfile.mkdtemp())
+    shutil.copy(ROOT / "config.yaml", tmp / "config.yaml")
+    fake = FakeGraph()
+    _fb_env(fake)
+    logged = []
+    saved = (app.ROOT, app.datetime, app.log, sources.gather)
+    app.ROOT, app.datetime, app.log = tmp, FixedNow, logged.append
+    sources.gather = lambda cfg, kind="market", log=print: data
+    try:
+        assert app.main(["--session", "news_morning", "--scheduled"]) == 1
+    finally:
+        (app.ROOT, app.datetime, app.log, sources.gather) = saved
+        for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN"):
+            os.environ.pop(k, None)
+    assert any(m.startswith("Post failed") and "No crypto story" in m for m in logged), logged
+    assert fake.count(contains="/photos") == 0, fake.calls
+    hist = tmp / "data" / "history.json"
+    assert not hist.exists() or not json.loads(hist.read_text()).get("videos"), hist.read_text()
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK news post crypto-only (headline/lead rule, filtered picker, no-crypto set → no post)")
 
 
 def test_news_edition(cfg):
