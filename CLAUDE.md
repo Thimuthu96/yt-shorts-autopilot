@@ -156,6 +156,8 @@ autopilot/focus.py       lead story + related assets (keywords, scoring, typical
 autopilot/gold.py        gold outlook: levels, liquidity, 1H/4H/daily bias, scenarios, review
 autopilot/script.py      Gemini prompt, fact-check, validate, fix_visuals (scene types)
 autopilot/rules.py       shared narration rules: narration_problems(text) + NARRATION_RULES prompt text; date/time patterns
+                         + packaging checks title_problems(title) / thumbnail_text_problems(text) (CAP-8): logged
+                         only by youtube.build_metadata on brief/gold titles; the new formats enforce them
 autopilot/llm.py         Gemini REST client with model fallback + verbose logging
 autopilot/thumbnail.py   4 thumbnail templates (Pillow) + choose() + clean_hook()
 autopilot/slides.py      per-scene graphics (Pillow + matplotlib)

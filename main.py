@@ -166,7 +166,7 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     log(f"Rendered {out.relative_to(ROOT)}")
 
     from autopilot import youtube  # imported late so --no-upload needs no Google libs configured
-    meta = youtube.build_metadata(pkg, data, cfg, session.get("label", ""))
+    meta = youtube.build_metadata(pkg, data, cfg, session.get("label", ""), log=log)
     (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
     fb_caption = facebook.reel_caption(meta, pkg, data, cfg)
     (workdir / "caption_fb.txt").write_text(fb_caption, encoding="utf-8")

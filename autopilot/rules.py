@@ -3,6 +3,10 @@
     narration_problems(text)  every broken rule, named with the matched words, e.g.
                               'price target: "BTC to $150,000"'; [] when the text is clean
     NARRATION_RULES           the same rules as prompt text, for the writer and fact-check prompts
+    title_problems(title)     packaging.md title rules (CAP-8): no date, session stamp, hashtag, price
+                              target, "10x" or "EXPLODE"; logged only on today's brief and gold titles,
+                              enforced by the new formats
+    thumbnail_text_problems(text)   1-4 words plus the title rules, for the new formats' thumbnails
     SPOKEN_TIME / SPOKEN_DATE_WORDS / _MONTHS   date and clock-time patterns (lessons import them too)
 
 Rules: a data desk, not a person: no first person (except inside a quote attributed to a source),
@@ -126,13 +130,11 @@ def _unquoted(text: str) -> str:
 
 def narration_problems(text: str) -> list[str]:
     """Every narration rule `text` breaks, as 'rule: "matched words"' (each match once, in rule order)."""
-    text = re.sub("[\u2010-\u2015\u2212]", "-", text or "")
+    text = _dashes(text)
     found: list[str] = []
 
     def add(rule: str, words: str) -> None:
-        p = f'{rule}: "{words.strip()}"'
-        if p not in found:
-            found.append(p)
+        _add(found, rule, words)
 
     unquoted = _unquoted(text)
     for m in FIRST_PERSON.finditer(unquoted):
@@ -148,13 +150,27 @@ def narration_problems(text: str) -> list[str]:
     for rx in BUY_SELL_CALL:
         for m in rx.finditer(text):
             add("buy/sell call", m.group(0))
-    dates = [m.span() for m in SPOKEN_TIME.finditer(text)]
-    said = [*SPOKEN_TIME.finditer(text), *MONTH_OR_ZONE.finditer(text), *MARCH_MAY.finditer(text),
-            *(m for rx in SPOKEN_CLOCK for m in rx.finditer(text))]
-    for m in sorted(said, key=lambda m: m.start()):
-        if m.re is SPOKEN_TIME or not any(a <= m.start() < b for a, b in dates):  # "October 12" once
-            add("date/time", m.group(0))
+    for m in _dates(text, [MONTH_OR_ZONE, MARCH_MAY, *SPOKEN_CLOCK]):
+        add("date/time", m.group(0))
     return found
+
+
+def _dashes(text: str | None) -> str:
+    return re.sub("[\u2010-\u2015\u2212]", "-", text or "")
+
+
+def _add(found: list[str], rule: str, words: str) -> None:
+    p = f'{rule}: "{words.strip()}"'
+    if p not in found:
+        found.append(p)
+
+
+def _dates(text: str, extra: list[re.Pattern]) -> list[re.Match]:
+    """SPOKEN_TIME matches plus `extra` matches outside them ("October 12" once, not also "October")."""
+    dates = [m.span() for m in SPOKEN_TIME.finditer(text)]
+    said = [*SPOKEN_TIME.finditer(text), *(m for rx in extra for m in rx.finditer(text))]
+    return [m for m in sorted(said, key=lambda m: m.start())
+            if m.re is SPOKEN_TIME or not any(a <= m.start() < b for a, b in dates)]
 
 
 NARRATION_RULES = """
@@ -168,3 +184,64 @@ NARRATION_RULES = """
      Facts like "a sell-off" or "buy-side liquidity" are fine.
    - Never say a date, a month name, a clock time or a time zone (no "October 12", "14:30", "UTC",
      "GMT"); say "today", "later today" or "this week". A bare year ("the highest since 2021") is fine."""
+
+
+# ─── titles and thumbnail text (packaging.md, CAP-8) ──────────────────────
+# dates beyond the narration ones: "March" (title-case "May" is the verb), a month + year, weekdays,
+# "10/7"; a bare
+# year stays legal ("Biggest Drop Since 2022"), as in brief narration
+TITLE_DATE = [MONTH_OR_ZONE, re.compile(r"\bMarch\b|\bMARCH\b"),  # all-caps too: thumbnail text
+              re.compile(rf"\b(?:{_MONTHS})\.? \d{{4}}\b", re.I),  # "Jan 2027", "May 2026"
+              re.compile(r"\b(?:mon|tues|wednes|thurs|fri|satur|sun)day\b", re.I),
+              re.compile(r"\b(?!24/7\b)\d{1,2}/\d{1,2}(?:/\d{2,4})?\b"), *SPOKEN_CLOCK]
+# a market session or edition-time label: "London Open", "NY Close", "Evening News", "Morning Brief"
+SESSION_STAMP = re.compile(
+    r"\b(?:Asian?|Asia-Pacific|Tokyo|Sydney|London|European?|New York|(?-i:NY|US|U\.S\.)|Wall Street)"
+    r"\s+(?:Open|Close|Session)\b"
+    r"|\b(?:Morning|Midday|Afternoon|Evening|Overnight)\s+(?:News|Brief|Briefing|Edition|Update|Report)\b", re.I)
+HASHTAG = re.compile(r"(?<![\w&])#[A-Za-z]\w*")  # "#1 Reason" is a rank, not a hashtag
+EXPLODE = re.compile(r"\bexplod(?:e|es|ed|ing)\b", re.I)
+# a price, not a bare year: "$150K", "150k", "$1.2m", "a hundred thousand dollars"
+_PRICE = rf"(?:\$\s?\d(?:[\d,.]*\d)?(?:k\b|m\b|[a-z]*illion\b)?|\d(?:[\d,.]*\d)?(?:k|m|[a-z]*illion)\b|{_AMOUNT})"
+TITLE_PRICE_TARGET = [re.compile(p) for p in (
+    # replaces PRICE_TARGET's headline form in titles, at the start or after ":" / "|": "Bitcoin To $150K?";
+    # not "Up To $500M Liquidated", a reported move ("Plunges to $80K") or a year ("Road to 2030")
+    r"(?i:(?:^|(?<=[:|?!.])\s+)\W*(?!(?:up|down|close|due|back|next|equal)\b|\w+(?:ed|s)\b)\w{2,13}\s+to\s+"
+    + _PRICE + ")",
+    # the question form, either way: "Will Bitcoin Hit $100K?", "Could Ether Sink to $1,000?"
+    r"(?i:\b(?:will|can|could)\s+(?:[\w'\u2019]+\s+){1,2}(?:hit|reach|top|break|(?:go|climb|rise|fall|drop|"
+    r"sink|crash|plunge|soar)\s+(?:to|toward|towards|above|below|past|under|over))\s+" + _PRICE + ")",
+)]
+THUMBNAIL_MAX_WORDS = 4
+
+
+def title_problems(title: str) -> list[str]:
+    """Every packaging rule `title` breaks, as 'rule: "matched words"' (each match once, in rule order)."""
+    text = _dashes(title)
+    found: list[str] = []
+    for m in _dates(text, TITLE_DATE):
+        _add(found, "date", m.group(0))
+    for m in SESSION_STAMP.finditer(text):
+        _add(found, "session stamp", m.group(0))
+    for m in HASHTAG.finditer(text):
+        _add(found, "hashtag", m.group(0))
+    targets = sorted((m for rx in (*PRICE_TARGET[:-1], *TITLE_PRICE_TARGET) for m in rx.finditer(text)),
+                     key=lambda m: (m.start(), -m.end()))
+    end = -1
+    for m in targets:  # overlapping matches ("Bitcoin to $150" / "Bitcoin to $150K") count once, the longest
+        if m.start() >= end:
+            _add(found, "price target", m.group(0).lstrip(" \"\u201c\u201d"))
+        end = max(end, m.end())
+    for m in TEN_X.finditer(text):
+        _add(found, "10x", m.group(0))
+    for m in EXPLODE.finditer(text):
+        _add(found, "EXPLODE", m.group(0))
+    return found
+
+
+def thumbnail_text_problems(text: str, max_words: int = THUMBNAIL_MAX_WORDS) -> list[str]:
+    """Thumbnail text carries 1-`max_words` words and breaks no title rule."""
+    words = (text or "").split()
+    found = [] if 1 <= len(words) <= max_words else \
+        [f'thumbnail words: "{" ".join(words)}" ({len(words)}, allowed 1-{max_words})']
+    return found + title_problems(text)

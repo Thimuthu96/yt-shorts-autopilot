@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 for _k in ("CF_ACCOUNT_ID", "CF_API_TOKEN", "FB_PAGE_ID", "FB_PAGE_TOKEN"):  # never reach real services
     os.environ.pop(_k, None)
 
-from autopilot import facebook, focus, gold, images, news_post, render, rules, script, slides, thumbnail  # noqa: E402
+from autopilot import facebook, focus, gold, images, news_post, render, rules, script, seo, slides, thumbnail  # noqa: E402
 from autopilot.history import History  # noqa: E402
 from autopilot.media import probe_duration, run  # noqa: E402
 from autopilot.youtube import build_metadata  # noqa: E402
@@ -253,6 +253,7 @@ def main():
 
     test_gold(cfg, small, gdata)
     test_narration_rules(small)
+    test_title_rules(cfg, data)
     test_focus_crypto_first()
     test_voice_fallback()
     test_history()
@@ -289,6 +290,51 @@ def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> N
     h_, m_, s_ = first.split(",")[1].split(":")
     start = int(h_) * 3600 + int(m_) * 60 + float(s_)
     assert hold - 0.05 <= start <= 1.2, (start, hold)
+
+
+def test_title_rules(cfg, data):
+    """Packaging title and thumbnail-text checks (rules.py, CAP-8): each banned pattern is flagged with
+    its reason, the format patterns pass, and today's brief title is logged but still published."""
+    t = rules.title_problems
+    for title, want in (("Bitcoin Slips Ahead of US Inflation Data | Oct 7", 'date: "Oct 7"'),
+                        ("Crypto Wrap for Monday", 'date: "Monday"'), ("CPI Lands at 8:30", 'date: "8:30"'),
+                        ("Bitcoin Price Today | London Open", 'session stamp: "London Open"'),
+                        ("Evening News: Ether Slides", 'session stamp: "Evening News"'),
+                        ("Why Bitcoin Fell #Bitcoin", 'hashtag: "#Bitcoin"'),
+                        ("Bitcoin To $150K?", 'price target: "Bitcoin To $150K"'),
+                        ("Will Bitcoin Hit $100K?", 'price target: "Will Bitcoin Hit $100K"'),
+                        ("Analysts Raise Their Price Target", 'price target: "Price Target"'),
+                        ("Will Bitcoin Drop to $80K?", 'price target: "Will Bitcoin Drop to $80K"'),
+                        ("Analysis: BTC to $150K", 'price target: "BTC to $150K"'),
+                        ("CPI Day at 8:30 GMT", 'date: "GMT"'), ("Bitcoin on 10/7", 'date: "10/7"'),
+                        ("Crypto in May 2026", 'date: "May 2026"'), ("Crypto Wrap for October", 'date: "October"'),
+                        ("This Coin Could 10x", '10x: "10x"'), ("Bitcoin Is About To EXPLODE", 'EXPLODE: "EXPLODE"')):
+        assert want in t(title), (title, t(title))
+    for title in ("What Is a Bitcoin ETF? (Explained Simply)", "Why Bitcoin Just Dropped 7% (What Actually Happened)",
+                  "This Week in Crypto: What Moved and Why", "What Is a Break of Structure? (Crypto Chart Example)",
+                  "Why Did Bitcoin Fall to $84,000?", "Biggest Bitcoin Drop Since 2022", "Up To $500M Liquidated",
+                  "Fed May Cut Rates: What It Means for Crypto", "#1 Reason Ether Lagged", "Crypto Trades 24/7",
+                  "Road to 2030: Bitcoin Halving", "Plunges to $80K: Why Bitcoin Fell"):
+        assert t(title) == [], (title, t(title))
+    assert t("Bitcoin to $150K by Christmas?") == ['price target: "Bitcoin to $150K"']  # one overlapping match
+    th = rules.thumbnail_text_problems
+    assert th("BITCOIN ETF?") == [] and th("WHY −7%?") == [] and th("BOS vs CHoCH") == []
+    assert th("") and th("WHY BITCOIN FELL SO HARD")[0].startswith("thumbnail words:")
+    assert th("10x SOON") == ['10x: "10x"']
+    assert th("MARCH CPI") == ['date: "MARCH"']  # thumbnail text is all-caps
+    # today's brief: the writer's dated title is logged, then published unchanged
+    logged = []
+    meta = build_metadata(PKG, data, cfg, "London Open", log=logged.append)
+    assert meta["title"] == PKG["title"] and len(logged) == 1 and 'date: "Oct 7"' in logged[0], (meta["title"], logged)
+    logged.clear()
+    build_metadata(dict(PKG, title="Bitcoin Slips Ahead of US Inflation Data"), data, cfg, "London Open",
+                   log=logged.append)
+    assert logged == [], logged
+    # the data-built fallback title carries the edition and date: logged, published as built
+    meta = build_metadata(dict(PKG, title="Crypto slips"), data, cfg, "London Open", log=logged.append)
+    assert meta["title"] == seo.fallback_title(data, "London Open") and len(logged) == 1, (meta["title"], logged)
+    assert 'session stamp: "London Open"' in logged[0] and 'date: "Oct 7"' in logged[0], logged
+    print("OK title rules")
 
 
 def test_focus_crypto_first():

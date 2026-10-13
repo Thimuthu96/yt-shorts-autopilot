@@ -17,7 +17,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
-from . import seo
+from . import rules, seo
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 LESSON_SCOPES = SCOPES + ["https://www.googleapis.com/auth/youtube",  # playlists, delete
@@ -78,10 +78,14 @@ def _credits(data: dict) -> str:
             "banks); economic calendar from ForexFactory" + "".join(f"; {x}" for x in extra) + ".")
 
 
-def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "") -> dict:
+def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "", log=print) -> dict:
     """Title, description and tags tuned for search (see seo.py); falls back to the writer's
-    output when there is no lead story (e.g. tests with plain data)."""
+    output when there is no lead story (e.g. tests with plain data). The packaging title rules
+    (rules.title_problems) are only logged here: brief and gold titles are retired at switch-over."""
     title = _safe(seo.title(pkg.get("title", ""), data, edition))[:95]
+    problems = rules.title_problems(title)
+    if problems:
+        log(f"Title check (log-only until switch-over): {'; '.join(problems)}")
     hashtags = seo.hashtags(data, pkg.get("hashtags", []))
     parts = [_safe(pkg.get("description", ""))]
     numbers = seo.key_numbers(data)
