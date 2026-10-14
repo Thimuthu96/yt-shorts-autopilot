@@ -14,6 +14,8 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
     python main.py --session lesson --scheduled  # trading lesson: next curriculum episode (YouTube + Facebook video)
     python main.py --session lesson --no-upload  # make the next lesson only (works with lessons.enabled false)
     python main.py --lesson-sample --no-upload  # sample trading lesson (16:9 + 9:16) on fixture candles
+    python main.py --session basics   # Crypto Basics: the sample topic, 16:9 YouTube + 9:16 Facebook (timed runs: off
+                                      # while basics.enabled is false)
 
 Manual runs always make and publish and don't stop the timed run of that edition.
 """
@@ -27,8 +29,8 @@ from pathlib import Path
 
 import yaml
 
-from autopilot import (facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides, lessons,
-                       news_post, render, reveal, script, slides, sources, thumbnail, voice)
+from autopilot import (basics, facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
+                       lessons, news_post, render, reveal, script, slides, sources, thumbnail, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
@@ -62,6 +64,7 @@ LESSON_CAPTION_PAD = 2  # px above the bottom of the caption band (outline, shad
 LESSON_PUSH_IN = 0.012  # push-in growth per scene: small enough that the slide footers stay in frame
 LESSON_PATH_PLAYLIST = "Trading Lessons · The Path"  # cfg lessons.path_playlist
 LESSON_TRACK_PLAYLIST = "Track {n} · {name}"  # cfg lessons.track_playlist
+BASICS_MAX_SECONDS = 390  # Crypto Basics narration limit (cfg basics.max_seconds)
 WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")  # a session's `days`, datetime.weekday() order
 
 
@@ -465,6 +468,99 @@ def make_lesson_edition(cfg: dict, history: History, date: str, session_key: str
     return made, pending
 
 
+def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dict:
+    """One Crypto Basics edition (kind: basics) from the sample topic: narration of its approved points
+    (basics.write_script, 3 attempts), the A/B voice with pauses, a 16:9 and a 9:16 render of the same
+    narration, the placeholder thumbnail and the metadata (written to the workdir; nothing is uploaded).
+    Returns {"entry", "videos": {"16x9", "9x16"}, "thumbnail", "meta", "seconds", "workdir"}."""
+    bc = cfg.get("basics") or {}
+    topic = basics.sample_topic()
+    log(f"Basics topic: {topic['id']} · {topic['question']}")
+    workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    plan = basics.scene_plan(topic)
+    pkg = basics.write_script(cfg, topic, plan, log=log)
+    (workdir / "package.json").write_text(json.dumps(
+        {"topic": topic["id"], "title": topic["question"],
+         "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]]}, indent=2, ensure_ascii=False))
+
+    v = ab_voice(cfg["voice"], history, session_key)
+    log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
+    audio, total = narrate(v, pkg["scenes"], bc.get("max_seconds", BASICS_MAX_SECONDS), workdir, pauses=True,
+                           what="Basics narration", log=log)
+    thumb = basics.render_thumbnail(cfg, topic, workdir / "thumbnail.jpg")
+
+    music_files = sorted((ROOT / "music").glob("*.mp3"))
+    music = random.choice(music_files) if music_files else None  # same music in both shapes
+    videos = {}
+    for layout in (lesson_slides.LANDSCAPE, lesson_slides.PORTRAIT):
+        log(f"Drawing and rendering the {layout.name} Basics video...")
+        shape_dir = workdir / layout.name  # each render keeps its own segments / captions
+        pics = basics.render_slides(cfg, topic, plan, layout, shape_dir)
+        out = workdir / f"basics_{layout.name}.mp4"
+        render.build_video(audio, pics, lesson_video_cfg(cfg, layout), shape_dir, out, music=music)
+        videos[layout.name] = out
+        log(f"Rendered {out}")
+
+    meta = basics.metadata(cfg, topic)
+    (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    log(f"Basics title: {meta['title']}")
+    entry = {
+        "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "brief_date": date,
+        "session": session_key,
+        "kind": "basics",
+        "topic": topic["id"],
+        "title": meta["title"],
+        "video_id": None,
+        "fb_video_id": None,
+        "seconds": round(total, 1),
+        "voice": audio[0]["voice"] if audio else v["name"],
+        "workdir": str(workdir.relative_to(ROOT)),
+    }
+    return {"entry": entry, "videos": videos, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
+            "workdir": workdir}
+
+
+def publish_basics(made: dict, pending: list[str], cfg: dict) -> tuple[dict, list[str]]:
+    """Publish one made Basics edition to each pending platform on its own (as publish_lesson): YouTube gets
+    the 16:9 video through youtube.upload_lesson (no playlists; basics.review_window_hours), Facebook the 9:16
+    video through facebook.publish_video (basics.fb_published). A failure on one is logged and never blocks
+    (or repeats) the other. Returns (entry with the ids it got, failed platforms)."""
+    entry, failed = made["entry"], []
+    bc = cfg.get("basics") or {}
+    meta = made["meta"]
+    if "youtube" in pending:
+        try:
+            from autopilot import youtube
+            res = youtube.upload_lesson(made["videos"]["16x9"], {k: meta[k] for k in ("title", "description", "tags",
+                                                                                      "category_id")},
+                                        made["thumbnail"], None, None, review_hours=bc.get("review_window_hours", 0),
+                                        notify=cfg["upload"].get("notify_subscribers", True), log=log,
+                                        playlists=False)
+            entry["video_id"] = res["video_id"]
+            if res.get("publish_at"):
+                entry["publish_at"] = res["publish_at"]
+            for err in res.get("errors") or []:
+                log(f"YouTube Basics video uploaded, but: {err}")
+        except Exception as e:
+            log(f"YouTube Basics upload failed: {e}")
+            failed.append("youtube")
+    if "facebook" in pending:
+        try:
+            entry["fb_video_id"] = facebook.publish_video(
+                made["videos"]["9x16"], meta.get("fb_title") or meta["title"],
+                meta.get("fb_description") or meta["description"], cfg,
+                published=bool(bc.get("fb_published", True)), log=log)
+        except Exception as e:
+            vid = getattr(e, "video_id", None)
+            log(f"Facebook Basics video failed: {e}"
+                + (f" (video {vid} exists on the Page; check or delete it there)" if vid else ""))
+            failed.append("facebook")
+    return entry, failed
+
+
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
     """Facebook news image post: one story → headline + caption → background → card → /photos."""
     session = cfg.get("sessions", {}).get(session_key, {})
@@ -532,7 +628,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-upload", action="store_true", help="make it only, publish nowhere")
     p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
     p.add_argument("--session", default="auto",
-                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | "
+                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | basics | "
                         "auto (market edition by UTC time)")
     p.add_argument("--platforms", default="all",
                    help="all | youtube | facebook | youtube,facebook (limited to the edition's own platforms)")
@@ -595,6 +691,10 @@ def main(argv: list[str] | None = None) -> int:
         log("Lessons are off (lessons.enabled is false in config.yaml), so the lesson is skipped. "
             "Use --no-upload on a manual run to make one anyway.")
         return 0
+    if kind == "basics" and args.scheduled and not (cfg.get("basics") or {}).get("enabled", False):
+        log("basics.enabled is false in config.yaml (Crypto Basics is dark), so the timed run is skipped. "
+            "A manual run (Run workflow, no `scheduled`) still makes and publishes it.")
+        return 0
     if args.scheduled and start:
         late = minutes_late(now, start)
         log(f"Timed run for the {label} edition (due {start} UTC, started {late:+d} min)")
@@ -647,13 +747,18 @@ def main(argv: list[str] | None = None) -> int:
             if made is None:
                 return 0
             entry, failed = publish_lesson(made, pending, cfg)
+        elif kind == "basics":
+            # re-making for a platform it missed: the history the first run saw (same A/B voice)
+            made = make_basics(cfg, history.excluding_slot(today, session_key) if remake else history,
+                               session_key, today)
+            entry, failed = publish_basics(made, pending, cfg)
         else:
             # re-making an edition for a platform it missed: use the history the first run saw
             made = make_brief(cfg, history.excluding_slot(today, session_key) if remake else history,
                               args, session_key)
             entry, failed = publish(made, pending, cfg)
     except Exception as e:
-        log(f"{dict(post='Post', lesson='Lesson').get(kind, 'Brief')} failed: {e}")
+        log(f"{dict(post='Post', lesson='Lesson', basics='Basics').get(kind, 'Brief')} failed: {e}")
         return 1
     if any(entry.get(k) for k in ID_KEYS):
         entry["trigger"] = "timed" if args.scheduled else "manual"

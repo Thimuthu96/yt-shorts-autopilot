@@ -34,9 +34,10 @@ class History:
         return [v for v in self.data["videos"] if any(v.get(k) for k in ID_KEYS)]
 
     def used_headlines(self) -> list[str]:
-        """Headlines of recent video editions (news image posts are tracked separately; lessons have none)."""
+        """Headlines of recent video editions (news image posts are tracked separately; lessons and Crypto
+        Basics have none)."""
         out = []
-        for v in [v for v in self.uploaded() if v.get("kind") not in ("post", "lesson")][-15:]:
+        for v in [v for v in self.uploaded() if v.get("kind") not in ("post", "lesson", "basics")][-15:]:
             out += v.get("headlines", [])
         return out
 

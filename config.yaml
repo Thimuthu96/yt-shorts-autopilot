@@ -90,6 +90,16 @@ sessions:
     kind: lesson
     days: [tue, thu, sat, sun]
     platforms: [youtube, facebook]
+  # Crypto Basics (kind: basics): one beginner explainer as a 16:9 YouTube video (Education) and a 9:16
+  # Facebook Page video from the same narration, Wednesdays (`days`; a manual run works any day).
+  # 15:00 UTC = 20:30 Sri Lanka. Dark until `basics.enabled: true` (timed runs skip; manual runs make + publish).
+  basics:
+    label: Crypto Basics
+    short: Basics
+    start_utc: "15:00"
+    kind: basics
+    days: [wed]
+    platforms: [youtube, facebook]
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
 # (automatic runs only; a manual run can still choose any edition). News posts run every day;
 # the lesson runs on its own `days` (Saturday and Sunday included).
@@ -139,6 +149,19 @@ lessons:
   path_playlist: "Trading Lessons · The Path"   # every lesson, curriculum order (only with playlists: true)
   track_playlist: "Track {n} · {name}"          # {n} = track number, {name} = track name
   fb_published: true          # false = Facebook videos are uploaded unpublished
+
+# ─── Crypto Basics (the `basics` edition) ───────────────────────────────────
+# One beginner topic narrated from its approved points (for now the sample tests/basics/sample_topic.yaml).
+# Dark: while enabled is false, timed runs log why and stop; a manual run still makes and publishes,
+# private on YouTube for review_window_hours and unpublished on Facebook, so it can be checked first.
+basics:
+  enabled: false
+  min_words: 600              # narration length → roughly 4-6 minutes
+  max_words: 900
+  max_seconds: 390            # narration limit; re-recorded faster when over
+  review_window_hours: 24     # 0 = public on upload; N = private, then public on its own N hours later
+  fb_published: false         # false = the Facebook video is uploaded unpublished (review on the Page)
+  category_id: "27"           # YouTube Education
 
 # ─── Gold outlook ───────────────────────────────────────────────────────────
 gold:

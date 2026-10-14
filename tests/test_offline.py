@@ -273,6 +273,7 @@ def main():
     test_lesson_render(cfg)
     test_youtube_lesson(cfg)
     test_lesson_edition(cfg)
+    test_basics(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -2924,14 +2925,221 @@ def test_lesson_edition(cfg):
     assert hist.published_on("2026-10-13", "lesson", "facebook") and not hist.published_on("2026-10-13", "lesson", "youtube")
     assert len(hist.uploaded()) == 1
 
-    # cron-job.org: lesson on its days, gold Mon-Fri, the rest every day
+    # cron-job.org: lesson and basics on their days, gold Mon-Fri, the rest every day
     sessions = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))["sessions"]
     wd = {k: setup_cronjobs.job_for(k, s, "T", True)["schedule"]["wdays"] for k, s in sessions.items()}
     assert wd["lesson"] == [2, 4, 6, 0] and wd["gold"] == [1, 2, 3, 4, 5] and wd["asia"] == [-1], wd
-    assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "gold")), wd
+    assert wd["basics"] == [3], wd
+    assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "gold", "basics")), wd
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK lesson edition (days, disabled, both platforms, guard, held, FB failure + recorded-episode re-run, "
           "empty slot, curriculum problems, manual any day, fb_video_id merge, cron days)")
+
+
+def test_basics(cfg):
+    """The Crypto Basics edition (crypto-basics entry 1) through main(): the sample topic narrated (mocked
+    Gemini, small word bounds) → a 16:9 and a 9:16 render of one narration, YouTube gets 16:9 and Facebook
+    9:16, the history entry (kind basics + voice); a rule-breaking writer stops it (exit 1, nothing
+    published); a Facebook failure keeps the YouTube id (exit 1); timed runs: wrong weekday → days skip,
+    dark Wednesday → skip log, no LLM call; the workflow's session options and the session config."""
+    from unittest import mock
+    import main as app
+    from autopilot import basics, voice, youtube
+
+    topic = basics.sample_topic()
+    assert topic["id"] == "what-is-a-bitcoin-etf" and topic["question"] == "What Is a Bitcoin ETF? (Explained Simply)"
+    assert len(topic["points"]) == 4 and topic["summary"].strip()
+    for p in topic["points"]:  # the approved points pass the data-desk rules and carry no number
+        assert p["term"].strip() and not rules.narration_problems(p["text"]), p
+        assert not any(ch.isdigit() for ch in p["text"]), p
+    plan = basics.scene_plan(topic)
+    assert [p["id"] for p in plan] == ["hook", "point_1", "point_2", "point_3", "point_4", "recap"], plan
+    assert [p["visual"]["type"] for p in plan] == ["title"] + ["concept"] * 4 + ["recap"]
+    assert plan[1]["term"] == "Exchange-traded fund" and topic["points"][0]["text"].split()[0] in plan[1]["covers"]
+
+    clock = [datetime(2026, 10, 14, 15, 5, tzinfo=timezone.utc)]  # a Wednesday, 5 min after 15:00
+
+    class FixedNow(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock[0].astimezone(tz) if tz else clock[0].replace(tzinfo=None)
+
+    tmp = Path(tempfile.mkdtemp())
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert live["basics"]["enabled"] is False and live["basics"]["review_window_hours"] == 24
+    assert live["basics"]["fb_published"] is False and str(live["basics"]["category_id"]) == "27"
+    assert live["sessions"]["basics"] == {"label": "Crypto Basics", "short": "Basics", "start_utc": "15:00",
+                                          "kind": "basics", "days": ["wed"], "platforms": ["youtube", "facebook"]}
+    assert "basics" not in live["weekend_sessions"]
+
+    def write_cfg(enabled: bool):
+        c = json.loads(json.dumps(live))
+        c["basics"].update(enabled=enabled, min_words=30, max_words=400)
+        (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
+
+    def history() -> list[dict]:
+        f = tmp / "data" / "history.json"
+        return json.loads(f.read_text())["videos"] if f.exists() else []
+
+    good = {"hook": "What is a Bitcoin ETF? Here is the simple version, one idea at a time.",
+            "point_1": "An exchange-traded fund, or ETF, is a fund. Its shares trade on a regular stock exchange.",
+            "point_2": "A spot Bitcoin ETF holds actual bitcoin. Each share follows the price of that bitcoin, "
+                       "minus the fund's fees.",
+            "point_3": "A custodian stores the fund's bitcoin and keeps it secure. Shareholders own fund shares, "
+                       "not the coins.",
+            "point_4": "There is no wallet to manage. In return, the fund charges a yearly fee, and its shares "
+                       "trade only while the exchange is open.",
+            "recap": "So, a fund on a stock exchange, holding real bitcoin, kept by a custodian. "
+                     "This is education, not financial advice."}
+    bad = dict(good, point_2="I think a spot Bitcoin ETF could 10x from here.")
+    answer, prompts, voices, yt, fb, logs = [good], [], [], [], [], []
+    fail_fb = [False]
+
+    def fake_llm(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        return {"scenes": [{"id": k, "text": v} for k, v in answer[0].items()]}
+
+    def fake_voice(scenes, name, rate, workdir, log=print, fallback=None, pauses=False):
+        assert pauses  # Basics speak with the key-number / concept-term pauses
+        voices.append(name)
+        assert [s.get("term") for s in scenes][1:5] == [p["term"] for p in topic["points"]], scenes
+        out = []
+        for i, sc in enumerate(scenes):
+            words = sc["text"].split()
+            wav = Path(workdir) / f"voice_{i:02d}.wav"
+            run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
+                 f"sine=frequency={300 + 25 * i}:duration={0.08 * len(words) + 0.3:.3f}", "-ar", "44100", "-ac", "1",
+                 wav])
+            out.append({"audio": wav, "duration": probe_duration(wav), "voice": name,
+                        "words": [(j * 0.08, (j + 0.9) * 0.08, w) for j, w in enumerate(words)]})
+        return out
+
+    def fake_upload_lesson(video, meta, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
+                           log=print, playlist_privacy="public", playlists=True):
+        yt.append({"video": Path(video), "meta": dict(meta), "thumbnail": Path(thumbnail), "track": track_playlist,
+                   "path": path_playlist, "review": review_hours, "playlists": playlists})
+        return {"video_id": f"Y{len(yt)}", "publish_at": "2026-10-15T15:05:00.000Z", "thumbnail_set": True,
+                "playlists": {}, "errors": []}
+
+    def fake_publish_video(video, title, description, cfg_, published=True, poll_minutes=None, log=print):
+        fb.append({"video": Path(video), "title": title, "description": description, "published": published})
+        if fail_fb[0]:
+            e = RuntimeError("Facebook video V7 failed: bad codec")
+            e.video_id = "V7"
+            raise e
+        return f"F{len(fb)}"
+
+    def go(*argv) -> int:
+        logs.clear()
+        return app.main(list(argv))
+
+    def said(text: str) -> bool:
+        return any(text in m for m in logs)
+
+    saved = (app.ROOT, app.datetime, app.log, basics.generate_json, voice.synthesize, youtube.upload_lesson,
+             facebook.publish_video, youtube.upload, youtube.set_thumbnail)
+    env = {k: os.environ.get(k) for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN")}
+    app.ROOT, app.datetime, app.log = tmp, FixedNow, logs.append
+    basics.generate_json, voice.synthesize = fake_llm, fake_voice
+    youtube.upload_lesson, facebook.publish_video = fake_upload_lesson, fake_publish_video
+    youtube.upload = youtube.set_thumbnail = lambda *a, **k: (_ for _ in ()).throw(AssertionError("daily upload"))
+    os.environ["FB_PAGE_ID"], os.environ["FB_PAGE_TOKEN"] = "PAGE", "TOKEN"
+    try:
+        write_cfg(False)
+        # dark: the timed Wednesday run logs why and stops before anything is made
+        assert go("--session", "basics", "--scheduled") == 0 and said("basics.enabled is false"), logs
+        assert not prompts and not voices and not yt and not fb and not history()
+        # a timed run on another weekday is skipped by the days rule (even when enabled)
+        write_cfg(True)
+        clock[0] = datetime(2026, 10, 13, 15, 5, tzinfo=timezone.utc)  # Tuesday
+        assert go("--session", "basics", "--scheduled") == 0 and said("runs only on wed"), logs
+        assert not prompts and not voices and not history()
+        write_cfg(False)
+
+        # manual run while dark (any day): made in both shapes from one narration and published
+        assert go("--session", "basics") == 0, logs
+        assert len(prompts) == 1 and "Exchange-traded fund" in prompts[0] and "Narration rules" in prompts[0], prompts
+        assert "30-400 word CRYPTO BASICS" in prompts[0] and all(p["text"].split()[0] in prompts[0] for p in topic["points"])
+        h = history()
+        assert len(h) == 1, h
+        e = h[0]
+        assert e["kind"] == "basics" and e["session"] == "basics" and e["topic"] == topic["id"], e
+        assert e["title"] == topic["question"] and e["video_id"] == "Y1" and e["fb_video_id"] == "F1", e
+        assert e["voice"] == voices[0] == cfg["voice"]["name"] and e["brief_date"] == "2026-10-13", e
+        assert e["platforms"] == ["youtube", "facebook"] and e["counts"] is False and e["trigger"] == "manual", e
+        assert e["seconds"] > 0 and "workdir" not in e and e["publish_at"], e
+        work = next((tmp / "output").glob("*/history_entry.json")).parent
+        for name, size in (("16x9", (1920, 1080)), ("9x16", (1080, 1920))):
+            path = work / f"basics_{name}.mp4"
+            assert path.exists() and _probe_size(path) == size, (name, path)
+            assert abs(probe_duration(path) - e["seconds"]) < 0.3, (name, probe_duration(path), e["seconds"])
+        from PIL import Image
+        with Image.open(work / "thumbnail.jpg") as im:
+            assert im.size == (1280, 720)
+        assert yt[0]["video"] == work / "basics_16x9.mp4" and yt[0]["review"] == 24 and yt[0]["playlists"] is False
+        assert yt[0]["track"] is None and yt[0]["path"] is None and yt[0]["thumbnail"] == work / "thumbnail.jpg"
+        meta = yt[0]["meta"]
+        assert set(meta) == {"title", "description", "tags", "category_id"} and meta["category_id"] == "27", meta
+        assert meta["description"].count(rules.disclosure(cfg, "basics")) == 1, meta["description"]
+        assert meta["description"].startswith(" ".join(topic["summary"].split())), meta["description"]
+        assert fb == [{"video": work / "basics_9x16.mp4", "title": topic["question"],
+                       "description": meta["description"], "published": False}], fb
+        saved_meta = json.loads((work / "metadata.json").read_text())
+        assert saved_meta["title"] == topic["question"]
+        # A/B: the next Basics edition takes the other voice
+        assert app.ab_voice(cfg["voice"], History(tmp / "data" / "history.json"), "basics")["name"] == \
+            cfg["voice"]["alternate"]
+
+        # the remaining cases stub the renders (both shapes rendered for real above)
+        shapes = []
+
+        def fake_build(audio, pics, vcfg, workdir, out, music=None):
+            shapes.append((vcfg["video"]["width"], vcfg["video"]["height"], len(pics)))
+            Path(out).write_bytes(b"")
+            return sum(a["duration"] for a in audio)
+        with mock.patch.object(render, "build_video", fake_build):
+            # a writer that breaks the narration rules every time: 3 attempts, the edition stops, nothing out
+            answer[0] = bad
+            prompts.clear()
+            n_yt, n_fb, n_voice = len(yt), len(fb), len(voices)
+            assert go("--session", "basics") == 1, logs
+            assert len(prompts) == 3 and said("attempt 3/3") and said("Discarding draft") and said("first person"), logs
+            assert said("Basics failed: Could not produce valid Basics narration in 3 attempts"), logs
+            assert len(yt) == n_yt and len(fb) == n_fb and len(voices) == n_voice and len(history()) == 1
+            answer[0] = good
+
+            # Facebook fails: the YouTube id is kept, exit 1, said so
+            fail_fb[0] = True
+            assert go("--session", "basics") == 1, logs
+            assert said("Facebook Basics video failed") and said("V7") and said("Not published on: facebook"), logs
+            h = history()
+            assert len(h) == 2 and h[1]["video_id"] == f"Y{n_yt + 1}" and not h[1].get("fb_video_id"), h
+            assert h[1]["platforms"] == ["youtube"] and h[1]["voice"] == cfg["voice"]["alternate"], h[1]
+            assert shapes == [(1920, 1080, 6), (1080, 1920, 6)], shapes
+            fail_fb[0] = False
+
+            # enabled, timed on Wednesday: made and published, counts for the slot
+            write_cfg(True)
+            clock[0] = datetime(2026, 10, 14, 15, 5, tzinfo=timezone.utc)
+            assert go("--session", "basics", "--scheduled") == 0, logs
+            assert history()[-1]["counts"] is True and history()[-1]["trigger"] == "timed"
+            assert go("--session", "basics", "--scheduled") == 0 and said("already published"), logs
+    finally:
+        (app.ROOT, app.datetime, app.log, basics.generate_json, voice.synthesize, youtube.upload_lesson,
+         facebook.publish_video, youtube.upload, youtube.set_thumbnail) = saved
+        for k, v in env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # the workflow's Run workflow menu offers the edition
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
+    on = wf.get("on", wf.get(True))  # PyYAML reads the bare key `on` as True
+    assert "basics" in on["workflow_dispatch"]["inputs"]["session"]["options"], on["workflow_dispatch"]
+    print("OK basics: sample topic → 16x9 + 9x16 from one narration, YouTube 16:9 + Facebook 9:16, history kind "
+          "basics + voice, rule-breaking writer stops, FB failure keeps YT, days skip, dark timed skip, workflow option")
 
 
 if __name__ == "__main__":

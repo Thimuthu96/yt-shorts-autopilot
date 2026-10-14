@@ -19,9 +19,9 @@ on:
   workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
     inputs:
       session:
-        description: "Edition to make (news_* = Facebook news image post, lesson = trading lesson)"
+        description: "Edition to make (news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics)"
         type: choice
-        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening, lesson]
+        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening, lesson, basics]
         default: auto
       platforms:
         description: "Where to publish (limited to the edition's own platforms)"
@@ -113,6 +113,7 @@ jobs:
           path: |
             output/*/short.mp4
             output/*/lesson_*.mp4
+            output/*/basics_*.mp4
             output/*/package.json
             output/*/metadata.json
             output/*/data.json

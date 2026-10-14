@@ -64,6 +64,16 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
                             (/{page}/videos); one failure never blocks the other
   → history.json            kind: lesson, episode, track, examples (asset/timeframe/start/end), video_id,
                             fb_video_id
+  Crypto Basics (kind: basics, make_basics() + publish_basics(); dark: basics.enabled false):
+  → basics.sample_topic()   tests/basics/sample_topic.yaml (the tracer topic: question, summary, points)
+  → basics.write_script()   Gemini narrates only the approved points (hook → one scene per point → recap);
+                            every scene narrated, basics.min/max_words, rules.narration_problems; 3 failures → exit 1
+  → main.narrate()          A/B voice (main.ab_voice, pauses=True, logged as "voice")
+  → basics.render_slides()  title / concept / recap slides with a CRYPTO BASICS chip, lesson_slides LANDSCAPE +
+                            PORTRAIT → render.build_video in both shapes; basics.render_thumbnail 1280x720 placeholder
+  → publish_basics(pending) youtube.upload_lesson() 16:9 (no playlists, basics.review_window_hours) ·
+                            facebook.publish_video() 9:16 (basics.fb_published); one failure never blocks the other
+  → history.json            kind: basics, topic, title, video_id, fb_video_id, seconds, voice
 ```
 
 Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishing in
@@ -83,6 +93,7 @@ rule and the once-per-edition-per-day-per-platform guard:
 | `newyork` | New York Open | 12:30 | 18:00 | cron-job.org 18:00 Asia/Colombo | `47 12 * * *` | YT + FB Reel |
 | `news_evening` | Evening News | 16:30 | 22:00 | cron-job.org 22:00 Asia/Colombo | `47 16 * * *` | FB post |
 | `lesson` | Trading Lesson | 14:30 | 20:00 | cron-job.org 20:00 Asia/Colombo, Tue/Thu/Sat/Sun | `47 14 * * 0,2,4,6` | YT 16:9 + FB video 9:16 |
+| `basics` | Crypto Basics (dark) | 15:00 | 20:30 | none yet (epic 5 wires the timers), Wed | none (dispatch option only) | YT 16:9 + FB video 9:16 |
 
 - Defined in `config.yaml → sessions` (label, short, start_utc, focus text, `kind: gold` for gold,
   `kind: post` + `platforms: [facebook]` for news posts; video editions default to
@@ -90,6 +101,10 @@ rule and the once-per-edition-per-day-per-platform guard:
   `DEFAULT_SESSIONS` as a fallback if config lacks them (no lesson there).
 - **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
   work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (gold without `days` = Mon–Fri).
+- **Crypto Basics is dark (`basics.enabled: false`):** a timed (`--scheduled`) basics run logs
+  "basics.enabled is false…" and exits 0 before anything is made; a manual run makes and publishes the
+  sample topic (`tests/basics/sample_topic.yaml`), private on YouTube for `basics.review_window_hours` (24)
+  and unpublished on Facebook (`basics.fb_published: false`) so it can be reviewed first.
 - **Lessons are off until `lessons.enabled: true`** (owner: after merging the curriculum; the existing
   `YT_REFRESH_TOKEN` works while `lessons.playlists: false`, the owner's choice — playlists by hand). While off, lesson runs log why and exit 0 without
   fetching or publishing; a manual `--no-upload` run still makes one. An episode whose detector finds
@@ -139,7 +154,7 @@ rule and the once-per-edition-per-day-per-platform guard:
 - Market briefs keep only news since the previous *market* upload (if ≥6 fresh stories).
 
 Manual runs: Actions → Shorts autopilot → Run workflow → `session` (auto/asia/london/newyork/gold/
-news_morning/news_midday/news_evening/lesson), `platforms` (all/youtube/facebook, limited to the edition's
+news_morning/news_midday/news_evening/lesson/basics), `platforms` (all/youtube/facebook, limited to the edition's
 own), optional `as_edition`. `auto` = market edition by current UTC hour (<5 asia, <12 london, else newyork).
 **YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific).
 Autopilot uses 4 on weekdays (5 on Tue/Thu with lessons on), so about 1–2 manual uploads a day fit.
@@ -148,7 +163,8 @@ Autopilot uses 4 on weekdays (5 on Tue/Thu with lessons on), so about 1–2 manu
 
 ```
 main.py                  orchestration, CLI: --session, --platforms, --scheduled (timed), --as-edition, --force, --no-upload,
-                         --lesson-sample; lessons: make_lesson_edition, make_lesson, publish_lesson
+                         --lesson-sample; lessons: make_lesson_edition, make_lesson, publish_lesson;
+                         Crypto Basics: make_basics, publish_basics
 config.yaml              all settings (channel, llm, market, sessions, lessons, voice, video, upload)
 get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets (--lesson-scopes adds playlists)
 setup_cronjobs.py        creates / fixes the cron-job.org jobs from config.yaml sessions (start_utc, days)
@@ -179,13 +195,16 @@ autopilot/lesson_data.py multi-timeframe candles for the detectors (Coinbase, Kr
 autopilot/lesson_script.py  lesson narration from approved key points (Gemini + checks + fact_check)
 autopilot/lesson_slides.py  lesson slides + thumbnail, 16:9 (LANDSCAPE) and 9:16 (PORTRAIT), TRACKS names
 autopilot/reveal.py      step reveal (generic): example-scene marks fade in one at a time as narration names them (lessons.reveal_steps → lesson_slides base + diff-crop layers → time_steps → render._segment; hook stays fully drawn)
+autopilot/basics.py      Crypto Basics (dark): sample_topic, scene_plan, write_script (Gemini + checks, 3 attempts),
+                         render_slides (16:9 / 9:16, CRYPTO BASICS chip), render_thumbnail (placeholder), metadata
 autopilot/lesson_meta.py lesson chapters, SEO title, description, hashtags, tags (YouTube + Facebook)
 lessons/                 curriculum.yaml (episode queue, list order) + glossary.yaml
 autopilot/media.py       ffmpeg/ffprobe helpers
 assets/fonts/            Anton + Space Grotesk (SIL OFL) for thumbnails
-tests/test_offline.py    full offline render test with sample data + mocked LLM (incl. the lesson edition)
+tests/test_offline.py    full offline render test with sample data + mocked LLM (incl. the lesson and basics editions)
 tests/test_lessons.py    curriculum/glossary validator, detectors on fixture candles, lesson data, narration
 tests/lessons/           sample curriculum + glossary + fixture candles
+tests/basics/            sample_topic.yaml: the Crypto Basics tracer topic
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
 .github/workflows/autopilot.yml   8 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled)

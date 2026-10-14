@@ -1,0 +1,28 @@
+# The Crypto Basics tracer topic (epic crypto-basics, entry 1): one hand-written sample that the
+# basics edition narrates while the real topic list (entry 3) doesn't exist yet. Every `text` is an
+# approved point: the narration may explain only these. No numbers, dates or advice; each text passes
+# rules.narration_problems (tests/test_offline.py checks it).
+id: what-is-a-bitcoin-etf
+question: "What Is a Bitcoin ETF? (Explained Simply)"
+summary: >-
+  A Bitcoin ETF lets people follow the price of bitcoin through an ordinary brokerage account.
+  This explainer covers what an ETF is, how a spot Bitcoin ETF works, who holds the coins, and the
+  trade-offs compared with holding bitcoin directly.
+points:
+  - term: Exchange-traded fund
+    text: >-
+      An exchange-traded fund, or ETF, is a fund whose shares trade on a regular stock exchange,
+      just like the shares of a company.
+  - term: Spot Bitcoin ETF
+    text: >-
+      A spot Bitcoin ETF holds actual bitcoin. The value of each share follows the price of the
+      bitcoin the fund keeps, minus the fund's fees.
+  - term: Custodian
+    text: >-
+      The fund's bitcoin is stored by a custodian, a company that keeps it secure on the fund's
+      behalf. Shareholders own fund shares, not the coins themselves.
+  - term: The trade-offs
+    text: >-
+      An ETF gives exposure to the bitcoin price through a brokerage account, with no wallet or
+      private keys to manage. In return, the fund charges a yearly fee, and its shares trade only
+      while the stock exchange is open.
