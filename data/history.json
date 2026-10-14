@@ -850,6 +850,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-14T09:32:36+00:00",
+      "brief_date": "2026-10-14",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN RISES TOWARD $84,000 ON FED REMARKS",
+      "fb_post_id": "462331040302049_122252881466610202",
+      "headlines": [
+        "Bitcoin climbs toward $84,000 after Fed’s Williams sees no rate hikes in 2027"
+      ],
+      "topic": "rates",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
