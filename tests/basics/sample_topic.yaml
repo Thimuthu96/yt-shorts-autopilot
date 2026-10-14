@@ -2,6 +2,9 @@
 # basics edition narrates while the real topic list (entry 3) doesn't exist yet. Every `text` is an
 # approved point: the narration may explain only these. No numbers, dates or advice; each text passes
 # rules.narration_problems (tests/test_offline.py checks it).
+# Each point's `diagram` (autopilot/diagrams.py: flow / compare / timeline + notes) is a builder draft that
+# shows only what its point says; the owner judges look and content. Its parts appear one by one as the
+# narration names them (`say` = the spoken aliases, first one = the name the writer is asked to use).
 id: what-is-a-bitcoin-etf
 question: "What Is a Bitcoin ETF? (Explained Simply)"
 summary: >-
@@ -13,16 +16,45 @@ points:
     text: >-
       An exchange-traded fund, or ETF, is a fund whose shares trade on a regular stock exchange,
       just like the shares of a company.
+    diagram:
+      type: flow
+      nodes:
+        - {label: Fund, say: [fund]}
+        - {label: Shares, note: like a company's shares, say: [shares, share]}
+        - {label: Stock exchange, arrow: trade on, say: [stock exchange]}
   - term: Spot Bitcoin ETF
     text: >-
       A spot Bitcoin ETF holds actual bitcoin. The value of each share follows the price of the
       bitcoin the fund keeps, minus the fund's fees.
+    diagram:
+      type: flow
+      nodes:
+        - {label: Spot Bitcoin ETF, say: [spot bitcoin ETF]}
+        - {label: Actual bitcoin, coin: BTC, arrow: holds, say: [actual bitcoin, real bitcoin]}
+        - {label: Value of each share, arrow: its price, say: [value of each share, share value]}
+      notes:
+        - {text: "Minus the fund's fees", say: [fees, fee]}
   - term: Custodian
     text: >-
       The fund's bitcoin is stored by a custodian, a company that keeps it secure on the fund's
       behalf. Shareholders own fund shares, not the coins themselves.
+    diagram:
+      type: flow
+      nodes:
+        - {label: "The fund's bitcoin", coin: BTC, say: [bitcoin, coins]}
+        - {label: Custodian, note: keeps it secure, arrow: stored by, say: [custodian]}
+      notes:
+        - {text: "Shareholders own fund shares, not the coins", say: [shareholders, shareholder]}
   - term: The trade-offs
     text: >-
       An ETF gives exposure to the bitcoin price through a brokerage account, with no wallet or
       private keys to manage. In return, the fund charges a yearly fee, and its shares trade only
       while the stock exchange is open.
+    diagram:
+      type: compare
+      left: {label: Bitcoin ETF, say: [ETF]}
+      right: {label: Holding bitcoin directly, coin: BTC, say: [holding bitcoin directly, directly]}
+      rows:
+        - {left: Brokerage account, right: Wallet and private keys, say: [brokerage account]}
+        - {left: Yearly fund fee, right: No fund fee, say: [yearly fee]}
+        - {left: Trades while the exchange is open, right: Not tied to exchange hours, say: [exchange is open]}

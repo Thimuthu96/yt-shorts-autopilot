@@ -498,6 +498,7 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
         log(f"Drawing and rendering the {layout.name} Basics video...")
         shape_dir = workdir / layout.name  # each render keeps its own segments / captions
         pics = basics.render_slides(cfg, topic, plan, layout, shape_dir)
+        reveal.time_steps(pics, pkg["scenes"], audio, log=log)  # each diagram part fades in as the narration names it
         out = workdir / f"basics_{layout.name}.mp4"
         render.build_video(audio, pics, lesson_video_cfg(cfg, layout), shape_dir, out, music=music)
         videos[layout.name] = out

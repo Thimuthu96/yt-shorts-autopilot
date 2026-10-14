@@ -2,26 +2,33 @@
 points → the same narration rendered 16:9 (YouTube) and 9:16 (Facebook). Dark until `basics.enabled`.
 
     sample_topic()                       the hand-written tracer topic (tests/basics/sample_topic.yaml)
-    scene_plan(topic)                    hook → one scene per approved point → recap
+    scene_plan(topic)                    hook → one scene per approved point → recap; a point's `diagram`
+                                         (autopilot/diagrams.py) is validated here (problems → ValueError) and
+                                         its parts' naming order goes into the scene's `covers`
     write_script(cfg, topic, plan, log)  Gemini narrates the plan; checks: every scene narrated, word
                                          bounds (basics.min_words-max_words), rules.narration_problems;
                                          3 failed attempts → RuntimeError (the edition stops)
     render_slides(cfg, topic, plan, layout, workdir)  title + concept + recap slides in one lesson_slides
-                                         layout (LANDSCAPE / PORTRAIT); the caption band is never drawn into
+                                         layout (LANDSCAPE / PORTRAIT); the caption band is never drawn into.
+                                         A point with a diagram: "KEY IDEA n OF m" + the term + the drawn
+                                         diagram (the point text is spoken, not shown), plus "base" + "steps"
+                                         (diagrams.step_layers) so reveal.time_steps fades each part in as the
+                                         narration names it; without one: the text concept slide
     render_thumbnail(cfg, topic, path)   the 16:9 title slide as a 1280x720 JPEG (placeholder until entry 6)
     metadata(cfg, topic)                 title, description (summary + the disclosure line once), tags
 
-A topic: {id, question, summary, points: [{term, text}]}. The narration may explain only its points.
+A topic: {id, question, summary, points: [{term, text, diagram?}]}. The narration may explain only its points.
 The look follows lesson_slides (its public layouts and helpers, never changed) with a "CRYPTO BASICS"
 header chip instead of the lesson's track label.
 """
+import copy
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 from PIL import Image, ImageDraw
 
-from autopilot import rules
+from autopilot import diagrams, rules
 from autopilot.lesson_slides import BG, DISCLAIMER, FG, LANDSCAPE, MUTED, Layout, _flow, _font, _heading
 from autopilot.llm import generate_json
 from autopilot.script import _merge_plan, _models
@@ -32,6 +39,7 @@ MIN_WORDS, MAX_WORDS = 600, 900  # cfg basics.min_words / max_words
 CHIP = "CRYPTO BASICS"
 CATEGORY = "27"  # Education (cfg basics.category_id)
 THUMB_SIZE = (1280, 720)
+DIAGRAM_GAP = 44  # px between the term and the diagram
 
 
 def sample_topic() -> dict:
@@ -53,10 +61,17 @@ def scene_plan(topic: dict) -> list[dict]:
              "covers": f"the hook: ask \"{_clean(topic['question'])}\" in plain words and say why a beginner "
                        "meets it; promise a simple explanation, no greeting"}]
     for n, p in enumerate(points, 1):
-        plan.append({"id": f"point_{n}", "term": _clean(p["term"]),
-                     "visual": {"type": "concept", "n": n, "of": len(points), "term": _clean(p["term"]),
-                                "text": _clean(p["text"])},
-                     "covers": f"approved point {n}, \"{_clean(p['term'])}\": {_clean(p['text'])}"})
+        visual = {"type": "concept", "n": n, "of": len(points), "term": _clean(p["term"]), "text": _clean(p["text"])}
+        covers = f"approved point {n}, \"{_clean(p['term'])}\": {_clean(p['text'])}"
+        if p.get("diagram") is not None:
+            problems = diagrams.validate(p["diagram"])
+            if problems:
+                raise ValueError(f"{topic.get('id')} point {n} diagram: {'; '.join(problems)}")
+            visual["diagram"] = copy.deepcopy(p["diagram"])
+            covers = covers.rstrip(".") + (". The picture shows a diagram whose parts appear as they are named: name them in this "
+                       f"order, each in the sentence where it comes up, with these words: "
+                       f"{diagrams.naming_order(p['diagram'])}")
+        plan.append({"id": f"point_{n}", "term": _clean(p["term"]), "visual": visual, "covers": covers})
     plan.append({"id": "recap", "visual": {"type": "recap", "terms": [_clean(p["term"]) for p in points]},
                  "covers": "a short recap of the points above in a few short sentences, then: "
                            "this is education, not financial advice"})
@@ -92,6 +107,8 @@ Rules:
 - No numbers at all, no predictions, no advice, no performance claims, no prices.
 - "recap" says: "This is education, not financial advice."
 - No greetings, no "in this video", no "like and subscribe".
+- When a scene lists diagram parts, say each part's quoted words in that order, each in the sentence
+  where that part comes up (the picture shows each part as it is named).
 {rules.NARRATION_RULES}
 
 Return JSON: {{"scenes": [{{"id": "{plan[0]['id']}", "text": "..."}}, ...]}}"""
@@ -178,8 +195,20 @@ def slide_title(ctx: _Ctx, v: dict) -> Image.Image:
     return img
 
 
-def slide_concept(ctx: _Ctx, v: dict) -> Image.Image:
+def slide_concept(ctx: _Ctx, v: dict, show=None) -> Image.Image:
+    """With a diagram: the heading, the term and the diagram under them (`show` = the diagram parts painted,
+    None = all; the layout is the same for every `show`). Without: heading, term and the point text."""
     img, d = _base(ctx)
+    who = f"{ctx.topic['id']} point {v['n']}"
+    if v.get("diagram"):
+        L = ctx.layout
+        x0, y0, x1, y1 = L.content_box
+        y = _flow(d, [_heading(ctx, f"KEY IDEA {v['n']} OF {v['of']}"),
+                      {"text": v["term"], "size": 88, "title": True, "fill": FG, "max_lines": 2}],
+                  L.content_box, L, who=who)
+        diagrams.draw(img, (x0, y + DIAGRAM_GAP, x1, y1), v["diagram"], L, ctx.accent, show=show,
+                      who=f"{who} diagram")
+        return img
     items = [_heading(ctx, f"KEY IDEA {v['n']} OF {v['of']}"),
              {"text": v["term"], "size": 100, "title": True, "fill": FG, "gap": 30, "max_lines": 2},
              {"text": v["text"], "size": 48, "fill": FG, "keep": True}]
@@ -209,7 +238,9 @@ def _ctx(cfg: dict, topic: dict, layout: Layout) -> _Ctx:
 
 def render_slides(cfg: dict, topic: dict, plan: list[dict], layout: Layout, workdir: Path) -> list[dict]:
     """One PNG per plan scene in `layout`'s shape → [{"image", "reveal": None, "id"}] (render.build_video's
-    slide shape; no draw-in). Unknown visual type → ValueError."""
+    slide shape; no draw-in). A concept scene with a diagram adds "base" (no part painted) and "steps"
+    ([{key, name, names, layers}], diagrams.step_layers) for reveal.time_steps; its "image" is the full slide
+    (= base + every layer). Unknown visual type → ValueError."""
     for s in plan:
         if (s.get("visual") or {}).get("type") not in RENDERERS:
             raise ValueError(f"unknown Basics visual type '{(s.get('visual') or {}).get('type')}' (scene '{s.get('id')}')")
@@ -218,10 +249,16 @@ def render_slides(cfg: dict, topic: dict, plan: list[dict], layout: Layout, work
     ctx = _ctx(cfg, topic, layout)
     out = []
     for i, s in enumerate(plan):
-        img = RENDERERS[s["visual"]["type"]](ctx, s["visual"])
-        path = workdir / f"basics_{layout.name}_{i:02d}.png"
+        v = s["visual"]
+        img = RENDERERS[v["type"]](ctx, v)
+        stem = f"basics_{layout.name}_{i:02d}"
+        path = workdir / f"{stem}.png"
         img.save(path)
-        out.append({"image": path, "reveal": None, "id": s["id"]})
+        slide = {"image": path, "reveal": None, "id": s["id"]}
+        if v["type"] == "concept" and v.get("diagram"):
+            slide["base"], slide["steps"] = diagrams.step_layers(
+                lambda show, v=v: slide_concept(ctx, v, show=show), diagrams.steps(v["diagram"]), workdir, stem)
+        out.append(slide)
     return out
 
 

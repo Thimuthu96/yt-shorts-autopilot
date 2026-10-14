@@ -273,6 +273,7 @@ def main():
     test_lesson_render(cfg)
     test_youtube_lesson(cfg)
     test_lesson_edition(cfg)
+    test_diagrams(cfg)
     test_basics(cfg)
 
 
@@ -2936,15 +2937,275 @@ def test_lesson_edition(cfg):
           "empty slot, curriculum problems, manual any day, fb_video_id merge, cron days)")
 
 
-def test_basics(cfg):
-    """The Crypto Basics edition (crypto-basics entry 1) through main(): the sample topic narrated (mocked
-    Gemini, small word bounds) → a 16:9 and a 9:16 render of one narration, YouTube gets 16:9 and Facebook
-    9:16, the history entry (kind basics + voice); a rule-breaking writer stops it (exit 1, nothing
-    published); a Facebook failure keeps the YouTube id (exit 1); timed runs: wrong weekday → days skip,
-    dark Wednesday → skip log, no LLM call; the workflow's session options and the session config."""
+DIAGRAM_SAMPLE = ROOT / "output" / "basics-diagram-sample"  # the owner's look check (hitl): contact sheets
+
+
+def _sample_narration() -> dict:
+    """tests/basics/sample_narration.yaml: scene id → text naming every diagram part in reveal order."""
+    raw = yaml.safe_load((ROOT / "tests" / "basics" / "sample_narration.yaml").read_text(encoding="utf-8"))
+    return {k: " ".join(str(v).split()) for k, v in raw.items()}
+
+
+def _extra_diagrams() -> list[dict]:
+    """Points beyond the sample (test only): a timeline with two notes, a five-node flow with BTC / ETH / other-coin
+    badges and a note, a four-row compare with a coin on each side, and a point without a diagram."""
+    return [
+        {"term": "Timeline", "text": "How a fund comes to trade, in order.",
+         "diagram": {"type": "timeline", "events": [
+             {"label": "Fund launches", "say": ["launches"]},
+             {"label": "Fund buys bitcoin", "note": "held by a custodian", "say": ["buys"]},
+             {"label": "Shares list on the exchange", "say": ["list"]},
+             {"label": "Investors trade shares", "say": ["investors"]},
+             {"label": "Fees come out yearly", "say": ["fees"]}],
+             "notes": [{"text": "A drawing of the order, not dates", "say": ["order"]},
+                       {"text": "Each step follows the last", "say": ["each step"]}]}},
+        {"term": "Many coins", "text": "A flow with several coins.",
+         "diagram": {"type": "flow", "nodes": [
+             {"label": "Bitcoin", "coin": "BTC", "say": ["bitcoin"]},
+             {"label": "Ether", "coin": "ETH", "arrow": "and", "say": ["ether"]},
+             {"label": "Another token", "coin": "ABCDE", "say": ["token"]},
+             {"label": "An exchange", "note": "where coins trade", "say": ["exchange"]},
+             {"label": "Wallet", "arrow": "into", "say": ["wallet"]}],
+             "notes": [{"text": "Badges are drawn, never images", "say": ["badges"]}]}},
+        {"term": "Two coins", "text": "Bitcoin against ether.",
+         "diagram": {"type": "compare", "left": {"label": "Bitcoin", "coin": "BTC", "say": ["bitcoin"]},
+                     "right": {"label": "Ether", "coin": "ETH", "say": ["ether"]},
+                     "rows": [{"left": "First coin", "right": "Second network", "say": ["first"]},
+                              {"left": "Fixed supply rules", "right": "Smart contracts", "say": ["contracts"]},
+                              {"left": "Blocks", "right": "Blocks", "say": ["blocks"]},
+                              {"left": "Wallet", "right": "Wallet", "say": ["wallet"]}]}},
+        {"term": "No diagram", "text": "A point without a diagram keeps the text concept slide."},
+    ]
+
+
+def test_diagrams(cfg):
+    """Drawn concept diagrams (crypto-basics entry 2): the sample topic's diagrams validate; each malformed
+    spec gets its one reason (draw and scene_plan raise); reveal order; every type (flow, compare, timeline,
+    coin badges, notes) in both shapes: slide size, caption band untouched, nothing outside the content box,
+    text ≥ min_text, deterministic, base + layers == the full slide; text that can't fit → ValueError naming
+    the diagram; a point without a diagram keeps the text slide; the sample narration reveals every part on
+    the sentence naming it (no fallback, times increasing) in both shapes; per-step contact sheets →
+    output/test_diagrams/ (copied to output/basics-diagram-sample/ for the owner)."""
     from unittest import mock
+    from PIL import Image, ImageChops
+    from autopilot import basics, diagrams, lesson_slides as ls, reveal
+
+    accent = (255, 212, 0)
+    bg = (14, 15, 18)
+    topic = basics.sample_topic()
+    narration = _sample_narration()
+    for p in topic["points"]:
+        assert p.get("diagram") and diagrams.validate(p["diagram"]) == [], (p["term"], diagrams.validate(p.get("diagram")))
+    assert [p["diagram"]["type"] for p in topic["points"]] == ["flow", "flow", "flow", "compare"]
+    assert [n["label"] for n in topic["points"][0]["diagram"]["nodes"]] == ["Fund", "Shares", "Stock exchange"]
+    assert [n.get("coin") for n in topic["points"][1]["diagram"]["nodes"]] == [None, "BTC", None]
+    assert "fees" in topic["points"][1]["diagram"]["notes"][0]["say"]
+    assert "shareholders" in topic["points"][2]["diagram"]["notes"][0]["say"]
+
+    # malformed specs: one reason each; draw raises ValueError with it
+    node = {"label": "Fund", "say": ["fund"]}
+    flow = {"type": "flow", "nodes": [node, {"label": "Shares", "say": ["shares"], "arrow": "split"}]}
+    cmp_ = {"type": "compare", "left": {"label": "A", "say": ["a"]}, "right": {"label": "B", "say": ["b"]},
+            "rows": [{"left": "x", "right": "y", "say": ["x"]}]}
+    bad = {
+        "unknown type": ({"type": "pie", "nodes": flow["nodes"]}, "type 'pie'"),
+        "empty say": (dict(flow, nodes=[node, dict(flow["nodes"][1], say=[])]), "nodes[1]: say must be a non-empty"),
+        "empty alias": (dict(flow, nodes=[node, dict(flow["nodes"][1], say=[" "])]), "empty alias"),
+        "digit in say": (dict(flow, nodes=[dict(node, say=["top 10 fund"]), flow["nodes"][1]]), "has a digit"),
+        "six nodes": (dict(flow, nodes=[dict(node, label=f"Part {c}") for c in "ABCDEF"]), "2-5 nodes (got 6)"),
+        "bad coin": (dict(flow, nodes=[dict(node, coin="btc"), flow["nodes"][1]]), "coin 'btc'"),
+        "coin with a newline": (dict(flow, nodes=[dict(node, coin="BTC\n"), flow["nodes"][1]]), "2-5 uppercase"),
+        "long coin": (dict(flow, nodes=[dict(node, coin="BITCOIN"), flow["nodes"][1]]), "2-5 uppercase"),
+        "arrow into the first node": (dict(flow, nodes=[dict(node, arrow="from"), flow["nodes"][1]]), "incoming arrow"),
+        "empty label": (dict(flow, nodes=[dict(node, label=""), flow["nodes"][1]]), "nodes[0]: empty label"),
+        "unknown key": (dict(flow, nodes=[dict(node, colour="red"), flow["nodes"][1]]), "unknown key(s) colour"),
+        "three notes": (dict(flow, notes=[{"text": "A", "say": ["a"]}] * 3), "at most 2"),
+        "five rows": (dict(cmp_, rows=cmp_["rows"] * 5), "1-4 rows (got 5)"),
+        "empty cell": (dict(cmp_, rows=[dict(cmp_["rows"][0], right="")]), "rows[0]: empty right"),
+        "one event": ({"type": "timeline", "events": [{"label": "A", "say": ["a"]}]}, "2-5 events (got 1)"),
+        "coin on an event": ({"type": "timeline", "events": [{"label": "A", "say": ["a"], "coin": "BTC"},
+                                                             {"label": "B", "say": ["b"]}]}, "unknown key(s) coin"),
+    }
+    for name, (spec, reason) in bad.items():
+        got = diagrams.validate(spec)
+        assert len(got) == 1 and reason in got[0], (name, got)
+        try:
+            diagrams.draw(Image.new("RGB", (1920, 1080)), ls.LANDSCAPE.content_box, spec, ls.LANDSCAPE, accent, who="bad one")
+            raise AssertionError(f"{name}: a malformed diagram must not draw")
+        except ValueError as e:
+            assert "bad one" in str(e) and reason in str(e), (name, e)
+    broken = json.loads(json.dumps(topic))
+    broken["points"][2]["diagram"]["nodes"][0]["say"] = ["one 2 three"]
+    try:
+        basics.scene_plan(broken)
+        raise AssertionError("an invalid point diagram must stop the plan")
+    except ValueError as e:
+        assert f"{topic['id']} point 3 diagram" in str(e) and "digit" in str(e), e
+
+    # reveal order = spec order; names = the say aliases (first = name); the plan asks for that naming order
+    s = diagrams.steps(topic["points"][1]["diagram"])
+    assert [x["key"] for x in s] == ["node_1", "node_2", "node_3", "note_1"], s
+    assert [x["items"] for x in s] == [["node:0"], ["arrow:1", "node:1"], ["arrow:2", "node:2"], ["note:0"]], s
+    assert s[1]["name"] == "actual bitcoin" and s[1]["names"] == ["actual bitcoin", "real bitcoin"], s
+    s = diagrams.steps(topic["points"][3]["diagram"])
+    assert [x["key"] for x in s] == ["left", "right", "row_1", "row_2", "row_3"], s
+    assert s[2]["items"] == ["row:0:left", "row:0:right"] and s[0]["items"] == ["left"], s
+    s = diagrams.steps(_extra_diagrams()[0]["diagram"])
+    assert [x["items"] for x in s][:3] == [["event:0"], ["segment:1", "event:1"], ["segment:2", "event:2"]], s
+    assert [x["key"] for x in s][-2:] == ["note_1", "note_2"], s
+    assert diagrams.naming_order(topic["points"][0]["diagram"]) == '"fund", "shares", "stock exchange"'
+    plan = basics.scene_plan(topic)
+    assert '"fund", "shares", "stock exchange"' in plan[1]["covers"] and ".." not in plan[1]["covers"], plan[1]["covers"]
+    assert plan[1]["visual"]["diagram"] == topic["points"][0]["diagram"]
+    assert "diagram parts" in basics._prompt(cfg, topic, plan)
+
+    # every type in both shapes
+    work = ROOT / "output" / "test_diagrams"
+    shutil.rmtree(work, ignore_errors=True)
+    shutil.rmtree(DIAGRAM_SAMPLE, ignore_errors=True)
+    DIAGRAM_SAMPLE.mkdir(parents=True)
+    extra = dict(topic, points=topic["points"] + _extra_diagrams())
+    xplan = basics.scene_plan(extra)
+    assert "diagram" not in xplan[-2]["visual"] and xplan[-2]["visual"]["text"]
+    sizes = []
+    real_font = diagrams._font
+
+    def font(size, bold=False):
+        sizes.append(size)
+        return real_font(size, bold)
+    sheets = []
+    for L in (ls.LANDSCAPE, ls.PORTRAIT):
+        sizes.clear()
+        with mock.patch.object(diagrams, "_font", font):
+            pics = basics.render_slides(cfg, extra, xplan, L, work / L.name)
+        assert sizes and min(sizes) >= L.min_text, (L.name, min(sizes))
+        again = basics.render_slides(cfg, extra, xplan, L, work / f"{L.name}_again")
+        chrome = basics._base(basics._ctx(cfg, extra, L))[0]  # brand, chip, rule, footer: no content
+        x0, y0, x1, y1 = L.content_box
+        for p, q, sc in zip(pics, again, xplan):
+            v = sc["visual"]
+            with Image.open(p["image"]) as im:
+                full = im.convert("RGB")
+            assert full.size == (L.w, L.h), (L.name, full.size)
+            band = full.crop((0, L.caption_band[0], L.w, L.caption_band[1]))
+            assert band.getextrema() == tuple((c, c) for c in bg), (L.name, sc["id"], "caption band drawn into")
+            assert Path(p["image"]).read_bytes() == Path(q["image"]).read_bytes(), (L.name, sc["id"])
+            if v["type"] != "concept":
+                continue
+            if not v.get("diagram"):  # the text concept slide, no steps
+                assert "steps" not in p and "base" not in p, p
+                continue
+            ink = ImageChops.difference(full, chrome).getbbox()
+            assert ink and x0 <= ink[0] and y0 <= ink[1] and ink[2] <= x1 and ink[3] <= y1, (L.name, sc["id"], ink)
+            boxes = diagrams.draw(Image.new("RGB", (L.w, L.h), bg), L.content_box, v["diagram"], L, accent)
+            assert all(x0 <= b[0] and y0 <= b[1] and b[2] <= x1 and b[3] <= y1 for b in boxes.values()), boxes
+            want = diagrams.steps(v["diagram"])
+            assert [st["key"] for st in p["steps"]] == [st["key"] for st in want], (L.name, sc["id"])
+            assert [len(st["layers"]) for st in p["steps"]] == [len(st["items"]) for st in want], (L.name, sc["id"])
+            assert Path(p["base"]).read_bytes() == Path(q["base"]).read_bytes()
+            for a, b in zip(p["steps"], q["steps"]):
+                for la, lb in zip(a["layers"], b["layers"]):
+                    assert la["xy"] == lb["xy"] and Path(la["image"]).read_bytes() == Path(lb["image"]).read_bytes()
+            with Image.open(p["base"]) as im:
+                comp = im.convert("RGB")
+            assert comp.crop((x0, y0, x1, y1)).tobytes() != full.crop((x0, y0, x1, y1)).tobytes()
+            frames = [work / f"{L.name}_{sc['id']}_0.png"]
+            comp.save(frames[0])
+            for k, st in enumerate(p["steps"], 1):  # base + each step's layers, pasted in order
+                for ly in st["layers"]:
+                    with Image.open(ly["image"]) as im:
+                        comp.paste(im.convert("RGB"), tuple(ly["xy"]))
+                frames.append(work / f"{L.name}_{sc['id']}_{k}.png")
+                comp.save(frames[-1])
+            assert comp.tobytes() == full.tobytes(), (L.name, sc["id"], "base + layers != full slide")
+            cell = (480, 270) if L.name == "16x9" else (270, 480)
+            sheet = _contact(frames, cell, min(len(frames), 4 if L.name == "16x9" else 6),
+                             work / f"contact_{L.name}_{sc['id']}.png")
+            shutil.copy(sheet, DIAGRAM_SAMPLE / sheet.name)
+            sheets.append(sheet)
+            for f in frames:
+                f.unlink()
+        shutil.rmtree(work / f"{L.name}_again")
+
+    # text that can't fit at the minimum size → ValueError naming the diagram (never cut or shrunk below min)
+    for label in ("Supercalifragilisticexpialidociouslyunbreakableword" * 2, "a fairly long label " * 80):
+        long = dict(topic, points=[dict(topic["points"][0], diagram={"type": "flow", "nodes": [
+            node, {"label": label, "say": ["shares"]}]})])
+        for L in (ls.LANDSCAPE, ls.PORTRAIT):
+            try:
+                basics.render_slides(cfg, long, basics.scene_plan(long), L, work / "long")
+                raise AssertionError("a diagram that can't fit must fail")
+            except ValueError as e:
+                assert f"{topic['id']} point 1 diagram" in str(e) and "doesn't fit" in str(e), e
+    shutil.rmtree(work / "long", ignore_errors=True)
+
+    # the sample narration reveals every part on the sentence naming it, in order, in both shapes
+    assert not rules.narration_problems("\n".join(narration.values())), rules.narration_problems("\n".join(narration.values()))
+    assert set(narration) == {p["id"] for p in plan}, narration.keys()
+    scenes = [{"id": p["id"], "text": narration[p["id"]]} for p in plan]
+    audio = []
+    for sc in scenes:
+        words = sc["text"].split()
+        audio.append({"duration": 0.3 * len(words) + 0.5, "words": [(j * 0.3, j * 0.3 + 0.27, w) for j, w in enumerate(words)]})
+    for L in (ls.LANDSCAPE, ls.PORTRAIT):
+        pics = basics.render_slides(cfg, topic, plan, L, work / f"narr_{L.name}")
+        logs = []
+        reveal.time_steps(pics, scenes, audio, log=logs.append)
+        assert [m.split(":")[0] for m in logs] == [f"Step reveal point_{n}" for n in range(1, 5)], logs
+        assert not any("(fallback)" in m for m in logs), logs
+        for p, sc, a in zip(pics, scenes, audio):
+            if not p.get("steps"):
+                continue
+            sents = reveal.split_sentences(sc["text"])
+            starts = reveal.sentence_starts(sc["text"], a["words"], a["duration"])
+            at = reveal.step_sentences([st["names"] for st in p["steps"]], sents)
+            assert at == sorted(at), (sc["id"], at)
+            for st, k in zip(p["steps"], at):
+                assert reveal.names_in(sents[k], st["names"]), (sc["id"], st["key"], sents[k])
+                assert abs(st["layers"][0]["at"] - starts[k]) < 0.05, (sc["id"], st["key"], st["layers"][0]["at"], starts[k])
+            ats = [ly["at"] for st in p["steps"] for ly in st["layers"]]
+            assert all(b - a_ >= reveal.MIN_GAP - 1e-6 for a_, b in zip(ats, ats[1:])), (sc["id"], ats)
+            assert ats[-1] + reveal.FADE < a["duration"], (sc["id"], ats)
+        shutil.rmtree(work / f"narr_{L.name}")
+
+    # a part the narration never names: not a script problem (the edition continues); it reveals on the
+    # sentence after its predecessor's and the step reveal logs "(fallback)"
+    skip = dict(narration, point_1="An exchange-traded fund, or ETF, is a fund. It is split into equal parts, "
+                                   "just like a company. Those parts trade on a regular stock exchange.")
+    sk_scenes = [{"id": p["id"], "text": skip[p["id"]]} for p in plan]
+    assert not rules.narration_problems(skip["point_1"])
+    assert basics.check_script(dict(cfg, basics={"min_words": 1, "max_words": 10 ** 4}), plan, sk_scenes) == []
+    sk_audio = [{"duration": 0.3 * len(s["text"].split()) + 0.5,
+                 "words": [(j * 0.3, j * 0.3 + 0.27, w) for j, w in enumerate(s["text"].split())]} for s in sk_scenes]
+    pics = basics.render_slides(cfg, topic, plan, ls.LANDSCAPE, work / "skip")
+    logs = []
+    reveal.time_steps(pics, sk_scenes, sk_audio, log=logs.append)
+    p1 = next(m for m in logs if m.startswith("Step reveal point_1"))
+    assert "node_2 → sentence 2 (fallback)" in p1 and "node_3 → sentence 3" in p1, p1
+    assert "node_1 → sentence 1" in p1 and p1.count("(fallback)") == 1, p1
+    ats = [ly["at"] for st in pics[1]["steps"] for ly in st["layers"]]
+    assert ats == sorted(ats) and all("at" in ly for st in pics[1]["steps"] for ly in st["layers"]), ats
+    shutil.rmtree(work / "skip")
+    shutil.rmtree(work / "16x9", ignore_errors=True)
+    shutil.rmtree(work / "9x16", ignore_errors=True)
+    print(f"OK diagrams: validate (one reason each), steps order, flow/compare/timeline + coin badges + notes in "
+          f"16x9 and 9x16 (caption band clear, inside the content box, deterministic, base + layers == full), "
+          f"too long → ValueError, sample narration reveals in order with no fallback · {len(sheets)} contact "
+          f"sheets in {work.relative_to(ROOT)} and {DIAGRAM_SAMPLE.relative_to(ROOT)}")
+
+
+def test_basics(cfg):
+    """The Crypto Basics edition (crypto-basics entries 1-2) through main(): the sample topic narrated (mocked
+    Gemini answering with tests/basics/sample_narration.yaml, small word bounds) → a 16:9 and a 9:16 render of
+    one narration, every point's diagram revealed part by part on the sentences naming it (no fallback) with
+    contact frames grabbed from both mp4s → output/test_basics/, YouTube gets 16:9 and Facebook 9:16, the
+    history entry (kind basics + voice); a rule-breaking writer stops it (exit 1, nothing published); a
+    Facebook failure keeps the YouTube id (exit 1); timed runs: wrong weekday → days skip, dark Wednesday →
+    skip log, no LLM call; the workflow's session options and the session config."""
+    from unittest import mock
+    import numpy as np
     import main as app
-    from autopilot import basics, voice, youtube
+    from autopilot import basics, reveal, voice, youtube
 
     topic = basics.sample_topic()
     assert topic["id"] == "what-is-a-bitcoin-etf" and topic["question"] == "What Is a Bitcoin ETF? (Explained Simply)"
@@ -2955,6 +3216,7 @@ def test_basics(cfg):
     plan = basics.scene_plan(topic)
     assert [p["id"] for p in plan] == ["hook", "point_1", "point_2", "point_3", "point_4", "recap"], plan
     assert [p["visual"]["type"] for p in plan] == ["title"] + ["concept"] * 4 + ["recap"]
+    assert all(p["visual"].get("diagram") for p in plan[1:5])
     assert plan[1]["term"] == "Exchange-traded fund" and topic["points"][0]["text"].split()[0] in plan[1]["covers"]
 
     clock = [datetime(2026, 10, 14, 15, 5, tzinfo=timezone.utc)]  # a Wednesday, 5 min after 15:00
@@ -2981,18 +3243,10 @@ def test_basics(cfg):
         f = tmp / "data" / "history.json"
         return json.loads(f.read_text())["videos"] if f.exists() else []
 
-    good = {"hook": "What is a Bitcoin ETF? Here is the simple version, one idea at a time.",
-            "point_1": "An exchange-traded fund, or ETF, is a fund. Its shares trade on a regular stock exchange.",
-            "point_2": "A spot Bitcoin ETF holds actual bitcoin. Each share follows the price of that bitcoin, "
-                       "minus the fund's fees.",
-            "point_3": "A custodian stores the fund's bitcoin and keeps it secure. Shareholders own fund shares, "
-                       "not the coins.",
-            "point_4": "There is no wallet to manage. In return, the fund charges a yearly fee, and its shares "
-                       "trade only while the exchange is open.",
-            "recap": "So, a fund on a stock exchange, holding real bitcoin, kept by a custodian. "
-                     "This is education, not financial advice."}
+    good = _sample_narration()  # names every diagram part in reveal order
     bad = dict(good, point_2="I think a spot Bitcoin ETF could 10x from here.")
     answer, prompts, voices, yt, fb, logs = [good], [], [], [], [], []
+    last_audio, timed = [], []
     fail_fb = [False]
 
     def fake_llm(prompt, models, temperature=0.9):
@@ -3012,7 +3266,14 @@ def test_basics(cfg):
                  wav])
             out.append({"audio": wav, "duration": probe_duration(wav), "voice": name,
                         "words": [(j * 0.08, (j + 0.9) * 0.08, w) for j, w in enumerate(words)]})
+        last_audio[:] = out
         return out
+
+    time_steps = reveal.time_steps
+
+    def spy(pics, scenes, audio, log=lambda m: None):  # keeps each shape's slides once their layers are timed
+        timed.append(time_steps(pics, scenes, audio, log=log))
+        return timed[-1]
 
     def fake_upload_lesson(video, meta, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
                            log=print, playlist_privacy="public", playlists=True):
@@ -3057,8 +3318,13 @@ def test_basics(cfg):
         write_cfg(False)
 
         # manual run while dark (any day): made in both shapes from one narration and published
-        assert go("--session", "basics") == 0, logs
+        with mock.patch.object(reveal, "time_steps", spy):
+            assert go("--session", "basics") == 0, logs
         assert len(prompts) == 1 and "Exchange-traded fund" in prompts[0] and "Narration rules" in prompts[0], prompts
+        assert '"fund", "shares", "stock exchange"' in prompts[0] and '"ETF", "holding bitcoin directly"' in prompts[0]
+        steps_said = [m for m in logs if m.startswith("Step reveal")]
+        assert [m.split(":")[0] for m in steps_said] == [f"Step reveal point_{n}" for n in (1, 2, 3, 4)] * 2, logs
+        assert not any("(fallback)" in m for m in steps_said), steps_said
         assert "30-400 word CRYPTO BASICS" in prompts[0] and all(p["text"].split()[0] in prompts[0] for p in topic["points"])
         h = history()
         assert len(h) == 1, h
@@ -3076,6 +3342,43 @@ def test_basics(cfg):
         from PIL import Image
         with Image.open(work / "thumbnail.jpg") as im:
             assert im.size == (1280, 720)
+        # contact frames from both mp4s: each diagram scene's start, then after each layer's fade-in
+        frames_dir = ROOT / "output" / "test_basics"
+        shutil.rmtree(frames_dir, ignore_errors=True)
+        frames_dir.mkdir(parents=True)
+        starts = [sum(a["duration"] for a in last_audio[:i]) for i in range(len(last_audio))]
+        assert len(timed) == 2 and len(last_audio) == len(plan)
+        for pics in timed:
+            shape = Path(pics[0]["image"]).parent.name
+            video, contact = work / f"basics_{shape}.mp4", []
+            for i, p in enumerate(pics):
+                if not p.get("steps"):
+                    assert p["id"] in ("hook", "recap"), p["id"]
+                    continue
+                at = [ly["at"] for st in p["steps"] for ly in st["layers"]]
+                assert at == sorted(at) and at[-1] + reveal.FADE < last_audio[i]["duration"], (shape, p["id"], at)
+                # a part revealed later in the scene (the first one starts fading in at 0 s): absent in the
+                # scene-start frame, in after its fade
+                probe = next(ly for st in p["steps"] for ly in st["layers"] if ly["at"] >= 0.3)
+                x, y = probe["xy"]
+                with Image.open(probe["image"]) as im:
+                    layer = np.asarray(im.convert("RGB"), dtype=int)
+                with Image.open(p["base"]) as im:
+                    under = np.asarray(im.convert("RGB"), dtype=int)[y:y + layer.shape[0], x:x + layer.shape[1]]
+                shots = [(starts[i] + 0.02, f"{shape}_{p['id']}_0_start.png", None)]
+                shots += [(starts[i] + ly["at"] + reveal.FADE + 0.05, f"{shape}_{p['id']}_{k}_{st['key']}_{j}.png", ly)
+                          for k, st in enumerate(p["steps"], 1) for j, ly in enumerate(st["layers"])]
+                for n, (t, name, ly) in enumerate(shots):
+                    frame = _frame(video, t, frames_dir / name)
+                    contact.append(frames_dir / name)
+                    if n == 0 or ly is probe:
+                        part = frame[y:y + layer.shape[0], x:x + layer.shape[1]]
+                        near_base = np.abs(part - under).mean() < np.abs(part - layer).mean()
+                        assert near_base == (n == 0), (shape, p["id"], name)
+            cell = (480, 270) if shape == "16x9" else (270, 480)
+            sheet = _contact(contact, cell, 6, frames_dir / f"contact_{shape}.png")
+            DIAGRAM_SAMPLE.mkdir(parents=True, exist_ok=True)
+            shutil.copy(sheet, DIAGRAM_SAMPLE / f"video_{sheet.name}")
         assert yt[0]["video"] == work / "basics_16x9.mp4" and yt[0]["review"] == 24 and yt[0]["playlists"] is False
         assert yt[0]["track"] is None and yt[0]["path"] is None and yt[0]["thumbnail"] == work / "thumbnail.jpg"
         meta = yt[0]["meta"]
@@ -3138,8 +3441,9 @@ def test_basics(cfg):
     wf = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
     on = wf.get("on", wf.get(True))  # PyYAML reads the bare key `on` as True
     assert "basics" in on["workflow_dispatch"]["inputs"]["session"]["options"], on["workflow_dispatch"]
-    print("OK basics: sample topic → 16x9 + 9x16 from one narration, YouTube 16:9 + Facebook 9:16, history kind "
-          "basics + voice, rule-breaking writer stops, FB failure keeps YT, days skip, dark timed skip, workflow option")
+    print("OK basics: sample topic → 16x9 + 9x16 from one narration, diagrams revealed in narration order (no "
+          "fallback, contact frames in output/test_basics), YouTube 16:9 + Facebook 9:16, history kind basics + voice, "
+          "rule-breaking writer stops, FB failure keeps YT, days skip, dark timed skip, workflow option")
 
 
 if __name__ == "__main__":

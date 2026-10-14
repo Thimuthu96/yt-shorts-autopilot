@@ -65,12 +65,21 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → history.json            kind: lesson, episode, track, examples (asset/timeframe/start/end), video_id,
                             fb_video_id
   Crypto Basics (kind: basics, make_basics() + publish_basics(); dark: basics.enabled false):
-  → basics.sample_topic()   tests/basics/sample_topic.yaml (the tracer topic: question, summary, points)
-  → basics.write_script()   Gemini narrates only the approved points (hook → one scene per point → recap);
+  → basics.sample_topic()   tests/basics/sample_topic.yaml (the tracer topic: question, summary, points, each
+                            with a drawn `diagram`)
+  → basics.scene_plan()     hook → one scene per point → recap; a point's diagram is validated (diagrams.validate,
+                            problems → ValueError) and its parts' naming order goes into the scene's `covers`
+  → basics.write_script()   Gemini narrates only the approved points (hook → one scene per point → recap), naming
+                            each diagram part (its first `say` alias) in order, in the sentence where it comes up;
                             every scene narrated, basics.min/max_words, rules.narration_problems; 3 failures → exit 1
   → main.narrate()          A/B voice (main.ab_voice, pauses=True, logged as "voice")
   → basics.render_slides()  title / concept / recap slides with a CRYPTO BASICS chip, lesson_slides LANDSCAPE +
-                            PORTRAIT → render.build_video in both shapes; basics.render_thumbnail 1280x720 placeholder
+                            PORTRAIT; a point with a diagram = "KEY IDEA n OF m" + term + the drawn diagram
+                            (diagrams.draw) with base + diff-crop layers (diagrams.step_layers) → reveal.time_steps
+                            (each part fades in on the sentence naming it; unnamed → the sentence after its
+                            predecessor's, logged "(fallback)", the edition continues) → render.build_video in both
+                            shapes; a point without one = the text concept slide; basics.render_thumbnail 1280x720
+                            placeholder
   → publish_basics(pending) youtube.upload_lesson() 16:9 (no playlists, basics.review_window_hours) ·
                             facebook.publish_video() 9:16 (basics.fb_published); one failure never blocks the other
   → history.json            kind: basics, topic, title, video_id, fb_video_id, seconds, voice
@@ -196,7 +205,13 @@ autopilot/lesson_script.py  lesson narration from approved key points (Gemini + 
 autopilot/lesson_slides.py  lesson slides + thumbnail, 16:9 (LANDSCAPE) and 9:16 (PORTRAIT), TRACKS names
 autopilot/reveal.py      step reveal (generic): example-scene marks fade in one at a time as narration names them (lessons.reveal_steps → lesson_slides base + diff-crop layers → time_steps → render._segment; hook stays fully drawn)
 autopilot/basics.py      Crypto Basics (dark): sample_topic, scene_plan, write_script (Gemini + checks, 3 attempts),
-                         render_slides (16:9 / 9:16, CRYPTO BASICS chip), render_thumbnail (placeholder), metadata
+                         render_slides (16:9 / 9:16, CRYPTO BASICS chip, diagram scenes stepped), render_thumbnail
+                         (placeholder), metadata
+autopilot/diagrams.py    drawn concept diagrams (shared: Basics now, epics 3/4 later): spec flow / compare / timeline
+                         + notes (boxes, arrows, drawn coin badges BTC/ETH brand colours else accent, timeline
+                         segments; `say` = spoken aliases), validate, steps (reveal order = spec order),
+                         naming_order, draw (auto-layout 16:9 / 9:16 in the content box, text ≥ min_text, can't
+                         fit → ValueError), step_layers (base + reveal.diff_crops layers for reveal.time_steps)
 autopilot/lesson_meta.py lesson chapters, SEO title, description, hashtags, tags (YouTube + Facebook)
 lessons/                 curriculum.yaml (episode queue, list order) + glossary.yaml
 autopilot/media.py       ffmpeg/ffprobe helpers
@@ -204,7 +219,8 @@ assets/fonts/            Anton + Space Grotesk (SIL OFL) for thumbnails
 tests/test_offline.py    full offline render test with sample data + mocked LLM (incl. the lesson and basics editions)
 tests/test_lessons.py    curriculum/glossary validator, detectors on fixture candles, lesson data, narration
 tests/lessons/           sample curriculum + glossary + fixture candles
-tests/basics/            sample_topic.yaml: the Crypto Basics tracer topic
+tests/basics/            sample_topic.yaml: the Crypto Basics tracer topic (+ a diagram per point);
+                         sample_narration.yaml: its narration naming every diagram part in order
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
 .github/workflows/autopilot.yml   8 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled)
