@@ -5,9 +5,10 @@
 
     render_lesson_slides(cfg, entry, plan, glossary, layout, workdir)
         -> [{"image": path, "reveal": (x, y, w, h) | None, "id": scene id}]   (same shape as slides.render_slides)
+           a chart / mtf scene with `steps` (lessons.reveal_steps) adds "base" + "steps" (layers, step reveal)
     render_lesson_thumbnail(cfg, entry, example, path) -> path                 (1280x720 JPEG)
-    draw_chart(img, box, example, layout, zoom=False, primitives=None, label=None) -> info dict
-    draw_mtf(img, box, example, layout, label=None) -> [higher info, lower info]
+    draw_chart(img, box, example, layout, zoom=False, primitives=None, label=None, show=None) -> info dict
+    draw_mtf(img, box, example, layout, label=None, show=None) -> [higher info, lower info]
 
 Scene types (RENDERERS): title, concept, chart, mtf, schematic, misreads, outro. An unknown type raises
 ValueError. A chart/mtf visual may carry `heading` (replaces the glossary term, e.g. the lesson
@@ -36,7 +37,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from autopilot import lessons
+from autopilot import lessons, reveal
 from autopilot.lessons import day, timestamp, to_datetime
 from autopilot.slides import BG, DOWN, FG, MUTED, PANEL, UP, _font as _dejavu, _hex, _wrap
 from autopilot.thumbnail import FONT_DIR, GRID, _fit, _mini_logo
@@ -192,9 +193,11 @@ def _strip_lines(example: dict, label: str) -> list[tuple[str, bool, tuple]]:
 
 def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool = False,
                primitives: list[dict] | None = None, label: str | None = None, axes: bool = True,
-               accent: tuple = (255, 212, 0), label_room: bool = False) -> dict:
+               accent: tuple = (255, 212, 0), label_room: bool = False, show: set[int] | None = None) -> dict:
     """Candles (or a line for a daily fix) + primitives inside box (x0, y0, x1, y1), the label strip at
     its bottom. `primitives` limits what is drawn (None = all of the example's; [] = candles only).
+    `show` (step reveal): paint only these primitive indices while laying out all of them (price range,
+    label positions, level labels as with every one painted); None = paint all.
     label None = lessons.example_label(example); SCHEMATIC = no numbers; "" = no strip.
     label_room (mtf panels): pad the price range so the highest / lowest price sits at least one swing
     marker + kind text inside the plot, so those texts fit above / below their swings.
@@ -279,7 +282,15 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
     layer = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
     placed: list[tuple[float, float, float, float]] = []  # text boxes already on the chart
     ld = ImageDraw.Draw(layer)
+    hidden = ImageDraw.Draw(Image.new("RGBA", (1, 1)))  # where a laid-out but unshown primitive is painted
     drawn = []
+
+    def pen(k: int) -> ImageDraw.ImageDraw:
+        return ld if show is None or k in show else hidden
+
+    def mark(k: int, kind: str) -> None:
+        if show is None or k in show:
+            drawn.append(kind)
 
     # grid
     for v in ticks:
@@ -287,23 +298,24 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
         ld.line([(0, y), (pw, y)], fill=PANEL + (255,), width=2)
 
     # zones (under the candles)
-    for p in prims:
+    for k, p in enumerate(prims):
         if p.get("type") != "zone":
             continue
+        dr = pen(k)
         zx0, zx1 = sorted((xt(p["t1"]), xt(p["t2"])))
         zx0, zx1 = zx0 - slot / 2, zx1 + slot / 2
         zy0, zy1 = Y(p["high"]), Y(p["low"])
         if zx1 < 0 or zx0 > pw or zy1 < 0 or zy0 > ph:
             continue
-        ld.rectangle([zx0, zy0, zx1, zy1], fill=accent + (52,), outline=accent + (170,), width=2)
+        dr.rectangle([zx0, zy0, zx1, zy1], fill=accent + (52,), outline=accent + (170,), width=2)
         if p.get("label"):
             tx = min(max(zx0 + 8, 4), pw - d.textlength(p["label"], font=f_bold) - 4)
             ty = min(max(zy0 + 6, 4), ph - fs - 6)
             if label_room and zy1 - zy0 < fs * 1.2 + 12:  # a flat zone: its label sits just above it
                 ty = zy0 - fs * 1.25 - 2 if zy0 - fs * 1.25 - 2 >= 0 else min(zy1 + 4, ph - fs - 6)
-            ld.text((tx, ty), p["label"], font=f_bold, fill=accent + (255,))
+            dr.text((tx, ty), p["label"], font=f_bold, fill=accent + (255,))
             placed.append((tx, ty, tx + d.textlength(p["label"], font=f_bold), ty + fs * 1.2))
-        drawn.append("zone")
+        mark(k, "zone")
 
     # price
     line = _is_line(example)
@@ -330,21 +342,22 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
 
     # level lines (their labels go last, into the space the other texts leave)
     levels = []
-    for p in prims:
+    for k, p in enumerate(prims):
         if p.get("type") != "level":
             continue
         y = Y(p["price"])
         if not 0 <= y <= ph:
             continue
+        dr = pen(k)
         x = 0.0
         while x < pw:
-            ld.line([(x, y), (min(x + 20, pw), y)], fill=accent + (235,), width=3)
+            dr.line([(x, y), (min(x + 20, pw), y)], fill=accent + (235,), width=3)
             x += 32
-        levels.append((y, p.get("label")))
-        drawn.append("level")
+        levels.append((y, p.get("label"), k))
+        mark(k, "level")
 
     # trendlines, extended to the chart's right edge
-    for p in prims:
+    for k, p in enumerate(prims):
         if p.get("type") != "trendline":
             continue
         ax, ay, bx, by = xt(p["t1"]), Y(p["p1"]), xt(p["t2"]), Y(p["p2"])
@@ -354,13 +367,13 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
             ex_, ey = pw, ay + (by - ay) / (bx - ax) * (pw - ax)
         if ax > pw or max(ay, ey) < 0 or min(ay, ey) > ph:
             continue
-        ld.line([(ax, ay), (ex_, ey)], fill=FG + (235,), width=4)
-        drawn.append("trendline")
+        pen(k).line([(ax, ay), (ex_, ey)], fill=FG + (235,), width=4)
+        mark(k, "trendline")
 
     # swings: triangle above a high / below a low, kind text beyond it (beside it at the chart's edge)
     tri = max(10, round(fs * 0.42))
     th = round(fs * 1.2)
-    for p in prims:
+    for k, p in enumerate(prims):
         if p.get("type") != "swing":
             continue
         i = index(p["t"])
@@ -372,7 +385,8 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
         tw = d.textlength(kind, font=f_bold)
         high = kind in SWING_HIGH
         sgn = -1 if high else 1
-        ld.polygon([(x, y + sgn * 8), (x - tri * 0.7, y + sgn * (8 + tri)), (x + tri * 0.7, y + sgn * (8 + tri))],
+        dr = pen(k)
+        dr.polygon([(x, y + sgn * 8), (x - tri * 0.7, y + sgn * (8 + tri)), (x + tri * 0.7, y + sgn * (8 + tri))],
                    fill=col)
         ty = y - 14 - tri - th if high else y + 12 + tri
         tx = x - tw / 2
@@ -380,12 +394,12 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
             ty = min(max(y + sgn * (8 + tri / 2) - th / 2, 0), ph - th)
             tx = x + tri + 6 if x + tri + 6 + tw <= pw else x - tri - 6 - tw
         tx = min(max(tx, 2), pw - tw - 2)
-        ld.text((tx, ty), kind, font=f_bold, fill=col)
+        dr.text((tx, ty), kind, font=f_bold, fill=col)
         placed.append((tx, ty, tx + tw, ty + th))
-        drawn.append("swing")
+        mark(k, "swing")
 
     # text labels at (t, price): a boxed text next to a dot, on the first free side
-    for p in prims:
+    for k, p in enumerate(prims):
         if p.get("type") != "label":
             continue
         x, y = xt(p["t"]), Y(p["price"])
@@ -398,14 +412,15 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
             cx, cy = max(0, min(cx, pw - bw)), max(0, min(cy, ph - bh))
             cands.append((cx, cy, cx + bw, cy + bh))
         r = next((c for c in cands if free(c)), cands[0])
-        ld.ellipse([x - 6, y - 6, x + 6, y + 6], fill=FG + (255,))
-        ld.rounded_rectangle(r, radius=10, fill=PANEL + (240,), outline=accent + (255,), width=2)
-        ld.text((r[0] + 12, r[1] + 6), p["text"], font=f_bold, fill=FG + (255,))
+        dr = pen(k)
+        dr.ellipse([x - 6, y - 6, x + 6, y + 6], fill=FG + (255,))
+        dr.rounded_rectangle(r, radius=10, fill=PANEL + (240,), outline=accent + (255,), width=2)
+        dr.text((r[0] + 12, r[1] + 6), p["text"], font=f_bold, fill=FG + (255,))
         placed.append(r)
-        drawn.append("label")
+        mark(k, "label")
 
     # level labels at the right end of their line, moved left / below until they are clear
-    for y, text in levels:
+    for y, text, k in levels:
         if not text:
             continue
         tw = d.textlength(text, font=f_bold)
@@ -426,8 +441,8 @@ def draw_chart(img: Image.Image, box, example: dict, layout: Layout, zoom: bool 
         if r is None:
             ty = y - h_ - 4 if y - h_ - 4 >= 0 else y + 6
             r = (pw - tw - 16, ty, pw - 4, ty + h_)
-        ld.rectangle(r, fill=BG + (210,))
-        ld.text((r[0] + 6, r[1] + 2), text, font=f_bold, fill=accent + (255,))
+        pen(k).rectangle(r, fill=BG + (210,))
+        pen(k).text((r[0] + 6, r[1] + 2), text, font=f_bold, fill=accent + (255,))
         placed.append(r)
 
     base = img.convert("RGBA") if img.mode != "RGBA" else img
@@ -482,11 +497,12 @@ def mtf_panels(example: dict) -> tuple[dict, dict]:
 
 
 def draw_mtf(img: Image.Image, box, example: dict, layout: Layout, label: str | None = None,
-             accent: tuple = (255, 212, 0)) -> list[dict]:
+             accent: tuple = (255, 212, 0), show: tuple | None = None) -> list[dict]:
     """The two panels of an mtf example inside box: side by side in landscape (higher left), stacked in
     portrait (higher on top). Each: a "<timeframe> · Higher/Lower timeframe" title, then draw_chart with
     its own strip ("Historical example · asset · date · timeframe", "Data: …"). `label` overrides the
-    higher panel's strip label. Panels get label_room (swing texts fit inside the plot).
+    higher panel's strip label. Panels get label_room (swing texts fit inside the plot). `show` = (higher,
+    lower) primitive indices to paint (draw_chart's `show`; the higher panel's window zone is its last index).
     Returns draw_chart's info per panel plus panel, title_box, strip_box (x, y, w, h), timeframe, title."""
     x0, y0, x1, y1 = box
     g = MTF_GUTTER
@@ -503,12 +519,13 @@ def draw_mtf(img: Image.Image, box, example: dict, layout: Layout, label: str | 
     f = _font(layout.min_text, True)
     title_h = round(layout.min_text * 1.3) + 8
     out = []
-    for (bx0, by0, bx1, by1), panel, lab, role in zip(boxes, (higher, lower), labels, MTF_ROLES):
+    shows = show if show is not None else (None, None)
+    for (bx0, by0, bx1, by1), panel, lab, role, sh in zip(boxes, (higher, lower), labels, MTF_ROLES, shows):
         tf = panel["timeframe"]
         d.text((bx0, by0), tf, font=f, fill=accent)
         d.text((bx0 + d.textlength(f"{tf}  ", font=f), by0), f"· {role}", font=f, fill=MUTED)
         info = draw_chart(img, (bx0, by0 + title_h, bx1, by1), panel, layout, zoom=portrait, label=lab,
-                          accent=accent, label_room=True)
+                          accent=accent, label_room=True, show=sh)
         d = ImageDraw.Draw(img)
         cy1 = info["box"][1] + info["box"][3]  # the strip starts below the chart box
         info.update(panel=(int(bx0), int(by0), int(bx1 - bx0), int(by1 - by0)), timeframe=tf, title=f"{tf} · {role}",
@@ -623,7 +640,7 @@ def _chart_heading(ctx: _Ctx, ex: dict, fallback: str) -> str:
     return (g or {}).get("term") or fallback  # glossary casing (CHoCH, not CHOCH)
 
 
-def _chart_slide(ctx: _Ctx, v: dict, schematic: bool):
+def _chart_slide(ctx: _Ctx, v: dict, schematic: bool, show: tuple | None = None):
     ex = v.get("example")
     if not isinstance(ex, dict):
         raise ValueError(f"{v.get('type')} visual needs an example")
@@ -633,15 +650,16 @@ def _chart_slide(ctx: _Ctx, v: dict, schematic: bool):
     head = v.get("heading") or _chart_heading(ctx, ex, "How it looks" if schematic else "Real example")
     y = _flow(d, [_heading(ctx, head, 2 if v.get("heading") else 1)], (x0, y0, x1, y1), L)
     label = SCHEMATIC if schematic else (v.get("label") or lessons.example_label(ex))
-    info = draw_chart(img, (x0, y, x1, y1), ex, L, zoom=L.h > L.w, label=label, accent=ctx.accent)
+    info = draw_chart(img, (x0, y, x1, y1), ex, L, zoom=L.h > L.w, label=label, accent=ctx.accent,
+                      show=None if show is None else show[0])
     return img, None if v.get("still") else info["box"]
 
 
-def slide_chart(ctx: _Ctx, v: dict):
-    return _chart_slide(ctx, v, schematic=False)
+def slide_chart(ctx: _Ctx, v: dict, show: tuple | None = None):
+    return _chart_slide(ctx, v, schematic=False, show=show)
 
 
-def slide_mtf(ctx: _Ctx, v: dict):
+def slide_mtf(ctx: _Ctx, v: dict, show: tuple | None = None):
     ex = v.get("example")
     if not isinstance(ex, dict):
         raise ValueError("mtf visual needs an example")
@@ -650,7 +668,7 @@ def slide_mtf(ctx: _Ctx, v: dict):
     x0, y0, x1, y1 = L.content_box
     head = v.get("heading") or _chart_heading(ctx, ex, "Top-down reading")
     y = _flow(d, [_heading(ctx, head, 2 if v.get("heading") else 1)], (x0, y0, x1, y1), L)
-    infos = draw_mtf(img, (x0, y, x1, y1), ex, L, label=v.get("label"), accent=ctx.accent)
+    infos = draw_mtf(img, (x0, y, x1, y1), ex, L, label=v.get("label"), accent=ctx.accent, show=show)
     return img, None if v.get("still") else mtf_reveal(infos, L)
 
 
@@ -688,12 +706,39 @@ def slide_outro(ctx: _Ctx, v: dict):
 
 RENDERERS = {"title": slide_title, "concept": slide_concept, "chart": slide_chart, "mtf": slide_mtf,
              "schematic": slide_schematic, "misreads": slide_misreads, "outro": slide_outro}
+STEPPED = {"chart", "mtf"}  # visual types whose `steps` reveal their marks one at a time
+
+
+def _step_layers(ctx: _Ctx, v: dict, workdir: Path, stem: str) -> tuple[Path, list[dict]]:
+    """Base (no marks painted) + one layer per revealed primitive, in step order (reveal.diff_crops over
+    cumulative frames drawn with `show`, every primitive laid out in each). → (base path, slide steps)."""
+    order = [(int(panel), int(i)) for s in v["steps"] for panel, i in s["items"]]
+    draw = RENDERERS[v["type"]]
+
+    def frame(n: int) -> Image.Image:
+        shown = order[:n]
+        img, _ = draw(ctx, v, show=tuple({i for p, i in shown if p == panel} for panel in (0, 1)))
+        return img
+    frames = [frame(n) for n in range(len(order) + 1)]
+    base = workdir / f"{stem}_base.png"
+    frames[0].save(base)
+    crops = reveal.diff_crops(frames, workdir, f"{stem}_layer")
+    steps, k = [], 0
+    for s in v["steps"]:
+        n = len(s["items"])
+        steps.append({"key": s.get("key"), "name": s.get("name"), "names": list(s.get("names") or []),
+                      "layers": [c for c in crops[k:k + n] if c is not None]})
+        k += n
+    return base, steps
 
 
 def render_lesson_slides(cfg: dict, entry: dict, plan: list[dict], glossary: dict, layout: Layout,
                          workdir: Path) -> list[dict]:
     """One PNG per scene of `lessons.scene_plan` in `layout`'s shape.
-    Returns [{"image": path, "reveal": (x, y, w, h) | None, "id": scene id}] (reveal = chart draw-in box)."""
+    Returns [{"image": path, "reveal": (x, y, w, h) | None, "id": scene id}] (reveal = chart draw-in box).
+    A chart / mtf scene with `steps` (not `still`) also gets "base" (the slide with no marks painted) and
+    "steps": [{key, name, names, layers: [{image, xy}]}] for reveal.time_steps / render._segment; its
+    "image" is still the full slide (= base + every layer)."""
     for s in plan:
         t = (s.get("visual") or {}).get("type")
         if t not in RENDERERS:
@@ -704,10 +749,14 @@ def render_lesson_slides(cfg: dict, entry: dict, plan: list[dict], glossary: dic
                cfg["channel"].get("display_name", "CryptoFX Daily").upper(), footer_text(plan))
     out = []
     for i, s in enumerate(plan):
-        img, reveal = RENDERERS[s["visual"]["type"]](ctx, s["visual"])
+        v = s["visual"]
+        img, box = RENDERERS[v["type"]](ctx, v)
         path = workdir / f"lesson_{layout.name}_{i:02d}.png"
         img.save(path)
-        out.append({"image": path, "reveal": reveal, "id": s.get("id")})
+        slide = {"image": path, "reveal": box, "id": s.get("id")}
+        if v["type"] in STEPPED and v.get("steps") and not v.get("still"):
+            slide["base"], slide["steps"] = _step_layers(ctx, v, workdir, f"lesson_{layout.name}_{i:02d}")
+        out.append(slide)
     return out
 
 

@@ -178,6 +178,7 @@ autopilot/detectors/     example detectors (structure, mtf, trendlines, liquidit
 autopilot/lesson_data.py multi-timeframe candles for the detectors (Coinbase, Kraken PAXG + Swissquote, Frankfurter)
 autopilot/lesson_script.py  lesson narration from approved key points (Gemini + checks + fact_check)
 autopilot/lesson_slides.py  lesson slides + thumbnail, 16:9 (LANDSCAPE) and 9:16 (PORTRAIT), TRACKS names
+autopilot/reveal.py      step reveal (generic): example-scene marks fade in one at a time as narration names them (lessons.reveal_steps → lesson_slides base + diff-crop layers → time_steps → render._segment; hook stays fully drawn)
 autopilot/lesson_meta.py lesson chapters, SEO title, description, hashtags, tags (YouTube + Facebook)
 lessons/                 curriculum.yaml (episode queue, list order) + glossary.yaml
 autopilot/media.py       ffmpeg/ffprobe helpers

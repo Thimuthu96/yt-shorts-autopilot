@@ -269,6 +269,7 @@ def main():
     test_news_post_crypto_only(cfg)
     test_video_editions(cfg, out, work / "thumbnail.jpg")
     test_lesson_slides(cfg)
+    test_step_reveal(cfg)
     test_lesson_render(cfg)
     test_youtube_lesson(cfg)
     test_lesson_edition(cfg)
@@ -1691,7 +1692,11 @@ def test_lesson_slides(cfg):
     sheets = {}
     for layout, cell, cols in ((ls.LANDSCAPE, (640, 360), 3), (ls.PORTRAIT, (360, 640), 4)):
         pics = ls.render_lesson_slides(cfg, cur[1], plan, glo, layout, work / layout.name)
-        assert [p["id"] for p in pics] == [s["id"] for s in plan] and all(set(p) == {"image", "reveal", "id"} for p in pics)
+        assert [p["id"] for p in pics] == [s["id"] for s in plan]
+        for s, p in zip(plan, pics):  # example scenes add the step reveal's base + layers; the hook never does
+            stepped = s["visual"]["type"] in ("chart", "mtf") and s["visual"].get("steps") and not s["visual"].get("still")
+            assert set(p) == {"image", "reveal", "id"} | ({"base", "steps"} if stepped else set()), (s["id"], set(p))
+        assert [p["id"] for p in pics if "steps" in p] == ["example_1", "example_2", "mtf"], [p["id"] for p in pics]
         for s, p in zip(plan, pics):
             with Image.open(p["image"]) as im:
                 assert im.size == (layout.w, layout.h), (layout.name, s["id"], im.size)
@@ -1870,18 +1875,216 @@ def test_lesson_slides(cfg):
         assert im.size == (1280, 720) and im.format == "JPEG", (im.size, im.format)
     print(f"OK lesson slides: {sheets['16x9']} · {sheets['9x16']} · {thumb}")
 
+def test_step_reveal(cfg):
+    """Step-by-step annotation reveal: the plan's steps cover every primitive once, in order (chart and mtf);
+    sentence starts (exact and mismatched word lists); step sentences and layer timings for the I/O matrix
+    (named, unnamed, one sentence, off-screen, hook / non-chart); base + every layer == the full slide in
+    both shapes, and the layers come in the plan's step order."""
+    import numpy as np  # noqa: F401
+    from PIL import Image
+    from autopilot import detectors, lesson_data, lesson_script, lesson_slides as ls, lessons, reveal  # noqa: F401
+    entry, glossary, plan, examples = lesson_script.sample_episode()
+    sample = ROOT / "tests" / "lessons"
+    cur = lessons.load_curriculum(sample / "curriculum.yaml")
+    h1 = json.loads((sample / "candles" / "top_down_1h.json").read_text(encoding="utf-8"))
+    rows = {int(datetime.fromisoformat(c["t"]).timestamp()): (c["o"], c["h"], c["l"], c["c"]) for c in h1}
+    h4 = lesson_data._candles(lesson_data._aggregate(rows, 4 * 3600))
+    mtf_ex = lessons.DETECTORS["top_down"].find({"BTC/USD": {"4H": h4, "1H": h1}})[0]
+
+    # steps: every primitive exactly once, groups in first-appearance order, list order inside a group
+    for ex in examples:
+        steps = lessons.reveal_steps(ex, "chart")
+        items = [tuple(i) for s in steps for i in s["items"]]
+        assert sorted(items) == [(0, i) for i in range(len(ex["primitives"]))] and len(set(items)) == len(items)
+        firsts = [s["items"][0][1] for s in steps]
+        assert firsts == sorted(firsts) and all(s["items"] == sorted(s["items"]) for s in steps), steps
+        assert [s["key"] for s in steps] == ["swings", "BOS", "CHoCH"], [s["key"] for s in steps]
+        bos = next(s for s in steps if s["key"] == "BOS")  # BOS level + BOS label: one step
+        assert {ex["primitives"][i]["type"] for _, i in bos["items"]} == {"level", "label"}
+        assert "break of structure" in bos["names"] and bos["name"] == "BOS"
+    steps = lessons.reveal_steps(mtf_ex, "mtf")
+    n0, n1 = len(mtf_ex["primitives"]), len(mtf_ex["lower"]["primitives"])
+    assert [s["key"] for s in steps] == ["higher swings", "window", "lower swings"], [s["key"] for s in steps]
+    assert [tuple(i) for s in steps for i in s["items"]] == \
+        [(0, i) for i in range(n0)] + [(0, n0)] + [(1, i) for i in range(n1)]
+    assert ls.mtf_panels(mtf_ex)[0]["primitives"][n0]["type"] == "zone"  # index len(prims) = the window zone
+    assert "lower timeframe" in steps[1]["names"] and "hourly" in steps[1]["names"], steps[1]
+    odd = dict(examples[0], primitives=[{"type": "label", "t": examples[0]["candles"][3]["t"], "price": 1.0,
+                                         "text": "3 touches"}, {"type": "trendline", "t1": "a", "p1": 1, "t2": "b", "p2": 2}])
+    steps = lessons.reveal_steps(odd, "chart")
+    assert [(s["key"], s["name"], s["names"]) for s in steps] == [("touches", "touches", ["touches"]),
+                                                                  ("trendline", "the trendline", ["trendline", "trend line"])]
+    for s in lessons.SPOKEN_STEPS.values():
+        assert not any(ch.isdigit() for ch in s[0] + "".join(s[1])), s
+
+    # aliases: case-insensitive, plural, hyphen / space, whole words only
+    swings = lessons.reveal_steps(examples[0], "chart")[0]["names"]
+    assert reveal.names_in("Two Higher Highs formed.", swings) and reveal.names_in("Mark the lower lows.", swings)
+    eqh = lessons.SPOKEN_STEPS["eqh"][1]  # singular and plural both name the step
+    assert reveal.names_in("An equal high sits here.", eqh) and reveal.names_in("Two equal highs.", eqh)
+    assert not reveal.names_in("We'll wait for it.", swings) and not reveal.names_in("A shallow dip.", swings)
+    assert reveal.names_in("Two breaks of structure.", ["break of structure"])
+    assert reveal.names_in("Buy side liquidity rests above.", ["buy-side liquidity"])
+    assert reveal.split_sentences('One. "Two!" Three? Four') == ["One.", '"Two!"', "Three?", "Four"]
+
+    # sentence starts: by index when the word list matches the script's tokens
+    text = "Here is the chart. See the higher highs here. Then a break of structure. Then a change of character."
+    toks = text.split()
+    exact = [(0.1 + 0.3 * j, 0.35 + 0.3 * j, w.strip(".")) for j, w in enumerate(toks)]
+    assert reveal.sentence_starts(text, exact, 6.0) == [exact[0][0], exact[4][0], exact[9][0], exact[14][0]]
+    # mismatched (edge-tts split "higher" into two words): nearest matching word, else proportional time
+    split = exact[:6] + [(1.85, 1.9, "high"), (1.9, 2.0, "er")] + exact[7:]
+    got = reveal.sentence_starts(text, split, 6.0)
+    assert got[:2] == [exact[0][0], exact[4][0]] and got[2] == exact[9][0] and got[3] == exact[14][0], got
+    junk = [(0.2 + 0.3 * j, 0.4 + 0.3 * j, "zz") for j in range(len(toks) + 2)]
+    got = reveal.sentence_starts(text, junk, 6.0)  # the first sentence starts with the first spoken word
+    assert got == [0.2, 6.0 * 4 / len(toks), 6.0 * 9 / len(toks), 6.0 * 14 / len(toks)], got
+    assert reveal.sentence_starts("", [], 3.0) == []
+
+    names = [s["names"] for s in lessons.reveal_steps(examples[0], "chart")]
+    sents = reveal.split_sentences(text)
+    # named steps: swings at sentence 1, BOS at 2, CHoCH at 3
+    assert reveal.step_sentences(names, sents) == [1, 2, 3]
+    # unnamed step: BOS never named → the sentence after the swings' sentence
+    no_bos = ["Here is the chart.", "See the higher highs here.", "Then price closed lower.", "Later it rose.",
+              "Then a change of character."]
+    assert reveal.step_sentences(names, no_bos) == [1, 2, 4]
+    # unnamed at the end: clamped to the last sentence; the first step unnamed → the first sentence
+    assert reveal.step_sentences(names, ["Just one sentence here."]) == [0, 0, 0]
+    assert reveal.step_sentences([["nothing"], ["nothing"]], ["A.", "B."]) == [0, 1]
+    # steps named in one sentence share its start (searched from the previous step's sentence, inclusive)
+    assert reveal.step_sentences(names, ["Intro.", "Higher highs, then a break of structure and a change of character."]) == [1, 1, 1]
+
+    # timings: STAGGER apart, squeezed (≥ MIN_GAP) by a sooner next step, never backwards, all in before the end
+    t = reveal.layer_times([1.0, 5.0], [3, 2], 10.0)
+    assert t == [[1.0, 1.35, 1.7], [5.0, 5.35]], t
+    t = reveal.layer_times([1.0, 2.0], [4, 1], 10.0)
+    assert t == [[1.0, 1.25, 1.5, 1.75], [2.0]], t
+    t = reveal.layer_times([1.0, 1.5], [4, 1], 10.0)  # can't fit before the next step: it moves later
+    assert t == [[1.0, 1.25, 1.5, 1.75], [2.0]], t
+    one = reveal.layer_times([0.2, 0.2, 0.2], [10, 2, 2], 6.0)  # one sentence: all from its start
+    flat = [x for s in one for x in s]
+    assert flat[0] == 0.2 and all(b - a >= reveal.MIN_GAP - 1e-9 for a, b in zip(flat, flat[1:])), flat
+    assert flat[-1] + reveal.FADE < 6.0, flat
+    late = [x for s in reveal.layer_times([5.0, 5.5], [6, 2], 6.0) for x in s]  # pulled in before the end
+    assert late == sorted(late) and late[-1] + reveal.FADE < 6.0 and len(late) == 8, late
+    tight = [x for s in reveal.layer_times([0.0], [20], 3.0) for x in s]  # too many: spread evenly
+    assert len(tight) == 20 and tight == sorted(tight) and tight[0] >= 0 and tight[-1] + reveal.FADE < 3.0, tight
+    # time_steps: one-sentence filler scene (like LESSON_FILLER) on a stepped slide; unstepped slides untouched
+    slides = [{"image": "x", "id": "hook"},
+              {"image": "y", "id": "example_1", "steps": [{"names": n, "layers": [{} for _ in range(c)]}
+                                                          for n, c in zip(names, (10, 2, 2))]}]
+    filler = " ".join(["word"] * 60)
+    audio = [{"duration": 3.0, "words": []}, {"duration": 7.0, "words": [(0.4 + 0.1 * j, 0.5 + 0.1 * j, "word")
+                                                                          for j in range(60)]}]
+    logs = []
+    reveal.time_steps(slides, [{"text": "Hook."}, {"text": filler}], audio, log=logs.append)
+    ats = [ly["at"] for s in slides[1]["steps"] for ly in s["layers"]]
+    assert len(logs) == 1 and logs[0].startswith("Step reveal example_1:") and "(fallback)" in logs[0], logs
+    assert "steps" not in slides[0] and ats[0] == 0.4 and ats[-1] + reveal.FADE < 7.0, ats
+    assert all(b - a >= reveal.MIN_GAP - 1e-9 for a, b in zip(ats, ats[1:])), ats
+    # render: the layered path only when every layer is timed; a partly timed slide falls back to the full image
+    from unittest import mock
+    cmds = []
+    with mock.patch.object(render, "run", lambda cmd, **k: cmds.append([str(c) for c in cmd])):
+        for layers in ([{"image": "l1.png", "xy": (0, 0), "at": 0.5}, {"image": "l2.png", "xy": (2, 2)}],
+                       [{"image": "l1.png", "xy": (0, 0), "at": 0.5}, {"image": "l2.png", "xy": (2, 2), "at": 1.0}]):
+            render._segment({"image": "full.png", "base": "base.png", "reveal": (0, 0, 10, 10),
+                             "steps": [{"names": [], "layers": layers}]}, 3.0, Path("seg.mp4"), 20, 20, 30)
+    assert not any(c.endswith("base.png") for c in cmds[0]) and any(c.endswith("full.png") for c in cmds[0]), cmds[0]
+    assert any(c.endswith("base.png") for c in cmds[1]) and sum(c.endswith((".png")) for c in cmds[1]) == 3, cmds[1]
+
+    # rendered layers: base + every layer == the full slide (16:9 and 9:16, chart and mtf); layer k holds
+    # step order's k-th mark (each step's composite == the slide drawn with the marks so far); hook unchanged
+    mtf_plan = lessons.scene_plan(cur[2], [mtf_ex])
+    work = ROOT / "output" / "test_step_reveal"
+    shutil.rmtree(work, ignore_errors=True)
+
+    def composite(p, upto=None):
+        img = Image.open(p["base"]).convert("RGB")
+        layers = [ly for s in p["steps"] for ly in s["layers"]]
+        for ly in layers[:upto]:
+            with Image.open(ly["image"]) as im:
+                img.paste(im.convert("RGB"), tuple(ly["xy"]))
+        return img
+
+    for layout in (ls.LANDSCAPE, ls.PORTRAIT):
+        for name, e, pl in (("chart", entry, plan), ("mtf", cur[2], mtf_plan)):
+            pics = ls.render_lesson_slides(cfg, e, pl, glossary, layout, work / f"{name}_{layout.name}")
+            assert "steps" not in pics[0] and "steps" not in pics[1]  # hook (still) and concept
+            ctx = ls._Ctx(cfg, e, glossary, layout, ls._hex(cfg["video"].get("accent", "FFD400")),
+                          cfg["channel"].get("display_name", "CryptoFX Daily").upper(), ls.footer_text(pl))
+            for s, p in zip(pl, pics):
+                if "steps" not in p:
+                    continue
+                with Image.open(p["image"]) as full:
+                    assert composite(p).tobytes() == full.convert("RGB").tobytes(), (layout.name, name, s["id"])
+                    assert Image.open(p["base"]).convert("RGB").tobytes() != full.convert("RGB").tobytes()
+                assert [st["key"] for st in p["steps"]] == [st["key"] for st in s["visual"]["steps"]]
+                for ly in (ly for st in p["steps"] for ly in st["layers"]):
+                    assert ly["xy"][0] % 2 == 0 and ly["xy"][1] % 2 == 0, ly
+                if layout is ls.LANDSCAPE:  # every mark on screen: one layer per primitive
+                    assert [len(st["layers"]) for st in p["steps"]] == [len(st["items"]) for st in s["visual"]["steps"]]
+                shown, n = [set(), set()], 0
+                for st_plan, st in zip(s["visual"]["steps"], p["steps"]):
+                    for panel, i in st_plan["items"]:
+                        shown[panel].add(i)
+                    n += len(st["layers"])
+                    img, _ = ls.RENDERERS[s["visual"]["type"]](ctx, s["visual"], show=tuple(shown))
+                    assert composite(p, n).tobytes() == img.convert("RGB").tobytes(), (layout.name, name, st["key"])
+            # a still visual with steps (the hook) never gets layers
+            hook = dict(pl[2], visual=dict(pl[2]["visual"], still=True))
+            assert "steps" not in ls.render_lesson_slides(cfg, e, [hook], glossary, layout, work / "still")[0]
+
+    # off-screen: the 9:16 zoom hides marks outside the region → no layer for them, the rest unaffected
+    zx = json.loads(json.dumps(examples[0]))
+    part = zx["candles"][30:51]
+    zx["region"] = {"start": part[0]["t"], "end": part[-1]["t"], "low": min(b["l"] for b in part),
+                    "high": max(b["h"] for b in part)}
+    zplan = lessons.scene_plan(entry, [zx])
+    pics = ls.render_lesson_slides(cfg, entry, zplan, glossary, ls.PORTRAIT, work / "zoom")
+    p = pics[2]
+    info = ls.draw_chart(Image.new("RGB", (1080, 1920)), ls.PORTRAIT.content_box, zx, ls.PORTRAIT, zoom=True)
+    got = sum(len(st["layers"]) for st in p["steps"])
+    assert got == len(info["drawn"]) < len(zx["primitives"]), (got, info["drawn"], len(zx["primitives"]))
+    with Image.open(p["image"]) as full:
+        assert composite(p).tobytes() == full.convert("RGB").tobytes()
+    shutil.rmtree(work, ignore_errors=True)
+    print("OK step reveal: steps cover every primitive (chart, mtf), aliases, sentence starts, matrix timings, "
+          "base + layers == slide in both shapes, off-screen marks, hook unchanged")
+
+
 LESSON_FILLER = ("A swing point marks where price turned and the next close tells us whether "
                  "the structure held or changed character").split()
 LESSON_WORDS = {"hook": 110, "concept": 120, "example_1": 120, "example_2": 120, "misreads": 40, "recap": 110}
+# example scenes: four sentences, the 2nd-4th naming the sample's reveal steps (swings, BOS, CHoCH) in order
+EXAMPLE_FILLER = "price moved across the chart and each candle shows how the market traded there".split()
+EXAMPLE_SENTENCES = (("", 40), ("The swing points mark each turn", 30), ("This close is a break of structure", 25),
+                     ("Then the change of character shows", 0))
+
+
+def _filler(words: list[str], n: int) -> str:
+    return " ".join(words[k % len(words)] for k in range(n))
 
 
 def _lesson_draft(plan: list[dict], tail: str) -> dict:
     """A mocked lesson writer reply: LESSON_WORDS words per scene (the misreads scene is short), no
-    numbers, the recap ending with `tail`."""
+    numbers, the recap ending with `tail`; example scenes name their marks in EXAMPLE_SENTENCES (the other
+    scenes are one sentence)."""
     scenes = []
     for p in plan:
         n = LESSON_WORDS[p["id"]] - (len(tail.split()) if p["id"] == "recap" else 0)
-        body = " ".join(LESSON_FILLER[k % len(LESSON_FILLER)] for k in range(n))
+        if p["id"].startswith("example_"):
+            parts, left = [], n
+            for k, (lead, size) in enumerate(EXAMPLE_SENTENCES):
+                size = size or left
+                lead = lead.split()
+                parts.append(" ".join(lead + _filler(EXAMPLE_FILLER, size - len(lead)).split()) + ".")
+                left -= size
+            body = " ".join(parts)
+        else:
+            body = _filler(LESSON_FILLER, n)
+        assert len(body.split()) == n, (p["id"], len(body.split()), n)
         scenes.append({"id": p["id"], "text": body + (" " + tail if p["id"] == "recap" else "")})
     return {"scenes": scenes}
 
@@ -1904,13 +2107,85 @@ def _probe_size(path: Path) -> tuple[int, int]:
     return int(w), int(h)
 
 
+def _frame(video: Path, t: float, out: Path):
+    """One decoded frame of `video` at `t` seconds as an RGB array (also saved to `out`)."""
+    import numpy as np
+    from PIL import Image
+    run(["ffmpeg", "-y", "-v", "error", "-ss", f"{max(t, 0):.3f}", "-i", video, "-frames:v", "1", out])
+    with Image.open(out) as im:
+        return np.asarray(im.convert("RGB"), dtype=int)
+
+
+def check_step_render(work: Path, plan: list[dict], timed: list[list[dict]], audio: list[dict], draft: dict) -> None:
+    """The rendered step reveal (both shapes): example scenes fade their marks in at the sentences naming them
+    (swings → BOS → CHoCH), a frame before the first layer lacks it, the scene's last frame is the full slide,
+    the hook opens fully drawn; contact frames at each step's time → output/reveal-sample/ for the owner."""
+    import numpy as np
+    from PIL import Image
+    from autopilot import reveal
+    sample = ROOT / "output" / "reveal-sample"
+    shutil.rmtree(sample, ignore_errors=True)
+    sample.mkdir(parents=True)
+    starts = [sum(a["duration"] for a in audio[:i]) for i in range(len(audio))]
+    texts = {sc["id"]: sc["text"] for sc in draft["scenes"]}
+    for pics in timed:
+        shape = Path(pics[0]["image"]).parent.name
+        assert "steps" not in pics[0] and pics[0]["id"] == "hook"  # the hook stays fully drawn
+        contact = []
+        hook = _frame(work / f"lesson_{shape}.mp4", 0.0, sample / f"{shape}_hook.png")
+        with Image.open(pics[0]["image"]) as im:
+            full = np.asarray(im.convert("RGB"), dtype=int)
+        assert np.abs(hook - full)[: full.shape[0] // 2].mean() < 3, (shape, "hook not fully drawn at 0 s")
+        contact.append(sample / f"{shape}_hook.png")
+        for i, p in enumerate(pics):
+            if "steps" not in p:
+                continue
+            assert [s["key"] for s in p["steps"]] == [s["key"] for s in plan[i]["visual"]["steps"]]
+            assert [s["key"] for s in p["steps"]] == ["swings", "BOS", "CHoCH"], [s["key"] for s in p["steps"]]
+            sents = reveal.split_sentences(texts[p["id"]])
+            sstarts = reveal.sentence_starts(texts[p["id"]], audio[i]["words"], audio[i]["duration"])
+            ats = [ly["at"] for s in p["steps"] for ly in s["layers"]]
+            assert ats == sorted(ats) and all(b - a >= reveal.MIN_GAP - 1e-6 for a, b in zip(ats, ats[1:])), ats
+            assert ats[-1] + reveal.FADE < audio[i]["duration"], (ats[-1], audio[i]["duration"])
+            for k, s in enumerate(p["steps"], 1):  # sentence k names step k
+                assert abs(s["layers"][0]["at"] - sstarts[k]) < 0.15, (shape, p["id"], s["key"], s["layers"][0]["at"], sstarts[k])
+                assert reveal.names_in(sents[k], s["names"]), (sents[k], s["names"])
+            seg = work / shape / f"seg_{i:02d}.mp4"
+            first = p["steps"][0]["layers"][0]
+            with Image.open(first["image"]) as im:
+                layer = np.asarray(im.convert("RGB"), dtype=int)
+            with Image.open(p["base"]) as im:
+                base = np.asarray(im.convert("RGB"), dtype=int)
+            x, y = first["xy"]
+            h, w = layer.shape[:2]
+            under = base[y:y + h, x:x + w]
+            assert np.abs(layer - under).mean() > 4, "the first layer adds nothing"
+            before = _frame(seg, first["at"] - 0.3, work / "before.png")[y:y + h, x:x + w]
+            after = _frame(seg, first["at"] + reveal.FADE + 0.1, work / "after.png")[y:y + h, x:x + w]
+            assert np.abs(before - under).mean() < np.abs(before - layer).mean(), (shape, p["id"], "mark shown early")
+            assert np.abs(after - layer).mean() < np.abs(after - under).mean(), (shape, p["id"], "mark not shown")
+            run(["ffmpeg", "-y", "-v", "error", "-sseof", "-0.1", "-i", seg, "-update", "1", work / "end.png"])
+            with Image.open(work / "end.png") as a, Image.open(p["image"]) as b:
+                diff = np.abs(np.asarray(a.convert("RGB"), dtype=int) - np.asarray(b.convert("RGB"), dtype=int))
+            assert diff.mean() < 2.5 and np.percentile(diff.max(axis=2), 99.5) < 60, (shape, p["id"], diff.mean())
+            for s in p["steps"]:  # contact frames: each step's first and last mark in, in the final video
+                for ly in (s["layers"][0], s["layers"][-1]):
+                    name = f"{shape}_{p['id']}_{s['key']}_{ly['at']:.2f}.png"
+                    _frame(work / f"lesson_{shape}.mp4", starts[i] + ly["at"] + reveal.FADE + 0.05, sample / name)
+                    contact.append(sample / name)
+        for f in ("before.png", "after.png", "end.png"):
+            (work / f).unlink(missing_ok=True)
+        cell = (480, 270) if shape == "16x9" else (270, 480)
+        _contact(contact, cell, 4, sample / f"contact_{shape}.png")
+
+
 def test_lesson_render(cfg):
     """make_lesson (entry 6): sample entry on fixture candles, mocked narration + sine voice → a 16:9 and a
     9:16 mp4 from the same audio, captions in each layout's band, chapters from the scene timings (a short
     scene merges), lesson metadata; plus the hold, over-limit re-record, ICT and Shorts-caption cases."""
     from unittest import mock
     import main as app
-    from autopilot import lesson_meta, lesson_script, lesson_slides as ls, lessons, voice
+    from autopilot import lesson_meta, lesson_script, lesson_slides as ls, lessons, reveal, voice
     from PIL import Image
 
     entry, glossary, history, nxt = lesson_script.sample_inputs()
@@ -1971,7 +2246,14 @@ def test_lesson_render(cfg):
     plan = lessons.scene_plan(entry, lessons.DETECTORS[entry["detector"]].find(history), nxt)
     draft.update(_lesson_draft(plan, f"{lesson_script.DISCLAIMER} Next, {nxt['title']}." if nxt
                                else lesson_script.DISCLAIMER))  # the recap ends on the next episode
-    made = make(entry, cfg, work)
+    timed, time_steps = [], reveal.time_steps
+
+    def spy(pics, scenes, audio, log=lambda m: None):  # keeps each shape's slides once their layers are timed
+        timed.append(time_steps(pics, scenes, audio, log=log))
+        return timed[-1]
+    with mock.patch.object(reveal, "time_steps", spy):
+        made = make(entry, cfg, work)
+    assert len(timed) == 2
     assert set(made) == {"videos", "thumbnail", "meta", "chapters", "seconds", "examples", "workdir"}, set(made)
     assert voice_calls == [cfg["voice"]["rate"]]  # under 300 s: recorded once
     total = sum(a["duration"] for a in last_audio)
@@ -2019,6 +2301,7 @@ def test_lesson_render(cfg):
         (work / "last.png").unlink()
     with Image.open(made["thumbnail"]) as im:
         assert im.size == (1280, 720)
+    check_step_render(work, plan, timed, last_audio, draft)
 
     # chapters: start at 0:00, follow the scene starts, ≥ 10 s each; the short misreads scene merges
     starts, t = {}, 0.0

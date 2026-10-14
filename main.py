@@ -28,7 +28,7 @@ from pathlib import Path
 import yaml
 
 from autopilot import (facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides, lessons,
-                       news_post, render, script, slides, sources, thumbnail, voice)
+                       news_post, render, reveal, script, slides, sources, thumbnail, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
@@ -260,6 +260,7 @@ def make_lesson(cfg: dict, entry: dict, glossary: dict, history: dict, workdir: 
         log(f"Drawing and rendering the {layout.name} lesson...")
         shape_dir = workdir / layout.name  # each render keeps its own segments / captions
         pics = lesson_slides.render_lesson_slides(cfg, entry, plan, glossary, layout, shape_dir)
+        reveal.time_steps(pics, pkg["scenes"], audio, log=log)  # each mark fades in as the narration names it
         out = workdir / f"lesson_{layout.name}.mp4"
         render.build_video(audio, pics, lesson_video_cfg(cfg, layout), shape_dir, out, music=music)
         videos[layout.name] = out

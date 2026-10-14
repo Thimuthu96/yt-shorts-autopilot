@@ -289,6 +289,36 @@ def test_scene_plan():
     v = plan[2]["visual"]
     assert v["type"] == "mtf" and v["example"]["lower"]["timeframe"] == "1H"
     assert v["label"] == "Historical example · BTC/USD · 2026-09-30"
+    # step reveal: the example scenes carry the reveal order (higher panel, the lower-timeframe window, lower
+    # panel); the hook (fully drawn) and the other scenes carry none
+    assert [st["key"] for st in v["steps"]] == ["higher swings", "higher BOS", "higher trendline", "higher FVG",
+                                                "window", "lower swings"], [st["key"] for st in v["steps"]]
+    assert v["steps"][4]["items"] == [[0, 5]] and v["steps"][5]["items"] == [[1, 0]]
+    assert "steps" not in plan[0]["visual"] and all("steps" not in s["visual"] for s in plan if s["id"] != "example_1")
+    assert "the lower-timeframe window" in plan[2]["covers"]
+    plan = lessons.scene_plan(cur[1], [example(), ex2], next_entry=cur[0])
+    order = "; name the marked parts in this order"
+    for s in plan:  # the naming-order line (and every step name / alias) holds no digit
+        assert ("steps" in s["visual"]) == s["id"].startswith("example_") == (order in s["covers"]), s["id"]
+        line = s["covers"].partition(order)[2]
+        names = [a for st in s["visual"].get("steps", []) for a in [st["name"], *st["names"]]]
+        assert not any(ch.isdigit() for ch in line + "".join(names)), (s["id"], line, names)
+    v = plan[2]["visual"]
+    assert [(st["key"], st["items"]) for st in v["steps"]] == [
+        ("swings", [[0, 0]]), ("BOS", [[0, 1], [0, 4]]), ("trendline", [[0, 2]]), ("FVG", [[0, 3]])], v["steps"]
+    assert plan[2]["covers"].endswith("name the marked parts in this order, as they appear on screen: the swing points, "
+                                      "then BOS (break of structure), then the trendline, then FVG (fair value gap)"), \
+        plan[2]["covers"]
+    assert "break of structure" in v["steps"][1]["names"] and "BOS" in v["steps"][1]["names"]
+    assert "steps" not in plan[0]["visual"] and plan[0]["visual"]["still"]
+    # covers stay digit-free even when a label holds a number ("3 touches" → "touches")
+    tl = example(primitives=[{"type": "trendline", "t1": "2026-09-30T00:00:00+00:00", "p1": 62900.0,
+                              "t2": "2026-09-30T01:00:00+00:00", "p2": 63150.0},
+                             {"type": "label", "t": "2026-09-30T01:00:00+00:00", "price": 63150.0, "text": "3 touches"}])
+    plan = lessons.scene_plan(cur[0], [tl])
+    line = plan[2]["covers"].partition(order)[2]
+    assert line and not any(ch.isdigit() for ch in line), plan[2]["covers"]
+    assert [st["name"] for st in plan[2]["visual"]["steps"]] == ["the trendline", "touches"]
     try:
         lessons.scene_plan(cur[0], [])
         raise AssertionError("scene_plan without an example must fail")

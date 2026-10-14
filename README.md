@@ -227,7 +227,8 @@ the backup run re-makes the same episode (same examples) and publishes only the 
 that episode can't be re-made, the run fails so you see it.
 
 Each episode opens on its first real example, already marked, under the lesson title (no title card),
-so the payoff is on screen from the first frame; the recap ends on "Next: <episode>". The YouTube and
+so the payoff is on screen from the first frame; the recap ends on "Next: <episode>". In the example
+scenes the marks (swings, BOS / CHoCH lines, zones, labels) appear one at a time as the narration names them. The YouTube and
 Facebook title is the entry's `search_title` in `lessons/curriculum.yaml` ("What Is a Break of
 Structure? (Crypto Chart Example)"; edit it there, the validator checks the shape); the series label
 goes in both descriptions as "Track 0 · Structure #2: BOS vs CHoCH", with the disclosure line once.
