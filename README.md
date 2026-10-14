@@ -349,7 +349,7 @@ autopilot/news_post.py  news posts: story pick, headline + caption (Gemini, fact
 autopilot/images.py     news post backgrounds (Cloudflare AI / library / drawn) + the 1080×1350 card
 autopilot/lessons.py    trading lessons: curriculum / glossary format, validator, episode picker, scene plan
 autopilot/detectors/    find real historical examples per concept (structure, trendlines, liquidity, SMC, mtf)
-autopilot/lesson_data.py   multi-timeframe price history for the detectors (Coinbase, Kraken, Frankfurter)
+autopilot/lesson_data.py   multi-timeframe price history for the detectors (BTC/ETH from Coinbase only)
 autopilot/lesson_script.py lesson narration from the approved key points (Gemini, fact-checked)
 autopilot/lesson_slides.py lesson graphics + thumbnail in 16:9 and 9:16
 autopilot/lesson_meta.py   lesson chapters, titles, descriptions, hashtags

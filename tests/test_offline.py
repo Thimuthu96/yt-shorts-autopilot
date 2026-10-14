@@ -1644,7 +1644,7 @@ def _contact(paths: list[Path], cell: tuple[int, int], cols: int, out: Path) -> 
 
 def test_lesson_slides(cfg):
     """Lesson graphics (entries 3 + 4): every scene type in 16:9 and 9:16 from the fixture detectors' real
-    examples, every primitive, portrait zoom, daily-fix line, schematic label, the mtf (top-down) panels,
+    examples, every primitive, portrait zoom, flat-series line, schematic label, the mtf (top-down) panels,
     unknown type, thumbnail; writes contact sheets (chart and mtf scenes) for the owner to approve the look."""
     from types import SimpleNamespace
     from PIL import Image, ImageDraw
@@ -1653,9 +1653,9 @@ def test_lesson_slides(cfg):
     cur, glo = lessons.load_curriculum(sample / "curriculum.yaml"), lessons.load_glossary(sample / "glossary.yaml")
     load = lambda n: json.loads((sample / "candles" / f"{n}.json").read_text(encoding="utf-8"))  # noqa: E731
     down, up = load("downtrend_bos_choch"), load("uptrend")
-    fix = [dict(c, o=c["c"], h=c["c"], l=c["c"]) for c in down]  # EUR/USD daily reference fix: o=h=l=c
-    examples = lessons.DETECTORS["bos_choch"].find({"BTC/USD": {"1H": down}, "EUR/USD": {"1D": fix}})
-    assert [e["asset"] for e in examples] == ["BTC/USD", "EUR/USD"], [e["asset"] for e in examples]
+    flat = [dict(c, o=c["c"], h=c["c"], l=c["c"]) for c in down]  # no bodies or wicks: o=h=l=c, drawn as a line
+    examples = lessons.DETECTORS["bos_choch"].find({"BTC/USD": {"1H": down}, "ETH/USD": {"1D": flat}})
+    assert [e["asset"] for e in examples] == ["BTC/USD", "ETH/USD"], [e["asset"] for e in examples]
     ex1, ex2 = examples
     # every primitive: add a trendline through the first two LH swings and a zone between the BOS and
     # CHoCH levels, all values taken from the example itself
@@ -1722,9 +1722,9 @@ def test_lesson_slides(cfg):
         info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, ex1, layout, zoom=zoom,
                              primitives=[p for p in ex1["primitives"] if p["type"] == "swing"])
         assert set(info["drawn"]) == {"swing"}, info["drawn"]
-        # daily reference fix: a line, not candles
+        # all-flat series (o = h = l = c): a line, not candles
         info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, ex2, layout, zoom=zoom)
-        assert info["line"] and "Frankfurter" in info["label"]
+        assert info["line"] and "ETH/USD" in info["label"] and "Coinbase" in info["label"], info["label"]
         # schematic: labelled "Schematic", never "Historical example"
         info = ls.draw_chart(Image.new("RGB", (layout.w, layout.h), bg), layout.content_box, schematic, layout,
                              zoom=zoom, label=ls.SCHEMATIC)

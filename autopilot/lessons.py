@@ -282,7 +282,7 @@ def validate_example(ex: dict) -> list[str]:
     return errors
 
 
-SPOKEN_ASSETS = {"BTC/USD": "Bitcoin", "ETH/USD": "Ethereum", "XAU/USD": "gold", "EUR/USD": "euro-dollar"}
+SPOKEN_ASSETS = {"BTC/USD": "Bitcoin", "ETH/USD": "Ethereum"}  # the lesson assets (crypto only)
 SPOKEN_TIMEFRAMES = {"1H": "hourly", "4H": "four-hour", "1D": "daily"}
 
 
