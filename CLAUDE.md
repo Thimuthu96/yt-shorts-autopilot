@@ -85,8 +85,13 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
                             (diagrams.draw) with base + diff-crop layers (diagrams.step_layers) → reveal.time_steps
                             (each part fades in on the sentence naming it; unnamed → the sentence after its
                             predecessor's, logged "(fallback)", the edition continues) → render.build_video in both
-                            shapes; a point without one = the text concept slide; basics.render_thumbnail 1280x720
-                            placeholder
+                            shapes; a point without one = the text concept slide
+  → packaging (packaging.md) basics.packaging_problems before narration (title = the question verbatim:
+                            rules.title_problems, ≤ 100 chars; thumbnail text 1-3 words) → "Basics packaging", exit 1;
+                            basics.render_thumbnail 1280x720 (the 1-3 words + the first point's diagram, notes dropped,
+                            stacked in a tall column; doesn't fit → a drawn coin badge); basics.chapters (lesson_meta's
+                            timing rule, Intro / terms / Recap); basics.metadata: summary → key ideas → chapters (≥ 3)
+                            → disclosure once → ≤ 5 hashtags; Facebook: summary → key ideas → disclosure once → hashtags
   → publish_basics(pending) youtube.upload_lesson() 16:9 (no playlists, basics.review_window_hours) ·
                             facebook.publish_video() 9:16 (basics.fb_published); one failure never blocks the other
   → history.json            kind: basics, topic, title, video_id, fb_video_id, seconds, voice
@@ -216,8 +221,8 @@ autopilot/basics.py      Crypto Basics (dark): sample_topic, load_topics / valid
                          unique ids / questions) and pick (first approved, never-published topic; main.basics_topic),
                          scene_plan, write_script (Gemini + checks, 3 attempts; subscribe ask after point_1;
                          fact-check vs facts(topic), failure stops),
-                         render_slides (16:9 / 9:16, CRYPTO BASICS chip, diagram scenes stepped), render_thumbnail
-                         (placeholder), metadata
+                         render_slides (16:9 / 9:16, CRYPTO BASICS chip, diagram scenes stepped), packaging_problems,
+                         render_thumbnail (words + diagram or coin icon), chapters, metadata (YouTube + Facebook)
 autopilot/diagrams.py    drawn concept diagrams (shared: Basics now, epics 3/4 later): spec flow / compare / timeline
                          + notes (boxes, arrows, drawn coin badges BTC/ETH brand colours else accent, timeline
                          segments; `say` = spoken aliases), validate, steps (reveal order = spec order),

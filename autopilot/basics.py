@@ -32,8 +32,13 @@ points → the same narration rendered 16:9 (YouTube) and 9:16 (Facebook). Dark 
                                          diagram (the point text is spoken, not shown), plus "base" + "steps"
                                          (diagrams.step_layers) so reveal.time_steps fades each part in as the
                                          narration names it; without one: the text concept slide
-    render_thumbnail(cfg, topic, path)   the 16:9 title slide as a 1280x720 JPEG (placeholder until entry 6)
-    metadata(cfg, topic)                 title, description (summary + the disclosure line once), tags
+    packaging_problems(topic)            the title (question verbatim: rules.title_problems, ≤ 100 chars) and the
+                                         thumbnail text (1-3 words, rules.thumbnail_text_problems); [] = ok
+    render_thumbnail(cfg, topic, path)   1280x720: brand + chip, the 1-3 thumbnail words, the first point's
+                                         diagram (notes dropped), else a drawn coin icon
+    chapters(plan, audio)                lesson_meta's chapter timing rule, named Intro / terms / Recap
+    metadata(cfg, topic, chapters)       title = question verbatim, description (summary, key ideas, chapters,
+                                         the disclosure line once, hashtags), tags, Facebook title + text
 
 A topic: {id, question, summary, points: [{term, text, diagram?}]} (a basics/topics.yaml topic also carries
 `thumbnail` and `approved`, and every point has a diagram). The narration may explain only its points.
@@ -67,6 +72,8 @@ CHIP = "CRYPTO BASICS"
 CATEGORY = "27"  # Education (cfg basics.category_id)
 THUMB_SIZE = (1280, 720)
 DIAGRAM_GAP = 44  # px between the term and the diagram
+# the thumbnail's right column: taller than wide, so diagrams lay out stacked (flow / timeline down)
+THUMB_COLUMN = Layout("thumb", 560, 720, (720, 720), (0, 0, 560, 720), min_text=24)
 SUBSCRIBE_ASK = "If this helped, subscribe for the next Crypto Basics explainer."  # cfg basics.subscribe_ask
 SUBSCRIBE = re.compile(r"\bsubscri[bp]\w*", re.I)  # subscribe(d/r/rs/ing), subscription(s)
 NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
@@ -517,28 +524,168 @@ def render_slides(cfg: dict, topic: dict, plan: list[dict], layout: Layout, work
     return out
 
 
-def render_thumbnail(cfg: dict, topic: dict, path: Path) -> Path:
-    """The 16:9 title slide scaled to a 1280x720 JPEG (a placeholder; thumbnail design is entry 6)."""
-    img = slide_title(_ctx(cfg, topic, LANDSCAPE), {"type": "title"}).resize(THUMB_SIZE, Image.LANCZOS)
+# ─── packaging (packaging.md, Basics row) ──────────────────────────────────
+
+def packaging_problems(topic: dict) -> list[str]:
+    """Why this topic can't be packaged ([] = it can): the title (the question verbatim) breaks
+    rules.title_problems or is over 100 characters; the thumbnail text is missing or not 1-3 clean words."""
+    title = _clean(topic.get("question"))
+    out = [f"title {r}" for r in rules.title_problems(title)] if title else ["title: missing question"]
+    if len(title) > MAX_QUESTION:
+        out.append(f"title is {len(title)} characters (at most {MAX_QUESTION})")
+    words = _clean(topic.get("thumbnail"))
+    if not words:
+        out.append("thumbnail: missing thumbnail text")
+    else:
+        out += [r if r.startswith("thumbnail") else f"thumbnail {r}"
+                for r in rules.thumbnail_text_problems(words, max_words=THUMB_WORDS)]
+    return out
+
+
+def _check_packaging(topic: dict) -> None:
+    problems = packaging_problems(topic)
+    if problems:
+        raise ValueError(f"Basics packaging ({topic.get('id')}): {'; '.join(problems)}")
+
+
+def _thumb_icon(topic: dict) -> str:
+    """The coin of the fallback icon: the first coin badge in the topic's diagrams, else BTC."""
+    found = re.findall(r"'coin': '([A-Z]{2,5})'", repr([p.get("diagram") for p in topic.get("points") or []]))
+    return found[0] if found else "BTC"
+
+
+def render_thumbnail(cfg: dict, topic: dict, path: Path, log=print) -> Path:
+    """The 1280x720 Basics thumbnail: brand + CRYPTO BASICS chip, the topic's 1-3 thumbnail words large on the
+    left, and one clean drawing on the right: the first point's diagram (notes dropped) when it fits, else a
+    drawn coin badge. Bad thumbnail text or title → ValueError (packaging_problems)."""
+    from autopilot.thumbnail import GRID, _fit, _mini_logo
+    from autopilot.slides import DOWN, UP
+    _check_packaging(topic)
+    W, H = THUMB_SIZE
+    accent = _hex(cfg["video"].get("accent", "FFD400"))
+    img = Image.new("RGB", (W, H), BG)
+    d = ImageDraw.Draw(img)
+    for x in range(0, W, 64):
+        d.rectangle([x, 0, x + 1, H], fill=GRID)
+    for y in range(0, H, 64):
+        d.rectangle([0, y, W, y + 1], fill=GRID)
+    _mini_logo(img, 44, 30, 64, accent, [UP, DOWN, UP])
+    d.text((120, 62), cfg["channel"].get("display_name", "CryptoFX Daily"), font=_font(34, True), fill=FG, anchor="lm")
+    fc = _font(28, True)
+    cw = d.textlength(CHIP, font=fc)
+    d.rounded_rectangle([W - 48 - cw - 44, 36, W - 48, 88], radius=26, fill=accent)
+    d.text((W - 48 - cw - 22, 62), CHIP, font=fc, fill=BG, anchor="lm")
+
+    # the 1-3 words, left column, as large as they fit (one word a line)
+    from autopilot.lesson_slides import _title_font
+    words = _clean(topic["thumbnail"]).upper().split()
+    col_x, col_w, top, bottom = 56, 580, 130, H - 50
+    size = 190
+    while True:
+        f = _title_font(size)
+        if max(d.textlength(w, font=f) for w in words) <= col_w and len(words) * size * 1.02 <= bottom - top:
+            break
+        size -= 6
+        if size < 48:  # a word too long to read on a thumbnail: a packaging problem, never drawn over the column
+            raise ValueError(f"Basics packaging ({topic.get('id')}): thumbnail text {topic['thumbnail']!r} "
+                             "is too wide for the thumbnail")
+    y = top + (bottom - top - len(words) * round(size * 1.02)) // 2
+    for i, w in enumerate(words):
+        d.text((col_x, y), w, font=f, fill=accent if i == len(words) - 1 else FG)
+        y += round(size * 1.02)
+
+    # one clean drawing, right column
+    box = (676, 140, 1236, 640)
+    d.rounded_rectangle(box, radius=22, fill=BG, outline=PANEL, width=3)
+    inner = (box[0] + 20, box[1] + 20, box[2] - 20, box[3] - 20)
+    first = next((p.get("diagram") for p in topic.get("points") or [] if p.get("diagram")), None)
+    drawn = False
+    if first:
+        spec = {k: v for k, v in copy.deepcopy(first).items() if k != "notes"}
+        layer = img.copy()
+        try:
+            diagrams.draw(layer, inner, spec, THUMB_COLUMN, accent, who=f"{topic.get('id')} thumbnail")
+            img.paste(layer)
+            drawn = True
+        except ValueError as e:
+            log(f"Basics thumbnail: diagram doesn't fit ({e}); using a coin icon")
+    if not drawn:
+        coin = _thumb_icon(topic)
+        size = min(inner[2] - inner[0], inner[3] - inner[1]) - 60
+        cx, cy = (inner[0] + inner[2]) // 2, (inner[1] + inner[3]) // 2
+        fi = _fit(coin, lambda s_: _title_font(s_), round(size * 0.7), round(size * 0.36), 40)
+        diagrams._paint(ImageDraw.Draw(img), diagrams._badge(cx, cy, size, coin, fi, accent))
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path, "JPEG", quality=92)
     return path
 
 
+def chapters(plan: list[dict], audio: list[dict]) -> list[dict]:
+    """Chapters from the scene timings (lesson_meta.chapters' rule: each ≥ 10 s, short scenes merge into the
+    previous chapter), named Intro / each point's term / Recap → [{start, time, title, scenes}]."""
+    from autopilot import lesson_meta
+    names = {"hook": "Intro", "recap": "Recap"}
+    names.update({p["id"]: p["term"] for p in plan if p.get("term")})
+    out = lesson_meta.chapters(plan, audio, [])
+    for c in out:
+        c["title"] = names.get(c["scenes"][0], c["title"])
+    return out
+
+
 # ─── metadata ──────────────────────────────────────────────────────────────
 
-def metadata(cfg: dict, topic: dict) -> dict:
-    """{title, description, tags, category_id, fb_title, fb_description}: the topic's question as the
-    title; description = the short summary + the disclosure line exactly once (rules.disclosure)."""
+HASHTAGS = ["#CryptoBasics", "#CryptoForBeginners", "#Crypto"]
+COIN_HASHTAGS = {"bitcoin": "#Bitcoin", "ethereum": "#Ethereum"}
+MAX_HASHTAGS = 5
+MIN_CHAPTERS = 3  # YouTube shows chapters only with at least 3 (first at 0:00, each ≥ 10 s)
+MAX_DESCRIPTION = 4900  # YouTube allows 5000
+
+
+def hashtags(topic: dict) -> list[str]:
+    q = _clean(topic.get("question")).lower()
+    return (HASHTAGS + [h for w, h in COIN_HASHTAGS.items() if w in q])[:MAX_HASHTAGS]
+
+
+def _tags(topic: dict) -> list[str]:
+    q = re.sub(r"\s*\(.*?\)\s*", " ", _clean(topic.get("question"))).strip(" ?").lower()
+    seeds = [q, "crypto basics", "crypto explained", "crypto for beginners"]
+    seeds += [_clean(p.get("term")).lower() for p in topic.get("points") or []]
+    tags, seen, total = [], set(), 0
+    for t in seeds:
+        t = re.sub(r"[<>,]", "", t).strip()
+        cost = len(t) + (2 if " " in t else 0) + 1  # YouTube counts quotes + separator
+        if t and t not in seen and total + cost <= 480:
+            seen.add(t)
+            tags.append(t)
+            total += cost
+    return tags
+
+
+def metadata(cfg: dict, topic: dict, chapters: list[dict] | None = None, log=print) -> dict:
+    """{title, description, tags, category_id, fb_title, fb_description} (packaging.md, Basics row): the title
+    is the search question verbatim (packaging_problems → ValueError); YouTube description = summary → key
+    ideas → chapters (≥ 3) → the disclosure line exactly once → hashtags (the body is cut, never that tail);
+    Facebook = summary → key ideas → the disclosure line exactly once → hashtags."""
+    _check_packaging(topic)
+    title = _clean(topic["question"])
     line = rules.disclosure(cfg, "basics")
     about = rules.without_disclosure(_clean(topic.get("summary")), line)
-    description = "\n\n".join(p for p in (about, line) if p)
-    tags: list[str] = []
-    for t in ("crypto basics", "crypto explained", *(_clean(p["term"]).lower() for p in topic.get("points") or [])):
-        if t and t not in tags:
-            tags.append(t)
-    title = _clean(topic["question"])[:100]
-    return {"title": title, "description": description, "tags": tags,
+    ideas = "Key ideas:\n" + "\n".join(f"• {_clean(p['term'])}" for p in topic.get("points") or [])
+    tags = " ".join(hashtags(topic))
+    parts = [about, ideas]
+    chapters = chapters or []
+    if len(chapters) >= MIN_CHAPTERS:
+        parts.append("Chapters:\n" + "\n".join(f"{c['time']} {_clean(c['title'])}" for c in chapters))
+    elif chapters:
+        log(f"No chapters in the description: only {len(chapters)} (YouTube needs {MIN_CHAPTERS})")
+    tail = "\n\n".join(("⚠️ " + line, tags))
+    body = "\n\n".join(p for p in parts if p)
+    room = MAX_DESCRIPTION - len(tail) - 2
+    if len(body) > room:  # cut at a line break, so no half chapter line is left
+        body = body[:room].rsplit("\n", 1)[0] if "\n" in body[:room] else body[:room]
+    body = body.rstrip()
+    fb = "\n\n".join(p for p in (about, ideas, "⚠️ " + line, tags) if p)
+    return {"title": title, "description": body + "\n\n" + tail, "tags": _tags(topic),
             "category_id": str((cfg.get("basics") or {}).get("category_id") or CATEGORY),
-            "fb_title": title, "fb_description": description}
+            "fb_title": title, "fb_description": fb}

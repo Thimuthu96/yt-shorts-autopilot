@@ -489,7 +489,7 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
     """One Crypto Basics edition (kind: basics) from the next approved topic (basics_topic; None = nothing
     to publish): narration of its approved points with the subscribe ask after the first payoff
     (basics.write_script: 3 attempts, then the fact-check, whose failure stops it), the A/B voice with pauses,
-    a 16:9 and a 9:16 render of the same narration, the placeholder thumbnail and the metadata (written to
+    a 16:9 and a 9:16 render of the same narration, the thumbnail, chapters and the metadata (written to
     the workdir; nothing is uploaded).
     Returns {"entry", "videos": {"16x9", "9x16"}, "thumbnail", "meta", "seconds", "workdir"}."""
     bc = cfg.get("basics") or {}
@@ -497,6 +497,9 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
     if topic is None:
         return None
     log(f"Basics topic: {topic['id']} · {topic['question']}")
+    problems = basics.packaging_problems(topic)  # the title / thumbnail rules stop it before anything is made
+    if problems:
+        raise RuntimeError(f"Basics packaging ({topic['id']}): {'; '.join(problems)}")
     workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
 
@@ -511,7 +514,9 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
     log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
     audio, total = narrate(v, pkg["scenes"], bc.get("max_seconds", BASICS_MAX_SECONDS), workdir, pauses=True,
                            what="Basics narration", log=log)
-    thumb = basics.render_thumbnail(cfg, topic, workdir / "thumbnail.jpg")
+    thumb = basics.render_thumbnail(cfg, topic, workdir / "thumbnail.jpg", log=log)
+    chapters = basics.chapters(plan, audio)
+    log("Chapters: " + ", ".join(f"{c['time']} {c['title']}" for c in chapters))
 
     music_files = sorted((ROOT / "music").glob("*.mp3"))
     music = random.choice(music_files) if music_files else None  # same music in both shapes
@@ -526,8 +531,8 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
         videos[layout.name] = out
         log(f"Rendered {out}")
 
-    meta = basics.metadata(cfg, topic)
-    (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    meta = basics.metadata(cfg, topic, chapters, log=log)
+    (workdir / "metadata.json").write_text(json.dumps({**meta, "chapters": chapters}, indent=2, ensure_ascii=False))
     log(f"Basics title: {meta['title']}")
     entry = {
         "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),

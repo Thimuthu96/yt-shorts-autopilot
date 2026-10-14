@@ -276,6 +276,7 @@ def main():
     test_diagrams(cfg)
     test_basics_topics(cfg)
     test_basics_script(cfg)
+    test_basics_packaging(cfg)
     test_basics(cfg)
 
 
@@ -3457,6 +3458,95 @@ def test_basics_script(cfg):
           "number / reject / rule-breaking revision stop at once, revision used")
 
 
+def test_basics_packaging(cfg):
+    """Basics packaging (crypto-basics entry 6, packaging.md Basics row): the sample topic's YouTube title is the
+    search question verbatim, its description has the key ideas, chapters (Intro / terms / Recap, ≥ 3) and the
+    disclosure line exactly once before the hashtags (also when the summary echoes it), the Facebook 9:16
+    description carries it exactly once and no chapters; a dated title, a 5-word thumbnail text, a missing
+    thumbnail or a hashtag stops it; fewer than 3 chapters → no Chapters block; the thumbnail is 1280x720
+    with the 1-3 words, a diagram when it fits, else a coin icon; a dated title stops the edition (exit 1)."""
+    import copy
+    from PIL import Image
+    from autopilot import basics
+
+    topic = dict(basics.sample_topic(), thumbnail="BITCOIN ETF?", approved=True)
+    plan = basics.scene_plan(topic)
+    line = rules.disclosure(cfg, "basics")
+    audio = [{"duration": d} for d in (12.0, 50.0, 55.0, 4.0, 60.0, 20.0)]
+    ch = basics.chapters(plan, audio)
+    assert ch[0]["time"] == "0:00" and ch[0]["title"] == "Intro" and ch[-1]["title"] == "Recap", ch
+    assert ch[1]["title"] == topic["points"][0]["term"] and ch[2]["scenes"] == ["point_2", "point_3"], ch
+    meta = basics.metadata(cfg, topic, ch, log=lambda m: None)
+    assert meta["title"] == "What Is a Bitcoin ETF? (Explained Simply)" == meta["fb_title"], meta["title"]
+    assert meta["category_id"] == "27" and meta["tags"][0] == "what is a bitcoin etf", meta["tags"]
+    assert sum(len(t) + 1 for t in meta["tags"]) <= 480
+    d = meta["description"]
+    assert d.count(line) == 1 and d.index("Chapters:\n0:00 Intro") < d.index(line) < d.index("#CryptoBasics"), d
+    assert "• Exchange-traded fund" in d and "#Bitcoin" in d and d.count("#") <= 5, d
+    fbd = meta["fb_description"]
+    assert fbd.count(line) == 1 and "Chapters" not in fbd and "http" not in fbd and fbd.count("#") <= 5, fbd
+    echoed = dict(topic, summary=topic["summary"] + " " + line)
+    m2 = basics.metadata(cfg, echoed, ch, log=lambda m: None)
+    assert m2["description"].count(line) == 1 and m2["fb_description"].count(line) == 1
+    logs = []
+    m3 = basics.metadata(cfg, topic, ch[:2], log=logs.append)
+    assert "Chapters" not in m3["description"] and logs and "only 2" in logs[0], logs
+    long = dict(topic, summary="Plain words here. " * 600)
+    assert len(basics.metadata(cfg, long, ch, log=lambda m: None)["description"]) <= 4900
+    assert basics.metadata(cfg, long, ch, log=lambda m: None)["description"].endswith(" ".join(basics.hashtags(topic)))
+
+    # packaging rules stop it
+    assert basics.packaging_problems(topic) == []
+    for edit, word in ((dict(question="Bitcoin ETF Explained (October 2026)?"), "title date"),
+                       (dict(thumbnail="WHAT IS A BITCOIN ETF"), "thumbnail words"),
+                       (dict(thumbnail=""), "missing thumbnail"),
+                       (dict(thumbnail="ETF #BTC"), "thumbnail hashtag"),
+                       (dict(question="Will Bitcoin 10x? (Explained Simply)"), "10x")):
+        bad = dict(topic, **edit)
+        got = basics.packaging_problems(bad)
+        assert got and any(word in r for r in got), (edit, got)
+        for fn in (lambda: basics.metadata(cfg, bad), lambda: basics.render_thumbnail(cfg, bad, Path(tempfile.mkdtemp()) / "t.jpg")):
+            try:
+                fn()
+                raise AssertionError(f"packaging must stop {edit}")
+            except ValueError as e:
+                assert "Basics packaging" in str(e), e
+
+    # the thumbnail: 1280x720, words left, a diagram when it fits, else a coin icon
+    out = ROOT / "output" / "test_basics_packaging"
+    shutil.rmtree(out, ignore_errors=True)
+    logs = []
+    path = basics.render_thumbnail(cfg, topic, out / "thumbnail.jpg", log=logs.append)
+    with Image.open(path) as im:
+        assert im.size == (1280, 720) and im.format == "JPEG"
+    assert not logs, logs  # the first point's flow fits the column
+    assert 1 <= len(topic["thumbnail"].split()) <= 3
+    huge = copy.deepcopy(topic)
+    huge["points"][0]["diagram"] = {"type": "flow", "nodes": [
+        {"label": "A very long label that keeps going and going " * 3, "say": [w], "coin": "SOL"}
+        for w in ("alpha", "beta", "gamma", "delta", "omega")]}
+    logs = []
+    basics.render_thumbnail(cfg, huge, out / "icon.jpg", log=logs.append)
+    assert logs and "coin icon" in logs[0] and basics._thumb_icon(huge) == "SOL", logs
+    with Image.open(out / "icon.jpg") as im:
+        assert im.size == (1280, 720)
+        assert im.convert("RGB").getpixel((956, 390)) != (14, 15, 18)  # the badge is drawn in the column
+    try:
+        basics.render_thumbnail(cfg, dict(topic, thumbnail="DECENTRALIZATIONMAXIMALISM"), out / "wide.jpg")
+        raise AssertionError("a word too wide for the thumbnail must stop it")
+    except ValueError as e:
+        assert "too wide" in str(e), e
+    cut = basics.metadata(cfg, dict(topic, summary="Plain words here. " * 256), ch, log=lambda m: None)["description"]
+    body = cut.split("\n\n⚠️")[0]
+    assert len(cut) <= 4900 and "Chapters:" in body and not body.endswith("Recap"), (len(cut), body[-120:])
+    for ln in body.splitlines():  # no chapter line is cut in half
+        if ln[:1].isdigit():
+            assert any(ln.endswith(c["title"]) for c in ch), ln
+    print("OK basics packaging: title = search question verbatim, key ideas + chapters + disclosure once (YT) / "
+          "disclosure once (FB 9:16), dated title / 5-word or missing / hashtag thumbnail text stop, <3 chapters "
+          "→ no block, 1280x720 thumbnail with diagram or coin icon")
+
+
 def test_basics(cfg):
     """The Crypto Basics edition (crypto-basics entries 1-2, 5) through main(): the sample topic narrated (mocked
     Gemini answering with tests/basics/sample_narration.yaml, small word bounds), picked as the first approved
@@ -3675,10 +3765,14 @@ def test_basics(cfg):
         assert set(meta) == {"title", "description", "tags", "category_id"} and meta["category_id"] == "27", meta
         assert meta["description"].count(rules.disclosure(cfg, "basics")) == 1, meta["description"]
         assert meta["description"].startswith(" ".join(topic["summary"].split())), meta["description"]
-        assert fb == [{"video": work / "basics_9x16.mp4", "title": topic["question"],
-                       "description": meta["description"], "published": False}], fb
         saved_meta = json.loads((work / "metadata.json").read_text())
-        assert saved_meta["title"] == topic["question"]
+        assert fb == [{"video": work / "basics_9x16.mp4", "title": topic["question"],
+                       "description": saved_meta["fb_description"], "published": False}], fb
+        fbd = fb[0]["description"]
+        assert fbd.count(rules.disclosure(cfg, "basics")) == 1 and "Key ideas:" in fbd and "Chapters" not in fbd, fbd
+        assert fbd.endswith(" ".join(basics.hashtags(topic))), fbd
+        assert saved_meta["title"] == topic["question"] and saved_meta["chapters"][0]["title"] == "Intro"
+        assert said("Chapters: 0:00 Intro"), logs
         # A/B: the next Basics edition takes the other voice
         assert app.ab_voice(cfg["voice"], History(tmp / "data" / "history.json"), "basics")["name"] == \
             cfg["voice"]["alternate"]
@@ -3731,6 +3825,14 @@ def test_basics(cfg):
             prompts.clear()
             assert go("--session", "basics") == 0 and said("Basics: nothing to publish"), logs
             assert not prompts and len(history()) == 3
+            # a dated title (packaging) stops it before any LLM call, even if the list check is bypassed
+            dated = [dict(t, question=t["question"].replace("?", " in October 2026?"), approved=True) for t in queue]
+            write_topics(dated)
+            with mock.patch.object(basics, "validate_topics", lambda topics: []):
+                assert go("--session", "basics") == 1 and said("Basics packaging") and said("date"), logs
+            assert not prompts and len(history()) == 3
+            write_topics(dated[:1] + queue[1:])
+            assert go("--session", "basics") == 1 and said("Basics topic problem"), logs  # the list check too
             # an invalid topic list stops the edition before anything is made
             write_topics(queue + [dict(queue[0], thumbnail="WHAT IS A BITCOIN ETF")])
             assert go("--session", "basics") == 1 and said("Basics topic problem") and said("duplicate id"), logs
