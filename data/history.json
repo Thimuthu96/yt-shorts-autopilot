@@ -869,6 +869,26 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-14T12:46:22+00:00",
+      "brief_date": "2026-10-14",
+      "session": "newyork",
+      "kind": "market",
+      "title": "Gold Price Today: Slips 1.1% Ahead of US CPI | NY Open, Oct 14",
+      "video_id": "68rlaqxNGes",
+      "seconds": 34.5,
+      "headlines": [
+        "Gold price today, Wednesday, October 14, 2026: Gold prices losing ground ahead of inflation data"
+      ],
+      "lead": "XAU",
+      "fb_reel_id": "1459946419685088",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
