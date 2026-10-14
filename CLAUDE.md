@@ -162,7 +162,7 @@ autopilot/llm.py         Gemini REST client with model fallback + verbose loggin
 autopilot/thumbnail.py   4 thumbnail templates (Pillow) + choose() + clean_hook()
 autopilot/slides.py      per-scene graphics (Pillow + matplotlib)
 autopilot/render.py      ffmpeg segments, chart draw-in, push-in, ASS captions, mix
-autopilot/voice.py       edge-tts per scene, WordBoundary timings
+autopilot/voice.py       edge-tts per scene, WordBoundary timings, paced() key-number pauses, Piper fallback
 autopilot/youtube.py     metadata assembly, upload (+ clear quota error), set_thumbnail; upload_lesson (publishAt
                          review window; playlists + LESSON_SCOPES only when asked), delete_video
 autopilot/facebook.py    Graph API v26.0: publish_reel, publish_photo, publish_video (lessons, chunked /videos),
@@ -297,7 +297,12 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
   market data. Not financial advice." in `upload.disclaimer` / `news_posts.disclaimer` (`rules.DISCLOSURE`
   if unset). `youtube.build_metadata`, `facebook.reel_caption` and `news_post.caption` append it exactly
   once (`rules.disclosure`; a copy in the writer's text is removed by `rules.without_disclosure`).
-- Voice: edge-tts `en-US-AndrewMultilingualNeural`, `+10%`; re-recorded faster if > max_seconds.
+- Voice: edge-tts `en-US-AndrewMultilingualNeural`, `+0%` (narration-rules.md, CAP-7); re-recorded faster if > max_seconds.
+  `main.narrate()` voices briefs and gold with `pauses=True` (`voice.paced()`): a comma after a spoken price or
+  percentage that runs into an allow-listed word ("…two point one percent, to…", gold's "forty-one forty-three,
+  as…"; never "a five percent, drop", "$500 million, in…" or inside a range "2% to 3%") and after a naming verb
+  before a scene's optional concept term (`scene["term"]`, for the new formats). edge-tts 7.2.8 XML-escapes the
+  text, so no SSML (no `<break>` / emphasis). Captions show the script's words. Lessons: no pauses, same rate.
   Each scene retries edge-tts with waits 0/10/30/60 s (`voice.EDGE_WAITS`); if it still fails, the
   whole video is voiced by `voice.fallback` (Piper `en_US-ryan-high`, free, local, downloaded on first
   use ~120 MB; word timings estimated) and the rest of the run uses Piper. No `fallback` → the run fails.

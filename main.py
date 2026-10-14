@@ -75,6 +75,21 @@ def faster_rate(rate: str, factor: float) -> str:
     return f"{'+' if new >= 0 else ''}{min(new, 35)}%"
 
 
+def narrate(v: dict, scenes: list[dict], limit: float, workdir: Path, pauses: bool = False,
+            what: str = "Narration", log=log) -> tuple[list[dict], float]:
+    """Voice the scenes at `voice.rate`; over `limit` seconds → re-recorded once, faster. `pauses` (briefs,
+    gold): key-number / concept-term pauses (voice.paced) on both recordings. Returns (audio, seconds)."""
+    audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log, fallback=v.get("fallback"), pauses=pauses)
+    total = sum(a["duration"] for a in audio)
+    if total > limit:
+        rate = faster_rate(v["rate"], total / limit)
+        log(f"{what} {total:.1f}s is over {limit}s, re-recording at {rate}")
+        audio = voice.synthesize(scenes, v["name"], rate, workdir, log=log, fallback=v.get("fallback"), pauses=pauses)
+        total = sum(a["duration"] for a in audio)
+    log(f"{what}: {total:.1f}s")
+    return audio, total
+
+
 def auto_session(now: datetime) -> str:
     if now.hour < 5:
         return "asia"
@@ -142,17 +157,8 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     log(f"Title: {pkg['title']} · hook: {cover['hook']}")
     thumb = thumbnail.render(cover, cfg, data["date_utc"], workdir / "thumbnail.jpg", session.get("short", ""))
 
-    v = cfg["voice"]
     scenes = pkg["scenes"]
-    audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log, fallback=v.get("fallback"))
-    total = sum(a["duration"] for a in audio)
-    limit = cfg["video"]["max_seconds"]
-    if total > limit:
-        rate = faster_rate(v["rate"], total / limit)
-        log(f"Narration {total:.1f}s is over {limit}s, re-recording at {rate}")
-        audio = voice.synthesize(scenes, v["name"], rate, workdir, log=log, fallback=v.get("fallback"))
-        total = sum(a["duration"] for a in audio)
-    log(f"Narration: {total:.1f}s")
+    audio, total = narrate(cfg["voice"], scenes, cfg["video"]["max_seconds"], workdir, pauses=True)
 
     log("Drawing the graphics...")
     footer = (cfg.get("gold") or {}).get("footer") if kind == "gold" else None
@@ -226,17 +232,9 @@ def make_lesson(cfg: dict, entry: dict, glossary: dict, history: dict, workdir: 
         {"entry": entry["id"], "title": entry["title"], "scenes": narration, "fact_check": pkg.get("fact_check"),
          "examples": examples}, indent=2, ensure_ascii=False, default=str))
 
-    v = cfg["voice"]
     scenes = pkg["scenes"]
-    audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log, fallback=v.get("fallback"))
-    total = sum(a["duration"] for a in audio)
-    limit = (cfg.get("lessons") or {}).get("max_seconds", LESSON_MAX_SECONDS)
-    if total > limit:
-        rate = faster_rate(v["rate"], total / limit)
-        log(f"Lesson narration {total:.1f}s is over {limit}s, re-recording at {rate}")
-        audio = voice.synthesize(scenes, v["name"], rate, workdir, log=log, fallback=v.get("fallback"))
-        total = sum(a["duration"] for a in audio)
-    log(f"Lesson narration: {total:.1f}s")
+    audio, total = narrate(cfg["voice"], scenes, (cfg.get("lessons") or {}).get("max_seconds", LESSON_MAX_SECONDS),
+                           workdir, what="Lesson narration", log=log)
 
     chapters = lesson_meta.chapters(plan, audio, examples, glossary)
     log("Chapters: " + ", ".join(f"{c['time']} {c['title']}" for c in chapters))

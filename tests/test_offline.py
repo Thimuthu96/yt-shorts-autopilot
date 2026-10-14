@@ -257,6 +257,7 @@ def main():
     test_disclosure(cfg, data, gdata)
     test_focus_crypto_first()
     test_voice_fallback()
+    test_voice_pacing(cfg)
     test_history()
     test_facebook(cfg, PKG, data, meta, out, work / "thumbnail.jpg")
     test_facebook_video(cfg)
@@ -621,6 +622,122 @@ def test_voice_fallback():
         voice._speak, voice._piper_voice, voice.time.sleep, voice._edge_down = saved
         shutil.rmtree(work, ignore_errors=True)
     print("OK voice fallback (edge-tts 403 → Piper, estimated timings, rest of run on Piper, no fallback → fail)")
+
+
+def test_voice_pacing(cfg):
+    """Entry 6 (CAP-7): +0% rate, a comma pause after key numbers and before the concept term (edge-tts
+    escapes SSML), captions keep the script's words on edge-tts and Piper, over-limit still re-records faster."""
+    import inspect
+    import re
+    import wave
+    from unittest import mock
+    import main as app
+    from autopilot import voice
+    assert cfg["voice"]["rate"] == "+0%", cfg["voice"]
+    # pauses: only commas are added, only where a pause is natural, and never twice
+    cases = {
+        "Bitcoin fell two point one percent to about sixty-two thousand dollars after the ETF outflows.":
+            "Bitcoin fell two point one percent, to about sixty-two thousand dollars, after the ETF outflows.",
+        "Gold is at $4,142 today, up 0.8% since Monday.": "Gold is at $4,142, today, up 0.8%, since Monday.",
+        "Yields rose ten basis points on the day.": "Yields rose ten basis points, on the day.",
+        "A five percent drop in Ether.": "A five percent drop in Ether.",  # adjective use: no pause
+        "Ether is up three percent.": "Ether is up three percent.",  # sentence end already pauses
+        "The key points to watch.": "The key points to watch.",  # no number before "points"
+        # the gold edition's trader-style levels (script.py: "forty-one forty-three" for $4,143)
+        "Gold is holding below forty-one forty-three as the dollar firms.":
+            "Gold is holding below forty-one forty-three, as the dollar firms.",
+        "Bitcoin hit sixty-two thousand to open the week.": "Bitcoin hit sixty-two thousand, to open the week.",
+        "Solana is at one hundred and forty dollars today.": "Solana is at one hundred and forty dollars, today.",
+        # ranges and amounts bound to a noun stay together; a move then a level still pauses
+        "It gained 2% to 3% over the week.": "It gained 2% to 3%, over the week.",
+        "It gained two to three percent over the week.": "It gained two to three percent, over the week.",
+        "Bitcoin rose $1,200 to $63,000 on the day.": "Bitcoin rose $1,200 to $63,000, on the day.",
+        "Bitcoin ETFs saw $500 million in outflows.": "Bitcoin ETFs saw $500 million in outflows.",
+        "It fell 3% to $61,400 after the news.": "It fell 3%, to $61,400, after the news.",
+        "One of the biggest moves.": "One of the biggest moves.",
+        "The twenty-day average is flat.": "The twenty-day average is flat.",
+    }
+    for src, want in cases.items():
+        got = voice.paced(src)
+        assert got == want, (src, got)
+        assert got.replace(",", "") == src.replace(",", "") and voice.paced(got) == got, got
+    term = "liquidity sweep"
+    assert voice.paced("This is called a liquidity sweep.", term) == "This is called, a liquidity sweep."
+    assert voice.paced("That move is called liquidity sweep here.", term) == "That move is called, liquidity sweep here."
+    assert voice.paced("These are liquidity sweeps.", term) == "These are, liquidity sweeps."
+    for same in ("This is the classic liquidity sweep.", "Liquidity sweep first.", "Here: a liquidity sweep.",
+                 "Price ran back to the liquidity sweep.", "Meet the liquidity sweep."):
+        assert voice.paced(same, term) == same, same
+    # edge-tts: the paced text is spoken; WordBoundary words (no punctuation) are the script's words, in order
+    work = Path(tempfile.mkdtemp())
+    spoken = []
+
+    async def fake_speak(text, v, rate, mp3):
+        spoken.append((text, rate))
+        words = re.sub(r"[,.]", "", text).split()
+        run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=220:sample_rate=24000",
+             "-t", f"{0.3 * len(words) + 0.5:.2f}", "-b:a", "48k", str(mp3)])
+        return [(0.1 + 0.3 * i, 0.35 + 0.3 * i, w) for i, w in enumerate(words)]
+
+    scenes = [{"text": "Bitcoin fell two point one percent to about sixty-two thousand dollars after the outflows."},
+              {"text": "This is called a liquidity sweep.", "term": term}]
+    saved = voice._speak, voice._edge_down
+    voice._speak, voice._edge_down = fake_speak, False
+    try:
+        out = voice.synthesize(scenes, "x", cfg["voice"]["rate"], work, log=lambda m: None, pauses=True)
+        assert [t for t, _ in spoken] == [voice.paced(s["text"], s.get("term")) for s in scenes] and \
+            {r for _, r in spoken} == {"+0%"}, spoken
+        for s, a in zip(scenes, out):
+            assert [w[2] for w in a["words"]] == re.sub(r"[,.]", "", s["text"]).split(), a["words"]
+            assert all(x[0] < x[1] <= y[0] for x, y in zip(a["words"], a["words"][1:])) and a["words"][-1][1] < a["duration"]
+        words, off = [], 0.0
+        for a in out:
+            words += [(s + off, e + off, t) for s, e, t in a["words"]]
+            off += a["duration"]
+        render.build_captions(words, cfg["video"]["captions"], 1080, 1920, work / "captions.ass")
+        hi = render._ass_color(cfg["video"]["captions"]["highlight"])
+        lit = re.findall(r"\{\\c" + re.escape(hi) + r"&\}(.*?)\{", (work / "captions.ass").read_text())
+        assert lit == [w[2].upper() for w in words], lit  # each word lit in order, at its own timing
+        spoken.clear()
+        voice.synthesize(scenes[:1], "x", "+0%", work, log=lambda m: None)
+        assert spoken[0][0] == scenes[0]["text"]  # without pauses (lessons) the text is spoken as written
+    finally:
+        voice._speak, voice._edge_down = saved
+
+    # Piper fallback: timings estimated over the paced text, so the comma's pause sits after the number
+    class FakePiper:
+        def synthesize_wav(self, text, w, syn_config=None):
+            w.setnchannels(1), w.setsampwidth(2), w.setframerate(22050)
+            w.writeframes(b"\x00\x01" * int(22050 * 0.25 * len(text.split()) * syn_config.length_scale))
+
+    saved = voice._piper_voice, voice._edge_down
+    voice._piper_voice, voice._edge_down = (lambda m: FakePiper()), True
+    try:
+        a = voice.synthesize(scenes[:1], "x", "+0%", work, log=lambda m: None, fallback="en_US-ryan-high", pauses=True)[0]
+        ws = a["words"]
+        assert [w[2] for w in ws] == scenes[0]["text"].split() and ws[-1][1] < a["duration"], ws  # script's words
+        i = [w[2] for w in ws].index("percent")
+        gap = lambda k: ws[k + 1][0] - ws[k][1]  # noqa: E731
+        assert gap(i) > gap(i - 1) and voice.length_scale("+0%") == 1.0, ws
+    finally:
+        voice._piper_voice, voice._edge_down = saved
+        shutil.rmtree(work, ignore_errors=True)
+    # over the limit at the configured +0%: re-recorded once, faster, with the same pauses
+    calls, logs = [], []
+
+    def fake_synth(scenes_, name, rate, workdir, log=print, fallback=None, pauses=False):
+        calls.append((rate, pauses))
+        return [{"audio": None, "duration": 25.0 if len(calls) == 1 else 20.0, "words": []} for _ in scenes_]
+    with mock.patch.object(voice, "synthesize", fake_synth):
+        audio, total = app.narrate(cfg["voice"], scenes, cfg["video"]["max_seconds"], Path("."), pauses=True,
+                                   log=logs.append)
+    assert calls == [("+0%", True), ("+21%", True)] and total == 40.0 and any("re-recording at +21%" in m for m in logs), calls
+    calls.clear()
+    with mock.patch.object(voice, "synthesize", fake_synth):
+        app.narrate(cfg["voice"], scenes[:1], cfg["video"]["max_seconds"], Path("."), pauses=True, log=logs.append)
+    assert calls == [("+0%", True)], calls  # within the limit: one recording
+    assert "pauses=True" in inspect.getsource(app.make_brief) and "pauses" not in inspect.getsource(app.make_lesson)
+    print("OK voice pacing (+0%, pauses after key numbers + before the term, captions aligned, re-record faster)")
 
 
 def test_history():
@@ -1705,7 +1822,8 @@ def test_lesson_render(cfg):
             return {"verdict": "ok", "issues": [], "package": pkg}
         return json.loads(json.dumps(draft))
 
-    def fake_voice(scenes, name, rate, workdir, log=print, fallback=None):
+    def fake_voice(scenes, name, rate, workdir, log=print, fallback=None, pauses=False):
+        assert not pauses  # lessons speak their text as written
         voice_calls.append(rate)
         step = per_word * 1.1 / (1 + int(rate.strip("%")) / 100)  # a faster rate → shorter words
         out = []
