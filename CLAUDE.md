@@ -177,7 +177,8 @@ main.py                  orchestration, CLI: --session, --platforms, --scheduled
 config.yaml              all settings (channel, llm, market, sessions, lessons, voice, video, upload)
 get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets (--lesson-scopes adds playlists)
 setup_cronjobs.py        creates / fixes the cron-job.org jobs from config.yaml sessions (start_utc, days)
-autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frankfurter FX, gold, macro
+autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frankfurter FX, gold, macro,
+                         CoinGecko market overview (`python -m autopilot.sources overview`)
 autopilot/focus.py       lead story + related assets (keywords, scoring, typical market links)
 autopilot/gold.py        gold outlook: levels, liquidity, 1H/4H/daily bias, scenarios, review
 autopilot/script.py      Gemini prompt, fact-check, validate, fix_visuals (scene types)
@@ -245,8 +246,17 @@ assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or g
   impact, forecast, previous — **no actual results**). Fetch once per run; never scrape
   forexfactory.com (ToS).
 - **Crypto:** Coinbase Exchange public candles `api.exchange.coinbase.com/products/{BTC-USD}/candles`,
-  hourly, 7 days (BTC, ETH, SOL, XRP). Returns newest-first; we sort. CoinGecko free plan was
-  avoided (non-commercial terms).
+  hourly, 7 days (BTC, ETH, SOL, XRP). Returns newest-first; we sort.
+- **Market overview (trigger engine):** `sources.fetch_market_overview()` reads CoinGecko's free
+  **Demo** API (`api.coingecko.com/api/v3`, key in header `x-cg-demo-api-key` from secret
+  `COINGECKO_API_KEY`): `/global` (total market cap + its 24 h change) and `/coins/markets` (top 50
+  by market cap, `price_change_percentage=24h,7d`, `sparkline=true` = 7 days hourly). Owner
+  decision 2026-10-13: Demo tier is used even though CoinGecko states commercial use only for paid
+  plans — **upgrade to Basic before monetizing**. Every video/description using it credits
+  `sources.CG_CREDIT` ("Data provided by CoinGecko"). Missing key, 429, bad key or bad body →
+  `None` with a log line (15 s timeout, one retry on network error/429/5xx), never a crash. Demo
+  limits: 30 calls/min, 10k/month; one overview = 2 calls. Not part of `gather()`; briefs keep
+  Coinbase candles. Live check: `python -m autopilot.sources overview`.
 - **Forex:** Frankfurter v2 `api.frankfurter.dev/v2/rates?base=USD&quotes=...` — daily
   central-bank reference rates (not live). EUR/USD etc. = 1/(USD→EUR). Script must say
   "yesterday's close / latest daily fix", never "right now".
@@ -410,7 +420,8 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
 ## Secrets (GitHub → Settings → Secrets and variables → Actions)
 
 `GEMINI_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`,
-`FB_PAGE_ID`, `FB_PAGE_TOKEN`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`.
+`FB_PAGE_ID`, `FB_PAGE_TOKEN`, `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `COINGECKO_API_KEY` (CoinGecko
+Demo key for the market overview; optional — without it the overview is skipped with a log line).
 The cron-job.org PAT lives only in cron-job.org (not a repo secret).
 (`PIXABAY_API_KEY` / `PEXELS_API_KEY` are legacy and unused.) Never commit `client_secret.json`
 (git-ignored).

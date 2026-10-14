@@ -259,6 +259,7 @@ def main():
     test_voice_fallback()
     test_voice_pacing(cfg)
     test_voice_ab(cfg, data)
+    test_market_overview()
     test_history()
     test_facebook(cfg, PKG, data, meta, out, work / "thumbnail.jpg")
     test_facebook_video(cfg)
@@ -844,6 +845,147 @@ def test_voice_ab(cfg, data):
     assert "ab_voice" not in inspect.getsource(app.make_lesson)  # lessons: one voice, entries unchanged
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK voice A/B (alternates per edition, Piper logged and skipped, voice in the entry, lessons one voice)")
+
+
+def test_market_overview():
+    """CoinGecko Demo overview (E3-1): parsed from recorded-shape JSON; a missing key, 429, bad key,
+    timeout or bad body returns None with a log line. requests.get is mocked — no network."""
+    import contextlib
+    import io
+    from unittest import mock
+
+    import requests
+    from autopilot import sources
+
+    fx = ROOT / "tests" / "fixtures"
+    glob = json.loads((fx / "coingecko_global.json").read_text())
+    rows = json.loads((fx / "coingecko_markets.json").read_text())
+
+    ov = sources.parse_overview(glob, rows)
+    assert ov["total_cap_change_24h"] == -4.3172 and ov["total_cap_usd"] == 2412345678901.23, ov
+    assert ov["credit"] == sources.CG_CREDIT == "Data provided by CoinGecko"
+    assert ov["as_of_utc"].startswith("2026-10-14"), ov["as_of_utc"]
+    assert len(ov["coins"]) == 50 and [c["rank"] for c in ov["coins"]] == list(range(1, 51))
+    btc, eth = ov["coins"][0], ov["coins"][1]
+    assert (btc["symbol"], btc["name"], btc["price"], btc["change_24h"], btc["change_7d"]) == \
+        ("BTC", "Bitcoin", 62400, -5.2134, -3.8761), btc
+    assert len(btc["sparkline"]) == 168 and btc["sparkline"][-1] == 62400 and eth["change_24h"] == -6.0412
+    mover = next(c for c in ov["coins"] if c["symbol"] == "C23")
+    assert mover["change_24h"] == 17.881 and mover["change_7d"] == 25.4421, mover
+    # null quirks: 24h falls back to price_change_percentage_24h, null 7d stays None, null points dropped
+    assert ov["coins"][30]["change_24h"] == rows[30]["price_change_percentage_24h"] == -2.3453
+    assert ov["coins"][31]["change_7d"] is None and len(ov["coins"][32]["sparkline"]) == 23
+    # a coin with no 24h change at all, or no price, is dropped; extra rows past 50 are ignored
+    bad = json.loads(json.dumps(rows))
+    bad[3]["price_change_percentage_24h_in_currency"] = bad[3]["price_change_percentage_24h"] = None
+    bad[4]["current_price"] = None
+    bad[5]["sparkline_in_7d"] = [1, 2]  # malformed sparkline: the coin stays, with no series
+    more = bad + [dict(bad[0], id="extra", symbol="xtra", market_cap_rank=51)]
+    got = sources.parse_overview(glob, more)
+    assert len(got["coins"]) == 48 and {"BNB", "SOL", "XTRA"}.isdisjoint(c["symbol"] for c in got["coins"])
+    assert got["coins"][3]["symbol"] == "USDC" and got["coins"][3]["sparkline"] == []
+    for ts in (1e20, None, "x"):  # an out-of-range / missing update time leaves as_of blank
+        g2 = json.loads(json.dumps(glob))
+        g2["data"]["updated_at"] = ts
+        assert sources.parse_overview(g2, rows)["as_of_utc"] == ""
+    for g_, r_ in (({}, rows), ({"data": {"total_market_cap": {}}}, rows), (glob, {"error": "x"}), (glob, []),
+                   ({"data": {"total_market_cap": {"usd": 1e12}, "market_cap_change_percentage_24h_usd": "nan"}}, rows)):
+        try:
+            sources.parse_overview(g_, r_)
+            raise AssertionError(f"parse_overview accepted {g_!r:.60}")
+        except ValueError:
+            pass
+
+    class Resp:
+        def __init__(self, status, body=None, headers=None):
+            self.status_code, self.body, self.headers = status, body, headers or {}
+
+        def json(self):
+            if isinstance(self.body, Exception):
+                raise self.body
+            return self.body
+
+    def run_fetch(answers, key="demo-key-123"):
+        calls, logs, sleeps = [], [], []
+        queue = list(answers)
+
+        def fake_get(url, params=None, headers=None, timeout=None):
+            calls.append((url, params, headers, timeout))
+            a = queue.pop(0)
+            if isinstance(a, Exception):
+                raise a
+            return a
+        with mock.patch.object(sources.requests, "get", fake_get), \
+                mock.patch.object(sources.time, "sleep", lambda s: sleeps.append(s)):
+            out = sources.fetch_market_overview(log=logs.append, key=key)
+        assert all("demo-key-123" not in m for m in logs), logs
+        return out, calls, logs, sleeps
+
+    ok = [Resp(200, glob), Resp(200, rows)]
+    out, calls, logs, sleeps = run_fetch(ok)
+    assert out and out["total_cap_change_24h"] == -4.3172 and len(out["coins"]) == 50 and not sleeps, logs
+    (u1, p1, h1, t1), (u2, p2, h2, t2) = calls
+    assert u1.endswith("/api/v3/global") and u2.endswith("/api/v3/coins/markets"), calls
+    assert h1["x-cg-demo-api-key"] == h2["x-cg-demo-api-key"] == "demo-key-123" and t1 and t2
+    assert p2 == {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 50, "page": 1,
+                  "sparkline": "true", "price_change_percentage": "24h,7d"}, p2
+    assert "demo-key-123" not in u1 + u2 and not any("demo" in str(v) for v in (p2 or {}).values())
+
+    # missing key (env unset or blank): skipped with a log line, no HTTP call
+    saved = os.environ.pop("COINGECKO_API_KEY", None)
+    try:
+        for k in (None, "  "):
+            if k is not None:
+                os.environ["COINGECKO_API_KEY"] = k
+            out, calls, logs, _ = run_fetch([], key=None)
+            assert out is None and not calls and logs == ["CoinGecko overview skipped: COINGECKO_API_KEY is not set"], logs
+        os.environ["COINGECKO_API_KEY"] = "demo-key-123"  # the env var is read when no key is passed
+        out, calls, logs, _ = run_fetch(ok, key=None)
+        assert out and calls[0][2]["x-cg-demo-api-key"] == "demo-key-123"
+    finally:
+        os.environ.pop("COINGECKO_API_KEY", None)
+        if saved is not None:
+            os.environ["COINGECKO_API_KEY"] = saved
+
+    # 429 twice: one retry (Retry-After capped at 10 s), then None with a log line
+    out, calls, logs, sleeps = run_fetch([Resp(429, headers={"Retry-After": "60"}), Resp(429)])
+    assert out is None and len(calls) == 2 and sleeps == [10.0], (calls, sleeps)
+    assert logs == ["CoinGecko overview skipped: CoinGecko /global: HTTP 429"], logs
+    # 429 then 200: the retry wins
+    out, calls, logs, sleeps = run_fetch([Resp(429, headers={"Retry-After": "3"}), Resp(200, glob), Resp(200, rows)])
+    assert out and len(calls) == 3 and sleeps == [3.0], logs
+    # 429 on the markets call (global ok) twice, a non-numeric Retry-After → the 2 s wait
+    out, calls, logs, sleeps = run_fetch([Resp(200, glob), Resp(429, headers={"Retry-After": "Wed, 14 Oct 2026"}),
+                                          Resp(429)])
+    assert out is None and len(calls) == 3 and sleeps == [2.0], (calls, sleeps)
+    assert logs == ["CoinGecko overview skipped: CoinGecko /coins/markets: HTTP 429"], logs
+    # 5xx on the markets call, then ok
+    out, calls, _, sleeps = run_fetch([Resp(200, glob), Resp(503), Resp(200, rows)])
+    assert out and len(calls) == 3 and sleeps == [2.0]
+    # bad key: 401 is not retried
+    out, calls, logs, sleeps = run_fetch([Resp(401, {"status": {"error_code": 10002}})])
+    assert out is None and len(calls) == 1 and not sleeps and "HTTP 401" in logs[0], logs
+    # timeout twice
+    out, calls, logs, _ = run_fetch([requests.Timeout("read timed out"), requests.ConnectionError("down")])
+    assert out is None and len(calls) == 2 and logs[0].endswith("ConnectionError"), logs
+    # not JSON / unusable body
+    out, _, logs, _ = run_fetch([Resp(200, ValueError("Expecting value"))])
+    assert out is None and "not JSON" in logs[0], logs
+    out, _, logs, _ = run_fetch([Resp(200, {"status": "x"}), Resp(200, rows)])
+    assert out is None and logs == ["CoinGecko overview skipped: /global has no data"], logs
+
+    # CLI: `python -m autopilot.sources overview` prints the overview and the credit; exit 1 without one
+    buf = io.StringIO()
+    with mock.patch.object(sources, "fetch_market_overview", lambda: json.loads(json.dumps(ov))), \
+            contextlib.redirect_stdout(buf):
+        assert sources._main(["overview"]) == 0
+    text = buf.getvalue()
+    assert text.startswith("Total crypto market cap $2.41T, 24h -4.32%") and "C23" in text, text[:300]
+    assert text.index("C23") < text.index("ETH") < text.index("BTC") and text.rstrip().endswith(sources.CG_CREDIT)
+    with mock.patch.object(sources, "fetch_market_overview", lambda: None):
+        assert sources._main(["overview"]) == 1
+    print("OK market overview: CoinGecko fixtures → total cap -4.32% + 50 coin moves (24h, 7d, sparkline), "
+          "null quirks, missing key / 429 / 401 / timeout / bad body → None with a log line, one retry, CLI")
 
 
 def test_history():
