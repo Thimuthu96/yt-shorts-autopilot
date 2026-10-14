@@ -151,7 +151,8 @@ lessons:
   fb_published: true          # false = Facebook videos are uploaded unpublished
 
 # ─── Crypto Basics (the `basics` edition) ───────────────────────────────────
-# One beginner topic narrated from its approved points (for now the sample tests/basics/sample_topic.yaml).
+# One beginner topic narrated from its approved points: the next approved, unpublished topic in
+# basics/topics.yaml (none → nothing to publish), fact-checked against those points (a failure stops it).
 # Dark: while enabled is false, timed runs log why and stop; a manual run still makes and publishes,
 # private on YouTube for review_window_hours and unpublished on Facebook, so it can be checked first.
 basics:
@@ -162,6 +163,8 @@ basics:
   review_window_hours: 24     # 0 = public on upload; N = private, then public on its own N hours later
   fb_published: false         # false = the Facebook video is uploaded unpublished (review on the Page)
   category_id: "27"           # YouTube Education
+  # the one spoken subscribe ask, added at the end of the first explained point (never in the opening)
+  subscribe_ask: "If this helped, subscribe for the next Crypto Basics explainer."
 
 # ─── Gold outlook ───────────────────────────────────────────────────────────
 gold:

@@ -65,16 +65,20 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → history.json            kind: lesson, episode, track, examples (asset/timeframe/start/end), video_id,
                             fb_video_id
   Crypto Basics (kind: basics, make_basics() + publish_basics(); dark: basics.enabled false):
-  → basics.sample_topic()   tests/basics/sample_topic.yaml (the tracer topic: question, summary, points, each
-                            with a drawn `diagram`)
-                            (basics/topics.yaml = the topic list, list order = queue: basics.validate_topics
-                            + basics.pick (first `approved: true` topic no uploaded kind: basics entry has as its
-                            `topic`); ships 4 drafts, none approved; wired into the edition in entry 5)
+  → main.basics_topic()     basics/topics.yaml (list order = queue): basics.validate_topics (problems → logged,
+                            exit 1) → basics.pick (first `approved: true` topic no uploaded kind: basics entry has
+                            as its `topic`); none → "Basics: nothing to publish", exit 0 (ships 4 drafts, none
+                            approved). tests/basics/sample_topic.yaml is the tests' tracer topic only
   → basics.scene_plan()     hook → one scene per point → recap; a point's diagram is validated (diagrams.validate,
                             problems → ValueError) and its parts' naming order goes into the scene's `covers`
   → basics.write_script()   Gemini narrates only the approved points (hook → one scene per point → recap), naming
                             each diagram part (its first `say` alias) in order, in the sentence where it comes up;
-                            every scene narrated, basics.min/max_words, rules.narration_problems; 3 failures → exit 1
+                            every scene narrated, basics.min/max_words (600-900 ≈ 4-6 min), rules.narration_problems,
+                            the fixed `basics.subscribe_ask` (added by code at the end of point_1, the first payoff)
+                            exactly once and nowhere else; 3 failures → exit 1. Then script.fact_check against
+                            basics.facts(topic) (question, summary, approved points; the ask not sent) + every spoken
+                            digit-number must be in those facts: reject / revised draft with problems / unknown
+                            number → "Basics fact-check failed", exit 1 at once (no retry)
   → main.narrate()          A/B voice (main.ab_voice, pauses=True, logged as "voice")
   → basics.render_slides()  title / concept / recap slides with a CRYPTO BASICS chip, lesson_slides LANDSCAPE +
                             PORTRAIT; a point with a diagram = "KEY IDEA n OF m" + term + the drawn diagram
@@ -115,7 +119,7 @@ rule and the once-per-edition-per-day-per-platform guard:
   work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (gold without `days` = Mon–Fri).
 - **Crypto Basics is dark (`basics.enabled: false`):** a timed (`--scheduled`) basics run logs
   "basics.enabled is false…" and exits 0 before anything is made; a manual run makes and publishes the
-  sample topic (`tests/basics/sample_topic.yaml`), private on YouTube for `basics.review_window_hours` (24)
+  next approved topic of `basics/topics.yaml` (none approved yet → nothing to publish), private on YouTube for `basics.review_window_hours` (24)
   and unpublished on Facebook (`basics.fb_published: false`) so it can be reviewed first.
 - **Lessons are off until `lessons.enabled: true`** (owner: after merging the curriculum; the existing
   `YT_REFRESH_TOKEN` works while `lessons.playlists: false`, the owner's choice — playlists by hand). While off, lesson runs log why and exit 0 without
@@ -209,8 +213,9 @@ autopilot/lesson_slides.py  lesson slides + thumbnail, 16:9 (LANDSCAPE) and 9:16
 autopilot/reveal.py      step reveal (generic): example-scene marks fade in one at a time as narration names them (lessons.reveal_steps → lesson_slides base + diff-crop layers → time_steps → render._segment; hook stays fully drawn)
 autopilot/basics.py      Crypto Basics (dark): sample_topic, load_topics / validate_topic / validate_topics (topic
                          list validator: fields, question + thumbnail packaging rules, narration rules, diagrams,
-                         unique ids / questions) and pick (first approved, never-published topic; not wired into the
-                         edition until entry 5), scene_plan, write_script (Gemini + checks, 3 attempts),
+                         unique ids / questions) and pick (first approved, never-published topic; main.basics_topic),
+                         scene_plan, write_script (Gemini + checks, 3 attempts; subscribe ask after point_1;
+                         fact-check vs facts(topic), failure stops),
                          render_slides (16:9 / 9:16, CRYPTO BASICS chip, diagram scenes stepped), render_thumbnail
                          (placeholder), metadata
 autopilot/diagrams.py    drawn concept diagrams (shared: Basics now, epics 3/4 later): spec flow / compare / timeline

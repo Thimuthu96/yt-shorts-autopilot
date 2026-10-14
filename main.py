@@ -14,8 +14,8 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
     python main.py --session lesson --scheduled  # trading lesson: next curriculum episode (YouTube + Facebook video)
     python main.py --session lesson --no-upload  # make the next lesson only (works with lessons.enabled false)
     python main.py --lesson-sample --no-upload  # sample trading lesson (16:9 + 9:16) on fixture candles
-    python main.py --session basics   # Crypto Basics: the sample topic, 16:9 YouTube + 9:16 Facebook (timed runs: off
-                                      # while basics.enabled is false)
+    python main.py --session basics   # Crypto Basics: the next approved topic (basics/topics.yaml), 16:9 YouTube +
+                                      # 9:16 Facebook (timed runs: off while basics.enabled is false)
 
 Manual runs always make and publish and don't stop the timed run of that edition.
 """
@@ -468,13 +468,34 @@ def make_lesson_edition(cfg: dict, history: History, date: str, session_key: str
     return made, pending
 
 
-def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dict:
-    """One Crypto Basics edition (kind: basics) from the sample topic: narration of its approved points
-    (basics.write_script, 3 attempts), the A/B voice with pauses, a 16:9 and a 9:16 render of the same
-    narration, the placeholder thumbnail and the metadata (written to the workdir; nothing is uploaded).
+def basics_topic(history: History) -> dict | None:
+    """The next Basics topic: basics/topics.yaml validated (problems → logged, RuntimeError), then basics.pick
+    (the first approved topic no uploaded kind: basics entry has published). None = nothing to publish."""
+    path = ROOT / "basics" / "topics.yaml"
+    topics = basics.load_topics(path)
+    problems = basics.validate_topics(topics)
+    if problems:
+        for msg in problems:
+            log(f"Basics topic problem: {msg}")
+        raise RuntimeError(f"basics/topics.yaml has {len(problems)} problem(s) (listed above); fix them "
+                           "(python tests/test_offline.py) before Crypto Basics can run")
+    topic = basics.pick(topics, history)
+    if topic is None:
+        log("Basics: nothing to publish (no approved, unpublished topic in basics/topics.yaml).")
+    return topic
+
+
+def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dict | None:
+    """One Crypto Basics edition (kind: basics) from the next approved topic (basics_topic; None = nothing
+    to publish): narration of its approved points with the subscribe ask after the first payoff
+    (basics.write_script: 3 attempts, then the fact-check, whose failure stops it), the A/B voice with pauses,
+    a 16:9 and a 9:16 render of the same narration, the placeholder thumbnail and the metadata (written to
+    the workdir; nothing is uploaded).
     Returns {"entry", "videos": {"16x9", "9x16"}, "thumbnail", "meta", "seconds", "workdir"}."""
     bc = cfg.get("basics") or {}
-    topic = basics.sample_topic()
+    topic = basics_topic(history)
+    if topic is None:
+        return None
     log(f"Basics topic: {topic['id']} · {topic['question']}")
     workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
@@ -483,7 +504,8 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
     pkg = basics.write_script(cfg, topic, plan, log=log)
     (workdir / "package.json").write_text(json.dumps(
         {"topic": topic["id"], "title": topic["question"],
-         "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]]}, indent=2, ensure_ascii=False))
+         "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]],
+         "fact_check": pkg.get("fact_check")}, indent=2, ensure_ascii=False))
 
     v = ab_voice(cfg["voice"], history, session_key)
     log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
@@ -752,6 +774,8 @@ def main(argv: list[str] | None = None) -> int:
             # re-making for a platform it missed: the history the first run saw (same A/B voice)
             made = make_basics(cfg, history.excluding_slot(today, session_key) if remake else history,
                                session_key, today)
+            if made is None:
+                return 0
             entry, failed = publish_basics(made, pending, cfg)
         else:
             # re-making an edition for a platform it missed: use the history the first run saw

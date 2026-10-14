@@ -275,6 +275,7 @@ def main():
     test_lesson_edition(cfg)
     test_diagrams(cfg)
     test_basics_topics(cfg)
+    test_basics_script(cfg)
     test_basics(cfg)
 
 
@@ -2947,6 +2948,19 @@ def _sample_narration() -> dict:
     return {k: " ".join(str(v).split()) for k, v in raw.items()}
 
 
+def _topic_narration(topic: dict) -> dict:
+    """A mocked narration of any Basics topic: scene id → text (each point's approved text, then every diagram
+    part named in reveal order; the recap carries the disclaimer). Passes rules.narration_problems."""
+    from autopilot import diagrams
+    out = {"hook": f"{topic['question'].split(' (')[0]} Here is the simple version, one idea at a time."}
+    for n, p in enumerate(topic["points"], 1):
+        names = [st["name"] for st in diagrams.steps(p["diagram"])] if p.get("diagram") else []
+        out[f"point_{n}"] = " ".join(p["text"].split()) + (
+            " The picture names each part: " + ", then ".join(names) + "." if names else "")
+    out["recap"] = "That is the whole idea, step by step. This is education, not financial advice."
+    return out
+
+
 def _extra_diagrams() -> list[dict]:
     """Points beyond the sample (test only): a timeline with two notes, a five-node flow with BTC / ETH / other-coin
     badges and a note, a four-row compare with a coin on each side, and a point without a diagram."""
@@ -3175,7 +3189,8 @@ def test_diagrams(cfg):
                                    "just like a company. Those parts trade on a regular stock exchange.")
     sk_scenes = [{"id": p["id"], "text": skip[p["id"]]} for p in plan]
     assert not rules.narration_problems(skip["point_1"])
-    assert basics.check_script(dict(cfg, basics={"min_words": 1, "max_words": 10 ** 4}), plan, sk_scenes) == []
+    wide = dict(cfg, basics={"min_words": 1, "max_words": 10 ** 4})
+    assert basics.check_script(wide, plan, basics._with_ask(wide, plan, sk_scenes)) == []
     sk_audio = [{"duration": 0.3 * len(s["text"].split()) + 0.5,
                  "words": [(j * 0.3, j * 0.3 + 0.27, w) for j, w in enumerate(s["text"].split())]} for s in sk_scenes]
     pics = basics.render_slides(cfg, topic, plan, ls.LANDSCAPE, work / "skip")
@@ -3316,14 +3331,143 @@ def test_basics_topics(cfg):
           f"{scenes} point scenes rendered in 16x9 + 9x16")
 
 
+def test_basics_script(cfg):
+    """Basics narration (crypto-basics entry 5) with the real 600-900 word budget (4-6 minutes): the subscribe
+    ask closes the first payoff scene exactly once; a draft that puts a subscribe ask elsewhere or says "I'm
+    buying" is discarded 3 times and the narration fails; the passing draft is fact-checked against the topic's
+    approved points only (the ask not sent): a reject or a spoken number the points don't hold stops it at
+    once (no retry); a revised draft is used, with the ask added back."""
+    from autopilot import basics
+
+    topic = basics.sample_topic()
+    plan = basics.scene_plan(topic)
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    bc = live["basics"]
+    assert (bc["min_words"], bc["max_words"]) == (600, 900) and bc["max_seconds"] <= 390, bc
+    ask = basics.subscribe_ask(live)
+    assert ask == bc["subscribe_ask"] and "subscribe" in ask.lower() and not rules.narration_problems(ask)
+    long = _sample_narration()  # padded to the real budget with the points' own approved text
+    n = 1
+    while sum(len(v.split()) for v in long.values()) < 640:
+        long[f"point_{n}"] += " " + " ".join(topic["points"][n - 1]["text"].split())
+        n = n % len(topic["points"]) + 1
+    answers, calls, checks = [], [], []
+    verdict = ["ok", None]
+
+    def fake_llm(prompt, models, temperature=0.9):
+        calls.append(prompt)
+        return {"scenes": [{"id": k, "text": v} for k, v in answers[min(len(calls), len(answers)) - 1].items()]}
+
+    def fake_fact_check(cfg_, facts, pkg, extra_rules=""):
+        checks.append((cfg_, facts, json.loads(json.dumps(pkg)), extra_rules))
+        return verdict[0], (verdict[1] or pkg), (["fixed"] if verdict[0] != "ok" else [])
+
+    saved = (basics.generate_json, basics.fact_check)
+    basics.generate_json, basics.fact_check = fake_llm, fake_fact_check
+    quiet = lambda m: None
+    try:
+        answers[:] = [long]
+        got = basics.write_script(live, topic, plan, log=quiet)
+        words = sum(len(s["text"].split()) for s in got["scenes"])
+        assert 600 <= words <= 900, words
+        texts = {s["id"]: s["text"] for s in got["scenes"]}
+        assert texts["point_1"].endswith(ask) and sum(t.lower().count("subscribe") for t in texts.values()) == 1
+        assert ask not in texts["hook"] and got["fact_check"] == {"verdict": "ok", "issues": []}
+        assert len(calls) == 1 and "never ask viewers to subscribe" in calls[0]
+        fcfg, facts, sent, extra = checks[0]
+        assert facts == basics.facts(topic) and set(facts) == {"question", "summary", "points"}, facts
+        assert [p["text"] for p in facts["points"]] == [" ".join(p["text"].split()) for p in topic["points"]]
+        assert all(ask not in s["text"] for s in sent["scenes"]) and sent["title"] == topic["question"]
+        assert (fcfg["llm"]["min_words"], fcfg["llm"]["max_words"]) == (600, 900) and "approved" in extra
+
+        # the ask misplaced (in the opening) or a second ask: discarded, 3 times → fails
+        calls.clear(); checks.clear()
+        answers[:] = [dict(long, hook=long["hook"] + " Subscribe now."), dict(long, recap=long["recap"] + " Please subscribe."),
+                      dict(long, hook="Subscribe first. " + long["hook"])]
+        try:
+            basics.write_script(live, topic, plan, log=quiet)
+            raise AssertionError("a misplaced subscribe ask must fail")
+        except RuntimeError as e:
+            assert "subscribe ask" in str(e) and "(also in hook)" in str(e) and len(calls) == 3 and not checks, e
+
+        # "I'm buying" three times: the narration fails, nothing is fact-checked
+        calls.clear()
+        answers[:] = [dict(long, point_2="I'm buying more bitcoin through the fund. " + long["point_2"])]
+        try:
+            basics.write_script(live, topic, plan, log=quiet)
+            raise AssertionError("first person must fail")
+        except RuntimeError as e:
+            assert "3 attempts" in str(e) and "first person" in str(e) and len(calls) == 3 and not checks, e
+
+        # a number the approved points don't hold: the fact-check stage stops it at once (no retry)
+        calls.clear()
+        answers[:] = [dict(long, point_3=long["point_3"] + " The first funds came from 11 different issuers.")]
+        try:
+            basics.write_script(live, topic, plan, log=quiet)
+            raise AssertionError("an unknown number must stop the narration")
+        except RuntimeError as e:
+            assert str(e).startswith("Basics fact-check failed") and "11" in str(e) and len(calls) == 1, e
+        # a small number too (the shared news check skips bare numbers up to ten)
+        calls.clear()
+        answers[:] = [dict(long, point_3=long["point_3"] + " The first funds came from 5 different issuers.")]
+        try:
+            basics.write_script(live, topic, plan, log=quiet)
+            raise AssertionError("an unknown small number must stop the narration")
+        except RuntimeError as e:
+            assert "numbers not in the approved points: 5" in str(e) and len(calls) == 1, e
+        assert basics.unknown_numbers("Funds from 5 issuers, 1,200 coins.", {"x": "1,200 coins"}) == ["5"]
+        # "subscribers" counts as a subscribe mention (only the ask may have one)
+        calls.clear()
+        answers[:] = [dict(long, hook="Millions of subscribers ask this. " + long["hook"])]
+        try:
+            basics.write_script(live, topic, plan, log=quiet)
+            raise AssertionError("a second subscribe mention must fail")
+        except RuntimeError as e:
+            assert "(also in hook)" in str(e) and len(calls) == 3, e
+        # a reject verdict stops it too
+        calls.clear(); checks.clear()
+        answers[:] = [long]
+        verdict[0] = "reject"
+        try:
+            basics.write_script(live, topic, plan, log=quiet)
+            raise AssertionError("a reject must stop the narration")
+        except RuntimeError as e:
+            assert "verdict reject" in str(e) and len(calls) == 1 and len(checks) == 1, e
+        # revised: the checker's text is used and the ask added back (once)
+        fixed = {"scenes": [{"id": k, "text": v.replace("regular stock exchange", "stock exchange")}
+                            for k, v in long.items()]}
+        verdict[:] = ["revised", fixed]
+        got = basics.write_script(live, topic, plan, log=quiet)
+        texts = {s["id"]: s["text"] for s in got["scenes"]}
+        assert "regular stock exchange" not in texts["point_1"] and texts["point_1"].endswith(ask), texts["point_1"]
+        assert texts["point_1"].count(ask) == 1 and got["fact_check"]["verdict"] == "revised"
+        assert [s.get("term") for s in got["scenes"]][1:5] == [p["term"] for p in topic["points"]]
+        # a revised draft that breaks a rule stops it
+        verdict[:] = ["revised", {"scenes": [dict(s, text=s["text"] + (" I think it could 10x." if s["id"] == "recap"
+                                                                       else "")) for s in fixed["scenes"]]}]
+        try:
+            basics.write_script(live, topic, plan, log=quiet)
+            raise AssertionError("a rule-breaking revision must stop the narration")
+        except RuntimeError as e:
+            assert str(e).startswith("Basics fact-check failed") and "first person" in str(e), e
+    finally:
+        basics.generate_json, basics.fact_check = saved
+    print(f"OK basics script: {words} words with the real 600-900 budget, subscribe ask once after the first "
+          "payoff, misplaced ask / \"I'm buying\" discarded 3x, fact-check (approved points only): unknown "
+          "number / reject / rule-breaking revision stop at once, revision used")
+
+
 def test_basics(cfg):
-    """The Crypto Basics edition (crypto-basics entries 1-2) through main(): the sample topic narrated (mocked
-    Gemini answering with tests/basics/sample_narration.yaml, small word bounds) → a 16:9 and a 9:16 render of
+    """The Crypto Basics edition (crypto-basics entries 1-2, 5) through main(): the sample topic narrated (mocked
+    Gemini answering with tests/basics/sample_narration.yaml, small word bounds), picked as the first approved
+    topic of a tmp basics/topics.yaml (sample + two approved drafts + one draft) → a 16:9 and a 9:16 render of
     one narration, every point's diagram revealed part by part on the sentences naming it (no fallback) with
     contact frames grabbed from both mp4s → output/test_basics/, YouTube gets 16:9 and Facebook 9:16, the
     history entry (kind basics + voice); a rule-breaking writer stops it (exit 1, nothing published); a
-    Facebook failure keeps the YouTube id (exit 1); timed runs: wrong weekday → days skip, dark Wednesday →
-    skip log, no LLM call; the workflow's session options and the session config."""
+    Facebook failure keeps the YouTube id (exit 1); a narration with a number not in the approved points stops
+    it at the fact-check (exit 1, nothing published); each later run picks the next approved topic; with only
+    a draft left: nothing to publish (exit 0); an invalid topic list stops it (exit 1); timed runs: wrong
+    weekday → days skip, dark Wednesday → skip log, no LLM call; the workflow's session options."""
     from unittest import mock
     import numpy as np
     import main as app
@@ -3349,6 +3493,15 @@ def test_basics(cfg):
             return clock[0].astimezone(tz) if tz else clock[0].replace(tzinfo=None)
 
     tmp = Path(tempfile.mkdtemp())
+    drafts = basics.load_topics()
+    queue = ([dict(topic, thumbnail="BITCOIN ETF?", approved=True)] + [dict(t, approved=True) for t in drafts[:2]]
+             + [drafts[2]])  # the last one stays a draft
+
+    def write_topics(topics):
+        (tmp / "basics").mkdir(parents=True, exist_ok=True)
+        (tmp / "basics" / "topics.yaml").write_text(yaml.safe_dump({"topics": topics}, allow_unicode=True,
+                                                                   sort_keys=False), encoding="utf-8")
+    write_topics(queue)
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     assert live["basics"]["enabled"] is False and live["basics"]["review_window_hours"] == 24
     assert live["basics"]["fb_published"] is False and str(live["basics"]["category_id"]) == "27"
@@ -3366,19 +3519,28 @@ def test_basics(cfg):
         return json.loads(f.read_text())["videos"] if f.exists() else []
 
     good = _sample_narration()  # names every diagram part in reveal order
-    bad = dict(good, point_2="I think a spot Bitcoin ETF could 10x from here.")
-    answer, prompts, voices, yt, fb, logs = [good], [], [], [], [], []
-    last_audio, timed = [], []
+    answer, prompts, voices, yt, fb, logs, checks = [None], [], [], [], [], [], []
+    last_audio, timed, current = [], [], [topic]
     fail_fb = [False]
 
     def fake_llm(prompt, models, temperature=0.9):
         prompts.append(prompt)
-        return {"scenes": [{"id": k, "text": v} for k, v in answer[0].items()]}
+        current[0] = next(t for t in queue if f'"{t["question"]}"' in prompt)
+        text = good if current[0]["id"] == topic["id"] else _topic_narration(current[0])
+        if answer[0] == "bad":
+            text = dict(text, point_2="I'm buying more bitcoin through the fund.")
+        elif answer[0] == "number":
+            text = dict(text, point_3=text["point_3"] + " The first funds came from 11 different issuers.")
+        return {"scenes": [{"id": k, "text": v} for k, v in text.items()]}
+
+    def fake_fact_check(cfg_, facts, pkg, extra_rules=""):
+        checks.append(facts)
+        return "ok", pkg, []
 
     def fake_voice(scenes, name, rate, workdir, log=print, fallback=None, pauses=False):
         assert pauses  # Basics speak with the key-number / concept-term pauses
         voices.append(name)
-        assert [s.get("term") for s in scenes][1:5] == [p["term"] for p in topic["points"]], scenes
+        assert [s.get("term") for s in scenes][1:-1] == [p["term"] for p in current[0]["points"]], scenes
         out = []
         for i, sc in enumerate(scenes):
             words = sc["text"].split()
@@ -3420,10 +3582,10 @@ def test_basics(cfg):
         return any(text in m for m in logs)
 
     saved = (app.ROOT, app.datetime, app.log, basics.generate_json, voice.synthesize, youtube.upload_lesson,
-             facebook.publish_video, youtube.upload, youtube.set_thumbnail)
+             facebook.publish_video, youtube.upload, youtube.set_thumbnail, basics.fact_check)
     env = {k: os.environ.get(k) for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN")}
     app.ROOT, app.datetime, app.log = tmp, FixedNow, logs.append
-    basics.generate_json, voice.synthesize = fake_llm, fake_voice
+    basics.generate_json, voice.synthesize, basics.fact_check = fake_llm, fake_voice, fake_fact_check
     youtube.upload_lesson, facebook.publish_video = fake_upload_lesson, fake_publish_video
     youtube.upload = youtube.set_thumbnail = lambda *a, **k: (_ for _ in ()).throw(AssertionError("daily upload"))
     os.environ["FB_PAGE_ID"], os.environ["FB_PAGE_TOKEN"] = "PAGE", "TOKEN"
@@ -3457,6 +3619,12 @@ def test_basics(cfg):
         assert e["platforms"] == ["youtube", "facebook"] and e["counts"] is False and e["trigger"] == "manual", e
         assert e["seconds"] > 0 and "workdir" not in e and e["publish_at"], e
         work = next((tmp / "output").glob("*/history_entry.json")).parent
+        package = json.loads((work / "package.json").read_text())
+        spoken = {s_["id"]: s_["text"] for s_ in package["scenes"]}
+        ask = basics.subscribe_ask(live)
+        assert spoken["point_1"].endswith(ask) and sum(t.count(ask) for t in spoken.values()) == 1, spoken
+        assert package["fact_check"]["verdict"] == "ok" and checks == [basics.facts(topic)], checks
+        assert said(f"Basics topic: {topic['id']}"), logs
         for name, size in (("16x9", (1920, 1080)), ("9x16", (1080, 1920))):
             path = work / f"basics_{name}.mp4"
             assert path.exists() and _probe_size(path) == size, (name, path)
@@ -3523,15 +3691,23 @@ def test_basics(cfg):
             Path(out).write_bytes(b"")
             return sum(a["duration"] for a in audio)
         with mock.patch.object(render, "build_video", fake_build):
-            # a writer that breaks the narration rules every time: 3 attempts, the edition stops, nothing out
-            answer[0] = bad
+            # a writer that breaks the narration rules every time ("I'm buying"): 3 attempts, the edition stops
+            answer[0] = "bad"
             prompts.clear()
             n_yt, n_fb, n_voice = len(yt), len(fb), len(voices)
             assert go("--session", "basics") == 1, logs
             assert len(prompts) == 3 and said("attempt 3/3") and said("Discarding draft") and said("first person"), logs
             assert said("Basics failed: Could not produce valid Basics narration in 3 attempts"), logs
             assert len(yt) == n_yt and len(fb) == n_fb and len(voices) == n_voice and len(history()) == 1
-            answer[0] = good
+            # the second run picked the next approved topic (the sample is published)
+            assert current[0]["id"] == queue[1]["id"] and said(f"Basics topic: {queue[1]['id']}"), logs
+            # a number the approved points don't hold: the fact-check stops it, nothing published, no retry
+            answer[0] = "number"
+            prompts.clear()
+            assert go("--session", "basics") == 1, logs
+            assert said("Basics failed: Basics fact-check failed") and said("11") and len(prompts) == 1, logs
+            assert len(yt) == n_yt and len(fb) == n_fb and len(voices) == n_voice and len(history()) == 1
+            answer[0] = None
 
             # Facebook fails: the YouTube id is kept, exit 1, said so
             fail_fb[0] = True
@@ -3539,6 +3715,7 @@ def test_basics(cfg):
             assert said("Facebook Basics video failed") and said("V7") and said("Not published on: facebook"), logs
             h = history()
             assert len(h) == 2 and h[1]["video_id"] == f"Y{n_yt + 1}" and not h[1].get("fb_video_id"), h
+            assert h[1]["topic"] == queue[1]["id"], h[1]
             assert h[1]["platforms"] == ["youtube"] and h[1]["voice"] == cfg["voice"]["alternate"], h[1]
             assert shapes == [(1920, 1080, 6), (1080, 1920, 6)], shapes
             fail_fb[0] = False
@@ -3548,10 +3725,19 @@ def test_basics(cfg):
             clock[0] = datetime(2026, 10, 14, 15, 5, tzinfo=timezone.utc)
             assert go("--session", "basics", "--scheduled") == 0, logs
             assert history()[-1]["counts"] is True and history()[-1]["trigger"] == "timed"
+            assert history()[-1]["topic"] == queue[2]["id"], history()[-1]  # the FB-failed topic isn't repeated
             assert go("--session", "basics", "--scheduled") == 0 and said("already published"), logs
+            # only a draft left: nothing to publish, nothing made
+            prompts.clear()
+            assert go("--session", "basics") == 0 and said("Basics: nothing to publish"), logs
+            assert not prompts and len(history()) == 3
+            # an invalid topic list stops the edition before anything is made
+            write_topics(queue + [dict(queue[0], thumbnail="WHAT IS A BITCOIN ETF")])
+            assert go("--session", "basics") == 1 and said("Basics topic problem") and said("duplicate id"), logs
+            assert not prompts and len(history()) == 3
     finally:
         (app.ROOT, app.datetime, app.log, basics.generate_json, voice.synthesize, youtube.upload_lesson,
-         facebook.publish_video, youtube.upload, youtube.set_thumbnail) = saved
+         facebook.publish_video, youtube.upload, youtube.set_thumbnail, basics.fact_check) = saved
         for k, v in env.items():
             if v is None:
                 os.environ.pop(k, None)
@@ -3563,9 +3749,11 @@ def test_basics(cfg):
     wf = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
     on = wf.get("on", wf.get(True))  # PyYAML reads the bare key `on` as True
     assert "basics" in on["workflow_dispatch"]["inputs"]["session"]["options"], on["workflow_dispatch"]
-    print("OK basics: sample topic → 16x9 + 9x16 from one narration, diagrams revealed in narration order (no "
-          "fallback, contact frames in output/test_basics), YouTube 16:9 + Facebook 9:16, history kind basics + voice, "
-          "rule-breaking writer stops, FB failure keeps YT, days skip, dark timed skip, workflow option")
+    print("OK basics: first approved topic → 16x9 + 9x16 from one narration, diagrams revealed in narration order (no "
+          "fallback, contact frames in output/test_basics), YouTube 16:9 + Facebook 9:16, history kind basics + topic + "
+          "voice, subscribe ask after the first payoff, rule-breaking writer stops, unknown number stops at the "
+          "fact-check, next run → next topic, FB failure keeps YT, nothing to publish, bad list stops, days skip, "
+          "dark timed skip, workflow option")
 
 
 if __name__ == "__main__":

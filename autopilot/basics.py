@@ -15,9 +15,17 @@ points → the same narration rendered 16:9 (YouTube) and 9:16 (Facebook). Dark 
     scene_plan(topic)                    hook → one scene per approved point → recap; a point's `diagram`
                                          (autopilot/diagrams.py) is validated here (problems → ValueError) and
                                          its parts' naming order goes into the scene's `covers`
-    write_script(cfg, topic, plan, log)  Gemini narrates the plan; checks: every scene narrated, word
-                                         bounds (basics.min_words-max_words), rules.narration_problems;
-                                         3 failed attempts → RuntimeError (the edition stops)
+    write_script(cfg, topic, plan, log)  Gemini narrates the plan; the fixed subscribe ask (subscribe_ask)
+                                         is added at the end of the first point scene (the first payoff);
+                                         checks (check_script): every scene narrated, word bounds
+                                         (basics.min_words-max_words), rules.narration_problems, the ask once
+                                         and only there; 3 failed attempts → RuntimeError. The passing draft is
+                                         fact-checked (script.fact_check against facts(topic), its package
+                                         merged back, then every spoken digit-number, small ones too, must
+                                         be in the approved facts: unknown_numbers); a reject, a
+                                         revised draft with problems or an unknown number → RuntimeError at
+                                         once (the edition stops, no retry)
+    facts(topic)                         the only facts: question, summary, approved points (term + text)
     render_slides(cfg, topic, plan, layout, workdir)  title + concept + recap slides in one lesson_slides
                                          layout (LANDSCAPE / PORTRAIT); the caption band is never drawn into.
                                          A point with a diagram: "KEY IDEA n OF m" + the term + the drawn
@@ -33,6 +41,7 @@ The look follows lesson_slides (its public layouts and helpers, never changed) w
 header chip instead of the lesson's track label.
 """
 import copy
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,7 +52,7 @@ from PIL import Image, ImageDraw
 from autopilot import diagrams, rules
 from autopilot.lesson_slides import BG, DISCLAIMER, FG, LANDSCAPE, MUTED, Layout, _flow, _font, _heading
 from autopilot.llm import generate_json
-from autopilot.script import _merge_plan, _models
+from autopilot.script import _merge_plan, _models, fact_check
 from autopilot.slides import PANEL, _hex, _wrap
 
 SAMPLE = Path(__file__).resolve().parents[1] / "tests" / "basics" / "sample_topic.yaml"
@@ -58,6 +67,15 @@ CHIP = "CRYPTO BASICS"
 CATEGORY = "27"  # Education (cfg basics.category_id)
 THUMB_SIZE = (1280, 720)
 DIAGRAM_GAP = 44  # px between the term and the diagram
+SUBSCRIBE_ASK = "If this helped, subscribe for the next Crypto Basics explainer."  # cfg basics.subscribe_ask
+SUBSCRIBE = re.compile(r"\bsubscri[bp]\w*", re.I)  # subscribe(d/r/rs/ing), subscription(s)
+NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
+ASK_SCENE = "point_1"  # the first payoff: the ask closes the first explained point, never the opening
+BASICS_RULES = """
+3. This is a beginner explainer. The data above are its ONLY approved facts: every claim must follow from
+   them. Remove any number, date, name, product, company or claim the approved points do not state. Keep
+   the plain, neutral data-desk tone; no first person, advice, predictions or prices.
+   Keep every scene id and the words that name each diagram part."""
 
 
 def sample_topic() -> dict:
@@ -251,7 +269,8 @@ Rules:
   time it is used.
 - No numbers at all, no predictions, no advice, no performance claims, no prices.
 - "recap" says: "This is education, not financial advice."
-- No greetings, no "in this video", no "like and subscribe".
+- No greetings, no "in this video", no "like and subscribe", never ask viewers to subscribe (one short
+  subscribe line is added for you after the first point).
 - When a scene lists diagram parts, say each part's quoted words in that order, each in the sentence
   where that part comes up (the picture shows each part as it is named).
 {rules.NARRATION_RULES}
@@ -263,9 +282,62 @@ def _words(scenes: list[dict]) -> int:
     return sum(len((s.get("text") or "").split()) for s in scenes)
 
 
+def subscribe_ask(cfg: dict) -> str:
+    """The one short spoken subscribe ask (cfg basics.subscribe_ask, else SUBSCRIBE_ASK)."""
+    return _clean((cfg.get("basics") or {}).get("subscribe_ask") or SUBSCRIBE_ASK)
+
+
+def _ask_scene(plan: list[dict]) -> str:
+    """The scene the ask closes: the first point (the first payoff), else the first scene after the hook."""
+    ids = [p["id"] for p in plan]
+    return ASK_SCENE if ASK_SCENE in ids else ids[min(1, len(ids) - 1)]
+
+
+def _with_ask(cfg: dict, plan: list[dict], scenes: list[dict]) -> list[dict]:
+    """The scenes with the subscribe ask appended to the first payoff scene's narration (copies)."""
+    where = _ask_scene(plan)
+    out = []
+    for s in scenes:
+        s = dict(s)
+        if s.get("id") == where and (s.get("text") or "").strip():
+            s["text"] = f"{s['text'].strip()} {subscribe_ask(cfg)}"
+        out.append(s)
+    return out
+
+
+def _without_ask(cfg: dict, scenes: list[dict]) -> list[dict]:
+    ask = subscribe_ask(cfg)
+    return [dict(s, text=_clean((s.get("text") or "").replace(ask, " "))) for s in scenes]
+
+
+def facts(topic: dict) -> dict:
+    """The only facts a Basics narration may state: the question, the summary and the approved points."""
+    return {"question": _clean(topic.get("question")), "summary": _clean(topic.get("summary")),
+            "points": [{"term": _clean(p.get("term")), "text": _clean(p.get("text"))}
+                       for p in topic.get("points") or []]}
+
+
+def _values(text: str) -> list[float]:
+    out = []
+    for m in NUMBER.finditer(text or ""):
+        try:
+            out.append(float(m.group(0).replace(",", "")))
+        except ValueError:
+            pass
+    return out
+
+
+def unknown_numbers(text: str, known: dict) -> list[str]:
+    """Every digit-number spoken in `text` (small ones too) whose value the approved facts don't hold."""
+    have = set(_values(json.dumps(known, ensure_ascii=False)))
+    return list(dict.fromkeys(m.group(0) for m in NUMBER.finditer(text or "")
+                              if float(m.group(0).replace(",", "")) not in have))
+
+
 def check_script(cfg: dict, plan: list[dict], scenes: list[dict]) -> list[str]:
     """Deterministic problems with a narration ([] = usable): every scene narrated, word bounds,
-    the shared data-desk narration rules."""
+    the shared data-desk narration rules, and the subscribe ask exactly once, at the end of the first
+    payoff scene (no other subscribe mention anywhere)."""
     lo, hi = _bounds(cfg)
     texts = {s["id"]: (s.get("text") or "").strip() for s in scenes}
     problems = [f"scene '{p['id']}': no narration" for p in plan if not texts.get(p["id"])]
@@ -274,25 +346,63 @@ def check_script(cfg: dict, plan: list[dict], scenes: list[dict]) -> list[str]:
         problems.append(f"{words} words (target {lo}-{hi})")
     problems += [f"narration rule: {r}" for r in rules.narration_problems("\n".join(texts.get(p["id"], "")
                                                                                     for p in plan))]
+    ask, where = subscribe_ask(cfg), _ask_scene(plan)
+    mentions = {p["id"]: len(SUBSCRIBE.findall(texts.get(p["id"], ""))) for p in plan}
+    if not texts.get(where, "").endswith(ask) or sum(mentions.values()) != len(SUBSCRIBE.findall(ask)):
+        others = [k for k, n in mentions.items() if n and k != where]
+        problems.append("subscribe ask: once, at the end of the first payoff scene "
+                        f"('{where}') only" + (f" (also in {', '.join(others)})" if others else ""))
     return problems
 
 
+def _draft(cfg: dict, topic: dict, plan: list[dict], answer: dict) -> list[dict]:
+    """A writer's (or fact-checker's) answer merged onto the plan, terms carried, the ask added."""
+    pkg = _merge_plan(plan, answer if isinstance(answer, dict) else {})
+    for s, p in zip(pkg["scenes"], plan):
+        if p.get("term"):
+            s["term"] = p["term"]
+    return _with_ask(cfg, plan, pkg["scenes"])
+
+
 def write_script(cfg: dict, topic: dict, plan: list[dict], log=print) -> dict:
-    """{"scenes": [{id, text, visual, term?}]} narrated by Gemini from the topic's approved points.
-    A draft with any problem (check_script) is discarded; RuntimeError after 3 failed attempts."""
+    """{"scenes": [{id, text, visual, term?}], "fact_check": {verdict, issues}} narrated by Gemini from the
+    topic's approved points, with the subscribe ask closing the first payoff scene. A draft with any
+    problem (check_script) is discarded; RuntimeError after 3 failed attempts. The first passing draft is
+    fact-checked: a reject, a revised draft with problems or a spoken number the approved facts don't hold
+    → RuntimeError at once (no retry: the edition stops)."""
     problems: list[str] = []
     for attempt in range(1, 4):
         log(f"Writing the Basics narration ({topic['id']}, attempt {attempt}/3)...")
-        pkg = _merge_plan(plan, generate_json(_prompt(cfg, topic, plan), _models(cfg), temperature=0.6) or {})
-        for s, p in zip(pkg["scenes"], plan):
-            if p.get("term"):
-                s["term"] = p["term"]
-        problems = check_script(cfg, plan, pkg["scenes"])
-        log(f"Draft: {_words(pkg['scenes'])} words")
+        scenes = _draft(cfg, topic, plan, generate_json(_prompt(cfg, topic, plan), _models(cfg), temperature=0.6) or {})
+        problems = check_script(cfg, plan, scenes)
+        log(f"Draft: {_words(scenes)} words")
         if not problems:
-            return {"scenes": pkg["scenes"]}
+            return _fact_checked(cfg, topic, plan, scenes, log)
         log(f"Discarding draft: {'; '.join(problems)}")
     raise RuntimeError(f"Could not produce valid Basics narration in 3 attempts: {'; '.join(problems)}")
+
+
+def _fact_checked(cfg: dict, topic: dict, plan: list[dict], scenes: list[dict], log=print) -> dict:
+    """script.fact_check against the approved facts (the ask is not sent), then the deterministic checks
+    again and the number check; any failure → RuntimeError ("Basics fact-check failed: …")."""
+    lo, hi = _bounds(cfg)
+    fcfg = {**cfg, "llm": {**(cfg.get("llm") or {}), "min_words": lo, "max_words": hi}}
+    known = facts(topic)
+    sent = {"title": known["question"],
+            "scenes": [{"id": s["id"], "text": s["text"]} for s in _without_ask(cfg, scenes)]}
+    log("Fact-checking the Basics narration against the topic's approved points...")
+    verdict, checked, issues = fact_check(fcfg, known, sent, BASICS_RULES)
+    log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))
+    if verdict == "reject":
+        raise RuntimeError(f"Basics fact-check failed: verdict reject ({'; '.join(map(str, issues)) or 'no reason'})")
+    revised = _draft(cfg, topic, plan, checked) if isinstance(checked, dict) and checked.get("scenes") else scenes
+    problems = check_script(cfg, plan, revised)
+    bad = unknown_numbers("\n".join(s.get("text") or "" for s in revised), known)
+    if bad:
+        problems.append("numbers not in the approved points: " + ", ".join(bad))
+    if problems:
+        raise RuntimeError(f"Basics fact-check failed: {'; '.join(problems)}")
+    return {"scenes": revised, "fact_check": {"verdict": verdict, "issues": issues}}
 
 
 # ─── slides ────────────────────────────────────────────────────────────────
