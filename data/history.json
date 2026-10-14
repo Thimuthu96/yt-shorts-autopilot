@@ -807,6 +807,27 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-14T05:46:39+00:00",
+      "brief_date": "2026-10-14",
+      "session": "london",
+      "kind": "market",
+      "title": "US Dollar News Today: Fed Hike Odds Top 90% Ahead of CPI | Oct 14",
+      "video_id": "4CHzQe8zbMs",
+      "seconds": 37.7,
+      "headlines": [
+        "Fed Rate Hike Odds Above 90%: Here’s What Wall Street Is Watching",
+        "Fed’s Williams sees AI supply squeeze lasting beyond 2 years"
+      ],
+      "lead": "USD",
+      "fb_reel_id": "1542093124606446",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
