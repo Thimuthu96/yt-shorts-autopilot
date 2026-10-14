@@ -87,6 +87,7 @@ jobs:
         run: |
           shopt -s nullglob
           entries=(output/*/history_entry.json)
+          materials=(output/*/material.json)   # Shorts material of long videos (data/material/, epic 4 reads it)
           if [ ${#entries[@]} -eq 0 ]; then echo "Nothing published, nothing to log"; exit 0; fi
           git config user.name "shorts-autopilot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -95,7 +96,11 @@ jobs:
             git fetch -q origin "$GITHUB_REF_NAME"
             git reset -q --hard "origin/$GITHUB_REF_NAME"
             python -m autopilot.history add "${entries[@]}"
+            if [ ${#materials[@]} -gt 0 ]; then
+              python -m autopilot.material add "${materials[@]}" || echo "::warning::Shorts material not merged"
+            fi
             git add data/history.json
+            if [ -d data/material ]; then git add data/material/; fi
             if git diff --cached --quiet; then echo "History already up to date"; exit 0; fi
             git commit -qm "Log published edition"
             if git push -q origin "HEAD:$GITHUB_REF_NAME"; then echo "History saved"; exit 0; fi
@@ -115,6 +120,7 @@ jobs:
             output/*/lesson_*.mp4
             output/*/basics_*.mp4
             output/*/package.json
+            output/*/material.json
             output/*/metadata.json
             output/*/data.json
             output/*/thumbnail.jpg

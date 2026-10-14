@@ -67,6 +67,7 @@ POINT_FIELDS = ("term", "text", "diagram")
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")  # kebab-case
 MAX_QUESTION = 100  # characters (YouTube's title limit)
 THUMB_WORDS = 3  # packaging.md: 1-3 words on a Basics thumbnail
+MIN_POINTS = 4  # Shorts material needs ≥ 5 segments (overview + one per point; autopilot/material.py)
 MIN_WORDS, MAX_WORDS = 600, 900  # cfg basics.min_words / max_words
 CHIP = "CRYPTO BASICS"
 CATEGORY = "27"  # Education (cfg basics.category_id)
@@ -178,6 +179,9 @@ def validate_topic(topic) -> list[str]:
         if not isinstance(points, list) or not points:
             out.append("points must be a non-empty list")
         else:
+            if len(points) < MIN_POINTS:
+                out.append(f"{len(points)} points (at least {MIN_POINTS}: the Shorts material needs "
+                           f"{MIN_POINTS + 1} segments, an overview and one per point)")
             for n, p in enumerate(points, 1):
                 out += _point_problems(n, p)
     if "approved" in topic and not isinstance(topic["approved"], bool):

@@ -95,6 +95,11 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → publish_basics(pending) youtube.upload_lesson() 16:9 (no playlists, basics.review_window_hours) ·
                             facebook.publish_video() 9:16 (basics.fb_published); one failure never blocks the other
   → history.json            kind: basics, topic, title, video_id, fb_video_id, seconds, voice
+  → Shorts material         autopilot/material.py: built + validated before rendering (≥ 5 segments: overview + one
+                            per point; problems → "Basics Shorts material", exit 1); after a publish written to
+                            data/material/basics-<topic>.json (a later run merges a missed platform's id) + a copy
+                            output/<stamp>/material.json, which the workflow's Save history step merges back after
+                            its reset (`python -m autopilot.material add`) and commits with data/history.json
 ```
 
 Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishing in
@@ -223,6 +228,10 @@ autopilot/basics.py      Crypto Basics (dark): sample_topic, load_topics / valid
                          fact-check vs facts(topic), failure stops),
                          render_slides (16:9 / 9:16, CRYPTO BASICS chip, diagram scenes stepped), packaging_problems,
                          render_thumbnail (words + diagram or coin icon), chapters, metadata (YouTube + Facebook)
+autopilot/material.py    Shorts material format (documented in its docstring; epics 3/4 write / read it): source,
+                         youtube_id / facebook_id, published_at, segments [{id, kind overview|concept, term,
+                         narration, diagram, facts, hooks ≤ 60 chars}] (≥ 5); build_basics, validate, save / load,
+                         merge, write, add (workflow CLI)
 autopilot/diagrams.py    drawn concept diagrams (shared: Basics now, epics 3/4 later): spec flow / compare / timeline
                          + notes (boxes, arrows, drawn coin badges BTC/ETH brand colours else accent, timeline
                          segments; `say` = spoken aliases), validate, steps (reveal order = spec order),
@@ -231,7 +240,7 @@ autopilot/diagrams.py    drawn concept diagrams (shared: Basics now, epics 3/4 l
 autopilot/lesson_meta.py lesson chapters, SEO title, description, hashtags, tags (YouTube + Facebook)
 lessons/                 curriculum.yaml (episode queue, list order) + glossary.yaml
 basics/topics.yaml       Crypto Basics topic list (list order = queue): id, question (search question = title),
-                         thumbnail (1-3 words), summary, points [{term, text, diagram}], approved; ships 4 builder
+                         thumbnail (1-3 words), summary, points (≥ 4) [{term, text, diagram}], approved; ships 4 builder
                          DRAFTS (approved: false) until the owner approves via PR (crypto-basics entry 4)
 autopilot/media.py       ffmpeg/ffprobe helpers
 assets/fonts/            Anton + Space Grotesk (SIL OFL) for thumbnails
@@ -241,6 +250,7 @@ tests/lessons/           sample curriculum + glossary + fixture candles
 tests/basics/            sample_topic.yaml: the Crypto Basics tracer topic (+ a diagram per point);
                          sample_narration.yaml: its narration naming every diagram part in order
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
+data/material/           Shorts material per published long video (<kind>-<id>.json), committed by the workflow
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
 .github/workflows/autopilot.yml   8 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled)
 ```

@@ -277,6 +277,7 @@ def main():
     test_basics_topics(cfg)
     test_basics_script(cfg)
     test_basics_packaging(cfg)
+    test_material(cfg)
     test_basics(cfg)
 
 
@@ -3261,6 +3262,7 @@ def test_basics_topics(cfg):
     one(lambda t: t.update(question="What is bitcoin"), 'no "?"')
     one(lambda t: t.update(question="What Is Bitcoin? " + "Really " * 15), "characters (at most 100)")
     one(lambda t: t.update(points=[]), "points must be a non-empty list")
+    one(lambda t: t.update(points=t["points"][:3]), "3 points (at least 4")  # Shorts material: 5 segments
     one(lambda t: t.update(summary="Analysts could hit $100k soon."), "summary", "price target")
     one(lambda t: t["points"][0].update(term="My favourite coin"), "point 1 term", "first person")
     one(lambda t: t.update(thumbnail="BITCOIN #BTC"), "thumbnail hashtag")
@@ -3547,6 +3549,107 @@ def test_basics_packaging(cfg):
           "→ no block, 1280x720 thumbnail with diagram or coin icon")
 
 
+def test_material(cfg):
+    """Shorts material (crypto-basics entry 7): a Basics episode's material (overview + one concept segment per
+    point: narration without the subscribe ask, diagram, approved fact, hooks ≤ 60 chars) validates, saves to
+    data/material/basics-<id>.json and round-trips with its video id; a later run's Facebook id merges into the
+    same file (twice = no change); each malformed case gets its reason (4 segments, empty narration, a rule-
+    breaking narration, bad diagram, long or dated hook, no platform id, duplicate id); `add` skips an invalid
+    copy; the workflow's history-save step merges and commits data/material/."""
+    import copy
+    from autopilot import basics, material
+
+    topic = dict(basics.sample_topic(), thumbnail="BITCOIN ETF?", approved=True)
+    ask = basics.subscribe_ask(cfg)
+    narr = _sample_narration()
+    scenes = [{"id": k, "text": v + (" " + ask if k == "point_1" else "")} for k, v in narr.items()]
+    entry = {"video_id": "Y1", "fb_video_id": None, "date": "2026-10-14T15:05:00+00:00",
+             "publish_at": "2026-10-15T15:05:00.000Z"}
+    m = material.build_basics(topic, scenes, entry, cfg)
+    assert material.validate(m) == [], material.validate(m)
+    assert [s_["id"] for s_ in m["segments"]] == ["overview", "point_1", "point_2", "point_3", "point_4"]
+    assert m["source"] == {"kind": "basics", "id": topic["id"], "title": topic["question"]}
+    assert m["youtube_id"] == "Y1" and m["facebook_id"] is None and m["published_at"] == entry["publish_at"]
+    seg = m["segments"][1]
+    assert seg["kind"] == "concept" and seg["term"] == topic["points"][0]["term"] and ask not in seg["narration"]
+    assert seg["diagram"] == topic["points"][0]["diagram"] and seg["facts"] == [" ".join(topic["points"][0]["text"].split())]
+    assert seg["hooks"] == ["What is exchange-traded fund?", "What Is a Bitcoin ETF?"], seg["hooks"]
+    assert m["segments"][0]["hooks"] == ["What Is a Bitcoin ETF?"] and m["segments"][0]["diagram"] is None
+    assert all(len(h) <= 60 for s_ in m["segments"] for h in s_["hooks"])
+    q = "Ethereum vs Bitcoin: What's the Difference? (Explained Simply)"
+    assert material.hooks_for("Bitcoin mining") == ["What is Bitcoin mining?"]
+    assert material.hooks_for("The block reward", q)[0] == "What is the block reward?"
+    assert material.hooks_for("Wallets and private keys")[0] == "What are wallets and private keys?"
+    assert material.hooks_for("Payment channels") == ["What are payment channels?"]
+    assert material.hooks_for("What each one is for", q) == ["Ethereum vs Bitcoin: What's the Difference?"]
+    for t_ in basics.load_topics():  # every shipped draft gives every segment a hook
+        assert all(material.hooks_for(p_["term"], t_["question"]) for p_ in t_["points"]), t_["id"]
+
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        path = material.write(m, tmp)
+        assert path == tmp / "data" / "material" / f"basics-{topic['id']}.json"
+        back = material.load(path)
+        assert back == m and back["youtube_id"] == "Y1" and material.validate(back) == []
+        later = material.build_basics(topic, scenes, dict(entry, video_id=None, fb_video_id="F1"), cfg)
+        material.write(later, tmp)
+        both = material.load(path)
+        assert both["youtube_id"] == "Y1" and both["facebook_id"] == "F1" and both["segments"] == m["segments"]
+        material.write(later, tmp)
+        assert material.load(path) == both
+        # the workflow's merge: valid copies merged, an invalid one skipped
+        copy_ok = material.save(dict(m, source=dict(m["source"], id="other-topic")), tmp / "out1" / "material.json")
+        bad = dict(m, segments=m["segments"][:4])
+        copy_bad = material.save(bad, tmp / "out2" / "material.json")
+        done = material.add([copy_ok, copy_bad], tmp)
+        assert done == [tmp / "data" / "material" / "basics-other-topic.json"], done
+        # an unreadable copy or existing file never stops the merge (the workflow then commits history)
+        (tmp / "out3").mkdir()
+        (tmp / "out3" / "material.json").write_text("{not json", encoding="utf-8")
+        path.write_text("[1, 2]", encoding="utf-8")  # a broken file on main is replaced
+        done = material.add([tmp / "out3" / "material.json", copy_ok, tmp / "out1" / "material.json"], tmp)
+        assert len(done) == 2 and material.write(m, tmp) == path and material.load(path) == m
+        try:
+            material.write(bad, tmp)
+            raise AssertionError("an invalid material must not be written")
+        except ValueError as e:
+            assert "4 segments" in str(e), e
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    def reasons(edit) -> list[str]:
+        x = copy.deepcopy(m)
+        edit(x)
+        return material.validate(x)
+
+    def one(edit, *words):
+        got = reasons(edit)
+        assert len(got) == 1 and all(w in got[0] for w in words), (words, got)
+
+    one(lambda x: x.update(segments=x["segments"][:4]), "4 segments (at least 5)")
+    one(lambda x: x["segments"][2].update(narration=""), "segment point_2: empty narration")
+    one(lambda x: x["segments"][2].update(narration="I think it works well."), "point_2 narration", "first person")
+    one(lambda x: x["segments"][3].update(diagram={"type": "pie"}), "point_3 diagram")
+    one(lambda x: x["segments"][1].update(hooks=["What does this very long concept name mean for every beginner out there?"]),
+        "over 60")
+    one(lambda x: x["segments"][1].update(hooks=["Bitcoin ETF in October 2026?"]), "title rule")
+    one(lambda x: x["segments"][1].update(hooks=[]), "at least one hook")
+    one(lambda x: x.update(youtube_id=None), "no platform id")
+    one(lambda x: x["segments"][4].update(id="point_1"), "duplicate id")
+    one(lambda x: x["segments"][1].update(kind="clip"), "kind must be")
+    one(lambda x: x["segments"][1].update(facts=[]), "facts")
+    one(lambda x: x.update(version=2), "version")
+    assert material.validate([]) == ["material must be a mapping"]
+
+    wf = (ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8")
+    save_step = wf.split("- name: Save history", 1)[1].split("- name:", 1)[0]
+    assert "data/material/" in save_step and "python -m autopilot.material add" in save_step, save_step
+    assert "output/*/material.json" in wf
+    print("OK material: Basics material (overview + concept segments, no subscribe ask, hooks ≤ 60) validates, "
+          "saves to data/material/ and round-trips, later FB id merges (idempotent), add skips invalid copies, "
+          "each malformed case has its reason, workflow merges + commits data/material/")
+
+
 def test_basics(cfg):
     """The Crypto Basics edition (crypto-basics entries 1-2, 5) through main(): the sample topic narrated (mocked
     Gemini answering with tests/basics/sample_narration.yaml, small word bounds), picked as the first approved
@@ -3709,6 +3812,10 @@ def test_basics(cfg):
         assert e["platforms"] == ["youtube", "facebook"] and e["counts"] is False and e["trigger"] == "manual", e
         assert e["seconds"] > 0 and "workdir" not in e and e["publish_at"], e
         work = next((tmp / "output").glob("*/history_entry.json")).parent
+        mat = json.loads((tmp / "data" / "material" / f"basics-{topic['id']}.json").read_text())
+        from autopilot import material
+        assert material.validate(mat) == [] and mat["youtube_id"] == "Y1" and mat["facebook_id"] == "F1", mat
+        assert json.loads((work / "material.json").read_text()) == mat and said("Shorts material: data/material/")
         package = json.loads((work / "package.json").read_text())
         spoken = {s_["id"]: s_["text"] for s_ in package["scenes"]}
         ask = basics.subscribe_ask(live)
@@ -3801,6 +3908,8 @@ def test_basics(cfg):
             assert go("--session", "basics") == 1, logs
             assert said("Basics failed: Basics fact-check failed") and said("11") and len(prompts) == 1, logs
             assert len(yt) == n_yt and len(fb) == n_fb and len(voices) == n_voice and len(history()) == 1
+            mat_dir = tmp / "data" / "material"
+            assert sorted(p_.name for p_ in mat_dir.iterdir()) == [f"basics-{topic['id']}.json"]  # nothing published
             answer[0] = None
 
             # Facebook fails: the YouTube id is kept, exit 1, said so
@@ -3810,8 +3919,17 @@ def test_basics(cfg):
             h = history()
             assert len(h) == 2 and h[1]["video_id"] == f"Y{n_yt + 1}" and not h[1].get("fb_video_id"), h
             assert h[1]["topic"] == queue[1]["id"], h[1]
+            m1 = json.loads((mat_dir / f"basics-{queue[1]['id']}.json").read_text())
+            assert m1["youtube_id"] == h[1]["video_id"] and m1["facebook_id"] is None, m1
             assert h[1]["platforms"] == ["youtube"] and h[1]["voice"] == cfg["voice"]["alternate"], h[1]
             assert shapes == [(1920, 1080, 6), (1080, 1920, 6)], shapes
+
+            # both platforms fail: nothing recorded, no Shorts material, exit 1
+            def yt_down(*a, **k):
+                raise RuntimeError("quota exceeded")
+            with mock.patch.object(youtube, "upload_lesson", yt_down):
+                assert go("--session", "basics") == 1 and said("Not published on: youtube, facebook"), logs
+            assert len(history()) == 2 and not (mat_dir / f"basics-{queue[2]['id']}.json").exists()
             fail_fb[0] = False
 
             # enabled, timed on Wednesday: made and published, counts for the slot
@@ -3831,6 +3949,13 @@ def test_basics(cfg):
             with mock.patch.object(basics, "validate_topics", lambda topics: []):
                 assert go("--session", "basics") == 1 and said("Basics packaging") and said("date"), logs
             assert not prompts and len(history()) == 3
+            # a topic that can't give the Shorts material its 5 segments stops before narration is voiced
+            short = [dict(t_, points=t_["points"][:3], approved=True) for t_ in queue]
+            write_topics(short)
+            with mock.patch.object(basics, "validate_topics", lambda topics: []):
+                assert go("--session", "basics") == 1 and said("Basics Shorts material") and said("4 segments"), logs
+            assert len(history()) == 3
+            prompts.clear()
             write_topics(dated[:1] + queue[1:])
             assert go("--session", "basics") == 1 and said("Basics topic problem"), logs  # the list check too
             # an invalid topic list stops the edition before anything is made

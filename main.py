@@ -30,7 +30,7 @@ from pathlib import Path
 import yaml
 
 from autopilot import (basics, facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
-                       lessons, news_post, render, reveal, script, slides, sources, thumbnail, voice)
+                       lessons, material, news_post, render, reveal, script, slides, sources, thumbnail, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
@@ -509,6 +509,10 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
         {"topic": topic["id"], "title": topic["question"],
          "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]],
          "fact_check": pkg.get("fact_check")}, indent=2, ensure_ascii=False))
+    # the Shorts material must be makeable before anything is published (≥ 5 segments, rules, diagrams)
+    problems = material.validate(material.build_basics(topic, pkg["scenes"], {"video_id": "-", "date": date}, cfg))
+    if problems:
+        raise RuntimeError(f"Basics Shorts material ({topic['id']}): {'; '.join(problems)}")
 
     v = ab_voice(cfg["voice"], history, session_key)
     log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
@@ -548,7 +552,20 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
         "workdir": str(workdir.relative_to(ROOT)),
     }
     return {"entry": entry, "videos": videos, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
-            "workdir": workdir}
+            "workdir": workdir, "topic": topic, "scenes": pkg["scenes"]}
+
+
+def save_material(made: dict, entry: dict, cfg: dict, workdir: Path) -> None:
+    """After a Basics publish: its Shorts material (autopilot/material.py) merged into data/material/
+    (a later run for a missed platform adds its id) and a copy in the run's folder, which the workflow
+    merges again after resetting to the latest main. A failure here is logged, never fatal (published)."""
+    try:
+        m = material.build_basics(made["topic"], made["scenes"], entry, cfg)
+        material.save(m, workdir / "material.json")
+        path = material.write(m, ROOT)
+        log(f"Shorts material: {path.relative_to(ROOT)} ({len(m['segments'])} segments)")
+    except Exception as e:  # the video is out; the material can be rebuilt from package.json
+        log(f"Shorts material not saved: {e}")
 
 
 def publish_basics(made: dict, pending: list[str], cfg: dict) -> tuple[dict, list[str]]:
@@ -799,6 +816,8 @@ def main(argv: list[str] | None = None) -> int:
         (workdir / "history_entry.json").write_text(json.dumps(entry, indent=2, ensure_ascii=False))
         history.add(entry)
         history.save()
+        if kind == "basics":
+            save_material(made, entry, cfg, workdir)
     if failed:
         log(f"Not published on: {', '.join(failed)} (see the errors above)")
         return 1
