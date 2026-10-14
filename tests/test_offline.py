@@ -258,6 +258,7 @@ def main():
     test_focus_crypto_first()
     test_voice_fallback()
     test_voice_pacing(cfg)
+    test_voice_ab(cfg, data)
     test_history()
     test_facebook(cfg, PKG, data, meta, out, work / "thumbnail.jpg")
     test_facebook_video(cfg)
@@ -738,6 +739,98 @@ def test_voice_pacing(cfg):
     assert calls == [("+0%", True)], calls  # within the limit: one recording
     assert "pauses=True" in inspect.getsource(app.make_brief) and "pauses" not in inspect.getsource(app.make_lesson)
     print("OK voice pacing (+0%, pauses after key numbers + before the term, captions aligned, re-record faster)")
+
+
+def test_voice_ab(cfg, data):
+    """Entry 7 (CAP-7): two edge-tts voices alternate per edition (history decides, Piper entries skipped),
+    the voice that spoke (edge or Piper) is logged as "voice" in the brief's entry; lessons keep one voice."""
+    import inspect
+    from unittest import mock
+
+    import main as app
+    from autopilot import voice, youtube
+    a, b = cfg["voice"]["name"], cfg["voice"]["alternate"]
+    assert a != b and a.endswith("Neural") and b.endswith("Neural"), (a, b)
+    tmp = Path(tempfile.mkdtemp())
+    h = History(tmp / "history.json")
+
+    def published(session, who, vid):
+        h.add({"brief_date": "2026-10-07", "session": session, "kind": "market", "video_id": vid, "voice": who})
+
+    pick = lambda s="london": app.ab_voice(cfg["voice"], h, s)["name"]  # noqa: E731
+    assert pick() == a  # no history yet → voice.name
+    published("london", a, "V1")
+    assert pick() == b and pick("newyork") == a  # other editions keep their own turn
+    published("london", b, "V2")
+    assert pick() == a
+    published("london", "en_US-ryan-high", "V3")  # Piper fallback: logged, but takes no turn
+    assert pick() == a
+    h.data["videos"].append({"session": "london", "kind": "market", "video_id": None, "voice": a})  # never published
+    assert pick() == a
+    published("newyork", a, "V4")
+    assert pick() == a and pick("newyork") == b
+    solo = {k: v for k, v in cfg["voice"].items() if k != "alternate"}
+    assert app.ab_voice(solo, h, "london") == solo  # without alternate: one voice
+
+    # synthesize tags the voice that actually spoke: the edge voice, or the Piper model on fallback
+    async def fine(text, v, rate, mp3):
+        mp3.write_bytes(b"\0" * 2000)
+        return [(0.0, 0.3, w) for w in text.split()]
+
+    class FakePiper:
+        def synthesize_wav(self, text, w, syn_config=None):
+            w.setnchannels(1), w.setsampwidth(2), w.setframerate(22050)
+            w.writeframes(b"\x00\x01" * 22050)
+
+    scenes = [{"text": "Bitcoin rose two percent."}]
+    saved = voice._speak, voice._piper_voice, voice.run, voice.probe_duration, voice._edge_down
+    voice._speak, voice.probe_duration, voice._edge_down = fine, (lambda p: 1.0), False
+    voice.run = lambda cmd: Path(cmd[-1]).write_bytes(b"x")
+    try:
+        assert voice.synthesize(scenes, b, "+0%", tmp, log=lambda m: None)[0]["voice"] == b
+        voice.run, voice._piper_voice, voice._edge_down = saved[2], (lambda m: FakePiper()), True
+        assert voice.synthesize(scenes, b, "+0%", tmp, log=lambda m: None, fallback="en_US-ryan-high")[0]["voice"] \
+            == "en_US-ryan-high"
+    finally:
+        voice._speak, voice._piper_voice, voice.run, voice.probe_duration, voice._edge_down = saved
+
+    # make_brief (heavy steps faked) narrates with the rotated voice and logs the one that spoke
+    spoke = []
+
+    def fake_synth(scenes_, name, rate, workdir, log=print, fallback=None, pauses=False):
+        spoke.append(name)
+        who = fallback if fake_synth.piper else name
+        return [{"audio": None, "duration": 5.0, "words": [], "voice": who} for _ in scenes_]
+
+    def brief(history):
+        with mock.patch.object(app, "ROOT", tmp), \
+                mock.patch.object(app.sources, "gather", lambda *a_, **k: json.loads(json.dumps(data))), \
+                mock.patch.object(app.script, "make_script", lambda *a_, **k: json.loads(json.dumps(PKG))), \
+                mock.patch.object(app.thumbnail, "render", lambda *a_, **k: tmp / "thumb.jpg"), \
+                mock.patch.object(voice, "synthesize", fake_synth), \
+                mock.patch.object(app.slides, "render_slides", lambda *a_, **k: []), \
+                mock.patch.object(app.render, "build_video", lambda *a_, **k: None), \
+                mock.patch.object(youtube, "build_metadata", lambda *a_, **k: {"title": "t"}), \
+                mock.patch.object(app.facebook, "reel_caption", lambda *a_, **k: "c"):
+            return app.make_brief(cfg, history, None, "london")["entry"]
+
+    fake_synth.piper = False
+    h2 = History(tmp / "h2.json")
+    e1 = brief(h2)
+    assert e1["voice"] == a and spoke == [a], (e1, spoke)
+    h2.add({**e1, "video_id": "Y1"})
+    e2 = brief(h2)
+    assert e2["voice"] == b and spoke[-1] == b, (e2, spoke)  # the next run of the edition: the other voice
+    h2.add({**e2, "video_id": "Y2"})
+    fake_synth.piper = True
+    e3 = brief(h2)
+    assert spoke[-1] == a and e3["voice"] == cfg["voice"]["fallback"], e3  # Piper fallback recorded as Piper
+    h2.add({**e3, "video_id": "Y3"})
+    fake_synth.piper = False
+    assert brief(h2)["voice"] == a  # Piper took no turn: voice a gets its run back
+    assert "ab_voice" not in inspect.getsource(app.make_lesson)  # lessons: one voice, entries unchanged
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK voice A/B (alternates per edition, Piper logged and skipped, voice in the entry, lessons one voice)")
 
 
 def test_history():

@@ -114,7 +114,7 @@ def _edge(scenes: list[dict], voice: str, rate: str, workdir: Path, log, pauses:
             return None
         # decode to wav so durations (and caption timing) are exact
         run(["ffmpeg", "-y", "-v", "error", "-i", str(mp3), "-ar", "44100", "-ac", "1", str(wav)])
-        out.append({"audio": wav, "duration": probe_duration(wav), "words": words})
+        out.append({"audio": wav, "duration": probe_duration(wav), "words": words, "voice": voice})
     return out
 
 
@@ -166,7 +166,7 @@ def _piper(scenes: list[dict], model: str, rate: str, workdir: Path, pauses: boo
         # timed over the spoken text (its commas count as pauses), shown as the script's own words
         est, shown = estimate_words(text, dur), scene["text"].split()
         words = [(a, b, w) for (a, b, _), w in zip(est, shown)] if len(est) == len(shown) else est
-        out.append({"audio": wav, "duration": dur, "words": words})
+        out.append({"audio": wav, "duration": dur, "words": words, "voice": model})
     return out
 
 
@@ -174,8 +174,8 @@ def synthesize(scenes: list[dict], voice: str, rate: str, workdir: Path, log=pri
                fallback: str | None = None, pauses: bool = False) -> list[dict]:
     """One audio file per scene, so scene lengths are exact.
 
-    Returns [{"audio": wav_path, "duration": seconds, "words": [(start, end, text), ...]}]
-    with word times relative to the start of that scene. `fallback` = Piper voice name
+    Returns [{"audio": wav_path, "duration": seconds, "words": [(start, end, text), ...], "voice": who}]
+    with word times relative to the start of that scene; "voice" = the edge-tts voice or Piper model that spoke. `fallback` = Piper voice name
     (e.g. "en_US-ryan-high") used when edge-tts keeps failing; None = fail instead. `pauses` speaks
     `paced()` text (key-number and concept-term pauses; scene["term"] is optional).
     """

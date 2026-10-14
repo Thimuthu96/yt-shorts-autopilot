@@ -8,6 +8,7 @@ second entry for the same edition, so each platform's guard is checked on its ow
 
 Entries carry "trigger" (timed | manual) and "counts" (does it fill that day's edition slot?).
 Manual runs don't count unless started with --as-edition, so they never stop the autopilot.
+Brief and gold entries carry "voice" (the edge-tts voice or Piper model that narrated; main.ab_voice).
 
     python -m autopilot.history add output/*/history_entry.json   # merge (used by the workflow)
 """
@@ -79,6 +80,14 @@ class History:
         for v in reversed(self.uploaded()):
             if v.get("kind", "market") == kind:
                 return v
+        return None
+
+    def last_voice(self, session: str, voices) -> str | None:
+        """The "voice" of the latest uploaded entry of that edition that used one of `voices` (the A/B pair;
+        a Piper fallback entry is skipped), or None."""
+        for v in reversed(self.uploaded()):
+            if v.get("session", "london") == session and v.get("voice") in voices:
+                return v["voice"]
         return None
 
     def last_upload_time(self, kind: str = "market") -> datetime | None:

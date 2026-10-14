@@ -258,6 +258,7 @@ While `lessons.enabled` is false, lesson runs log why and stop without fetching 
 |---|---|
 | `channel.niche` / `audience` / `tone` | What the channel is about and how it sounds |
 | `voice.name` | Narrator voice. List them: `edge-tts --list-voices` |
+| `voice.alternate` | Second edge-tts voice for the 30-day A/B test: briefs + gold alternate `name` / `alternate` per edition, logged as `voice` in `data/history.json`. Remove the line to keep one voice |
 | `voice.fallback` | Piper voice used when edge-tts is down (`en_US-ryan-high`); remove to fail instead |
 | `upload.review_window_hours` | `0` = public immediately. e.g. `6` = sits private for 6 h so you can watch and delete it first, then goes public on its own |
 | `channel.display_name` | Brand line at the top of every graphic |

@@ -90,6 +90,16 @@ def narrate(v: dict, scenes: list[dict], limit: float, workdir: Path, pauses: bo
     return audio, total
 
 
+def ab_voice(v: dict, history: History, session_key: str) -> dict:
+    """The voice settings for a brief or gold run (narration-rules.md A/B): with `voice.alternate` set, each
+    edition alternates name / alternate, the other one from its latest uploaded edge-tts entry (Piper
+    entries are skipped; none yet → name). Without it, `v` unchanged."""
+    pair = (v["name"], v.get("alternate"))
+    if not pair[1]:
+        return v
+    return {**v, "name": pair[1] if history.last_voice(session_key, pair) == pair[0] else pair[0]}
+
+
 def auto_session(now: datetime) -> str:
     if now.hour < 5:
         return "asia"
@@ -158,7 +168,9 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
     thumb = thumbnail.render(cover, cfg, data["date_utc"], workdir / "thumbnail.jpg", session.get("short", ""))
 
     scenes = pkg["scenes"]
-    audio, total = narrate(cfg["voice"], scenes, cfg["video"]["max_seconds"], workdir, pauses=True)
+    v = ab_voice(cfg["voice"], history, session_key)
+    log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
+    audio, total = narrate(v, scenes, cfg["video"]["max_seconds"], workdir, pauses=True)
 
     log("Drawing the graphics...")
     footer = (cfg.get("gold") or {}).get("footer") if kind == "gold" else None
@@ -185,6 +197,7 @@ def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
         "title": meta["title"],
         "video_id": None,
         "seconds": round(total, 1),
+        "voice": audio[0]["voice"] if audio else v["name"],
         "headlines": pkg.get("headlines_used", [])[:10],
         **extra,
         "workdir": str(workdir.relative_to(ROOT)),

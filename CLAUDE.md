@@ -170,7 +170,7 @@ autopilot/facebook.py    Graph API v26.0: publish_reel, publish_photo, publish_v
 autopilot/news_post.py   FB news posts: pick_story, write_post (Gemini + fact_check + fallback), caption
 autopilot/images.py      news post background (Cloudflare FLUX → library → drawn) + render_card 1080x1350
 autopilot/seo.py         keyword-first titles (fallback built from data), description blocks, hashtags, tag seeds
-autopilot/history.py     data/history.json helpers (ID_KEYS / PLATFORM_IDS, per-platform published_on, merge CLI)
+autopilot/history.py     data/history.json helpers (ID_KEYS / PLATFORM_IDS, per-platform published_on, last_voice, merge CLI)
 autopilot/lessons.py     curriculum + glossary formats, validate, DETECTORS registry, pick (episode picker), scene_plan
 autopilot/detectors/     example detectors (structure, mtf, trendlines, liquidity, smc); importing registers them
 autopilot/lesson_data.py multi-timeframe candles for the detectors (Coinbase, Kraken PAXG + Swissquote, Frankfurter)
@@ -303,6 +303,10 @@ and "CryptoFX Daily Channel Art" (logo = coin ring + 3 candlesticks; banner 2560
   as…"; never "a five percent, drop", "$500 million, in…" or inside a range "2% to 3%") and after a naming verb
   before a scene's optional concept term (`scene["term"]`, for the new formats). edge-tts 7.2.8 XML-escapes the
   text, so no SSML (no `<break>` / emphasis). Captions show the script's words. Lessons: no pauses, same rate.
+  A/B (narration-rules.md, first 30 days): with `voice.alternate` (`en-US-BrianMultilingualNeural`) set, briefs
+  and gold alternate `name` / `alternate` per edition (`main.ab_voice` + `History.last_voice`: the other voice
+  from that session's latest uploaded edge-tts entry; Piper entries take no turn) and log `"voice"` (the
+  edge voice or Piper model that spoke) in the history entry for epic 5's comparison. Lessons: `name` only.
   Each scene retries edge-tts with waits 0/10/30/60 s (`voice.EDGE_WAITS`); if it still fails, the
   whole video is voiced by `voice.fallback` (Piper `en_US-ryan-high`, free, local, downloaded on first
   use ~120 MB; word timings estimated) and the rest of the run uses Piper. No `fallback` → the run fails.

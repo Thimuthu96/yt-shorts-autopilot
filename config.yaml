@@ -147,6 +147,9 @@ gold:
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:
   name: en-US-AndrewMultilingualNeural   # list voices: edge-tts --list-voices
+  # A/B test (narration-rules.md, first 30 days): briefs + gold alternate name / alternate per edition,
+  # logged as "voice" in data/history.json. Remove the line to keep one voice. Lessons always use name.
+  alternate: en-US-BrianMultilingualNeural
   rate: "+0%"                 # normal speed (narration-rules.md); briefs + gold pause after key numbers
   # Used when Microsoft's TTS keeps refusing the runner (403): a free local Piper voice for that video
   # (downloaded on first use). Remove the line to fail the run instead.
