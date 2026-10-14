@@ -889,6 +889,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-14T16:33:17+00:00",
+      "brief_date": "2026-10-14",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "DOLLAR INDEX NEARS 103",
+      "fb_post_id": "462331040302049_122252966630610202",
+      "headlines": [
+        "US Dollar Index roars towards 103 as hot CPI reignite Fed hike bets"
+      ],
+      "topic": "central_bank",
+      "source": "FXStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
