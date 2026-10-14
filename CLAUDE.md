@@ -93,7 +93,7 @@ Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishi
 rule and the once-per-edition-per-day-per-platform guard:
 `pending = session platforms ∩ enabled − platforms published today for this session`.
 
-## Editions (3 market briefs + 1 gold outlook + 3 FB news posts a day; weekends: London + news; lessons Tue/Thu/Sat/Sun)
+## Editions (3 market briefs + 1 gold outlook + 3 FB news posts a day; weekends: London + news; lesson Thursday)
 
 | key | label | due (`start_utc`) | Sri Lanka | outside timer | backup cron (UTC) | platforms |
 |---|---|---|---|---|---|---|
@@ -104,12 +104,12 @@ rule and the once-per-edition-per-day-per-platform guard:
 | `news_midday` | Midday News | 09:30 | 15:00 | cron-job.org 15:00 Asia/Colombo | `47 9 * * *` | FB post |
 | `newyork` | New York Open | 12:30 | 18:00 | cron-job.org 18:00 Asia/Colombo | `47 12 * * *` | YT + FB Reel |
 | `news_evening` | Evening News | 16:30 | 22:00 | cron-job.org 22:00 Asia/Colombo | `47 16 * * *` | FB post |
-| `lesson` | Trading Lesson | 14:30 | 20:00 | cron-job.org 20:00 Asia/Colombo, Tue/Thu/Sat/Sun | `47 14 * * 0,2,4,6` | YT 16:9 + FB video 9:16 |
+| `lesson` | Trading Lesson | 15:00 | 20:30 | cron-job.org 20:30 Asia/Colombo, Thu | `17 15 * * 4` | YT 16:9 + FB video 9:16 |
 | `basics` | Crypto Basics (dark) | 15:00 | 20:30 | none yet (epic 5 wires the timers), Wed | none (dispatch option only) | YT 16:9 + FB video 9:16 |
 
 - Defined in `config.yaml → sessions` (label, short, start_utc, focus text, `kind: gold` for gold,
   `kind: post` + `platforms: [facebook]` for news posts; video editions default to
-  `[youtube, facebook]`; `kind: lesson` + `days: [tue, thu, sat, sun]` for the lesson). `main.py` has
+  `[youtube, facebook]`; `kind: lesson` + `days: [thu]` for the lesson). `main.py` has
   `DEFAULT_SESSIONS` as a fallback if config lacks them (no lesson there).
 - **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
   work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (gold without `days` = Mon–Fri).
@@ -125,6 +125,16 @@ rule and the once-per-edition-per-day-per-platform guard:
   (timed or `--as-edition`) on a slot that already recorded an episode re-makes that episode with its
   recorded examples (history keeps each example's asset, timeframe and region start/end) and publishes
   only the platforms it's missing (`--force`: all); if it can't be re-made, the run fails (exit 1).
+- **Lesson top-up (`--slot`, crypto-pivot weekly floor):** `python main.py --session lesson --slot <session>`
+  (Actions: session `lesson` + input `slot`) fills today's slot of another edition (e.g. the Saturday
+  recap; Sunday 15:00 when Saturday is used, owner 2026-10-14) with the next unpublished episode. It is a
+  counting run recorded under that slot (`session: <slot>`, `trigger: topup`, `counts: true`) through
+  `make_lesson_edition(…, session_key=<slot>)`, so the once-per-slot guard and the recorded-episode
+  re-run apply and no episode repeats. The lesson's `days`, weekend rule and late window don't apply;
+  `lessons.enabled` does. A slot already holding another edition's counting upload → logged, exit 0.
+  `--slot` with a non-lesson session, an unknown slot or a news-post slot → exit 1. In the workflow a
+  `slot` run gets its own `topup-<slot>` concurrency group (a slot's backup cron can't cancel a waiting
+  top-up) and its run name ends "· slot <slot>".
 - **News posts every day, weekends included, crypto only (CAP-9):** only crypto or crypto-regulation
   stories (crypto, a coin, stablecoins, crypto ETFs, crypto exchanges or digital assets named in the
   title or summary; a bare "ETF" / "exchange" / "coin" or a body-only mention doesn't count). No fresh
@@ -169,13 +179,13 @@ Manual runs: Actions → Shorts autopilot → Run workflow → `session` (auto/a
 news_morning/news_midday/news_evening/lesson/basics), `platforms` (all/youtube/facebook, limited to the edition's
 own), optional `as_edition`. `auto` = market edition by current UTC hour (<5 asia, <12 london, else newyork).
 **YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific).
-Autopilot uses 4 on weekdays (5 on Tue/Thu with lessons on), so about 1–2 manual uploads a day fit.
+Autopilot uses 4 on weekdays (5 on Thursday with lessons on), so about 1–2 manual uploads a day fit.
 
 ## Files
 
 ```
 main.py                  orchestration, CLI: --session, --platforms, --scheduled (timed), --as-edition, --force, --no-upload,
-                         --lesson-sample; lessons: make_lesson_edition, make_lesson, publish_lesson;
+                         --slot (lesson top-up into another slot), --lesson-sample; lessons: make_lesson_edition, make_lesson, publish_lesson;
                          Crypto Basics: make_basics, publish_basics
 config.yaml              all settings (channel, llm, market, sessions, lessons, voice, video, upload)
 get_token.py             one-time OAuth login on the owner's PC → prints YT_* secrets (--lesson-scopes adds playlists)
@@ -232,7 +242,7 @@ tests/basics/            sample_topic.yaml: the Crypto Basics tracer topic (+ a 
                          sample_narration.yaml: its narration naming every diagram part in order
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
-.github/workflows/autopilot.yml   8 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled)
+.github/workflows/autopilot.yml   8 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled, slot)
 ```
 
 ## Data sources (all free, no API keys)

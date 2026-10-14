@@ -12,6 +12,7 @@ Plus Facebook-only news image posts (kind: post): story â†’ headline + caption â
     python main.py --session asia --scheduled   # timed run: weekend rule, late/early skip, once a day per platform
     python main.py --session asia --as-edition  # manual run that fills today's slot (timed run skips)
     python main.py --session lesson --scheduled  # trading lesson: next curriculum episode (YouTube + Facebook video)
+    python main.py --session lesson --slot recap  # top-up: the next unpublished lesson, once, in today's recap slot
     python main.py --session lesson --no-upload  # make the next lesson only (works with lessons.enabled false)
     python main.py --lesson-sample --no-upload  # sample trading lesson (16:9 + 9:16) on fixture candles
     python main.py --session basics   # Crypto Basics: the sample topic, 16:9 YouTube + 9:16 Facebook (timed runs: off
@@ -637,6 +638,10 @@ def main(argv: list[str] | None = None) -> int:
                    help="timed run (schedule / outside timer): weekend rule, late/early skip, once per edition per day")
     p.add_argument("--as-edition", action="store_true",
                    help="manual run that counts as today's edition, so its timed run then skips")
+    p.add_argument("--slot", default="",
+                   help="top-up (session lesson only): fill today's slot of this edition (a config.yaml session) "
+                        "with the next unpublished episode, once per slot; the lesson's days and time window "
+                        "don't apply")
     p.add_argument("--lesson-sample", action="store_true",
                    help="make the sample trading lesson on fixture candles (never uploaded; use with --no-upload)")
     args = p.parse_args(argv)
@@ -664,6 +669,18 @@ def main(argv: list[str] | None = None) -> int:
     session = cfg["sessions"][session_key]
     label = session["label"]
     kind = session.get("kind", "market")
+    # slot_key: the edition slot this run fills and is recorded under (a top-up fills another edition's)
+    slot_key = (args.slot or "").strip().lower() or session_key
+    topup = bool((args.slot or "").strip())
+    if topup and kind != "lesson":
+        log(f"--slot works only with --session lesson (the {label} edition can't top up another slot).")
+        return 1
+    if topup and slot_key not in cfg.get("sessions", {}):
+        log(f"Unknown slot '{slot_key}'. Choose one of: {', '.join(cfg.get('sessions', {}))}")
+        return 1
+    if topup and cfg["sessions"][slot_key].get("kind") == "post":
+        log(f"The {slot_key} slot is a Facebook news post; a lesson top-up can't fill it.")
+        return 1
     start = session.get("start_utc") or DEFAULT_SESSIONS.get(session_key, {}).get("start_utc")
 
     wanted = session_platforms(session)
@@ -680,11 +697,14 @@ def main(argv: list[str] | None = None) -> int:
                 "nothing to do.")
             return 0
 
-    if args.scheduled and now.weekday() >= 5 and session_key not in cfg.get("weekend_sessions", []):
+    if topup:
+        log(f"Top-up: the {label} edition fills today's {slot_key} slot (once per slot; the lesson's days and "
+            "time window don't apply).")
+    elif args.scheduled and now.weekday() >= 5 and session_key not in cfg.get("weekend_sessions", []):
         log(f"Weekend: forex is closed, so the {label} edition is skipped today.")
         return 0
     days = [str(d).strip().lower()[:3] for d in session.get("days") or []]
-    if args.scheduled and days and WEEKDAYS[now.weekday()] not in days:
+    if args.scheduled and not topup and days and WEEKDAYS[now.weekday()] not in days:
         log(f"The {label} edition runs only on {', '.join(days)}; skipped today ({WEEKDAYS[now.weekday()]}).")
         return 0
     if kind == "lesson" and not (cfg.get("lessons") or {}).get("enabled", False) \
@@ -696,7 +716,7 @@ def main(argv: list[str] | None = None) -> int:
         log("basics.enabled is false in config.yaml (Crypto Basics is dark), so the timed run is skipped. "
             "A manual run (Run workflow, no `scheduled`) still makes and publishes it.")
         return 0
-    if args.scheduled and start:
+    if args.scheduled and not topup and start:
         late = minutes_late(now, start)
         log(f"Timed run for the {label} edition (due {start} UTC, started {late:+d} min)")
         if late > cfg["max_late_minutes"]:
@@ -719,10 +739,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_upload:
         pending = []
     remake = False
-    if args.scheduled and not args.force and not args.no_upload:
-        done = [x for x in pending if history.published_on(today, session_key, x)]
+    if topup and not args.force and not args.no_upload:
+        other = sorted({v.get("kind", "market") for v in history.uploaded() if v.get("brief_date") == today
+                        and v.get("session", "london") == slot_key and v.get("counts", True)
+                        and not v.get("episode")})
+        if other:
+            log(f"Today's {slot_key} slot already published a {', '.join(other)} upload; no lesson top-up.")
+            return 0
+    if (args.scheduled or topup) and not args.force and not args.no_upload:
+        done = [x for x in pending if history.published_on(today, slot_key, x)]
         if done:
-            log(f"The {label} edition for {today} is already published on {', '.join(done)}.")
+            log((f"Today's {slot_key} slot ({today}) is" if topup else f"The {label} edition for {today} is")
+                + f" already published on {', '.join(done)}.")
         if done and len(done) == len(pending):
             log("Nothing to do.")
             return 0
@@ -731,7 +759,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         remake = bool(done)
         pending = [x for x in pending if x not in done]
-    if not args.scheduled:
+    if not args.scheduled and not topup:
         log("Manual run: makes and publishes now" +
             (" and fills today's slot (the timed run will skip)." if args.as_edition
              else "; the timed run of this edition still goes ahead."))
@@ -743,8 +771,9 @@ def main(argv: list[str] | None = None) -> int:
         if kind == "post":
             entry, failed = make_post(cfg, history, args, session_key, pending)
         elif kind == "lesson":
-            made, pending = make_lesson_edition(cfg, history, today, session_key, pending, args.no_upload,
-                                                counts=bool(args.scheduled or args.as_edition), force=args.force)
+            made, pending = make_lesson_edition(cfg, history, today, slot_key, pending, args.no_upload,
+                                                counts=bool(args.scheduled or args.as_edition or topup),
+                                                force=args.force)
             if made is None:
                 return 0
             entry, failed = publish_lesson(made, pending, cfg)
@@ -762,8 +791,8 @@ def main(argv: list[str] | None = None) -> int:
         log(f"{dict(post='Post', lesson='Lesson', basics='Basics').get(kind, 'Brief')} failed: {e}")
         return 1
     if any(entry.get(k) for k in ID_KEYS):
-        entry["trigger"] = "timed" if args.scheduled else "manual"
-        entry["counts"] = bool(args.scheduled or args.as_edition)
+        entry["trigger"] = "topup" if topup else "timed" if args.scheduled else "manual"
+        entry["counts"] = bool(args.scheduled or args.as_edition or topup)
         entry["platforms"] = [x for x, keys in PLATFORM_IDS.items() if any(entry.get(k) for k in keys)]
         workdir = ROOT / entry.pop("workdir")
         # the workflow merges this file into the latest data/history.json (safe with parallel runs)
