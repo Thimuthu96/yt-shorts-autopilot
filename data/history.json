@@ -788,6 +788,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-14T03:03:33+00:00",
+      "brief_date": "2026-10-14",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "XAU/USD FACES CPI AND RISKS",
+      "fb_post_id": "462331040302049_122252798498610202",
+      "headlines": [
+        "Gold Price Forecast: XAU/USD looks to $4100 and US CPI inflation amid geopolitical risks"
+      ],
+      "topic": "geopolitics",
+      "source": "FXStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
