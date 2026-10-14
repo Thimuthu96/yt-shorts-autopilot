@@ -767,6 +767,27 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-14T00:35:32+00:00",
+      "brief_date": "2026-10-14",
+      "session": "asia",
+      "kind": "market",
+      "title": "Ethereum Price Today: ETH Gains 3.8% to $2,510 | Asia Open, Oct 14",
+      "video_id": "chzN540HVbc",
+      "seconds": 42.0,
+      "headlines": [
+        "Bitcoin Analysis: Caution Keeps BTC Below $85K",
+        "Economists expect September CPI report to show accelerating inflation as energy costs surge"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "1833727907761491",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
