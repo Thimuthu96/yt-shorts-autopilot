@@ -274,6 +274,7 @@ def main():
     test_youtube_lesson(cfg)
     test_lesson_edition(cfg)
     test_diagrams(cfg)
+    test_basics_topics(cfg)
     test_basics(cfg)
 
 
@@ -3192,6 +3193,127 @@ def test_diagrams(cfg):
           f"16x9 and 9x16 (caption band clear, inside the content box, deterministic, base + layers == full), "
           f"too long → ValueError, sample narration reveals in order with no fallback · {len(sheets)} contact "
           f"sheets in {work.relative_to(ROOT)} and {DIAGRAM_SAMPLE.relative_to(ROOT)}")
+
+
+def test_basics_topics(cfg):
+    """The Basics topic list (crypto-basics entry 3): basics/topics.yaml ships four builder drafts that validate
+    and are all `approved: false`; each I/O-matrix problem gets its reason (dated question, long thumbnail,
+    price target in a point, malformed diagram, missing field / bad types, duplicate id / question); the
+    picker takes the first approved topic no uploaded basics entry has published (drafts, published, manual
+    non-counting publishes skipped; an entry without a platform id isn't a publish) and returns None while
+    nothing is approved; every draft's point scenes render in 16:9 and 9:16 (diagrams fit)."""
+    import copy
+    from PIL import Image
+    from autopilot import basics, diagrams, lesson_slides as ls
+
+    topics = basics.load_topics()
+    assert basics.validate_topics(topics) == [], basics.validate_topics(topics)
+    assert [t["id"] for t in topics] == ["what-is-bitcoin-and-how-does-it-work", "ethereum-vs-bitcoin",
+                                         "what-is-the-lightning-network", "bitcoin-mining-explained"]
+    assert all(t["approved"] is False for t in topics), [t["approved"] for t in topics]
+    assert "DRAFT" in basics.TOPICS.read_text(encoding="utf-8")
+    for t in topics:  # drafts: no digits anywhere in the content, 3-5 points, a diagram on every point
+        assert not any(ch.isdigit() for ch in json.dumps(t)), t["id"]
+        assert 3 <= len(t["points"]) <= 5 and all(p.get("diagram") for p in t["points"]), t["id"]
+        assert set(t) == set(basics.TOPIC_FIELDS), t["id"]
+
+    # each matrix row: its reason
+    base = topics[0]
+
+    def problems(edit) -> list[str]:
+        t = copy.deepcopy(base)
+        edit(t)
+        return basics.validate_topic(t)
+
+    def one(edit, *words) -> str:
+        got = problems(edit)
+        assert len(got) == 1 and all(w in got[0] for w in words), (words, got)
+        return got[0]
+
+    got = problems(lambda t: t.update(question="Bitcoin ETF Explained (October 2026)?"))
+    assert got and all(r.startswith("question date:") for r in got), got
+    one(lambda t: t.update(thumbnail="WHAT IS A BITCOIN ETF"), "thumbnail words", "(5, allowed 1-3)")
+    one(lambda t: t["points"][0].update(text="Bitcoin to $150,000 soon."), "point 1 text", "price target")
+    one(lambda t: t["points"][1].update(diagram={"type": "pie", "nodes": []}), "point 2 diagram", "type 'pie'")
+    one(lambda t: t.pop("thumbnail"), "missing field 'thumbnail'")
+    one(lambda t: t.update(approved="yes"), "approved must be true or false")
+    one(lambda t: t["points"][2].pop("diagram"), "point 3: missing field 'diagram'")
+    one(lambda t: t.pop("summary"), "missing field 'summary'")
+    one(lambda t: t.update(colour="red"), "unknown key(s) colour")
+    one(lambda t: t["points"][0].update(digram={}), "point 1: unknown key(s) digram")
+    one(lambda t: t.update(id="What_Is_Bitcoin"), "not a kebab-case slug")
+    one(lambda t: t.update(question="What is bitcoin"), 'no "?"')
+    one(lambda t: t.update(question="What Is Bitcoin? " + "Really " * 15), "characters (at most 100)")
+    one(lambda t: t.update(points=[]), "points must be a non-empty list")
+    one(lambda t: t.update(summary="Analysts could hit $100k soon."), "summary", "price target")
+    one(lambda t: t["points"][0].update(term="My favourite coin"), "point 1 term", "first person")
+    one(lambda t: t.update(thumbnail="BITCOIN #BTC"), "thumbnail hashtag")
+    one(lambda t: t.update(thumbnail=True), "thumbnail must be non-empty text (got True)")  # YAML `yes`
+    one(lambda t: t["points"][0].update(term=2024), "point 1: term must be non-empty text (got 2024)")
+    assert basics.validate_topic("not a topic") == ["topic must be a mapping"]
+    same_id = dict(copy.deepcopy(topics[1]), id=base["id"])
+    got = basics.validate_topics([base, same_id])
+    assert got == [f"{base['id']}: duplicate id"], got
+    same_q = dict(copy.deepcopy(topics[1]), question="  what is BITCOIN and how   does it WORK? (explained simply) ")
+    got = basics.validate_topics([base, same_q])
+    assert got == [f"ethereum-vs-bitcoin: duplicate question (same as {base['id']})"], got
+    got = basics.validate_topics([base, copy.deepcopy(base)])  # same id and question: the earlier one by position
+    assert got == [f"{base['id']}: duplicate id", f"{base['id']}: duplicate question (same as #1)"], got
+    assert basics.validate_topics({"topics": []}) == ["topics must be a list"]
+    bad_file = Path(tempfile.mkdtemp()) / "topics.yaml"
+    bad_file.write_text("- id: x\n", encoding="utf-8")
+    try:
+        basics.load_topics(bad_file)
+        raise AssertionError("a file without a `topics:` list must not load")
+    except ValueError as e:
+        assert "topics" in str(e), e
+
+    # picker: list order = queue; only approved: true; a published topic is never repeated
+    tmp = Path(tempfile.mkdtemp())
+
+    def hist(*entries) -> History:
+        h = History(tmp / "history.json")
+        h.data = {"videos": [dict(e) for e in entries]}
+        return h
+
+    assert basics.pick(topics, hist()) is None  # all drafts
+    a, b, c, d, e = (dict(copy.deepcopy(base), id=f"topic-{k}", approved=True) for k in "abcde")
+    queue = [dict(topics[0]), a, b, c, d, e]
+    assert basics.pick(queue, hist())["id"] == "topic-a"
+    h = hist({"kind": "basics", "topic": "topic-a", "video_id": "Y1"},  # published (counting)
+             {"kind": "basics", "topic": "topic-b", "fb_video_id": "F1", "counts": False},  # manual publish
+             {"kind": "basics", "topic": "topic-c"},  # made but never reached a platform
+             {"kind": "lesson", "episode": "topic-c", "topic": "topic-c", "video_id": "Y2"})  # not a basics entry
+    assert basics.pick(queue, h)["id"] == "topic-c"
+    h.data["videos"].append({"kind": "basics", "topic": "topic-c", "video_id": "Y3"})
+    assert basics.pick(queue, h)["id"] == "topic-d"
+    assert basics.pick([dict(d, approved="yes"), e], h)["id"] == "topic-e"  # only `approved is True`
+    assert basics.pick([a, b], h) is None
+    assert basics.pick([dict(a, id=None)], hist({"kind": "basics", "video_id": "Y9"}))["id"] is None  # no `topic`
+
+    # every draft's point scenes render in both shapes; each diagram fits (no ValueError) with its steps
+    work = ROOT / "output" / "test_basics_topics"
+    shutil.rmtree(work, ignore_errors=True)
+    bg = (14, 15, 18)
+    scenes = 0
+    for t in topics:
+        plan = basics.scene_plan(t)
+        for L in (ls.LANDSCAPE, ls.PORTRAIT):
+            pics = basics.render_slides(cfg, t, plan, L, work / t["id"] / L.name)
+            for p, sc in zip(pics, plan):
+                with Image.open(p["image"]) as im:
+                    full = im.convert("RGB")
+                assert full.size == (L.w, L.h), (t["id"], L.name, sc["id"])
+                band = full.crop((0, L.caption_band[0], L.w, L.caption_band[1]))
+                assert band.getextrema() == tuple((c_, c_) for c_ in bg), (t["id"], L.name, sc["id"])
+                if sc["visual"]["type"] == "concept":
+                    want = diagrams.steps(sc["visual"]["diagram"])
+                    assert [st["key"] for st in p["steps"]] == [st["key"] for st in want], (t["id"], L.name, sc["id"])
+                    scenes += 1
+    shutil.rmtree(work, ignore_errors=True)
+    print(f"OK basics topics: basics/topics.yaml validates ({len(topics)} drafts, none approved), each matrix "
+          f"problem gets its reason, picker (drafts / published / manual / no platform id / kind) and "
+          f"{scenes} point scenes rendered in 16x9 + 9x16")
 
 
 def test_basics(cfg):

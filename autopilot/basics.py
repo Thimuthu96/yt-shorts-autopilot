@@ -2,6 +2,16 @@
 points → the same narration rendered 16:9 (YouTube) and 9:16 (Facebook). Dark until `basics.enabled`.
 
     sample_topic()                       the hand-written tracer topic (tests/basics/sample_topic.yaml)
+    load_topics(path=TOPICS)             the owner-approved topic list (basics/topics.yaml; list order = queue)
+    validate_topic(topic) -> [reason]    one topic's problems ([] = usable), one reason each: fields and types
+                                         (unknown keys rejected), the question (a "?", ≤ 100 characters,
+                                         rules.title_problems), the thumbnail (rules.thumbnail_text_problems,
+                                         1-3 words), rules.narration_problems on the summary and every point's
+                                         term and text, diagrams.validate on every point's diagram
+    validate_topics(topics) -> ["<id>: <reason>"]  every topic's problems + duplicate ids / questions
+                                         (questions compared case- and whitespace-insensitively)
+    pick(topics, history) -> topic|None  the first `approved: true` topic (list order) that no uploaded
+                                         kind: basics history entry (counting or not) has as its `topic`
     scene_plan(topic)                    hook → one scene per approved point → recap; a point's `diagram`
                                          (autopilot/diagrams.py) is validated here (problems → ValueError) and
                                          its parts' naming order goes into the scene's `covers`
@@ -17,11 +27,13 @@ points → the same narration rendered 16:9 (YouTube) and 9:16 (Facebook). Dark 
     render_thumbnail(cfg, topic, path)   the 16:9 title slide as a 1280x720 JPEG (placeholder until entry 6)
     metadata(cfg, topic)                 title, description (summary + the disclosure line once), tags
 
-A topic: {id, question, summary, points: [{term, text, diagram?}]}. The narration may explain only its points.
+A topic: {id, question, summary, points: [{term, text, diagram?}]} (a basics/topics.yaml topic also carries
+`thumbnail` and `approved`, and every point has a diagram). The narration may explain only its points.
 The look follows lesson_slides (its public layouts and helpers, never changed) with a "CRYPTO BASICS"
 header chip instead of the lesson's track label.
 """
 import copy
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,6 +47,12 @@ from autopilot.script import _merge_plan, _models
 from autopilot.slides import PANEL, _hex, _wrap
 
 SAMPLE = Path(__file__).resolve().parents[1] / "tests" / "basics" / "sample_topic.yaml"
+TOPICS = Path(__file__).resolve().parents[1] / "basics" / "topics.yaml"
+TOPIC_FIELDS = ("id", "question", "thumbnail", "summary", "points", "approved")
+POINT_FIELDS = ("term", "text", "diagram")
+SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")  # kebab-case
+MAX_QUESTION = 100  # characters (YouTube's title limit)
+THUMB_WORDS = 3  # packaging.md: 1-3 words on a Basics thumbnail
 MIN_WORDS, MAX_WORDS = 600, 900  # cfg basics.min_words / max_words
 CHIP = "CRYPTO BASICS"
 CATEGORY = "27"  # Education (cfg basics.category_id)
@@ -49,6 +67,133 @@ def sample_topic() -> dict:
 
 def _clean(text: str) -> str:
     return " ".join(str(text or "").split())
+
+
+# ─── topic list (basics/topics.yaml) ───────────────────────────────────────
+
+def load_topics(path: Path = TOPICS) -> list:
+    """The `topics:` list of basics/topics.yaml, in file order (= the queue). Not validated here."""
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("topics"), list):
+        raise ValueError(f"{path}: needs a top-level `topics:` list")
+    return data["topics"]
+
+
+def _is_text(v) -> bool:
+    return isinstance(v, str) and bool(v.strip())
+
+
+def _text_problem(field: str, v) -> str | None:
+    """Why `v` can't be the text of `field` (None = it can): a wrong type names its value, "" is empty."""
+    if not isinstance(v, str):
+        return f"{field} must be non-empty text (got {v!r})"
+    return None if v.strip() else f"empty {field}"
+
+
+def _point_problems(n: int, p) -> list[str]:
+    where = f"point {n}"
+    if not isinstance(p, dict):
+        return [f"{where}: must be a mapping"]
+    out = []
+    unknown = sorted(set(map(str, p)) - set(POINT_FIELDS))
+    if unknown:
+        out.append(f"{where}: unknown key(s) {', '.join(unknown)}")
+    for f in POINT_FIELDS:
+        if f not in p:
+            out.append(f"{where}: missing field '{f}'")
+    for f in ("term", "text"):
+        if f in p:
+            if _text_problem(f, p[f]):
+                out.append(f"{where}: {_text_problem(f, p[f])}")
+            else:
+                out += [f"{where} {f}: {r}" for r in rules.narration_problems(_clean(p[f]))]
+    if "diagram" in p:
+        out += [f"{where} diagram: {r}" for r in diagrams.validate(p["diagram"])]
+    return out
+
+
+def validate_topic(topic) -> list[str]:
+    """Every problem with one basics/topics.yaml topic, one reason each ([] = usable)."""
+    if not isinstance(topic, dict):
+        return ["topic must be a mapping"]
+    out = []
+    unknown = sorted(set(map(str, topic)) - set(TOPIC_FIELDS))
+    if unknown:
+        out.append(f"unknown key(s) {', '.join(unknown)}")
+    for f in TOPIC_FIELDS:
+        if f not in topic:
+            out.append(f"missing field '{f}'")
+    if "id" in topic and not (isinstance(topic["id"], str) and SLUG.fullmatch(topic["id"])):
+        out.append(f"id {topic['id']!r} is not a kebab-case slug (lowercase letters and digits joined by -)")
+    if "question" in topic:
+        q = topic["question"]
+        if _text_problem("question", q):
+            out.append(_text_problem("question", q))
+        else:
+            q = _clean(q)
+            if "?" not in q:
+                out.append(f"question {q!r} is not a question (no \"?\")")
+            if len(q) > MAX_QUESTION:
+                out.append(f"question is {len(q)} characters (at most {MAX_QUESTION})")
+            out += [f"question {r}" for r in rules.title_problems(q)]
+    if "thumbnail" in topic:
+        t = topic["thumbnail"]
+        if _text_problem("thumbnail", t):
+            out.append(_text_problem("thumbnail", t))
+        else:
+            out += [r if r.startswith("thumbnail") else f"thumbnail {r}"
+                    for r in rules.thumbnail_text_problems(_clean(t), max_words=THUMB_WORDS)]
+    if "summary" in topic:
+        if _text_problem("summary", topic["summary"]):
+            out.append(_text_problem("summary", topic["summary"]))
+        else:
+            out += [f"summary {r}" for r in rules.narration_problems(_clean(topic["summary"]))]
+    if "points" in topic:
+        points = topic["points"]
+        if not isinstance(points, list) or not points:
+            out.append("points must be a non-empty list")
+        else:
+            for n, p in enumerate(points, 1):
+                out += _point_problems(n, p)
+    if "approved" in topic and not isinstance(topic["approved"], bool):
+        out.append(f"approved must be true or false (got {topic['approved']!r})")
+    return out
+
+
+def validate_topics(topics) -> list[str]:
+    """Every problem of the topic list as "<id>: <reason>" ([] = usable): each topic's validate_topic
+    reasons, then a repeated id or question (case- and whitespace-insensitive) on the later topic."""
+    if not isinstance(topics, list):
+        return ["topics must be a list"]
+    out, ids, questions = [], set(), {}
+    for i, t in enumerate(topics):
+        tid = t.get("id") if isinstance(t, dict) and _is_text(t.get("id")) else f"#{i + 1}"
+        out += [f"{tid}: {r}" for r in validate_topic(t)]
+        if not isinstance(t, dict):
+            continue
+        if _is_text(t.get("id")):
+            if t["id"] in ids:
+                out.append(f"{tid}: duplicate id")
+            ids.add(t["id"])
+        if _is_text(t.get("question")):
+            key = _clean(t["question"]).lower()
+            if key in questions:
+                first, n = questions[key]  # the earlier topic; by list position when it shares this id
+                out.append(f"{tid}: duplicate question (same as {first if first != tid else f'#{n}'})")
+            else:
+                questions[key] = (tid, i + 1)
+    return out
+
+
+def pick(topics: list, history) -> dict | None:
+    """The next topic to publish: the first in list order with `approved: true` whose id no uploaded
+    (`history.uploaded()`, an autopilot.history.History) kind: basics entry has as its `topic`, counting
+    or not. None = nothing approved is left. Same inputs → same answer."""
+    published = {v["topic"] for v in history.uploaded() if v.get("kind") == "basics" and v.get("topic")}
+    for t in topics:
+        if isinstance(t, dict) and t.get("approved") is True and t.get("id") not in published:
+            return t
+    return None
 
 
 def scene_plan(topic: dict) -> list[dict]:

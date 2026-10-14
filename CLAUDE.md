@@ -67,6 +67,9 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   Crypto Basics (kind: basics, make_basics() + publish_basics(); dark: basics.enabled false):
   → basics.sample_topic()   tests/basics/sample_topic.yaml (the tracer topic: question, summary, points, each
                             with a drawn `diagram`)
+                            (basics/topics.yaml = the topic list, list order = queue: basics.validate_topics
+                            + basics.pick (first `approved: true` topic no uploaded kind: basics entry has as its
+                            `topic`); ships 4 drafts, none approved; wired into the edition in entry 5)
   → basics.scene_plan()     hook → one scene per point → recap; a point's diagram is validated (diagrams.validate,
                             problems → ValueError) and its parts' naming order goes into the scene's `covers`
   → basics.write_script()   Gemini narrates only the approved points (hook → one scene per point → recap), naming
@@ -204,7 +207,10 @@ autopilot/lesson_data.py multi-timeframe candles for the detectors (Coinbase, Kr
 autopilot/lesson_script.py  lesson narration from approved key points (Gemini + checks + fact_check)
 autopilot/lesson_slides.py  lesson slides + thumbnail, 16:9 (LANDSCAPE) and 9:16 (PORTRAIT), TRACKS names
 autopilot/reveal.py      step reveal (generic): example-scene marks fade in one at a time as narration names them (lessons.reveal_steps → lesson_slides base + diff-crop layers → time_steps → render._segment; hook stays fully drawn)
-autopilot/basics.py      Crypto Basics (dark): sample_topic, scene_plan, write_script (Gemini + checks, 3 attempts),
+autopilot/basics.py      Crypto Basics (dark): sample_topic, load_topics / validate_topic / validate_topics (topic
+                         list validator: fields, question + thumbnail packaging rules, narration rules, diagrams,
+                         unique ids / questions) and pick (first approved, never-published topic; not wired into the
+                         edition until entry 5), scene_plan, write_script (Gemini + checks, 3 attempts),
                          render_slides (16:9 / 9:16, CRYPTO BASICS chip, diagram scenes stepped), render_thumbnail
                          (placeholder), metadata
 autopilot/diagrams.py    drawn concept diagrams (shared: Basics now, epics 3/4 later): spec flow / compare / timeline
@@ -214,6 +220,9 @@ autopilot/diagrams.py    drawn concept diagrams (shared: Basics now, epics 3/4 l
                          fit → ValueError), step_layers (base + reveal.diff_crops layers for reveal.time_steps)
 autopilot/lesson_meta.py lesson chapters, SEO title, description, hashtags, tags (YouTube + Facebook)
 lessons/                 curriculum.yaml (episode queue, list order) + glossary.yaml
+basics/topics.yaml       Crypto Basics topic list (list order = queue): id, question (search question = title),
+                         thumbnail (1-3 words), summary, points [{term, text, diagram}], approved; ships 4 builder
+                         DRAFTS (approved: false) until the owner approves via PR (crypto-basics entry 4)
 autopilot/media.py       ffmpeg/ffprobe helpers
 assets/fonts/            Anton + Space Grotesk (SIL OFL) for thumbnails
 tests/test_offline.py    full offline render test with sample data + mocked LLM (incl. the lesson and basics editions)
