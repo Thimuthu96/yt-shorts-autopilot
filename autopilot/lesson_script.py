@@ -20,7 +20,7 @@ from autopilot import detectors  # noqa: F401  (registers the detectors, so thei
 from autopilot import lessons
 from autopilot.llm import generate_json
 from autopilot.news_post import unverified_numbers
-from autopilot.rules import _MONTHS, SPOKEN_DATE_WORDS, SPOKEN_TIME  # noqa: F401  (moved; same names)
+from autopilot.rules import _MONTHS, DASHES, SPOKEN_DATE_WORDS, SPOKEN_TIME  # noqa: F401  (moved; same names)
 from autopilot.script import _merge_plan, _models, fact_check
 
 MIN_WORDS, MAX_WORDS = 550, 700
@@ -34,7 +34,6 @@ BANNED = [re.compile(p, re.I) for p in (
     r"\btake[- ]profit", r"\btarget", r"\bwin[- ]?rate", r"\bguarantee", r"\bprofit",
     r"\bwill (?:reach|hit|go|drop|rise)\b",
 )]
-DASHES = re.compile("[\u2010-\u2015\u2212]")  # Unicode hyphens / dashes / minus → "-" before matching
 
 # times and dates are not numbers a viewer is told: dropped from the facts for the number check, and
 # spoken dates / clock times are taken out of the narration before it (else "2026-09-05" backs 9, 5, 2026);

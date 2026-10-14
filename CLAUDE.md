@@ -30,7 +30,8 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
                         dates/clock times/UTC → draft retried; 3 failures stop the edition (exit 1)
   both:
   → thumbnail.render()  thumbnail.jpg (1080x1920), also the video's first ~1 s (push-in), then its asset's chart
-  → voice.synthesize()  edge-tts narration per scene + word timings
+  → main.narrate() → voice.synthesize()  edge-tts narration per scene + word timings; briefs + gold: A/B voice
+                        (main.ab_voice, logged as "voice"), pauses after key numbers (voice.paced), over-limit → faster
   → slides.render_slides()  one PNG graphic per scene (charts, board, news card, calendar…)
   → render.build_video()  ffmpeg: segments + animations + word-highlight captions + audio mix
   → publish(pending)    per platform, one failure never blocks the other:
@@ -158,6 +159,7 @@ autopilot/script.py      Gemini prompt, fact-check, validate, fix_visuals (scene
 autopilot/rules.py       shared narration rules: narration_problems(text) + NARRATION_RULES prompt text; date/time patterns
                          + packaging checks title_problems(title) / thumbnail_text_problems(text) (CAP-8): logged
                          only by youtube.build_metadata on brief/gold titles; the new formats enforce them
+                         + DISCLOSURE / disclosure(cfg, *sections) / without_disclosure(text, line): the description line, once
 autopilot/llm.py         Gemini REST client with model fallback + verbose logging
 autopilot/thumbnail.py   4 thumbnail templates (Pillow) + choose() + clean_hook()
 autopilot/slides.py      per-scene graphics (Pillow + matplotlib)

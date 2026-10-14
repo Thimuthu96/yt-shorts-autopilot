@@ -52,7 +52,8 @@ _TRX = {k: re.compile(v[0], re.I) for k, v in TOPICS.items()}
 # one matches a bare "ETF". A bare "exchange" or "coin" doesn't count either ([a-z]+coin needs a name).
 CRYPTO_RX = re.compile(
     r"\bcrypto|\bbitcoins?\b|\bbtc\b|\bether(eum)?\b|\beth\b|\bsolana\b|\bxrp\b|"
-    r"\bripple\b(?![\s-]+(effects?|through|across|into)\b)|\b[a-z]+coins?\b|\b(meme|stable)[\s-]coins?\b|\btether\b|\busd[tc]\b|\bdigital (assets?|currenc(y|ies))\b|\bcbdcs?\b|"
+    r"\bripple\b(?![\s-]+(effects?|through|across|into)\b)|\b[a-z]+coins?\b|\b(meme|stable)[\s-]coins?\b|"
+    r"\btether\b|\busd[tc]\b|\bdigital (assets?|currenc(y|ies))\b|\bcbdcs?\b|"
     r"\bblockchains?\b|\bdefi\b|\bnfts?\b|\bweb3\b|\bcoinbase\b|\bbinance\b|\bkraken\b|\bbybit\b|"
     r"\bokx\b|\bbitfinex\b|microstrategy|\bsaylor\b", re.I)
 DEFAULT_WEIGHTS = {"rates": 1.0, "central_bank": 0.85, "geopolitics": 0.9, "tariffs": 0.9, "regulation": 0.8,

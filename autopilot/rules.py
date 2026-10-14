@@ -11,6 +11,7 @@
                               (config `upload.disclaimer`, `news_posts.disclaimer`; DISCLOSURE if unset)
     without_disclosure(text, line)  writer text with any copy of the line removed, before it is appended
     SPOKEN_TIME / SPOKEN_DATE_WORDS / _MONTHS   date and clock-time patterns (lessons import them too)
+    DASHES                    Unicode hyphens / dashes / minus, turned into "-" before matching (lessons too)
 
 Rules: a data desk, not a person: no first person (except inside a quote attributed to a source),
 no price targets or predictions, no "10x", no buy/sell calls, and no spoken dates, month names,
@@ -18,6 +19,8 @@ clock times or UTC/GMT. Past facts stay legal ("Bitcoin fell to $84,000", "a sel
 the gold outlook may say a bare year ("the highest since 2021"); lessons ban years too (their own check).
 """
 import re
+
+DASHES = re.compile("[\u2010-\u2015\u2212]")  # Unicode hyphens / dashes / minus → "-" before matching
 
 # ─── dates and times (shared with lesson_script) ──────────────────────────
 _MONTHS = ("jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
@@ -83,10 +86,12 @@ PRICE_TARGET = [re.compile(p) for p in (
     # "expect Bitcoin to rally to $100,000", "expected to climb toward one hundred thousand"
     r"(?i:\bexpect(?:s|ed|ing)?\s+(?:[\w'\u2019]+\s+){0,4}?to\s+[a-z]+\s+(?:to|toward|towards|past|above|below)\s+"
     + _LEVEL + ")",
-    # headline form at the start of a sentence or quote: "BTC to $150,000"
-    r"(?:(?m:^)|(?<=[.!?:;])[\"\u201d]?\s+|(?<=[\"\u201c]))(?!(?:Up|Down|Close|Due|Back|Next|Equal)\b)"
-    r"[A-Z][\w]{1,12} to " + _LEVEL,
 )]
+# headline form at the start of a sentence or quote: "BTC to $150,000" (narration only; titles use
+# TITLE_PRICE_TARGET's own headline form)
+HEADLINE_TARGET = re.compile(
+    r"(?:(?m:^)|(?<=[.!?:;])[\"\u201d]?\s+|(?<=[\"\u201c]))(?!(?:Up|Down|Close|Due|Back|Next|Equal)\b)"
+    r"[A-Z][\w]{1,12} to " + _LEVEL)
 PREDICTION = re.compile(r"\b(?:to the moon|moon(?:ing|shot)?|could explode|will explode|guaranteed?|"
                         r"can'?t lose|easy money|get rich)\b", re.I)
 TEN_X = re.compile(r"\b[1-9]\d+(?:\.\d+)?[xX\u00d7](?!\w)|\b(?:ten|twenty|fifty|hundred|thousand)[- ]x\b", re.I)
@@ -143,7 +148,7 @@ def narration_problems(text: str) -> list[str]:
     for m in FIRST_PERSON.finditer(unquoted):
         if m.group(0).lower() != "mine" or not _noun_mine(unquoted, m):
             add("first person", m.group(0))
-    for rx in PRICE_TARGET:
+    for rx in (*PRICE_TARGET, HEADLINE_TARGET):
         for m in rx.finditer(text):
             add("price target", m.group(0))
     for m in PREDICTION.finditer(text):
@@ -159,7 +164,7 @@ def narration_problems(text: str) -> list[str]:
 
 
 def _dashes(text: str | None) -> str:
-    return re.sub("[\u2010-\u2015\u2212]", "-", text or "")
+    return DASHES.sub("-", text or "")
 
 
 def _add(found: list[str], rule: str, words: str) -> None:
@@ -191,8 +196,7 @@ NARRATION_RULES = """
 
 # ─── titles and thumbnail text (packaging.md, CAP-8) ──────────────────────
 # dates beyond the narration ones: "March" (title-case "May" is the verb), a month + year, weekdays,
-# "10/7"; a bare
-# year stays legal ("Biggest Drop Since 2022"), as in brief narration
+# "10/7"; a bare year stays legal ("Biggest Drop Since 2022"), as in brief narration
 TITLE_DATE = [MONTH_OR_ZONE, re.compile(r"\bMarch\b|\bMARCH\b"),  # all-caps too: thumbnail text
               re.compile(rf"\b(?:{_MONTHS})\.? \d{{4}}\b", re.I),  # "Jan 2027", "May 2026"
               re.compile(r"\b(?:mon|tues|wednes|thurs|fri|satur|sun)day\b", re.I),
@@ -207,7 +211,7 @@ EXPLODE = re.compile(r"\bexplod(?:e|es|ed|ing)\b", re.I)
 # a price, not a bare year: "$150K", "150k", "$1.2m", "a hundred thousand dollars"
 _PRICE = rf"(?:\$\s?\d(?:[\d,.]*\d)?(?:k\b|m\b|[a-z]*illion\b)?|\d(?:[\d,.]*\d)?(?:k|m|[a-z]*illion)\b|{_AMOUNT})"
 TITLE_PRICE_TARGET = [re.compile(p) for p in (
-    # replaces PRICE_TARGET's headline form in titles, at the start or after ":" / "|": "Bitcoin To $150K?";
+    # replaces HEADLINE_TARGET in titles, at the start or after ":" / "|": "Bitcoin To $150K?";
     # not "Up To $500M Liquidated", a reported move ("Plunges to $80K") or a year ("Road to 2030")
     r"(?i:(?:^|(?<=[:|?!.])\s+)\W*(?!(?:up|down|close|due|back|next|equal)\b|\w+(?:ed|s)\b)\w{2,13}\s+to\s+"
     + _PRICE + ")",
@@ -228,7 +232,7 @@ def title_problems(title: str) -> list[str]:
         _add(found, "session stamp", m.group(0))
     for m in HASHTAG.finditer(text):
         _add(found, "hashtag", m.group(0))
-    targets = sorted((m for rx in (*PRICE_TARGET[:-1], *TITLE_PRICE_TARGET) for m in rx.finditer(text)),
+    targets = sorted((m for rx in (*PRICE_TARGET, *TITLE_PRICE_TARGET) for m in rx.finditer(text)),
                      key=lambda m: (m.start(), -m.end()))
     end = -1
     for m in targets:  # overlapping matches ("Bitcoin to $150" / "Bitcoin to $150K") count once, the longest

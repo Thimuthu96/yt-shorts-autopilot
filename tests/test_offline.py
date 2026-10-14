@@ -383,6 +383,10 @@ def test_disclosure(cfg, data, gdata):
     once(build_metadata(PKG, data, bare, "London Open", log=quiet)["description"], "bare brief")
     once(news_post.caption(dict(GOOD_POST), story, ndata, bare), "bare news post")
     assert rules.disclosure({"news_posts": {"disclaimer": " A  b. "}}, "news_posts") == "A b."
+    assert rules.disclosure({"news_posts": {"disclaimer": "  "}, "upload": {"disclaimer": "U."}}, "news_posts") == "U."
+    assert rules.disclosure({}) == line  # nothing configured → the built-in line
+    assert rules.disclosure({"news_posts": {"disclaimer": " "}, "upload": {"disclaimer": ""}}, "news_posts") == line
+    assert rules.without_disclosure("", line) == "" and rules.without_disclosure("Text.", "") == "Text."
     assert rules.without_disclosure("No copy here.", line) == "No copy here."
     assert rules.without_disclosure("Summary. \u26a0\ufe0f " + line, line) == "Summary."  # no stray warning sign
     assert rules.without_disclosure(f"One.\n\n{line}\n\nTwo.", line) == "One.\n\nTwo."
@@ -474,6 +478,12 @@ def test_narration_rules(small):
     # lessons keep their own (year-banning) patterns, now imported from rules.py
     from autopilot import lesson_script
     assert lesson_script.SPOKEN_TIME is rules.SPOKEN_TIME and lesson_script.SPOKEN_DATE_WORDS is rules.SPOKEN_DATE_WORDS
+    assert lesson_script.DASHES is rules.DASHES  # one Unicode-dash pattern, normalised before matching
+    # the headline form is its own pattern (narration only); titles use every PRICE_TARGET pattern
+    assert rules.HEADLINE_TARGET.search("BTC to $150,000") and \
+        not any(rx.search("BTC to $150,000") for rx in rules.PRICE_TARGET)
+    assert n("Bitcoin is heading to eighty\u2011four thousand dollars.") == \
+        ['price target: "heading to eighty-four thousand dollars"']
     # validate names the rule; the 3-attempt loop stops the edition with it
     data, prompts = sample_data(), []
     bad = json.loads(json.dumps(PKG))
