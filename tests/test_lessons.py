@@ -89,8 +89,30 @@ def test_validate():
     assert e == ["bos-vs-choch: prerequisites must be a list of episode ids"], e
     e = errors(lambda c: c[0].pop("id"))
     assert "#1: missing field 'id'" in e and "bos-vs-choch: prerequisite 'swing-structure' is not an earlier episode" in e
+    # search titles (CAP-5): required, "What Is/Are …? (Crypto Chart Example)", ≤ 100 chars, no title-rule hit
+    e = errors(lambda c: c[1].pop("search_title"))
+    assert e == ["bos-vs-choch: missing field 'search_title'"], e
+    for bad in ("", " ", None, 7):
+        e = errors(lambda c: c[1].update(search_title=bad))
+        assert e == ["bos-vs-choch: empty search_title"], (bad, e)
+    for bad in ("Order Blocks Explained", "What Is an Order Block?", "What Is an Order Block (Crypto Chart Example)",
+                "Structure #2: BOS vs CHoCH | What Is a Break of Structure? (Crypto Chart Example)",
+                "What is an Order Block? (Crypto Chart Example)"):
+        e = errors(lambda c: c[1].update(search_title=bad))
+        assert e == [f"bos-vs-choch: search_title {bad!r} is not \"What Is/Are …? (Crypto Chart Example)\""], (bad, e)
+    long = "What Is " + "a Very " * 13 + "Long Name? (Crypto Chart Example)"
+    assert len(long) > 100
+    e = errors(lambda c: c[1].update(search_title=long))
+    assert e == [f"bos-vs-choch: search_title is {len(long)} characters (at most 100)"], e
+    e = errors(lambda c: c[1].update(search_title="What Is a 10x Move? (Crypto Chart Example)"))
+    assert e == ['bos-vs-choch: search_title 10x: "10x"'], e
+    e = errors(lambda c: c[1].update(search_title="What Is the October 5 Break? (Crypto Chart Example)"))
+    assert e == ['bos-vs-choch: search_title date: "October 5"'], e
+    e = errors(lambda c: c[1].update(search_title="What Are London Open Highs? (Crypto Chart Example)"))
+    assert e == ['bos-vs-choch: search_title session stamp: "London Open"'], e
+    assert lessons.search_title_problems("What Are Order Blocks? (Crypto Chart Example)") == []
     print("OK validate (sample passes; unknown visual, missing detector, missing/empty glossary key, "
-          "duplicates, missing fields, prerequisites)")
+          "duplicates, missing fields, prerequisites, search titles)")
 
 
 def test_pick():
@@ -292,6 +314,12 @@ def test_real_files():
     assert lessons.DETECTORS["top_down"].glossary_keys() == ("top_down_analysis", "market_structure")
     for d in lessons.DETECTORS.values():
         assert set(d.glossary_keys()) <= set(glo), d
+    # every entry has a search title of the CAP-5 shape, distinct from the others, and the series label stays
+    assert all(lessons.SEARCH_TITLE.fullmatch(e["search_title"]) and len(e["search_title"]) <= 100
+               and lessons.search_title_problems(e["search_title"]) == [] and e["title"] for e in cur)
+    assert len({e["search_title"] for e in cur}) == len(cur)
+    assert next(e for e in cur if e["id"] == "bos-vs-choch")["search_title"] == \
+        "What Is a Break of Structure? (Crypto Chart Example)"
     s_cur, s_glo, _ = sample()
     assert lessons.validate(s_cur, s_glo) == [], lessons.validate(s_cur, s_glo)  # real registry
     td = next(e for e in s_cur if e["id"] == "top-down-reading")
@@ -1349,7 +1377,23 @@ def test_narration():
         assert any("Discarding draft" in m and "banned wording" in m for m in logs), (bad, logs)
     problems = lesson_script.check_lesson(draft(plan, 600, {"concept": "Buy here and set a stop-loss."}),
                                           entry, plan, facts)
-    assert problems == ["banned wording: buy, stop-loss"], problems
+    assert problems == ["banned wording: buy, stop-loss", 'narration rule: buy/sell call: "Buy here"'], problems
+
+    # data-desk narration rules (CAP-4, rules.narration_problems): first person, price targets, "10x"
+    assert "Data desk, not a person" in writer and "Data desk, not a person" in checker
+    for bad, rule in (("I'm buying here.", 'narration rule: first person: "I\'m"'),
+                      ("Let me show you the break.", 'narration rule: first person: "me"'),
+                      ("Bitcoin could hit $150,000 next.", 'narration rule: price target: "could hit $150,000"'),
+                      ("That was a 10x move.", 'narration rule: 10x: "10x"')):
+        p = lesson_script.check_lesson(draft(plan, 600, {"concept": bad}), entry, plan, facts)
+        assert rule in p, (bad, p)
+        pkg, logs = run(draft(plan, 600, {"concept": bad}), clean)
+        assert len(drafts) == 0 and any("Discarding draft" in m and rule in m for m in logs), (bad, logs)
+    # a first-person quote attributed to a source is fine; a spoken date is still one problem (the lesson's own)
+    quoted = draft(plan, 600, {"concept": '"I see a shift," said one analyst.'})
+    assert lesson_script.check_lesson(quoted, entry, plan, facts) == []
+    p = lesson_script.check_lesson(draft(plan, 600, {"concept": "On October 5 the swing broke."}), entry, plan, facts)
+    assert len(p) == 1 and p[0].startswith("says a date or time: "), p
 
     # liquidity terms are allowed
     liq = draft(plan, 600, {"misreads": "Sell-side liquidity rests below lows and buy-side liquidity above highs; "
@@ -1436,6 +1480,55 @@ def test_narration():
           "disclaimer + ICT non-affiliation, fact-check reject retried, 3 failures raise; Gemini mocked)")
 
 
+def test_lesson_meta():
+    """build_lesson_metadata (CAP-5): the entry's search title on YouTube and Facebook, the "Track N · <title>"
+    label and the disclosure exactly once in both descriptions (configured, unset, echoed by a key point),
+    the old "education, not financial advice" line gone, the tail never cut."""
+    from autopilot import lesson_meta, rules
+    from autopilot.lesson_slides import NON_AFFILIATION
+    entry, glossary, plan, examples = lesson_script.sample_episode()
+    ch = lesson_meta.chapters(plan, [{"duration": 15.0} for _ in plan], examples, glossary)
+    quiet = lambda m: None  # noqa: E731
+    custom = "Synthetic voice. Public market data. Not financial advice."
+    old = "this is education, not financial advice"
+
+    def once(text, line, what):
+        n = " ".join(text.split()).lower().count(line.lower())
+        assert n == 1 and text.count(line) == 1, (what, n, text)
+        assert old not in text.lower(), (what, text)
+
+    label = f"Track 0 · {entry['title']}"
+    assert label == "Track 0 · Structure #2: BOS vs CHoCH"
+    for cfg, line in (({"upload": {"disclaimer": custom}}, custom), ({}, rules.DISCLOSURE),
+                      ({"upload": {"disclaimer": "  "}}, rules.DISCLOSURE)):
+        for e, what in ((entry, "plain"), (dict(entry, key_points=list(entry["key_points"]) + [line]), "echoed"),
+                        (dict(entry, key_points=[line.upper()]), "only the line")):
+            m = lesson_meta.build_lesson_metadata(e, examples, ch, cfg, log=quiet)
+            assert m["title"] == m["fb_title"] == "What Is a Break of Structure? (Crypto Chart Example)", m["title"]
+            for key in ("description", "fb_description"):
+                once(m[key], line, (what, key))
+                assert label in m[key] and entry["title"] not in m["title"], (what, key, m[key])
+            d = m["description"]
+            assert d.index(label) < d.index("Chapters:") < d.index(line), d
+            assert d.rsplit("\n\n", 1)[1].startswith("#") and "⚠️ " + line in d and NON_AFFILIATION not in d
+    m = lesson_meta.build_lesson_metadata(entry, examples, ch, {}, log=quiet)
+    assert m["description"].startswith(" ".join(entry["key_points"]) + "\n\n" + label), m["description"]
+    assert m["fb_description"].startswith(" ".join(entry["key_points"]) + "\n\n" + label), m["fb_description"]
+
+    # a description over the limit: the body is cut, never the disclosure, the ICT line or the hashtags
+    ict = dict(entry, track=4, key_points=["Word " * 600 + "end.", "A second point.", "A third point."])
+    huge = [dict(c, title="Chapter " * 40) for c in ch * 8]
+    m = lesson_meta.build_lesson_metadata(ict, examples, huge, {}, log=quiet)
+    d = m["description"]
+    assert len(d) <= lesson_meta.MAX_DESCRIPTION, len(d)
+    assert d.endswith("⚠️ " + rules.DISCLOSURE + "\n\n" + NON_AFFILIATION + "\n\n" + " ".join(
+        lesson_meta.hashtags(ict, examples))), d[-400:]
+    once(d, rules.DISCLOSURE, "cut")
+    assert "#ICTConcepts" in d and NON_AFFILIATION in m["fb_description"] and "Track 4 · " in m["fb_description"]
+    print("OK lesson meta (search title on YouTube + Facebook, track label, disclosure once: configured / unset / "
+          "echoed, old line gone, tail never cut)")
+
+
 def main():
     test_validate()
     test_pick()
@@ -1449,6 +1542,7 @@ def main():
     test_lesson_assets()
     test_fetch()
     test_narration()
+    test_lesson_meta()
 
 
 if __name__ == "__main__":

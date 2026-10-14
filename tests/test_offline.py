@@ -2036,15 +2036,17 @@ def test_lesson_render(cfg):
         assert abs(c["start"] - starts[c["scenes"][0]]) < 0.01 and end - c["start"] >= 10, (c, end)
         assert c["time"] == lesson_meta.timestamp(c["start"])
 
-    # metadata: written, keyword-first title, chapters / examples / credits / disclaimer, no ICT line
+    # metadata: written, the entry's search title, track label, chapters / examples / credits / disclosure once,
+    # no ICT line
     meta = made["meta"]
     saved = json.loads((work / "metadata.json").read_text())
     assert {k: saved[k] for k in meta} == meta and saved["chapters"] == ch
     assert set(meta) == {"title", "description", "tags", "category_id", "fb_title", "fb_description"}
-    assert meta["title"] == f"{entry['title']} Explained | Structure Lesson" and len(meta["title"]) <= 100
+    assert meta["title"] == entry["search_title"] == "What Is a Break of Structure? (Crypto Chart Example)"
     assert meta["category_id"] == "27" and meta["fb_title"] == meta["title"]
     d = meta["description"]
-    assert d.startswith(" ".join(entry["key_points"]))
+    assert d.startswith(" ".join(entry["key_points"]) + f"\n\nTrack 0 · {entry['title']}\n\nChapters:\n"), d
+    assert d.count(rules.DISCLOSURE) == 1 and "education, not financial advice" not in d.lower(), d
     assert "Chapters:\n" + "\n".join(f"{c['time']} {c['title']}" for c in ch) in d, d
     assert "Historical examples:\n" in d and all(lessons.example_label(e) in d for e in made["examples"])
     assert "Coinbase" in d and "not financial advice" in d.lower() and ls.NON_AFFILIATION not in d
@@ -2053,7 +2055,8 @@ def test_lesson_render(cfg):
     assert meta["tags"] and len(meta["tags"]) == len({x.lower() for x in meta["tags"]})
     fb = meta["fb_description"]
     assert "http" not in d and "http" not in fb and "www." not in fb and "not financial advice" in fb.lower()
-    assert fb.startswith(" ".join(entry["key_points"])) and 1 <= len([w for w in fb.split() if w.startswith("#")]) <= 5
+    assert fb.startswith(" ".join(entry["key_points"]) + f"\n\nTrack 0 · {entry['title']}")
+    assert 1 <= len(rules.HASHTAG.findall(fb)) <= 5 and fb.count(rules.DISCLOSURE) == 1, fb  # "#2:" is no hashtag
 
     # 2) ICT entry (track 4) over the limit: re-recorded faster once; the non-affiliation line in both texts.
     # Rendering is stubbed here (the sample above rendered for real); it records each shape's cfg.
@@ -2075,7 +2078,8 @@ def test_lesson_render(cfg):
         [(1920, 1080, 56), (1080, 1920, cfg["video"]["captions"]["size"])], shapes
     assert cfg["video"]["max_seconds"] == 42 and "margin_v" not in cfg["video"]["captions"]  # Shorts cfg untouched
     assert ls.NON_AFFILIATION in made["meta"]["description"] and ls.NON_AFFILIATION in made["meta"]["fb_description"]
-    assert made["meta"]["title"].endswith("| ICT concepts Lesson"), made["meta"]["title"]
+    assert made["meta"]["title"] == ict["search_title"] and made["meta"]["fb_title"] == ict["search_title"]
+    assert all(f"Track 4 · {ict['title']}" in made["meta"][k] for k in ("description", "fb_description"))
     shutil.rmtree(ROOT / "output" / "test_lesson_ict", ignore_errors=True)
 
     # chapter rules on their own: a short opening absorbs the next scene; a short last scene merges back
@@ -2196,7 +2200,7 @@ def test_youtube_lesson(cfg):
     video, thumb = tmp / "lesson_16x9.mp4", tmp / "thumbnail.jpg"
     video.write_bytes(b"\0" * 1024)
     thumb.write_bytes(b"\xff\xd8\xff\xd9")
-    meta = {"title": "Structure #2: BOS vs CHoCH Explained | Structure Lesson",
+    meta = {"title": "What Is a Break of Structure? (Crypto Chart Example)",
             "description": "Summary\n\nChapters:\n0:00 Intro\n0:12 Break of structure\n0:40 Recap",
             "tags": ["market structure"], "category_id": "27"}
     track, path = "Track 0 · Structure", "The Path"

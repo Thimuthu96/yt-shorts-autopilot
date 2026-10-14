@@ -227,9 +227,12 @@ the backup run re-makes the same episode (same examples) and publishes only the 
 that episode can't be re-made, the run fails so you see it.
 
 Each episode opens on its first real example, already marked, under the lesson title (no title card),
-so the payoff is on screen from the first frame; the recap ends on "Next: <episode>". Chapters go in
-the description automatically. **End screen (once, by hand):** the API can't set end screens, so in
-YouTube Studio make an end-screen template (Video element → "Best for viewer" or the series playlist +
+so the payoff is on screen from the first frame; the recap ends on "Next: <episode>". The YouTube and
+Facebook title is the entry's `search_title` in `lessons/curriculum.yaml` ("What Is a Break of
+Structure? (Crypto Chart Example)"; edit it there, the validator checks the shape); the series label
+goes in both descriptions as "Track 0 · Structure #2: BOS vs CHoCH", with the disclosure line once.
+Chapters go in the description automatically. **End screen (once, by hand):** the API can't set end
+screens, so in YouTube Studio make an end-screen template (Video element → "Best for viewer" or the series playlist +
 Subscribe) and apply it to each lesson; the recap's last ~20 s are where it shows.
 
 To switch them on:

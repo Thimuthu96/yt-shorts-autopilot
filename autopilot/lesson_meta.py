@@ -12,13 +12,17 @@ previous chapter and a short opening absorbs the next scene). With fewer than MI
 has no "Chapters:" block (YouTube would ignore it); the chapters are still returned. Names: hook "Intro", concept the entry's
 first concept term, example_n "Example n: <asset> <timeframe>", misreads "Common misreads", recap "Recap".
 
-Metadata text comes only from the entry (title, track, key points, concepts) and the examples' facts
-(asset, timeframe, date, source); the narration is not used. Disclaimer always, the ICT non-affiliation
-line on track 4. Facebook gets the same title and a short caption (summary, disclaimer, ≤ 5 hashtags,
-no links).
+Metadata text comes only from the entry (search title, title, track, key points, concepts) and the
+examples' facts (asset, timeframe, date, source); the narration is not used. The title is the entry's
+`search_title` ("What Is X? (Crypto Chart Example)", checked by lessons.validate); the series label goes in
+the description as "Track N · <entry title>" (the playlists' "Track {n} · {name}" shape). The disclosure
+line (rules.disclosure) exactly once, then the ICT non-affiliation line on track 4 and the hashtags; a long
+description is cut before them, never them. Facebook gets the same title and a short caption (summary,
+track label, disclosure, ≤ 5 hashtags, no links).
 """
 import re
 
+from autopilot import rules
 from autopilot.lesson_slides import NON_AFFILIATION, TRACKS
 from autopilot.lessons import example_label
 
@@ -26,13 +30,13 @@ MIN_CHAPTER = 10.0  # seconds; YouTube ignores chapters shorter than this
 MIN_CHAPTERS = 3  # YouTube shows chapters only with at least 3 (first at 0:00, each ≥ 10 s)
 CATEGORY_EDUCATION = "27"
 ICT_TRACK = 4
-DISCLAIMER = "This is education, not financial advice."
 FIXED_NAMES = {"hook": "Intro", "misreads": "Common misreads", "recap": "Recap"}
 ASSET_TAGS = {"BTC/USD": "#Bitcoin", "ETH/USD": "#Ethereum", "XAU/USD": "#Gold", "EUR/USD": "#EURUSD"}
 ASSET_WORDS = {"BTC/USD": "bitcoin", "ETH/USD": "ethereum", "XAU/USD": "gold", "EUR/USD": "eurusd"}
 TRACK_TAGS = {0: "#MarketStructure", 1: "#Trendlines", 2: "#Liquidity", 3: "#SmartMoneyConcepts",
               4: "#ICTConcepts", 5: "#MSNR", 6: "#PriceAction"}
 MAX_HASHTAGS = 5
+MAX_DESCRIPTION = 4900  # YouTube allows 5000
 
 
 def _safe(text: str) -> str:
@@ -95,13 +99,14 @@ def _post_title(entry: dict) -> str:
     return _safe(post if post.strip() else pre)
 
 
-def seo_title(entry: dict) -> str:
-    """"<entry title> Explained | <track name> Lesson", ≤ 100 chars (series prefix dropped if needed)."""
-    tail = f" Explained | {_track_name(entry)} Lesson"
-    for head in (_safe(entry.get("title", "")), _post_title(entry)):
-        if len(head + tail) <= 100:
-            return head + tail
-    return (_post_title(entry)[:100 - len(" Explained")] + " Explained").strip()
+def search_title(entry: dict) -> str:
+    """The entry's search title, cleaned ("What Is a Break of Structure? (Crypto Chart Example)")."""
+    return _safe(entry.get("search_title"))[:100]
+
+
+def track_label(entry: dict) -> str:
+    """"Track 0 · Structure #2: BOS vs CHoCH": the series label, in both descriptions."""
+    return f"Track {entry.get('track')} · {_safe(entry.get('title'))}"
 
 
 def summary(entry: dict) -> str:
@@ -162,12 +167,13 @@ def _tags(entry: dict, examples: list[dict]) -> list[str]:
 def build_lesson_metadata(entry: dict, examples: list[dict], chapters: list[dict], cfg: dict, log=print) -> dict:
     """YouTube + Facebook metadata for one lesson: the text comes from the entry and the examples' facts
     only (never the narration)."""
-    title = seo_title(entry)
-    about = summary(entry)
+    title = search_title(entry)
+    line = rules.disclosure(cfg)
+    about = rules.without_disclosure(summary(entry), line)  # the line once: a key point never repeats it
+    label = track_label(entry)
     tags = hashtags(entry, examples)
-    disclaimer = _safe((cfg.get("upload") or {}).get("disclaimer")) or DISCLAIMER
     ict = entry.get("track") == ICT_TRACK
-    parts = [about]
+    parts = [about, label]
     if len(chapters) >= MIN_CHAPTERS:
         parts.append("Chapters:\n" + "\n".join(f"{c['time']} {_safe(c['title'])}" for c in chapters))
     elif chapters:
@@ -179,12 +185,12 @@ def build_lesson_metadata(entry: dict, examples: list[dict], chapters: list[dict
     credits = _credits(examples)
     if credits:
         parts.append(credits)
-    parts.append("⚠️ " + disclaimer)
-    if ict:
-        parts.append(NON_AFFILIATION)
-    parts.append(" ".join(tags))
-    description = "\n\n".join(p for p in parts if p)[:4900]
+    # the body is cut, never the disclosure, the ICT line or the hashtags (as youtube.build_metadata)
+    tail = "\n\n".join(p for p in ("⚠️ " + line, NON_AFFILIATION if ict else "", " ".join(tags)) if p)
+    body = "\n\n".join(p for p in parts if p)[:MAX_DESCRIPTION - len(tail) - 2].rstrip()
+    description = body + "\n\n" + tail
 
-    fb = [about, "⚠️ " + disclaimer] + ([NON_AFFILIATION] if ict else []) + [" ".join(tags)]
+    fb = [about, label, "⚠️ " + line] + ([NON_AFFILIATION] if ict else []) + [" ".join(tags)]
     return {"title": title, "description": description, "tags": _tags(entry, examples),
-            "category_id": CATEGORY_EDUCATION, "fb_title": title, "fb_description": "\n\n".join(fb)}
+            "category_id": CATEGORY_EDUCATION, "fb_title": title,
+            "fb_description": "\n\n".join(p for p in fb if p)}

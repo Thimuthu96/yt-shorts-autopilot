@@ -7,7 +7,9 @@ and the example / scene-plan schema the lesson pipeline builds on.
 Curriculum entry fields:
     id             stable slug; what history's `episode` field stores
     track          0-6
-    title          episode title
+    title          series label ("Structure #2: BOS vs CHoCH"): slides, narration, the recap's next episode
+    search_title   the YouTube / Facebook title (lesson_meta): "What Is X? (Crypto Chart Example)" or
+                   "What Are …? (Crypto Chart Example)", at most 100 chars, no rules.title_problems
     key_points     non-empty list of approved points (narration never adds concepts)
     concepts       glossary keys the key points use
     prerequisites  ids of earlier episodes
@@ -34,6 +36,8 @@ from typing import Callable
 
 import yaml
 
+from autopilot import rules
+
 ROOT = Path(__file__).resolve().parents[1]
 CURRICULUM = ROOT / "lessons" / "curriculum.yaml"
 GLOSSARY = ROOT / "lessons" / "glossary.yaml"
@@ -52,10 +56,12 @@ SWING_KINDS = {"HH", "HL", "LH", "LL", "high", "low"}
 TIME_FIELDS = {"t", "t1", "t2"}
 TEXT_FIELDS = {"kind", "label", "text"}
 
-ENTRY_FIELDS = ("id", "track", "title", "key_points", "concepts", "prerequisites", "visual", "detector")
+ENTRY_FIELDS = ("id", "track", "title", "search_title", "key_points", "concepts", "prerequisites", "visual", "detector")
 EXAMPLE_FIELDS = ("detector", "glossary", "asset", "timeframe", "date", "candles", "region", "primitives", "facts")
 LOWER_FIELDS = ("timeframe", "candles", "region", "primitives")  # the optional `lower` panel (mtf)
 SLUG = re.compile(r"^[a-z0-9]+(?:[-_][a-z0-9]+)*$")
+SEARCH_TITLE = re.compile(r"What (?:Is|Are) \S.*\? \(Crypto Chart Example\)")  # fullmatch
+MAX_TITLE = 100  # YouTube's title limit
 
 
 # ─── detector registry ─────────────────────────────────────────────────────
@@ -111,6 +117,19 @@ def _glossary_problem(key, glossary: dict) -> str | None:
     return None
 
 
+def search_title_problems(title) -> list[str]:
+    """Why `title` can't be an entry's search title ([] = it can)."""
+    if not (isinstance(title, str) and title.strip()):
+        return ["empty search_title"]
+    problems = []
+    if not SEARCH_TITLE.fullmatch(title):
+        problems.append(f"search_title {title!r} is not \"What Is/Are …? (Crypto Chart Example)\"")
+    if len(title) > MAX_TITLE:
+        problems.append(f"search_title is {len(title)} characters (at most {MAX_TITLE})")
+    problems += [f"search_title {p}" for p in rules.title_problems(title)]
+    return problems
+
+
 def validate(curriculum: list[dict], glossary: dict, detectors: dict | None = None) -> list[str]:
     """Every problem as "<episode id>: <reason>"; [] means the curriculum is usable."""
     detectors = DETECTORS if detectors is None else detectors
@@ -133,6 +152,9 @@ def validate(curriculum: list[dict], glossary: dict, detectors: dict | None = No
             err(f"track {e['track']!r} is not 0-6")
         if "title" in e and not (isinstance(e["title"], str) and e["title"].strip()):
             err("empty title")
+        if "search_title" in e:
+            for problem in search_title_problems(e["search_title"]):
+                err(problem)
         if "key_points" in e and not (isinstance(e["key_points"], list) and e["key_points"]
                                       and all(isinstance(p, str) and p.strip() for p in e["key_points"])):
             err("key_points must be a non-empty list of text")
