@@ -828,6 +828,28 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-14T06:18:38+00:00",
+      "brief_date": "2026-10-14",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Bearish Below $4,166 | XAU/USD Oct 14",
+      "video_id": "MNsF-LLSgfw",
+      "seconds": 41.6,
+      "headlines": [],
+      "outlook": {
+        "price": 4160.7,
+        "daily_bias": "bearish",
+        "time": "2026-10-14T06:16:28+00:00"
+      },
+      "fb_reel_id": "1282811397303108",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
