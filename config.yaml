@@ -24,60 +24,32 @@ market:
   calendar_hours_ahead: 24    # economic events shown: from now until this many hours ahead
   calendar_impacts: [High]    # add Medium for more events
 
-# ─── Editions: up to 3 briefs a day, one per trading-session open ──────────
-# start_utc = when the edition is due. The runs are started by the outside timer (cron-job.org)
-# and the backup cron lines in .github/workflows/autopilot.yml; keep all three in step.
-# platforms: where an edition is published. Video editions default to [youtube, facebook]
-# (one render: a YouTube Short + a Facebook Reel); kind: post editions are Facebook-only.
+# ─── Editions: the crypto-only weekly slate (weekly-slate.md; all times UTC) ──
+# start_utc = when the edition is due. The runs are started by the outside timer (cron-job.org,
+# setup_cronjobs.py) and the backup cron lines in .github/workflows/autopilot.yml; keep all three in step
+# (and EDITION + concurrency.group in the workflow). Every edition runs 7 days a week unless it has `days`.
+# platforms: where an edition is published. Video editions default to [youtube, facebook];
+# kind: post editions are Facebook-only.
 sessions:
-  asia:
-    label: Asia Open
-    short: Asia
-    start_utc: "00:30"
-    focus: >-
-      Cover what moved in crypto since the New York close: Bitcoin, Ether and the large coins
-      overnight, ETF flows, liquidations and regulation news, and what crypto traders watch next.
-  london:
-    label: London Open
-    short: London
-    start_utc: "05:40"
-    focus: >-
-      Cover what moved in crypto during the Asian session: Bitcoin, Ether and the large coins,
-      ETF flows, liquidations and regulation news, and what crypto traders watch next.
-  newyork:
-    label: New York Open
-    short: New York
-    start_utc: "12:30"
-    focus: >-
-      Cover crypto moves since the London open: Bitcoin, Ether and the large coins, spot ETF
-      flows, liquidations and regulation news, and what crypto traders watch for the rest of the day.
-  # Daily gold outlook (not a market brief): bias for the next 1h / 4h / day, liquidity, levels.
-  # 06:15 UTC = after the Asian session has set its range (00:00-06:00 GMT), before London opens
-  # (07:00 GMT summer / 08:00 GMT winter), when gold is most liquid and Asian highs/lows get tested,
-  # and well before US data (12:30-14:00 GMT). Weekdays only (not in weekend_sessions).
-  gold:
-    label: Gold Outlook
-    short: Gold
-    start_utc: "06:15"
-    kind: gold
-  # Facebook news image posts (3 a day, weekends too): one market-moving story each, a big
-  # headline card + an SEO caption. 03:00 / 09:30 / 16:30 UTC = 08:30 / 15:00 / 22:00 Sri Lanka.
+  # Facebook news image posts (3 a day, every day, crypto stories only): one story each, a big headline
+  # card + an SEO caption. 12:00 / 16:00 / 21:00 UTC = 17:30 / 21:30 / 02:30 Sri Lanka. The keys stay so
+  # setup_cronjobs.py patches the existing cron-job.org jobs.
   news_morning:
     label: Morning News
     short: News
-    start_utc: "03:00"
+    start_utc: "12:00"
     kind: post
     platforms: [facebook]
   news_midday:
     label: Midday News
     short: News
-    start_utc: "09:30"
+    start_utc: "16:00"
     kind: post
     platforms: [facebook]
   news_evening:
     label: Evening News
     short: News
-    start_utc: "16:30"
+    start_utc: "21:00"
     kind: post
     platforms: [facebook]
   # Trading lesson (kind: lesson): the next curriculum episode as a 16:9 YouTube video (Education)
@@ -143,10 +115,6 @@ sessions:
     start_utc: "23:00"
     kind: short
     platforms: [youtube, facebook]
-# Forex is closed at weekends, so only these editions run on Saturday and Sunday
-# (automatic runs only; a manual run can still choose any edition). News posts run every day;
-# the lesson runs on its own `days` (Thursday).
-weekend_sessions: [london, news_morning, news_midday, news_evening, lesson, triggered, recap, short_a, short_b]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180

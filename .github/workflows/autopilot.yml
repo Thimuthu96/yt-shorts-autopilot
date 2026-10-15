@@ -8,21 +8,21 @@ on:
   # Times are UTC. Sri Lanka time = UTC + 5:30.
   # If you change a cron line, change the same string in EDITION below and in concurrency.group.
   schedule:
-    - cron: "47 0 * * *"     # Asia Open      (due 00:30 UTC → 06:00 Sri Lanka)
-    - cron: "57 5 * * *"     # London Open    (due 05:40 UTC → 11:10 Sri Lanka)
-    - cron: "32 6 * * 1-5"   # Gold Outlook   (due 06:15 UTC → 11:45 Sri Lanka), weekdays
-    - cron: "47 12 * * *"    # New York Open  (due 12:30 UTC → 18:00 Sri Lanka)
-    - cron: "17 3 * * *"     # Morning News   (Facebook post, due 03:00 UTC → 08:30 Sri Lanka)
-    - cron: "47 9 * * *"     # Midday News    (Facebook post, due 09:30 UTC → 15:00 Sri Lanka)
-    - cron: "47 16 * * *"    # Evening News   (Facebook post, due 16:30 UTC → 22:00 Sri Lanka)
-    - cron: "17 15 * * 4"    # Trading Lesson (due 15:00 UTC → 20:30 Sri Lanka), Thursday
+    - cron: "17 12 * * *"   # Morning News   (Facebook post, due 12:00 UTC → 17:30 Sri Lanka)
+    - cron: "17 13 * * *"   # Short A        (due 13:00 UTC → 18:30 Sri Lanka)
+    - cron: "17 15 * * 3"   # Crypto Basics  (due 15:00 UTC → 20:30 Sri Lanka), Wednesday
+    - cron: "17 15 * * 4"   # Trading Lesson (due 15:00 UTC → 20:30 Sri Lanka), Thursday
+    - cron: "17 15 * * 6"   # Weekly Recap   (due 15:00 UTC → 20:30 Sri Lanka), Saturday; else the top-up
+    - cron: "17 16 * * *"   # Midday News    (Facebook post, due 16:00 UTC → 21:30 Sri Lanka)
+    - cron: "17 21 * * *"   # Evening News   (Facebook post, due 21:00 UTC → 02:30 Sri Lanka)
+    - cron: "17 23 * * *"   # Short B        (due 23:00 UTC → 04:30 Sri Lanka)
   workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
     inputs:
       session:
-        description: "Edition to make (news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`, triggered = why crypto moved for `trigger`, recap = Saturday recap, short_a / short_b = standalone Short)"
+        description: "Edition to make (short_a / short_b = standalone Short, news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`, triggered = why crypto moved for `trigger`, recap = Saturday recap)"
         type: choice
-        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening, lesson, basics, evergreen, triggered, recap, short_a, short_b]
-        default: auto
+        options: [short_a, short_b, news_morning, news_midday, news_evening, basics, lesson, recap, evergreen, triggered]
+        default: short_a
       platforms:
         description: "Where to publish (limited to the edition's own platforms)"
         type: choice
@@ -59,7 +59,7 @@ jobs:
     # Triggered runs (dispatched by the trigger poll, triggers.yml) queue in their own `triggered` group.
     # Manual runs get their own group: they never wait or cancel anything.
     concurrency:
-      group: "${{ inputs.slot && format('topup-{0}', inputs.slot) || inputs.session == 'triggered' && 'triggered' || (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || github.event.schedule == '17 15 * * 4' && 'lesson' || 'newyork') || inputs.session) || format('manual-{0}', github.run_id) }}"
+      group: "${{ inputs.slot && format('topup-{0}', inputs.slot) || inputs.session == 'triggered' && 'triggered' || (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '17 12 * * *' && 'news_morning' || github.event.schedule == '17 13 * * *' && 'short_a' || github.event.schedule == '17 15 * * 3' && 'basics' || github.event.schedule == '17 15 * * 4' && 'lesson' || github.event.schedule == '17 15 * * 6' && 'recap' || github.event.schedule == '17 16 * * *' && 'news_midday' || github.event.schedule == '17 21 * * *' && 'news_evening' || github.event.schedule == '17 23 * * *' && 'short_b' || '') || inputs.session) || format('manual-{0}', github.run_id) }}"
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -88,7 +88,7 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           # which edition: from the backup cron that fired, or from the timer's / manual run's choice
-          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || github.event.schedule == '17 15 * * 4' && 'lesson' || 'newyork') || inputs.session || 'auto' }}"
+          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '17 12 * * *' && 'news_morning' || github.event.schedule == '17 13 * * *' && 'short_a' || github.event.schedule == '17 15 * * 3' && 'basics' || github.event.schedule == '17 15 * * 4' && 'lesson' || github.event.schedule == '17 15 * * 6' && 'recap' || github.event.schedule == '17 16 * * *' && 'news_midday' || github.event.schedule == '17 21 * * *' && 'news_evening' || github.event.schedule == '17 23 * * *' && 'short_b' || '') || inputs.session || '' }}"
           SCHEDULED: ${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && '--scheduled' || '' }}
           AS_EDITION: ${{ inputs.as_edition && '--as-edition' || '' }}
           PLATFORMS: ${{ inputs.platforms || 'all' }}

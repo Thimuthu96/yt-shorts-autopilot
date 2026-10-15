@@ -9,7 +9,7 @@ Plus Facebook-only news image posts (kind: post): story â†’ headline + caption â
     python main.py                    # market edition picked from the current UTC time
     python main.py --no-upload        # make it only, saved in output/
     python main.py --session asia --platforms facebook   # publish to Facebook only
-    python main.py --session asia --scheduled   # timed run: weekend rule, late/early skip, once a day per platform
+    python main.py --session asia --scheduled   # timed run: days rule, late/early skip, once a day per platform
     python main.py --session asia --as-edition  # manual run that fills today's slot (timed run skips)
     python main.py --session lesson --scheduled  # trading lesson: next curriculum episode (YouTube + Facebook video)
     python main.py --session lesson --slot recap  # top-up: the next unpublished lesson, once, in today's recap slot
@@ -50,24 +50,16 @@ from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
 ROOT = Path(__file__).parent
 
-# Used when config.yaml has no "sessions" section (e.g. an older config.yaml).
+# Used when config.yaml has no "sessions" section (e.g. an older config.yaml): the slate's daily editions.
 DEFAULT_SESSIONS = {
-    "asia": {"label": "Asia Open", "short": "Asia", "start_utc": "00:30",
-             "focus": "Cover what moved in crypto since the New York close: Bitcoin, Ether and the large coins "
-                      "overnight, ETF flows, liquidations and regulation news, and what crypto traders watch next."},
-    "london": {"label": "London Open", "short": "London", "start_utc": "05:40",
-               "focus": "Cover what moved in crypto during the Asian session: Bitcoin, Ether and the large coins, "
-                        "ETF flows, liquidations and regulation news, and what crypto traders watch next."},
-    "newyork": {"label": "New York Open", "short": "New York", "start_utc": "12:30",
-                "focus": "Cover crypto moves since the London open: Bitcoin, Ether and the large coins, spot ETF "
-                         "flows, liquidations and regulation news, and what crypto traders watch for the rest of the day."},
-    "gold": {"label": "Gold Outlook", "short": "Gold", "start_utc": "06:15", "kind": "gold"},
-    "news_morning": {"label": "Morning News", "short": "News", "start_utc": "03:00", "kind": "post",
+    "news_morning": {"label": "Morning News", "short": "News", "start_utc": "12:00", "kind": "post",
                      "platforms": ["facebook"]},
-    "news_midday": {"label": "Midday News", "short": "News", "start_utc": "09:30", "kind": "post",
+    "news_midday": {"label": "Midday News", "short": "News", "start_utc": "16:00", "kind": "post",
                     "platforms": ["facebook"]},
-    "news_evening": {"label": "Evening News", "short": "News", "start_utc": "16:30", "kind": "post",
+    "news_evening": {"label": "Evening News", "short": "News", "start_utc": "21:00", "kind": "post",
                      "platforms": ["facebook"]},
+    "short_a": {"label": "Short A", "short": "Short A", "start_utc": "13:00", "kind": "short"},
+    "short_b": {"label": "Short B", "short": "Short B", "start_utc": "23:00", "kind": "short"},
 }
 PLATFORMS = ("youtube", "facebook")
 LESSON_MAX_SECONDS = 300  # lessons' own limit (cfg lessons.max_seconds); the Shorts keep video.max_seconds
@@ -117,14 +109,6 @@ def ab_voice(v: dict, history: History, session_key: str) -> dict:
     if not pair[1]:
         return v
     return {**v, "name": pair[1] if history.last_voice(session_key, pair) == pair[0] else pair[0]}
-
-
-def auto_session(now: datetime) -> str:
-    if now.hour < 5:
-        return "asia"
-    if now.hour < 12:
-        return "london"
-    return "newyork"
 
 
 def minutes_late(now: datetime, start_utc: str) -> int:
@@ -1026,14 +1010,13 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--no-upload", action="store_true", help="make it only, publish nowhere")
     p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
-    p.add_argument("--session", default="auto",
-                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | basics | triggered | recap | "
-                        "short_a | short_b | "
-                        "auto (market edition by UTC time)")
+    p.add_argument("--session", default="",
+                   help="news_morning | news_midday | news_evening | short_a | short_b | basics | lesson | recap | "
+                        "triggered | evergreen (the edition to make; required)")
     p.add_argument("--platforms", default="all",
                    help="all | youtube | facebook | youtube,facebook (limited to the edition's own platforms)")
     p.add_argument("--scheduled", action="store_true",
-                   help="timed run (schedule / outside timer): weekend rule, late/early skip, once per edition per day")
+                   help="timed run (schedule / outside timer): days rule, late/early skip, once per edition per day")
     p.add_argument("--as-edition", action="store_true",
                    help="manual run that counts as today's edition, so its timed run then skips")
     p.add_argument("--prepare", default="", metavar="TOPIC_ID|next",
@@ -1055,7 +1038,6 @@ def main(argv: list[str] | None = None) -> int:
     if not cfg.get("sessions"):
         log("config.yaml has no 'sessions' section; using the built-in editions")
         cfg["sessions"] = DEFAULT_SESSIONS
-    cfg.setdefault("weekend_sessions", ["london", "news_morning", "news_midday", "news_evening"])
     cfg.setdefault("max_late_minutes", 180)
     if args.lesson_sample:
         if not args.no_upload:
@@ -1065,9 +1047,11 @@ def main(argv: list[str] | None = None) -> int:
 
     now = datetime.now(timezone.utc)
     today = now.strftime("%Y-%m-%d")
-    session_key = (args.session or "auto").strip().lower()
+    session_key = (args.session or "").strip().lower()
     if session_key in ("", "auto"):
-        session_key = auto_session(now)
+        log("No edition chosen: pass --session <edition> (the market-brief `auto` choice is retired). "
+            f"Choose one of: {', '.join(cfg.get('sessions', {}))}")
+        return 1
     if session_key not in cfg.get("sessions", {}):
         log(f"Unknown edition '{session_key}'. Choose one of: {', '.join(cfg.get('sessions', {}))}")
         return 1
@@ -1117,9 +1101,6 @@ def main(argv: list[str] | None = None) -> int:
     if topup:
         log(f"Top-up: the {label} edition fills today's {slot_key} slot (once per slot; the lesson's days and "
             "time window don't apply).")
-    elif args.scheduled and now.weekday() >= 5 and session_key not in cfg.get("weekend_sessions", []):
-        log(f"Weekend: forex is closed, so the {label} edition is skipped today.")
-        return 0
     days = [str(d).strip().lower()[:3] for d in session.get("days") or []]
     if args.scheduled and not topup and days and WEEKDAYS[now.weekday()] not in days:
         log(f"The {label} edition runs only on {', '.join(days)}; skipped today ({WEEKDAYS[now.weekday()]}).")

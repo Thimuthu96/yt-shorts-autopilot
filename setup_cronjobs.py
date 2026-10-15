@@ -1,14 +1,16 @@
 """Create or fix the cron-job.org timers (the "outside timer") for every edition in config.yaml.
 
 Each edition gets one job titled "CryptoFX · <edition>" that POSTs workflow_dispatch to GitHub at
-its start_utc on the edition's `days` (e.g. lesson: [thu]; gold without `days`:
-Monday-Friday; otherwise every day). Jobs with that title are updated, missing ones are created,
-so running it again after changing a time in config.yaml is safe. Other jobs are left alone.
+its start_utc on the edition's `days` (e.g. lesson: [thu]; otherwise every day). Jobs with that title
+are updated, missing ones are created, so running it again after changing a time in config.yaml is
+safe. Other jobs are left alone; the retired editions' jobs (asia, london, newyork, gold) are listed and
+deleted only with --delete-retired.
 
     python setup_cronjobs.py --dry-run          # show what it would do (no keys needed)
     python setup_cronjobs.py                    # asks for both keys (hidden input)
     python setup_cronjobs.py --disable news_morning,news_midday,news_evening   # create them paused
     python setup_cronjobs.py --disable lesson   # the lesson timer paused until lessons.enabled is true
+    python setup_cronjobs.py --delete-retired   # also delete the retired editions' jobs
 
 Keys (asked for if not set as environment variables; never stored):
   CRONJOB_API_KEY   cron-job.org → Settings → API → Create API key
@@ -32,12 +34,12 @@ DISPATCH = f"https://api.github.com/repos/{REPO}/actions/workflows/autopilot.yml
 PREFIX = "CryptoFX · "
 POST = 1  # cron-job.org requestMethod code
 WDAYS = {"sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6}  # cron-job.org: 0 = Sunday
-GOLD_DAYS = ["mon", "tue", "wed", "thu", "fri"]
+RETIRED = ("asia", "london", "newyork", "gold")  # editions retired by the crypto-only slate (their jobs go)
 
 
 def days_of(session: dict) -> list[str]:
-    """The edition's run days as mon..sun keys; [] = every day. Gold without `days` keeps Mon-Fri."""
-    days = session.get("days") or (GOLD_DAYS if session.get("kind") == "gold" else [])
+    """The edition's run days as mon..sun keys; [] = every day."""
+    days = session.get("days") or []
     out = [str(d).strip().lower()[:3] for d in days]
     bad = [d for d in out if d not in WDAYS]
     if bad:
@@ -73,6 +75,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--dry-run", action="store_true", help="print the plan, change nothing")
     p.add_argument("--disable", default="", help="comma-separated editions to create/update as paused")
+    p.add_argument("--delete-retired", action="store_true",
+                   help="delete the retired editions' jobs (" + ", ".join(PREFIX + k for k in RETIRED) + ")")
     args = p.parse_args()
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
@@ -85,8 +89,10 @@ def main() -> int:
     print("Timers (UTC; Sri Lanka = UTC+5:30):")
     for k, s in sorted(sessions.items(), key=lambda kv: kv[1]["start_utc"]):
         d = days_of(s)
-        days = ("Mon-Fri" if d == GOLD_DAYS else "/".join(x.title() for x in d)) if d else "every day"
+        days = "/".join(x.title() for x in d) if d else "every day"
         print(f"  {PREFIX + k:<26} {s['start_utc']} UTC, {days}{'  (paused)' if k in paused else ''}")
+    print("Retired (" + ("deleted" if args.delete_retired else "delete by hand, or run with --delete-retired")
+          + "): " + ", ".join(PREFIX + k for k in RETIRED))
     if args.dry_run:
         print("Dry run: nothing changed.")
         return 0
@@ -105,6 +111,13 @@ def main() -> int:
     r.raise_for_status()
     existing = {j.get("title"): j["jobId"] for j in r.json().get("jobs", [])}
 
+    if args.delete_retired:
+        for k in RETIRED:
+            if PREFIX + k in existing:
+                r = s.delete(f"{API}/jobs/{existing[PREFIX + k]}", timeout=30)
+                print(f"  {'✗' if r.status_code >= 400 else '✓'} {PREFIX + k} deleted"
+                      + (f": HTTP {r.status_code} {r.text[:200]}" if r.status_code >= 400 else ""))
+                time.sleep(0.3)
     created = 0
     for k, sess in sessions.items():
         job = job_for(k, sess, gh_token, enabled=k not in paused)

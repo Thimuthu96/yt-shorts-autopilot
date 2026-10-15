@@ -295,6 +295,7 @@ def main():
     test_short_originality(cfg)
     test_short_lesson(cfg)
     test_short_mix(cfg)
+    test_slate_timetable(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -1690,29 +1691,31 @@ def test_news_edition(cfg):
 
 
 def test_video_editions(cfg, video, cover):
-    """Video editions through main(): both platforms → one entry; a later timed run publishes only the
-    platform that's missing (with history minus today's slot); --platforms facebook → FB only."""
+    """Video editions (a standalone Short) through main(): both platforms → one entry; a later timed run publishes
+    only the platform that's missing (with history minus today's slot); --platforms facebook → FB only."""
     import main as app
     from autopilot import youtube
 
     class FixedNow(datetime):
         @classmethod
         def now(cls, tz=None):
-            t = datetime(2026, 10, 8, 5, 45, tzinfo=timezone.utc)  # 5 min after London's start
+            t = datetime(2026, 10, 8, 13, 5, tzinfo=timezone.utc)  # 5 min after Short A's start
             return t.astimezone(tz) if tz else t.replace(tzinfo=None)
 
     tmp = Path(tempfile.mkdtemp())
-    shutil.copy(ROOT / "config.yaml", tmp / "config.yaml")
+    c = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    c["shorts"]["enabled"] = True
+    (tmp / "config.yaml").write_text(yaml.safe_dump(c, sort_keys=False), encoding="utf-8")
     yt_calls, seen_history = [], []
 
-    def fake_make_brief(cfg_, history, args, session_key):
+    def fake_make_short(cfg_, history, session_key, date):
         seen_history.append(history)
         wd = tmp / "output" / f"run{len(seen_history)}"
         wd.mkdir(parents=True, exist_ok=True)
-        entry = {"date": "2026-10-08T05:46:00+00:00", "brief_date": "2026-10-08", "session": session_key,
-                 "kind": "market", "title": "t", "video_id": None, "headlines": [f"h{len(seen_history)}"],
-                 "workdir": str(wd.relative_to(tmp))}
-        return {"entry": entry, "video": video, "thumbnail": cover, "meta": {"title": "t"}, "fb_caption": "c"}
+        entry = {"date": "2026-10-08T13:06:00+00:00", "brief_date": "2026-10-08", "session": session_key,
+                 "kind": "short", "title": "t", "video_id": None, "workdir": str(wd.relative_to(tmp))}
+        return {"entry": entry, "video": video, "thumbnail": cover, "meta": {"title": "t"}, "fb_caption": "c",
+                "material": {}}
 
     def fake_upload(*a, **k):
         yt_calls.append(a)
@@ -1720,15 +1723,15 @@ def test_video_editions(cfg, video, cover):
             raise RuntimeError("YouTube upload limit reached for today")
         return f"Y{len(yt_calls)}"
 
-    saved = (app.ROOT, app.datetime, app.make_brief, youtube.upload, youtube.set_thumbnail)
-    app.ROOT, app.datetime, app.make_brief = tmp, FixedNow, fake_make_brief
+    saved = (app.ROOT, app.datetime, app.make_short, youtube.upload, youtube.set_thumbnail)
+    app.ROOT, app.datetime, app.make_short = tmp, FixedNow, fake_make_short
     youtube.upload, youtube.set_thumbnail = fake_upload, (lambda *a, **k: True)
     try:
-        # 1) timed London run, both platforms OK → one entry carrying both ids
+        # 1) timed Short A run, both platforms OK → one entry carrying both ids
         fail_yt = False
         fake = FakeGraph()
         _fb_env(fake)
-        assert app.main(["--session", "london", "--scheduled"]) == 0
+        assert app.main(["--session", "short_a", "--scheduled"]) == 0
         hist = json.loads((tmp / "data" / "history.json").read_text())["videos"]
         assert len(hist) == 1 and hist[0]["video_id"] == "Y1" and hist[0]["fb_reel_id"] == "R1", hist
         assert hist[0]["platforms"] == ["youtube", "facebook"] and fake.count("finish") == 1
@@ -1747,7 +1750,7 @@ def test_video_editions(cfg, video, cover):
             return bad_status(method, url, timeout=timeout, **kw)
         bad.request = failing
         _fb_env(bad)
-        assert app.main(["--session", "london", "--scheduled"]) == 1
+        assert app.main(["--session", "short_a", "--scheduled"]) == 1
         hist = json.loads((tmp / "data" / "history.json").read_text())["videos"]
         assert len(hist) == 1 and hist[0]["video_id"] and not hist[0].get("fb_reel_id"), hist
         assert bad.count("finish") == 1  # the failed Reel was not finished twice
@@ -1756,23 +1759,23 @@ def test_video_editions(cfg, video, cover):
         n_yt = len(yt_calls)
         fake = FakeGraph()
         _fb_env(fake)
-        assert app.main(["--session", "london", "--scheduled"]) == 0
+        assert app.main(["--session", "short_a", "--scheduled"]) == 0
         assert len(yt_calls) == n_yt and fake.count("finish") == 1, (yt_calls, fake.calls)
-        assert not seen_history[-1].published_on("2026-10-08", "london", "youtube")  # same history as run 1
+        assert not seen_history[-1].published_on("2026-10-08", "short_a", "youtube")  # same history as run 1
         hist = json.loads((tmp / "data" / "history.json").read_text())["videos"]
         assert len(hist) == 2 and hist[1]["fb_reel_id"] == "R1" and not hist[1].get("video_id"), hist
         # 4) a third timed run: everything is out → nothing is made
         made = len(seen_history)
-        assert app.main(["--session", "london", "--scheduled"]) == 0 and len(seen_history) == made
+        assert app.main(["--session", "short_a", "--scheduled"]) == 0 and len(seen_history) == made
 
         # 5) manual run --platforms facebook on a video edition → Facebook only
         fake = FakeGraph()
         _fb_env(fake)
         n_yt = len(yt_calls)
-        assert app.main(["--session", "asia", "--platforms", "facebook"]) == 0
+        assert app.main(["--session", "short_b", "--platforms", "facebook"]) == 0
         assert len(yt_calls) == n_yt and fake.count("finish") == 1
     finally:
-        (app.ROOT, app.datetime, app.make_brief, youtube.upload, youtube.set_thumbnail) = saved
+        (app.ROOT, app.datetime, app.make_short, youtube.upload, youtube.set_thumbnail) = saved
         for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN"):
             os.environ.pop(k, None)
 
@@ -3153,18 +3156,18 @@ def test_lesson_edition(cfg):
     assert hist.published_on("2026-10-13", "lesson", "facebook") and not hist.published_on("2026-10-13", "lesson", "youtube")
     assert len(hist.uploaded()) == 1
 
-    # cron-job.org: lesson (Thursday 15:00 UTC) and basics on their days, gold Mon-Fri, the rest every day
+    # cron-job.org: lesson (Thursday 15:00 UTC), basics and recap on their days, the rest every day
     sessions = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))["sessions"]
     # as setup_cronjobs.main: only editions with a start_utc get a job (evergreen has none: epic 5 calls it)
     wd = {k: setup_cronjobs.job_for(k, s, "T", True)["schedule"]["wdays"] for k, s in sessions.items()
           if s.get("start_utc")}
     assert "evergreen" in sessions and "evergreen" not in wd, wd
-    assert wd["lesson"] == [4] and wd["gold"] == [1, 2, 3, 4, 5] and wd["asia"] == [-1], wd
+    assert wd["lesson"] == [4] and "gold" not in wd and "asia" not in wd and wd["short_a"] == [-1], wd
     job = setup_cronjobs.job_for("lesson", sessions["lesson"], "T", True)["schedule"]
     assert (job["hours"], job["minutes"]) == ([15], [0]) and sessions["lesson"]["start_utc"] == "15:00", job
     assert wd["basics"] == [3], wd
     assert wd["recap"] == [6], wd  # the Saturday recap (dark until recap.enabled; epic 5 wires the timer)
-    assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "gold", "basics", "recap")), wd
+    assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "basics", "recap", "topup_sun")), wd
     # workflow: the lesson's backup cron (17 min after 15:00, Thursday) maps to `lesson` in EDITION and
     # concurrency.group; the old Tue/Thu/Sat/Sun line is gone; the `slot` input reaches --slot
     text = (ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8")
@@ -3944,7 +3947,6 @@ def test_basics(cfg):
     assert live["basics"]["fb_published"] is False and str(live["basics"]["category_id"]) == "27"
     assert live["sessions"]["basics"] == {"label": "Crypto Basics", "short": "Basics", "start_utc": "15:00",
                                           "kind": "basics", "days": ["wed"], "platforms": ["youtube", "facebook"]}
-    assert "basics" not in live["weekend_sessions"]
 
     def write_cfg(enabled: bool):
         c = json.loads(json.dumps(live))
@@ -4999,7 +5001,7 @@ def test_recap(cfg):
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     assert live["recap"]["enabled"] is False and live["sessions"]["recap"]["kind"] == "recap"
     assert live["sessions"]["recap"]["platforms"] == ["youtube"] and live["sessions"]["recap"]["days"] == ["sat"]
-    assert live["sessions"]["recap"]["start_utc"] == "15:00" and "recap" in live["weekend_sessions"]
+    assert live["sessions"]["recap"]["start_utc"] == "15:00" and "weekend_sessions" not in live
     tmp = Path(tempfile.mkdtemp())
     c = json.loads(json.dumps(live))
     c["recap"].update(min_words=60, max_words=400)
@@ -5469,6 +5471,102 @@ def test_short_mix(cfg):
         app.render.build_video = saved
     print("OK short mix: simulated week → 4 market + 10 evergreen Shorts with 2 market videos (old one refused), "
           "14 evergreen with none, no segment repeated, once per slot, empty stock → skip + low-stock warning")
+
+
+def _wf_map(text: str) -> tuple[dict, dict, dict]:
+    """autopilot.yml: ({cron: edition} from EDITION, the same from concurrency.group, the `on` section)."""
+    import re
+    wf = yaml.safe_load(text)
+    job = wf["jobs"]["make-and-upload"]
+    step = next(x for x in job["steps"] if x.get("name") == "Make and publish")
+    pairs = lambda t: dict(re.findall(r"github\.event\.schedule == '([^']+)' && '([a-z_]+)'", t))  # noqa: E731
+    return pairs(step["env"]["EDITION"]), pairs(job["concurrency"]["group"]), wf.get("on", wf.get(True))
+
+
+def _main_logs(app, argv: list[str], now: datetime, root: Path) -> tuple[int, list[str]]:
+    """main(argv) at a fixed UTC time under `root`, with its log lines."""
+    class FixedNow(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now.astimezone(tz) if tz else now.replace(tzinfo=None)
+    logs = []
+    saved = (app.ROOT, app.datetime, app.log)
+    app.ROOT, app.datetime, app.log = root, FixedNow, logs.append
+    try:
+        return app.main(argv), logs
+    finally:
+        app.ROOT, app.datetime, app.log = saved
+
+
+def test_slate_timetable(cfg):
+    """Slate 5.1: every timed session has one backup cron (17 min after start_utc, on its days) whose string maps to
+    it in EDITION and concurrency.group; retired editions (asia, london, newyork, gold) and `auto` are gone; no
+    weekend skip (a Saturday timed short_a run is made); setup_cronjobs.py --dry-run plans only the slate's jobs."""
+    import contextlib
+    import io
+    import main as app
+    import setup_cronjobs
+
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    sessions = live["sessions"]
+    retired = ("asia", "london", "newyork", "gold")
+    assert not set(retired) & set(sessions) and not set(retired) & set(app.DEFAULT_SESSIONS), sessions.keys()
+    assert "weekend_sessions" not in live and not hasattr(app, "auto_session")
+    timed = {k: s for k, s in sessions.items() if s.get("start_utc")}
+    want = {"news_morning": ("12:00", []), "news_midday": ("16:00", []), "news_evening": ("21:00", []),
+            "short_a": ("13:00", []), "short_b": ("23:00", []), "basics": ("15:00", ["wed"]),
+            "lesson": ("15:00", ["thu"]), "recap": ("15:00", ["sat"])}
+    for k, (t, days) in want.items():
+        assert timed[k]["start_utc"] == t and list(timed[k].get("days") or []) == days, (k, timed[k])
+    text = (ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8")
+    edition, group, on = _wf_map(text)
+    crons = [c["cron"] for c in on["schedule"]]
+    assert edition == group and set(edition) == set(crons) and len(crons) == len(set(crons)), (edition, group, crons)
+    dow = {"sun": "0", "mon": "1", "tue": "2", "wed": "3", "thu": "4", "fri": "5", "sat": "6"}
+    for k, s in timed.items():
+        mine = [c for c, e in edition.items() if e == k]
+        assert len(mine) == 1, (k, mine)
+        h, m = (int(x) for x in s["start_utc"].split(":"))
+        t = h * 60 + m + 17
+        exp = f"{t % 60} {t // 60 % 24} * * " + (",".join(dow[d] for d in s.get("days") or []) or "*")
+        assert mine[0] == exp, (k, mine[0], exp)
+    assert set(edition.values()) == set(timed), edition
+    choices = on["workflow_dispatch"]["inputs"]["session"]["options"]
+    assert not set(retired) & set(choices) and "auto" not in choices and set(choices) <= set(sessions), choices
+    assert not any(r in text for r in ("'asia'", "'london'", "'newyork'", "'gold'", "'auto'"))
+
+    tmp = Path(tempfile.mkdtemp())
+    c = json.loads(json.dumps(live))
+    c["shorts"]["enabled"] = True
+    (tmp / "config.yaml").write_text(yaml.safe_dump(c, sort_keys=False), encoding="utf-8")
+    sat = datetime(2026, 10, 17, 13, 4, tzinfo=timezone.utc)  # a Saturday, 4 min after Short A's start
+    for argv in (["--session", "gold"], ["--session", "london", "--scheduled"], ["--session", "auto"], []):
+        rc, logs = _main_logs(app, argv, sat, tmp)
+        assert rc == 1 and not any("Edition:" in x for x in logs), (argv, logs)
+    assert any("Unknown edition 'gold'" in x for x in _main_logs(app, ["--session", "gold"], sat, tmp)[1])
+    made = []
+    saved = app.make_short
+    app.make_short = lambda *a, **k: made.append(a[2]) or None
+    try:
+        rc, logs = _main_logs(app, ["--session", "short_a", "--scheduled"], sat, tmp)
+    finally:
+        app.make_short = saved
+    assert rc == 0 and made == ["short_a"] and not any("eekend" in x for x in logs), logs
+
+    out = io.StringIO()
+    argv0 = sys.argv
+    sys.argv = ["setup_cronjobs.py", "--dry-run"]
+    try:
+        with contextlib.redirect_stdout(out):
+            assert setup_cronjobs.main() == 0
+    finally:
+        sys.argv = argv0
+    planned = [ln.split()[2] for ln in out.getvalue().splitlines() if ln.startswith("  CryptoFX · ")]
+    assert sorted(planned) == sorted(timed), out.getvalue()
+    assert "Retired" in out.getvalue() and all(f"CryptoFX · {r}" in out.getvalue() for r in retired)
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK slate timetable (one backup cron per timed session in EDITION + concurrency.group, retired editions "
+          "and auto gone, no weekend skip, setup_cronjobs --dry-run plans only the slate)")
 
 
 if __name__ == "__main__":
