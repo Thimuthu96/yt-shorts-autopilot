@@ -2824,12 +2824,13 @@ def test_lesson_edition(cfg):
     """The lesson edition through main() (entry 12): days rule, lessons.enabled, next episode on both
     platforms, the guard, a held episode, one platform failing + the re-run of the slot's recorded
     episode, empty slots, curriculum problems, a manual run on another day, history merge by
-    fb_video_id and the cron-job.org days. Price history, make_lesson and both publishers are faked."""
+    fb_video_id and the cron-job.org days. Weekly Thursday 15:00 slot + `--slot` top-ups (crypto-lessons
+    entry 4). Price history, make_lesson and both publishers are faked."""
     import main as app
     import setup_cronjobs
     from autopilot import lesson_data, lessons, youtube
 
-    clock = [datetime(2026, 10, 13, 14, 35, tzinfo=timezone.utc)]  # a Tuesday, 5 min after 14:30
+    clock = [datetime(2026, 10, 15, 15, 5, tzinfo=timezone.utc)]  # a Thursday, 5 min after 15:00
 
     class FixedNow(datetime):
         @classmethod
@@ -2847,6 +2848,9 @@ def test_lesson_edition(cfg):
     def write_cfg(enabled: bool):
         c = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
         c["lessons"]["enabled"] = enabled
+        # a recap slot for the top-up runs (crypto-pivot epic 5 adds the real one: Sat 15:00)
+        c["sessions"]["recap"] = {"label": "Weekly Recap", "short": "Recap", "start_utc": "15:00", "days": ["sat"],
+                                  "platforms": ["youtube"]}
         (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
 
     def history() -> list[dict]:
@@ -2934,13 +2938,15 @@ def test_lesson_edition(cfg):
         fetched.clear()
 
         write_cfg(True)
-        # wrong day: a timed run on Monday is skipped before anything is fetched
-        clock[0] = datetime(2026, 10, 12, 14, 35, tzinfo=timezone.utc)
-        assert run("--session", "lesson", "--scheduled") == 0 and said("runs only on tue, thu, sat, sun"), logs
+        # wrong day: timed runs on Tuesday, Saturday and Sunday (the old lesson days) are skipped before
+        # anything is fetched
+        for day in (13, 17, 18):
+            clock[0] = datetime(2026, 10, day, 15, 5, tzinfo=timezone.utc)
+            assert run("--session", "lesson", "--scheduled") == 0 and said("runs only on thu;"), logs
         assert not fetched and not made
 
-        # Tuesday: episode 1 made once (examples from the hold check passed through), both platforms
-        clock[0] = datetime(2026, 10, 13, 14, 35, tzinfo=timezone.utc)
+        # Thursday: episode 1 made once (examples from the hold check passed through), both platforms
+        clock[0] = datetime(2026, 10, 15, 15, 5, tzinfo=timezone.utc)
         assert run("--session", "lesson", "--scheduled") == 0, logs
         assert [m["id"] for m in made] == ["swing-structure"] and made[0]["examples"], made
         assert made[0]["next"] == "bos-vs-choch" and len(fetched) == 1
@@ -2950,7 +2956,8 @@ def test_lesson_edition(cfg):
         h = history()
         assert len(h) == 1 and h[0]["kind"] == "lesson" and h[0]["episode"] == "swing-structure", h
         assert h[0]["video_id"] == "Y1" and h[0]["fb_video_id"] == "F1" and h[0]["platforms"] == ["youtube", "facebook"]
-        assert h[0]["session"] == "lesson" and h[0]["brief_date"] == "2026-10-13" and h[0]["counts"] is True
+        assert h[0]["session"] == "lesson" and h[0]["brief_date"] == "2026-10-15" and h[0]["counts"] is True
+        assert h[0]["trigger"] == "timed", h[0]
         assert h[0]["examples"] == [{"asset": "BTC/USD", "timeframe": "1H", "start": region["start"],
                                      "end": region["end"]}], h[0]["examples"]  # identity only, no candles
         assert list((tmp / "output").glob("*/history_entry.json"))
@@ -2958,8 +2965,8 @@ def test_lesson_edition(cfg):
         assert run("--session", "lesson", "--scheduled") == 0 and said("already published"), logs
         assert len(made) == 1 and len(fetched) == 1 and len(history()) == 1
 
-        # Thursday: episode 2's detector finds nothing → held (logged with its reason, not stored), episode 3 made
-        clock[0] = datetime(2026, 10, 15, 14, 35, tzinfo=timezone.utc)
+        # next Thursday: episode 2's detector finds nothing → held (logged with its reason, not stored), episode 3 made
+        clock[0] = datetime(2026, 10, 22, 15, 5, tzinfo=timezone.utc)
         available.discard("bos_choch")
         assert run("--session", "lesson", "--scheduled") == 0, logs
         assert said("Lesson bos-vs-choch held: no clean bos_choch example"), logs
@@ -2968,8 +2975,8 @@ def test_lesson_edition(cfg):
         assert len(h) == 2 and h[1]["episode"] == "top-down-reading" and "held" not in json.dumps(h), h
         available.add("bos_choch")
 
-        # Saturday: episode 2 is clean again; Facebook fails → YouTube id still logged, exit 1
-        clock[0] = datetime(2026, 10, 17, 14, 35, tzinfo=timezone.utc)
+        # the Thursday after: episode 2 is clean again; Facebook fails → YouTube id still logged, exit 1
+        clock[0] = datetime(2026, 10, 29, 15, 5, tzinfo=timezone.utc)
         fail_fb[0] = True
         n_yt = len(yt)
         assert run("--session", "lesson", "--scheduled") == 1, logs
@@ -2999,8 +3006,8 @@ def test_lesson_edition(cfg):
         n_made = len(made)
         assert run("--session", "lesson", "--scheduled") == 0 and len(made) == n_made, logs
 
-        # Sunday: every episode is published → "nothing to publish in this slot", exit 0, no entry
-        clock[0] = datetime(2026, 10, 18, 14, 35, tzinfo=timezone.utc)
+        # a later Thursday: every episode is published → "nothing to publish in this slot", exit 0, no entry
+        clock[0] = datetime(2026, 11, 5, 15, 5, tzinfo=timezone.utc)
         n_fetch = len(fetched)
         assert run("--session", "lesson", "--scheduled") == 0 and said("nothing to publish in this slot"), logs
         assert len(made) == n_made and len(history()) == 4 and len(fetched) == n_fetch
@@ -3027,14 +3034,14 @@ def test_lesson_edition(cfg):
         (tmp / "lessons" / "curriculum.yaml").write_text(sample, encoding="utf-8")
 
         # a manual run works on any day (Monday) and doesn't fill the slot
-        clock[0] = datetime(2026, 10, 19, 9, 0, tzinfo=timezone.utc)
+        clock[0] = datetime(2026, 11, 9, 9, 0, tzinfo=timezone.utc)
         assert run("--session", "lesson") == 0, logs
         h = history()
         assert len(h) == 1 and h[0]["episode"] == "swing-structure" and h[0]["trigger"] == "manual", h
         assert h[0]["counts"] is False and h[0]["video_id"] and h[0]["fb_video_id"]
 
-        # Tuesday, fresh history: the timed run gets YouTube up but Facebook fails
-        clock[0] = datetime(2026, 10, 20, 14, 35, tzinfo=timezone.utc)
+        # Thursday, fresh history: the timed run gets YouTube up but Facebook fails
+        clock[0] = datetime(2026, 11, 12, 15, 5, tzinfo=timezone.utc)
         (tmp / "data" / "history.json").write_text(json.dumps({"videos": []}))
         fail_fb[0] = True
         assert run("--session", "lesson", "--scheduled") == 1 and made[-1]["id"] == "swing-structure", logs
@@ -3055,6 +3062,65 @@ def test_lesson_edition(cfg):
         # --force on the full slot: the recorded episode again on both platforms
         assert run("--session", "lesson", "--scheduled", "--force") == 0, logs
         assert made[-1]["id"] == "swing-structure" and len(yt) == n_yt + 2 and len(fb) == n_fb + 2, (yt, fb)
+
+        # ── top-ups (crypto-pivot weekly floor): --slot <session> fills another edition's slot ──
+        (tmp / "data" / "history.json").write_text(json.dumps({"videos": []}))
+        clock[0] = datetime(2026, 11, 19, 15, 5, tzinfo=timezone.utc)  # Thursday: episode 1 in the lesson slot
+        assert run("--session", "lesson", "--scheduled") == 0 and made[-1]["id"] == "swing-structure", logs
+        clock[0] = datetime(2026, 11, 21, 15, 5, tzinfo=timezone.utc)  # Saturday
+        # lessons off: a top-up is gated like any lesson run
+        write_cfg(False)
+        n_made, n_fetch = len(made), len(fetched)
+        assert run("--session", "lesson", "--slot", "recap") == 0 and said("lessons.enabled is false"), logs
+        write_cfg(True)
+        # the timed lesson run is skipped on Saturday; the top-up into the recap slot makes the next episode
+        assert run("--session", "lesson", "--scheduled") == 0 and said("runs only on thu;"), logs
+        assert len(made) == n_made and len(fetched) == n_fetch
+        n_yt, n_fb = len(yt), len(fb)
+        assert run("--session", "lesson", "--scheduled", "--slot", "recap") == 0, logs
+        assert said("Top-up") and made[-1]["id"] == "bos-vs-choch", (logs, made)
+        assert len(yt) == n_yt + 1 and len(fb) == n_fb + 1, (yt, fb)  # the lesson's platforms, not the slot's
+        h = history()
+        assert [(v["episode"], v["session"], v["brief_date"], v["trigger"], v["counts"]) for v in h] == [
+            ("swing-structure", "lesson", "2026-11-19", "timed", True),
+            ("bos-vs-choch", "recap", "2026-11-21", "topup", True)], h
+        # the same slot again (timer + backup, or a second call): nothing fetched or made
+        n_made, n_fetch = len(made), len(fetched)
+        assert run("--session", "lesson", "--slot", "recap") == 0 and said("already published"), logs
+        assert len(made) == n_made and len(fetched) == n_fetch and len(history()) == 2
+        # Sunday's slot: the next unpublished episode, never one already out
+        clock[0] = datetime(2026, 11, 22, 15, 5, tzinfo=timezone.utc)
+        assert run("--session", "lesson", "--slot", "recap") == 0 and made[-1]["id"] == "top-down-reading", logs
+        assert [v["episode"] for v in history()] == ["swing-structure", "bos-vs-choch", "top-down-reading"]
+        # every episode out: another slot's top-up publishes nothing (no repeat)
+        n_made = len(made)
+        assert run("--session", "lesson", "--slot", "basics") == 0 and said("nothing to publish in this slot"), logs
+        assert len(made) == n_made and len(history()) == 3
+        # a slot that already holds another edition's upload is left alone (nothing fetched)
+        clock[0] = datetime(2026, 11, 28, 15, 5, tzinfo=timezone.utc)
+        (tmp / "data" / "history.json").write_text(json.dumps({"videos": [
+            {"brief_date": "2026-11-28", "session": "recap", "kind": "recap", "video_id": "R1", "counts": True}]}))
+        n_fetch = len(fetched)
+        assert run("--session", "lesson", "--slot", "recap") == 0 and said("already published a recap upload"), logs
+        assert len(made) == n_made and len(fetched) == n_fetch and len(history()) == 1
+        # a top-up whose Facebook upload fails: the same slot's re-run re-makes its episode, Facebook only
+        fail_fb[0] = True
+        assert run("--session", "lesson", "--slot", "basics") == 1 and made[-1]["id"] == "swing-structure", logs
+        fail_fb[0] = False
+        n_yt, n_fb = len(yt), len(fb)
+        assert run("--session", "lesson", "--slot", "basics") == 0 and made[-1]["id"] == "swing-structure", logs
+        assert len(yt) == n_yt and len(fb) == n_fb + 1, (yt, fb)
+        assert [(v["episode"], v["session"], v["platforms"]) for v in history()[1:]] == [
+            ("swing-structure", "basics", ["youtube"]), ("swing-structure", "basics", ["facebook"])], history()
+        # the next Thursday's timed run takes the episode after it (the top-up's episode isn't repeated)
+        clock[0] = datetime(2026, 12, 3, 15, 5, tzinfo=timezone.utc)
+        assert run("--session", "lesson", "--scheduled") == 0 and made[-1]["id"] == "bos-vs-choch", logs
+        # bad top-ups: unknown slot, or an edition other than the lesson → exit 1, nothing made
+        n_made = len(made)
+        assert run("--session", "lesson", "--slot", "nope") == 1 and said("Unknown slot 'nope'"), logs
+        assert run("--session", "news_morning", "--slot", "recap") == 1 and said("--slot works only with"), logs
+        assert run("--session", "lesson", "--slot", "news_evening") == 1 and said("a Facebook news post"), logs
+        assert len(made) == n_made
     finally:
         lessons.DETECTORS.clear()
         lessons.DETECTORS.update(saved_det)
@@ -3073,15 +3139,32 @@ def test_lesson_edition(cfg):
     assert hist.published_on("2026-10-13", "lesson", "facebook") and not hist.published_on("2026-10-13", "lesson", "youtube")
     assert len(hist.uploaded()) == 1
 
-    # cron-job.org: lesson and basics on their days, gold Mon-Fri, the rest every day
+    # cron-job.org: lesson (Thursday 15:00 UTC) and basics on their days, gold Mon-Fri, the rest every day
     sessions = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))["sessions"]
     wd = {k: setup_cronjobs.job_for(k, s, "T", True)["schedule"]["wdays"] for k, s in sessions.items()}
-    assert wd["lesson"] == [2, 4, 6, 0] and wd["gold"] == [1, 2, 3, 4, 5] and wd["asia"] == [-1], wd
+    assert wd["lesson"] == [4] and wd["gold"] == [1, 2, 3, 4, 5] and wd["asia"] == [-1], wd
+    job = setup_cronjobs.job_for("lesson", sessions["lesson"], "T", True)["schedule"]
+    assert (job["hours"], job["minutes"]) == ([15], [0]) and sessions["lesson"]["start_utc"] == "15:00", job
     assert wd["basics"] == [3], wd
     assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "gold", "basics")), wd
+    # workflow: the lesson's backup cron (17 min after 15:00, Thursday) maps to `lesson` in EDITION and
+    # concurrency.group; the old Tue/Thu/Sat/Sun line is gone; the `slot` input reaches --slot
+    text = (ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8")
+    wf = yaml.safe_load(text)
+    on = wf.get("on", wf.get(True))
+    assert {"cron": "17 15 * * 4"} in on["schedule"] and "0,2,4,6" not in text and "47 14" not in text, on
+    job = wf["jobs"]["make-and-upload"]
+    assert "'17 15 * * 4' && 'lesson'" in job["concurrency"]["group"]
+    assert job["concurrency"]["group"].startswith("${{ inputs.slot && format('topup-{0}', inputs.slot) || ")
+    assert "Manual" in wf["run-name"] and "slot {0}" in wf["run-name"]
+    step = next(x for x in job["steps"] if x.get("name") == "Make and publish")
+    assert "'17 15 * * 4' && 'lesson'" in step["env"]["EDITION"]
+    assert "--slot=" in step["env"]["SLOT"] and step["run"].endswith('${SLOT:+"$SLOT"}'), step
+    assert on["workflow_dispatch"]["inputs"]["slot"]["type"] == "string"
     shutil.rmtree(tmp, ignore_errors=True)
-    print("OK lesson edition (days, disabled, both platforms, guard, held, FB failure + recorded-episode re-run, "
-          "empty slot, curriculum problems, manual any day, fb_video_id merge, cron days)")
+    print("OK lesson edition (Thursday days, disabled, both platforms, guard, held, FB failure + recorded-episode "
+          "re-run, empty slot, curriculum problems, manual any day, --slot top-ups, fb_video_id merge, cron days, "
+          "workflow)")
 
 
 DIAGRAM_SAMPLE = ROOT / "output" / "basics-diagram-sample"  # the owner's look check (hitl): contact sheets

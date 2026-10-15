@@ -6,7 +6,8 @@ One entry per run that published anywhere. It carries the id of each platform it
 A run that publishes a platform the edition missed earlier (e.g. Facebook after a failure) adds a
 second entry for the same edition, so each platform's guard is checked on its own.
 
-Entries carry "trigger" (timed | manual) and "counts" (does it fill that day's edition slot?).
+Entries carry "trigger" (timed | manual | topup: a lesson filling another edition's slot, main.py --slot)
+and "counts" (does it fill that day's edition slot?).
 Manual runs don't count unless started with --as-edition, so they never stop the autopilot.
 Brief and gold entries carry "voice" (the edge-tts voice or Piper model that narrated; main.ab_voice).
 

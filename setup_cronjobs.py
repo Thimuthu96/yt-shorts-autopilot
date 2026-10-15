@@ -1,7 +1,7 @@
 """Create or fix the cron-job.org timers (the "outside timer") for every edition in config.yaml.
 
 Each edition gets one job titled "CryptoFX · <edition>" that POSTs workflow_dispatch to GitHub at
-its start_utc on the edition's `days` (e.g. lesson: [tue, thu, sat, sun]; gold without `days`:
+its start_utc on the edition's `days` (e.g. lesson: [thu]; gold without `days`:
 Monday-Friday; otherwise every day). Jobs with that title are updated, missing ones are created,
 so running it again after changing a time in config.yaml is safe. Other jobs are left alone.
 

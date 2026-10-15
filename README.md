@@ -12,7 +12,7 @@ posts** a day on the Facebook Page, with no manual work, running free on GitHub 
 | Gold Outlook | 06:15 | 11:45 | XAU/USD: bias for the next 1h / 4h / day, liquidity, key levels (Mon–Fri) | YouTube + Facebook Reel |
 | Midday News | 09:30 | 15:00 | news image post | Facebook |
 | New York Open | 12:30 | 18:00 | market brief: one lead story since London | YouTube + Facebook Reel |
-| Trading Lesson | 14:30 | 20:00 | the next curriculum episode, Tue/Thu/Sat/Sun (off until enabled, see [Trading lessons](#trading-lessons)) | YouTube (16:9) + Facebook video (9:16) |
+| Trading Lesson | 15:00 | 20:30 | the next curriculum episode, Thursday (off until enabled, see [Trading lessons](#trading-lessons)) | YouTube (16:9) + Facebook video (9:16) |
 | Evening News | 16:30 | 22:00 | news image post | Facebook |
 
 **News image posts (Facebook):** each picks the most important story of the last 48 h that moves
@@ -216,7 +216,7 @@ To pause Facebook, set `facebook.enabled: false` in `config.yaml`.
 ### 6. Trading lessons (off until you switch them on)
 
 The `lesson` edition publishes the next episode of `lessons/curriculum.yaml` (list order is the
-queue) at 14:30 UTC (20:00 Sri Lanka) on **Tuesday, Thursday, Saturday and Sunday**: a 16:9 video on
+queue) at 15:00 UTC (20:30 Sri Lanka) every **Thursday**: a 16:9 video on
 YouTube (Education, public on upload; set `lessons.review_window_hours` to keep it private that many
 hours first; playlists by hand in Studio unless `lessons.playlists: true`) and the same
 narration as a 9:16 video on the Facebook Page. Every chart is a real historical example a detector
@@ -225,6 +225,12 @@ time) and the next one goes out instead. If every episode is published or held, 
 "nothing to publish in this slot" and stops. Each platform is published on its own: if one fails,
 the backup run re-makes the same episode (same examples) and publishes only the missing one; if
 that episode can't be re-made, the run fails so you see it.
+
+**Top-up in another slot:** `python main.py --session lesson --slot recap` (Actions → Run workflow →
+session `lesson`, `slot` = the edition whose slot it fills) publishes the next unpublished episode once
+in today's slot of that edition (Saturday 15:00, or Sunday when Saturday is taken), for a week that is
+short of long videos. It counts for that slot: a second call for the same slot and day publishes
+nothing, and no episode is ever repeated.
 
 Each episode opens on its first real example, already marked, under the lesson title (no title card),
 so the payoff is on screen from the first frame; the recap ends on "Next: <episode>". In the example
@@ -245,8 +251,8 @@ To switch them on:
 2. **Curriculum:** merge the approved `lessons/curriculum.yaml` and `lessons/glossary.yaml`;
    `python tests/test_lessons.py` must pass (a run with curriculum problems lists them and fails).
 3. Set **`lessons.enabled: true`** in `config.yaml` and push.
-4. **Outside timer:** add the `lesson` job to cron-job.org (14:30 UTC / 20:00 Asia/Colombo,
-   Tuesday, Thursday, Saturday, Sunday; body `{"ref":"main","inputs":{"session":"lesson","scheduled":"true"}}`),
+4. **Outside timer:** add the `lesson` job to cron-job.org (15:00 UTC / 20:30 Asia/Colombo,
+   Thursday only; body `{"ref":"main","inputs":{"session":"lesson","scheduled":"true"}}`),
    or run `python setup_cronjobs.py` (it uses the edition's `days`).
 5. Test: Actions → Run workflow → session `lesson` (a manual run works any day, publishes the next
    episode and doesn't fill the timed slot).
@@ -328,8 +334,8 @@ What helps most from your side, even if it's 10 minutes a week:
 - Facebook may refuse a custom Reel cover through the API; the Reel then uses its own frame.
 - A Reel or lesson video still processing after 10 minutes is logged as published (so it isn't
   posted twice); check the Page if a run says so.
-- YouTube's ~6 uploads a day: with lessons on, the autopilot uses 5 on Tuesdays and Thursdays
-  (4 Shorts + the lesson), leaving about 1 manual upload on those days.
+- YouTube's ~6 uploads a day: with lessons on, the autopilot uses 5 on Thursdays
+  (4 Shorts + the lesson), leaving about 1 manual upload that day.
 
 ## Files
 
@@ -369,7 +375,7 @@ One-time setup, free, about 10 minutes.
 
 **Shortcut:** `python setup_cronjobs.py` creates or fixes all eight jobs from `config.yaml` through
 the cron-job.org API (jobs titled "CryptoFX · <edition>", times in UTC, gold Mon–Fri, lesson on its
-`days`: Tue/Thu/Sat/Sun; `--disable lesson` creates that one paused). It asks for
+`days`: Thursday; `--disable lesson` creates that one paused). It asks for
 a cron-job.org API key (Settings → API) and the GitHub token from step 1, with hidden input. Run it
 again after changing any `start_utc`; `--dry-run` shows the plan. The manual steps below do the same.
 
@@ -389,8 +395,7 @@ again after changing any `start_utc`; `--dry-run` shows the plan. The manual ste
    **11:10 → `london`**, **11:45 → `gold`** (set this one to **Monday–Friday**), **18:00 → `newyork`**.
 4. Facebook news posts: copy it three more times, **every day**:
    **08:30 → `news_morning`**, **15:00 → `news_midday`**, **22:00 → `news_evening`**.
-5. Trading lessons (once they're enabled): **20:00 → `lesson`**, **Tuesday, Thursday, Saturday,
-   Sunday** only.
+5. Trading lessons (once they're enabled): **20:30 → `lesson`**, **Thursday** only.
 
 Keep the token only in cron-job.org (never in the repo or chat). If the jobs start failing
 with `401`, the token has expired: make a new one and paste it into all eight jobs. A `422`

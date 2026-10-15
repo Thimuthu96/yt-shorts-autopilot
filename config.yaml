@@ -81,14 +81,16 @@ sessions:
     kind: post
     platforms: [facebook]
   # Trading lesson (kind: lesson): the next curriculum episode as a 16:9 YouTube video (Education)
-  # and a 9:16 Facebook Page video, Tue/Thu/Sat/Sun only (`days`: timed runs skip other days; a
-  # manual run works any day). 14:30 UTC = 20:00 Sri Lanka. Off until `lessons.enabled: true`.
+  # and a 9:16 Facebook Page video, weekly on Thursday (`days`: timed runs skip other days; a manual
+  # run works any day). 15:00 UTC = 20:30 Sri Lanka. Off until `lessons.enabled: true`.
+  # Top-up in another slot (crypto-pivot weekly floor): `main.py --session lesson --slot <session>`
+  # makes the next unpublished episode once for that slot and day (recorded under it), never a repeat.
   lesson:
     label: Trading Lesson
     short: Lesson
-    start_utc: "14:30"
+    start_utc: "15:00"
     kind: lesson
-    days: [tue, thu, sat, sun]
+    days: [thu]
     platforms: [youtube, facebook]
   # Crypto Basics (kind: basics): one beginner explainer as a 16:9 YouTube video (Education) and a 9:16
   # Facebook Page video from the same narration, Wednesdays (`days`; a manual run works any day).
@@ -102,7 +104,7 @@ sessions:
     platforms: [youtube, facebook]
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
 # (automatic runs only; a manual run can still choose any edition). News posts run every day;
-# the lesson runs on its own `days` (Saturday and Sunday included).
+# the lesson runs on its own `days` (Thursday).
 weekend_sessions: [london, news_morning, news_midday, news_evening, lesson]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
