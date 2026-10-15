@@ -944,6 +944,30 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption, "material": m}
 
 
+def floor_top_up(cfg: dict, history: History, slot_key: str, now: datetime, args) -> int:
+    """The weekly floor (CAP-6, crypto-pivot 5.3): when the ISO week (UTC) has fewer than slate.week_floor long
+    videos, run "publish next evergreen" (`--session evergreen --slot <slot_key>`: Basics first, then the next
+    lesson) into today's slot. The Saturday recap slot is used only when Saturday has no long video yet (a
+    triggered video on Saturday moves the top-up to Sunday 15:00, topup_sun). Returns the exit code."""
+    lim = slate.limits(cfg)
+    have = slate.long_videos(history, now)
+    if len(have) >= lim["week_floor"]:
+        log(f"Weekly floor: this ISO week already has {len(have)} long videos (floor {lim['week_floor']}); no top-up.")
+        return 0
+    today = now.strftime("%Y-%m-%d")
+    used = [v for v in have if v.get("brief_date") == today]
+    if used:
+        log(f"Weekly floor: today already had a {used[0].get('kind')} long video, so the top-up waits for the next "
+            "free slot (Sunday 15:00, topup_sun).")
+        return 0
+    log(f"Weekly floor: this ISO week has {len(have)} long video(s) (under {lim['week_floor']}): the evergreen "
+        f"top-up fills today's {slot_key} slot.")
+    argv = ["--session", "evergreen", "--slot", slot_key]
+    argv += [f for f, on in (("--scheduled", args.scheduled), ("--no-upload", args.no_upload),
+                             ("--force", args.force)) if on]
+    return main(argv)
+
+
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
     """Facebook news image post: one story → headline + caption → background → card → /photos."""
     session = cfg.get("sessions", {}).get(session_key, {})
@@ -1169,6 +1193,9 @@ def main(argv: list[str] | None = None) -> int:
                 "Check the timer's time and time zone.")
             return 0
 
+    if kind == "floor":  # the Sunday top-up slot: only when the week is still short of the floor
+        return floor_top_up(cfg, history, session_key, now, args)
+
     # pending = edition platforms ∩ enabled − already published today (timed runs)
     pending = []
     for plat in wanted:
@@ -1208,6 +1235,13 @@ def main(argv: list[str] | None = None) -> int:
     if not pending and not args.no_upload:
         log("No platform to publish to; making it only.")
 
+    counting = bool(args.scheduled or args.as_edition or topup)
+    if kind in ("basics", "lesson", "evergreen", "triggered", "recap") and counting and "youtube" in pending:
+        cap, have = slate.limits(cfg)["week_cap"], slate.long_videos(history, now)
+        if len(have) >= cap:  # the weekly cap (CAP-6): never a fifth long video in an ISO week
+            log(f"Weekly cap: this ISO week already has {len(have)} long videos (at most {cap}), so the {label} "
+                "upload is refused.")
+            return 0
     log(f"Edition: {label} → {', '.join(pending) or 'no upload'}")
     try:
         if kind == "post":
@@ -1235,7 +1269,8 @@ def main(argv: list[str] | None = None) -> int:
         elif kind == "recap":
             if not args.force and recap.week_has_triggered(history, now):
                 log("Recap skipped: a triggered video already published this ISO week (the recap covers quiet weeks).")
-                return 0
+                # the weekly floor: a skipped recap frees the Saturday slot for the evergreen top-up (timed runs)
+                return floor_top_up(cfg, history, session_key, now, args) if args.scheduled else 0
             made = make_recap(cfg, history, session_key, today)
             entry, failed = publish_triggered(made, [x for x in pending if x == "youtube"], cfg, "recap", "recap")
         elif kind == "short":

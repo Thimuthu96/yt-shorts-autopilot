@@ -297,6 +297,7 @@ def main():
     test_short_mix(cfg)
     test_slate_timetable(cfg)
     test_slate_budget(cfg)
+    test_slate_floor(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5685,6 +5686,83 @@ def test_slate_budget(cfg):
     assert slate.next_day(D(15, 23, 59)) == D(16, 0)
     print("OK slate budget (Wed trigger → Short B yields with a log line, Thu full day → trigger held to 00:00 then "
           "dispatched, simulated weeks ≤ 3 YouTube uploads a day)")
+
+
+def test_slate_floor(cfg):
+    """Slate 5.3: the weekly floor of 3 and cap of 4 long videos (ISO week, UTC). A skipped Saturday recap with the
+    week short runs the evergreen top-up into the recap slot; a week whose Saturday already had the recap (or a
+    triggered video) tops up Sunday 15:00 (topup_sun); Basics + Lesson + one trigger → no top-up; a long upload in a
+    week that already has 4 is refused with a log line. make_evergreen / make_lesson_edition are faked."""
+    import main as app
+
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert live["sessions"]["topup_sun"] == {"label": "Sunday top-up", "short": "Top-up", "start_utc": "15:00",
+                                             "kind": "floor", "days": ["sun"], "platforms": ["youtube", "facebook"]}
+    tmp = Path(tempfile.mkdtemp())
+    c = json.loads(json.dumps(live))
+    c["recap"]["enabled"] = c["evergreen"]["enabled"] = c["lessons"]["enabled"] = True
+    (tmp / "config.yaml").write_text(yaml.safe_dump(c, sort_keys=False), encoding="utf-8")
+    (tmp / "data").mkdir()
+    sat, sun = datetime(2026, 10, 17, 15, 4, tzinfo=timezone.utc), datetime(2026, 10, 18, 15, 4, tzinfo=timezone.utc)
+
+    def week(*rows):
+        (tmp / "data" / "history.json").write_text(json.dumps({"videos": [
+            {"brief_date": d, "session": k, "kind": k, "video_id": f"V{i}", "date": f"{d}T15:05:00+00:00",
+             "counts": True, **({"trigger_id": f"t{i}"} if k == "triggered" else {})}
+            for i, (k, d) in enumerate(rows)]}))
+    calls = []
+    saved = (app.make_evergreen, app.make_lesson_edition, app.make_recap)
+    app.make_evergreen = lambda cfg_, h, date, slot, pending, nu, force: (calls.append(("evergreen", slot)) and None,
+                                                                          pending, "basics")
+    app.make_lesson_edition = lambda *a, **k: (calls.append(("lesson", a[3])) and None, a[4])
+    app.make_recap = lambda *a, **k: calls.append(("recap", a[2])) or (_ for _ in ()).throw(RuntimeError("faked"))
+    try:
+        # a trigger Monday, Basics Wednesday, the lesson held: the recap skips → Saturday top-up into the recap slot
+        week(("triggered", "2026-10-12"), ("basics", "2026-10-14"))
+        rc, logs = _main_logs(app, ["--session", "recap", "--scheduled"], sat, tmp)
+        assert rc == 0 and calls == [("evergreen", "recap")], (calls, logs)
+        assert any("Recap skipped" in x for x in logs) and any("under 3" in x and "recap slot" in x for x in logs), logs
+        # no trigger + a held lesson: the recap goes out Saturday, so the top-up is Sunday 15:00 (topup_sun)
+        calls.clear()
+        week(("basics", "2026-10-14"), ("recap", "2026-10-17"))
+        rc, logs = _main_logs(app, ["--session", "topup_sun", "--scheduled"], sun, tmp)
+        assert rc == 0 and calls == [("evergreen", "topup_sun")], (calls, logs)
+        # a triggered video on Saturday itself: no Saturday top-up (logged), Sunday tops up
+        calls.clear()
+        week(("basics", "2026-10-14"), ("triggered", "2026-10-17"))
+        rc, logs = _main_logs(app, ["--session", "recap", "--scheduled"], sat, tmp)
+        assert rc == 0 and calls == [] and any("waits for the next free slot" in x for x in logs), logs
+        rc, logs = _main_logs(app, ["--session", "topup_sun", "--scheduled"], sun, tmp)
+        assert rc == 0 and calls == [("evergreen", "topup_sun")], (calls, logs)
+        # Basics + Lesson + one trigger = 3: no top-up on Saturday or Sunday
+        calls.clear()
+        week(("triggered", "2026-10-12"), ("basics", "2026-10-14"), ("lesson", "2026-10-15"))
+        for argv, when in ((["--session", "recap", "--scheduled"], sat), (["--session", "topup_sun", "--scheduled"], sun)):
+            rc, logs = _main_logs(app, argv, when, tmp)
+            assert rc == 0 and calls == [] and any("already has 3 long videos" in x for x in logs), (argv, logs)
+        # last week's videos don't count for this week; a manual topup_sun run is a manual evergreen top-up
+        week(("triggered", "2026-10-05"), ("basics", "2026-10-07"), ("lesson", "2026-10-08"))
+        rc, logs = _main_logs(app, ["--session", "topup_sun"], sun, tmp)
+        assert rc == 0 and calls == [("evergreen", "topup_sun")], (calls, logs)
+        # the cap: a week with 4 long videos refuses a fifth (a counting lesson run; a timed triggered-less recap)
+        calls.clear()
+        week(("triggered", "2026-10-12"), ("basics", "2026-10-14"), ("lesson", "2026-10-15"), ("lesson", "2026-10-16"))
+        rc, logs = _main_logs(app, ["--session", "lesson", "--as-edition"], sun, tmp)
+        assert rc == 0 and calls == [] and any("Weekly cap" in x and "at most 4" in x for x in logs), logs
+        rc, logs = _main_logs(app, ["--session", "evergreen", "--slot", "topup_sun"], sun, tmp)
+        assert rc == 0 and calls == [] and any("Weekly cap" in x for x in logs), logs
+        week(("basics", "2026-10-14"), ("lesson", "2026-10-15"), ("lesson", "2026-10-16"), ("basics", "2026-10-16"))
+        rc, logs = _main_logs(app, ["--session", "recap", "--scheduled"], sat, tmp)
+        assert rc == 0 and calls == [] and any("Weekly cap" in x for x in logs), logs
+        # under the cap the recap is made (faked: it raises after being called)
+        week(("basics", "2026-10-14"))
+        rc, logs = _main_logs(app, ["--session", "recap", "--scheduled"], sat, tmp)
+        assert rc == 1 and calls == [("recap", "recap")], (calls, logs)
+    finally:
+        app.make_evergreen, app.make_lesson_edition, app.make_recap = saved
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK slate floor (skipped recap → Saturday top-up, Saturday used → Sunday topup_sun, 3 long → no top-up, "
+          "ISO week only, a fifth long upload refused with a log line)")
 
 
 if __name__ == "__main__":

@@ -82,6 +82,16 @@ sessions:
     short: Evergreen
     kind: evergreen
     platforms: [youtube, facebook]
+  # Sunday top-up (kind: floor, CAP-6 weekly floor): Sun 15:00 (= 20:30 Sri Lanka). When the ISO week still has fewer
+  # than slate.week_floor long videos (Saturday's slot already had the recap or a triggered video, or its top-up
+  # failed), it runs the evergreen top-up into this slot; otherwise it logs the count and stops.
+  topup_sun:
+    label: Sunday top-up
+    short: Top-up
+    start_utc: "15:00"
+    kind: floor
+    days: [sun]
+    platforms: [youtube, facebook]
   # Triggered video (kind: triggered, CAP-4): "why crypto just moved", 16:9 on YouTube only, made for one trigger
   # (`--trigger <id|fixture>`; autopilot/triggers.py). No start_utc: a timed run goes by the trigger's due time.
   # Dark until `triggers.enabled: true` (timed runs skip; manual runs make it).
