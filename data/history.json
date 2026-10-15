@@ -1030,6 +1030,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-15T12:08:44+00:00",
+      "brief_date": "2026-10-15",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN SLIPS AS RATE HIKE ODDS REACH 44%",
+      "fb_post_id": "462331040302049_122253067562610202",
+      "headlines": [
+        "Bitcoin Price Crash Wipes Out $89 Billion as Fed Rate Hike Odds Hit 44%"
+      ],
+      "topic": "rates",
+      "source": "Coinpedia",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
