@@ -45,6 +45,7 @@ from autopilot import (basics, facebook, focus, gold, images, lesson_data, lesso
                        lessons, material, news_post, recap, render, reveal, script, shorts, slides, sources,
                        thumbnail, triggered, triggers, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
+from autopilot import lesson_material
 from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
 ROOT = Path(__file__).parent
@@ -884,6 +885,20 @@ def make_recap(cfg: dict, history: History, session_key: str, date: str) -> dict
     return made
 
 
+def short_lesson_materials(history: History) -> list[dict]:
+    """Shorts material rebuilt from published BTC / ETH lessons (autopilot/lesson_material.py); [] when there
+    are none or the curriculum can't be read (logged)."""
+    if not any(v.get("kind") == "lesson" and v.get("episode") for v in history.uploaded()):
+        return []
+    try:
+        curriculum = lessons.load_curriculum(ROOT / "lessons" / "curriculum.yaml")
+        glossary = lessons.load_glossary(ROOT / "lessons" / "glossary.yaml")
+    except Exception as e:
+        log(f"Shorts: lesson material skipped (curriculum / glossary unreadable: {e})")
+        return []
+    return lesson_material.from_history(history, curriculum, glossary, log=log)
+
+
 def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict | None:
     """One standalone Short (kind: short; autopilot/shorts.py) from the Shorts material in data/material/
     (shorts.pick: a market Short from a triggered / recap video under 3 days old with an unused hook candidate,
@@ -891,7 +906,7 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     (Gemini + shorts.check_script, 3 attempts; packaging rules), the A/B voice with pauses, 9:16 slides (hook card
     = frame 0), render, metadata. None = nothing to make (logged). Returns made for main.publish."""
     now = datetime.now(timezone.utc)
-    materials = shorts.load_materials(ROOT, log=log)
+    materials = shorts.load_materials(ROOT, log=log) + short_lesson_materials(history)
     earlier, hooks, skip = shorts.fingerprints(history), shorts.used_hooks(history), set()
     while True:  # originality guard: a segment whose script stays too close to an earlier Short's is passed over
         picked = shorts.pick(materials, history, now, log=log, skip=skip)

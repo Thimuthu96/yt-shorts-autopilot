@@ -293,6 +293,7 @@ def main():
     test_short_related(cfg)
     test_short_market(cfg)
     test_short_originality(cfg)
+    test_short_lesson(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5380,6 +5381,39 @@ def test_short_originality(cfg):
         assert not any("Exchange-traded fund" in p_ for p_ in r.prompts)
     print("OK short originality: fingerprint recorded, identical script rewritten once, a stuck segment passed "
           "over, used segments skipped, two Shorts of one episode differ in hook and script")
+
+
+def test_short_lesson(cfg):
+    """Lesson material (entry 6): a fixture lesson history entry with the sample curriculum yields material that
+    validates (≥ 5 segments, the recorded BTC example in the facts) and a concept Short renders from it with a
+    mocked LLM; a lesson whose recorded example is gold or EUR/USD yields no material."""
+    from autopilot import lesson_material, lessons, material
+    cur = lessons.load_curriculum(ROOT / "tests" / "lessons" / "curriculum.yaml")
+    glo = lessons.load_glossary(ROOT / "tests" / "lessons" / "glossary.yaml")
+    ep = next(e for e in cur if e["id"] == "bos-vs-choch")
+    entry = {"kind": "lesson", "episode": "bos-vs-choch", "video_id": "L1", "fb_video_id": "LF1", "session": "lesson",
+             "brief_date": "2026-10-08", "date": "2026-10-08T15:05:00+00:00",
+             "examples": [{"asset": "BTC", "timeframe": "4h", "start": "2026-10-01T00:00:00+00:00",
+                           "end": "2026-10-03T00:00:00+00:00"}]}
+    m = lesson_material.build_lesson(ep, glo, entry)
+    assert material.validate(m) == [] and len(m["segments"]) >= 5, material.validate(m)
+    assert m["source"] == {"kind": "lesson", "id": "bos-vs-choch", "title": ep["search_title"]} and m["youtube_id"] == "L1"
+    assert any("Bitcoin chart on the 4h timeframe" in f for f in m["segments"][1]["facts"])
+    for bad in ("XAU/USD", "EURUSD", "PAXG-USD"):
+        assert lesson_material.build_lesson(ep, glo, dict(entry, examples=[dict(entry["examples"][0], asset=bad)])) is None
+    assert lesson_material.build_lesson(ep, glo, dict(entry, examples=[])) is None
+    gold = dict(entry, episode="swing-structure", video_id="L2", examples=[dict(entry["examples"][0], asset="XAU/USD")])
+    with _ShortRun([], history=[entry, gold]) as r:
+        (r.tmp / "lessons").mkdir()
+        for f in ("curriculum.yaml", "glossary.yaml"):
+            shutil.copy(ROOT / "tests" / "lessons" / f, r.tmp / "lessons" / f)
+        assert r.run("--session", "short_a") == 0, r.logs[-5:]
+        assert any("lesson swing-structure's examples aren't BTC / ETH" in x for x in r.logs), r.logs
+        e = r.history()[-1]
+        assert e["material"] == "lesson-bos-vs-choch" and e["segment"] == "point_1" and e["source_video"] == "L1", e
+        assert _probe_size(r.yt[0]["video"]) == (1080, 1920) and "https://youtu.be/L1" in r.yt[0]["meta"]["description"]
+    print("OK short lesson: BTC lesson → validating material (key points + glossary terms + example) → concept "
+          "Short; gold / EUR/USD / no-example lessons give none")
 
 
 if __name__ == "__main__":
