@@ -42,7 +42,7 @@ from pathlib import Path
 import yaml
 
 from autopilot import (basics, facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
-                       lessons, material, news_post, recap, render, reveal, script, shorts, slides, sources,
+                       lessons, material, news_post, recap, render, reveal, script, shorts, slate, slides, sources,
                        thumbnail, triggered, triggers, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot import lesson_material
@@ -1146,6 +1146,13 @@ def main(argv: list[str] | None = None) -> int:
         log("shorts.enabled is false in config.yaml (standalone Shorts are dark), so the timed run is skipped. "
             "A manual run (Run workflow, no `scheduled`) still makes and publishes one.")
         return 0
+    if kind == "short" and args.scheduled and not args.force and "youtube" in wanted \
+            and not history.published_on(today, session_key, "youtube"):
+        # the daily budget (crypto-pivot 5.2): at most 3 YouTube uploads a day; Short B yields to a triggered video
+        why = slate.short_skip(history, triggers.load_state(ROOT / triggers.STATE), session_key, now, cfg)
+        if why:
+            log(f"{label} yields its slot today: {why}. Nothing to publish in this slot.")
+            return 0
     if kind == "recap" and args.scheduled and not (cfg.get("recap") or {}).get("enabled", False):
         log("recap.enabled is false in config.yaml (the Saturday recap is dark), so the timed run is skipped. "
             "A manual run (Run workflow, no `scheduled`) still makes it.")

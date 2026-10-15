@@ -296,6 +296,7 @@ def main():
     test_short_lesson(cfg)
     test_short_mix(cfg)
     test_slate_timetable(cfg)
+    test_slate_budget(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5567,6 +5568,123 @@ def test_slate_timetable(cfg):
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK slate timetable (one backup cron per timed session in EDITION + concurrency.group, retired editions "
           "and auto gone, no weekend skip, setup_cronjobs --dry-run plans only the slate)")
+
+
+def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetime(2026, 10, 12, tzinfo=timezone.utc)):
+    """A slate week through the budget rules (slate.short_skip, triggers.hold): Short A 13:00, the standing long
+    video 15:00 (Wed Basics, Thu Lesson, Sat recap unless a triggered video published this week), Short B 23:00,
+    and triggered videos at their due times (a held one moves to 00:00 next day). Returns (history, logs)."""
+    from autopilot import slate, triggers
+    hist, logs = [], []
+    state = {"version": 1, "triggers": [{"id": f"t{i}", "status": "pending", "due_utc": t.isoformat()}
+                                       for i, t in enumerate(trigger_times)]}
+
+    def up(kind, session, when):
+        hist.append({"brief_date": when.strftime("%Y-%m-%d"), "session": session, "kind": kind,
+                     "video_id": f"V{len(hist)}", "date": when.isoformat(), "counts": True})
+    for d in range(8):  # the week + the Monday after (a held Sunday trigger lands there)
+        day = start + timedelta(days=d)
+        events = [(day.replace(hour=13), "short_a"), (day.replace(hour=15), "long"), (day.replace(hour=23), "short_b")]
+        while True:
+            due = [t for t in state["triggers"] if t["status"] == "pending"
+                   and datetime.fromisoformat(t["due_utc"]).date() == day.date()]
+            evs = sorted(events + [(datetime.fromisoformat(t["due_utc"]), t) for t in due], key=lambda x: x[0])
+            if not evs:
+                break
+            when, what = evs[0]
+            if isinstance(what, dict):
+                if not triggers.hold(what, hist, when, cfg, logs.append):
+                    what["status"] = "published"
+                    up("triggered", "triggered", when)
+                continue
+            events.remove((when, what))
+            if what == "long":
+                wd = when.weekday()
+                if wd in (2, 3):
+                    up("basics" if wd == 2 else "lesson", "basics" if wd == 2 else "lesson", when)
+                elif wd == 5 and not any(v["kind"] == "triggered" for v in slate.long_videos(hist, when)):
+                    up("recap", "recap", when)
+                continue
+            seen = {"triggers": [t for t in state["triggers"]  # a trigger is known once it has fired (≈ its due time)
+                                 if datetime.fromisoformat(t.get("held_from") or t["due_utc"]) <= when]}
+            why = slate.short_skip(hist, seen, what, when, cfg)
+            if why:
+                logs.append(f"{what} {when:%a} yields: {why}")
+            else:
+                up("short", what, when)
+    return hist, logs
+
+
+def test_slate_budget(cfg):
+    """Slate 5.2: at most 3 YouTube uploads a UTC day. A Wednesday with Basics and a due trigger skips the timed
+    Short B with a log line (through main); on a Thursday where Short B is already up a due trigger holds to 00:00
+    UTC next day (triggers.check moves its due time, then dispatches it); simulated weeks never exceed 3 a day."""
+    from collections import Counter
+    import main as app
+    from autopilot import slate, triggers
+
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert live["slate"] == {"day_cap": 3, "yield_days": ["wed", "thu"], "week_floor": 3, "week_cap": 4}
+    tmp = Path(tempfile.mkdtemp())
+    c = json.loads(json.dumps(live))
+    c["shorts"]["enabled"], c["triggers"]["enabled"] = True, True
+    (tmp / "config.yaml").write_text(yaml.safe_dump(c, sort_keys=False), encoding="utf-8")
+    (tmp / "data").mkdir()
+    wed = datetime(2026, 10, 14, 23, 4, tzinfo=timezone.utc)
+
+    def entry(kind, session, vid, date="2026-10-14"):
+        return {"brief_date": date, "session": session, "kind": kind, "video_id": vid, "counts": True,
+                "date": f"{date}T15:05:00+00:00"}
+    (tmp / "data" / "history.json").write_text(json.dumps({"videos": [entry("short", "short_a", "A1"),
+                                                                       entry("basics", "basics", "B1")]}))
+    triggers.save_state({"version": 1, "triggers": [{"id": "t-wed", "status": "pending",
+                                                     "due_utc": "2026-10-14T19:00:00+00:00"}]}, tmp / triggers.STATE)
+    made = []
+    saved = app.make_short
+    app.make_short = lambda *a, **k: made.append(a[2]) or None
+    try:
+        rc, logs = _main_logs(app, ["--session", "short_b", "--scheduled"], wed, tmp)
+        assert rc == 0 and not made and any("Short B yields its slot today" in x and "Wed" in x for x in logs), logs
+        # a Tuesday with a due trigger and no long video: Short B goes ahead
+        triggers.save_state({"version": 1, "triggers": [{"id": "t-tue", "status": "pending",
+                                                         "due_utc": "2026-10-13T19:00:00+00:00"}]}, tmp / triggers.STATE)
+        rc, logs = _main_logs(app, ["--session", "short_b", "--scheduled"], wed - timedelta(days=1), tmp)
+        assert rc == 0 and made == ["short_b"], logs
+    finally:
+        app.make_short = saved
+
+    # Thursday: Short A, Lesson and Short B are up; a trigger due 23:30 holds to Friday 00:00, then dispatches
+    thu = "2026-10-15"
+    (tmp / "data" / "history.json").write_text(json.dumps({"videos": [
+        entry("short", "short_a", "A2", thu), entry("lesson", "lesson", "L2", thu), entry("short", "short_b", "S2", thu)]}))
+    triggers.save_state({"version": 1, "triggers": [{"id": "t-thu", "status": "pending", "key": "k",
+                                                     "fired_utc": "2026-10-15T23:30:00+00:00",
+                                                     "due_utc": "2026-10-15T23:30:00+00:00"}]}, tmp / triggers.STATE)
+    quiet = lambda cfg_, log=print: ({"crypto": {}, "news": []}, None)  # noqa: E731  (nothing new fires)
+    logs = []
+    res = triggers.check(c, tmp, now=datetime(2026, 10, 15, 23, 43, tzinfo=timezone.utc), log=logs.append, fetch=quiet)
+    t = triggers.load_state(tmp / triggers.STATE)["triggers"][0]
+    assert res["due"] == "" and t["status"] == "pending" and t["due_utc"] == "2026-10-16T00:00:00+00:00", (res, t)
+    assert t["held_from"] == "2026-10-15T23:30:00+00:00" and any("held to 2026-10-16T00:00" in m for m in logs), logs
+    res = triggers.check(c, tmp, now=datetime(2026, 10, 16, 0, 13, tzinfo=timezone.utc), log=logs.append, fetch=quiet)
+    assert res["due"] == "t-thu", (res, logs)
+    shutil.rmtree(tmp, ignore_errors=True)
+
+    # simulated weeks (Mon 12 Oct 2026): never more than 3 YouTube uploads on a UTC day
+    D = lambda d, h, m=0: datetime(2026, 10, d, h, m, tzinfo=timezone.utc)  # noqa: E731
+    for times in ([], [D(14, 12)], [D(14, 23, 30)], [D(15, 18)], [D(17, 20)], [D(17, 23, 40)], [D(18, 23, 30)],
+                  [D(12, 12), D(14, 16)], [D(13, 23, 30), D(15, 23, 45)], [D(16, 14), D(18, 18)]):
+        hist, logs = _simulate_week(live, times)
+        per_day = Counter(v["brief_date"] for v in hist)
+        assert max(per_day.values()) <= 3, (times, per_day, logs)
+        assert sum(v["kind"] == "triggered" for v in hist) == len(times), (times, hist)  # every trigger published
+    hist, logs = _simulate_week(live, [D(14, 23, 30)])  # Wed after Short B: held to Thu 00:00, Thu Short B yields
+    trig = next(v for v in hist if v["kind"] == "triggered")
+    assert trig["date"] == "2026-10-15T00:00:00+00:00", trig
+    assert any(x.startswith("short_b Thu yields") for x in logs), logs
+    assert slate.next_day(D(15, 23, 59)) == D(16, 0)
+    print("OK slate budget (Wed trigger → Short B yields with a log line, Thu full day → trigger held to 00:00 then "
+          "dispatched, simulated weeks ≤ 3 YouTube uploads a day)")
 
 
 if __name__ == "__main__":

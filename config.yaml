@@ -119,6 +119,13 @@ sessions:
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180
 
+# ─── The slate's upload budget (autopilot/slate.py, weekly-slate.md) ────────
+slate:
+  day_cap: 3                  # YouTube uploads per UTC day: a timed Short skips at 3; a due trigger holds to 00:00
+  yield_days: [wed, thu]      # a triggered video takes Short B's (23:00) slot on these days (and on any day with a long video)
+  week_floor: 3               # long videos (basics, lesson, triggered, recap) per ISO week (UTC): top up below this …
+  week_cap: 4                 # … and never upload a fifth
+
 # ─── Facebook Page (Graph API; secrets FB_PAGE_ID + FB_PAGE_TOKEN, see README) ─
 # Skipped with a log line when the secrets are missing or enabled is false.
 facebook:
