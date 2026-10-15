@@ -279,6 +279,7 @@ def main():
     test_basics_packaging(cfg)
     test_material(cfg)
     test_basics(cfg)
+    test_basics_ready(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -3981,6 +3982,140 @@ def test_basics(cfg):
           "voice, subscribe ask after the first payoff, rule-breaking writer stops, unknown number stops at the "
           "fact-check, next run → next topic, FB failure keeps YT, nothing to publish, bad list stops, days skip, "
           "dark timed skip, workflow option")
+
+
+def test_basics_ready(cfg):
+    """Ready-episode packages (crypto-basics entry 8) through main(): `--prepare next` writes the first approved,
+    unpublished topic's package to basics/ready/<id>.yaml that validates (no upload, no history); `--prepare
+    <id>` with a narration holding a number not in the approved points, or for a draft / unknown / published
+    topic, writes nothing and exits 1; the edition with a ready package makes no LLM call and publishes it
+    (history topic); a tampered package ("I'm buying") stops it; `--stock` counts ready packages minus
+    published topics; --prepare / --stock need --session basics."""
+    from unittest import mock
+    import main as app
+    from autopilot import basics, voice, youtube
+
+    topic = dict(basics.sample_topic(), thumbnail="BITCOIN ETF?", approved=True)
+    drafts = basics.load_topics()
+    queue = [topic, dict(drafts[0], approved=True), dict(drafts[1], approved=True), drafts[2]]
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "basics").mkdir(parents=True)
+    (tmp / "basics" / "topics.yaml").write_text(yaml.safe_dump({"topics": queue}, allow_unicode=True, sort_keys=False),
+                                                encoding="utf-8")
+    c = json.loads(json.dumps(yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))))
+    c["basics"].update(min_words=30, max_words=400)
+    (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
+    calls, logs, yt, fb = [], [], [], []
+    extra = [""]
+
+    def fake_llm(prompt, models, temperature=0.9):
+        calls.append(prompt)
+        cur = next(t_ for t_ in queue if f'"{t_["question"]}"' in prompt)
+        text = _sample_narration() if cur["id"] == topic["id"] else _topic_narration(cur)
+        text = dict(text, point_3=text["point_3"] + extra[0])
+        return {"scenes": [{"id": k, "text": v} for k, v in text.items()]}
+
+    def fake_fact_check(cfg_, facts, pkg, extra_rules=""):
+        calls.append("fact_check")
+        return "ok", pkg, []
+
+    def fake_voice(scenes, name, rate, workdir, log=print, fallback=None, pauses=False):
+        return [{"audio": Path(workdir) / f"v{i}.wav", "duration": 0.3 * len(sc["text"].split()) + 0.5, "voice": name,
+                 "words": [(j * 0.3, j * 0.3 + 0.27, w) for j, w in enumerate(sc["text"].split())]}
+                for i, sc in enumerate(scenes)]
+
+    def fake_build(audio, pics, vcfg, workdir, out, music=None):
+        Path(out).write_bytes(b"")
+
+    def fake_upload_lesson(video, meta, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
+                           log=print, playlist_privacy="public", playlists=True):
+        yt.append(meta["title"])
+        return {"video_id": f"Y{len(yt)}", "errors": []}
+
+    def fake_publish_video(video, title, description, cfg_, published=True, poll_minutes=None, log=print):
+        fb.append(title)
+        return f"F{len(fb)}"
+
+    def go(*argv) -> int:
+        logs.clear()
+        return app.main(list(argv))
+
+    def said(text: str) -> bool:
+        return any(text in m for m in logs)
+
+    ready = tmp / "basics" / "ready"
+    saved = (app.ROOT, app.log, basics.generate_json, basics.fact_check, voice.synthesize, render.build_video,
+             youtube.upload_lesson, facebook.publish_video)
+    env = {k: os.environ.get(k) for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN")}
+    app.ROOT, app.log = tmp, logs.append
+    basics.generate_json, basics.fact_check, voice.synthesize, render.build_video = (fake_llm, fake_fact_check,
+                                                                                      fake_voice, fake_build)
+    youtube.upload_lesson, facebook.publish_video = fake_upload_lesson, fake_publish_video
+    os.environ["FB_PAGE_ID"], os.environ["FB_PAGE_TOKEN"] = "PAGE", "TOKEN"
+    try:
+        # prepare next: the first approved, unpublished topic → a package that validates; nothing uploaded
+        assert go("--session", "basics", "--prepare", "next") == 0, logs
+        path = ready / f"{topic['id']}.yaml"
+        pkg = basics.load_ready(path)
+        assert basics.validate_ready(pkg, topic, c) == [], basics.validate_ready(pkg, topic, c)
+        assert pkg["topic"] == topic["id"] and pkg["title"] == topic["question"] and pkg["thumbnail"] == "BITCOIN ETF?"
+        assert pkg["fact_check"]["verdict"] == "ok" and "fact_check" in calls and path.read_text().startswith("# Crypto")
+        assert [x["id"] for x in pkg["scenes"]] == [p_["id"] for p_ in basics.scene_plan(topic)]
+        assert not yt and not fb and not (tmp / "data" / "history.json").exists() and said("merge it by PR")
+        # next again: the second topic (the first has a package)
+        assert go("--session", "basics", "--prepare", "next") == 0 and (ready / f"{queue[1]['id']}.yaml").exists()
+        # a number not in the approved points: nothing written, exit 1
+        extra[0] = " The first funds came from 11 different issuers."
+        assert go("--session", "basics", "--prepare", queue[2]["id"]) == 1 and said("fact-check failed"), logs
+        assert not (ready / f"{queue[2]['id']}.yaml").exists() and said("nothing written")
+        extra[0] = ""
+        assert go("--session", "basics", "--prepare", drafts[2]["id"]) == 1 and said("is a draft"), logs
+        assert go("--session", "basics", "--prepare", "no-such-topic") == 1 and said("is not in basics/topics.yaml")
+        assert go("--session", "lesson", "--stock") == 1 and said("only with --session basics"), logs
+        # stock: two ready, none published
+        assert go("--session", "basics", "--stock") == 0 and said("Ready, unpublished Basics episodes: 2"), logs
+        assert said(f"{queue[2]['id']}: no package"), logs
+
+        # the edition with a ready package: no LLM call, published, history topic
+        calls.clear()
+        assert go("--session", "basics") == 0, logs
+        assert not calls and said("using the ready package"), (calls, logs)
+        h = json.loads((tmp / "data" / "history.json").read_text())["videos"]
+        assert h[-1]["topic"] == topic["id"] and h[-1]["video_id"] == "Y1" and h[-1]["fb_video_id"] == "F1", h
+        work = next((tmp / "output").glob("*/history_entry.json")).parent
+        spoken = {x["id"]: x["text"] for x in json.loads((work / "package.json").read_text())["scenes"]}
+        assert spoken == {x["id"]: " ".join(x["text"].split()) for x in pkg["scenes"]}
+        # stock: one ready, unpublished left (the published one no longer counts)
+        assert go("--session", "basics", "--stock") == 0 and said("Ready, unpublished Basics episodes: 1"), logs
+        assert said(f"{topic['id']}: published"), logs
+        assert go("--session", "basics", "--prepare", topic["id"]) == 1 and said("is already published"), logs
+
+        # a tampered package stops the edition: nothing published, no LLM call
+        p2 = ready / f"{queue[1]['id']}.yaml"
+        bad = basics.load_ready(p2)
+        bad["scenes"][2]["text"] = "I'm buying more bitcoin. " + bad["scenes"][2]["text"]
+        basics.save_ready(bad, p2)
+        calls.clear()
+        assert go("--session", "basics") == 1 and said("Basics ready package") and said("first person"), logs
+        assert not calls and len(yt) == 1, (calls, yt)
+        assert go("--session", "basics", "--stock") == 0 and said("package invalid"), logs
+        assert said("Ready, unpublished Basics episodes: 0"), logs
+        # a package of another topic's text or with a changed title is refused too
+        assert basics.validate_ready(dict(pkg, title="Other"), topic, c) and basics.validate_ready(dict(pkg, topic="x"),
+                                                                                                    topic, c)
+        assert "scene ids" in " ".join(basics.validate_ready(dict(pkg, scenes=pkg["scenes"][:3]), topic, c))
+    finally:
+        (app.ROOT, app.log, basics.generate_json, basics.fact_check, voice.synthesize, render.build_video,
+         youtube.upload_lesson, facebook.publish_video) = saved
+        for k, v in env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(tmp, ignore_errors=True)
+    print("OK basics ready: --prepare next/<id> writes a validating package (no upload, no history), unknown "
+          "number / draft / unknown / published topic → nothing written, exit 1; edition uses the package with no "
+          "LLM call; tampered package stops it; --stock counts ready minus published")
 
 
 if __name__ == "__main__":

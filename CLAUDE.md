@@ -95,6 +95,10 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → publish_basics(pending) youtube.upload_lesson() 16:9 (no playlists, basics.review_window_hours) ·
                             facebook.publish_video() 9:16 (basics.fb_published); one failure never blocks the other
   → history.json            kind: basics, topic, title, video_id, fb_video_id, seconds, voice
+  evergreen stock: `--session basics --prepare <id|next>` narrates an approved, unpublished topic exactly as the
+                            edition does and writes basics/ready/<id>.yaml (for a PR; never uploads); the edition uses
+                            a picked topic's package as it is (basics.validate_ready re-checks it, no LLM call; invalid
+                            → exit 1); `--session basics --stock` = ready, unpublished episodes
   → Shorts material         autopilot/material.py: built + validated before rendering (≥ 5 segments: overview + one
                             per point; problems → "Basics Shorts material", exit 1); after a publish written to
                             data/material/basics-<topic>.json (a later run merges a missed platform's id) + a copy

@@ -15,7 +15,10 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
     python main.py --session lesson --no-upload  # make the next lesson only (works with lessons.enabled false)
     python main.py --lesson-sample --no-upload  # sample trading lesson (16:9 + 9:16) on fixture candles
     python main.py --session basics   # Crypto Basics: the next approved topic (basics/topics.yaml), 16:9 YouTube +
-                                      # 9:16 Facebook (timed runs: off while basics.enabled is false)
+                                      # 9:16 Facebook (timed runs: off while basics.enabled is false); a topic with
+                                      # a ready package (basics/ready/<id>.yaml) is published as it is
+    python main.py --session basics --prepare next   # write the next ready package (evergreen stock, for a PR)
+    python main.py --session basics --stock          # how many ready, unpublished Basics episodes there are
 
 Manual runs always make and publish and don't stop the timed run of that edition.
 """
@@ -468,18 +471,26 @@ def make_lesson_edition(cfg: dict, history: History, date: str, session_key: str
     return made, pending
 
 
-def basics_topic(history: History) -> dict | None:
-    """The next Basics topic: basics/topics.yaml validated (problems → logged, RuntimeError), then basics.pick
-    (the first approved topic no uploaded kind: basics entry has published). None = nothing to publish."""
-    path = ROOT / "basics" / "topics.yaml"
-    topics = basics.load_topics(path)
+def basics_topics() -> list:
+    """basics/topics.yaml, validated (problems → logged, RuntimeError)."""
+    topics = basics.load_topics(ROOT / "basics" / "topics.yaml")
     problems = basics.validate_topics(topics)
     if problems:
         for msg in problems:
             log(f"Basics topic problem: {msg}")
         raise RuntimeError(f"basics/topics.yaml has {len(problems)} problem(s) (listed above); fix them "
                            "(python tests/test_offline.py) before Crypto Basics can run")
-    topic = basics.pick(topics, history)
+    return topics
+
+
+def basics_ready_dir() -> Path:
+    return ROOT / "basics" / "ready"
+
+
+def basics_topic(history: History) -> dict | None:
+    """The next Basics topic: basics/topics.yaml validated (problems → logged, RuntimeError), then basics.pick
+    (the first approved topic no uploaded kind: basics entry has published). None = nothing to publish."""
+    topic = basics.pick(basics_topics(), history)
     if topic is None:
         log("Basics: nothing to publish (no approved, unpublished topic in basics/topics.yaml).")
     return topic
@@ -504,7 +515,15 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
     workdir.mkdir(parents=True, exist_ok=True)
 
     plan = basics.scene_plan(topic)
-    pkg = basics.write_script(cfg, topic, plan, log=log)
+    ready = basics.load_ready(basics.ready_path(basics_ready_dir(), topic["id"]))
+    if ready is not None:  # the evergreen stock: a reviewed narration, used as it is (no LLM call)
+        problems = basics.validate_ready(ready, topic, cfg)
+        if problems:
+            raise RuntimeError(f"Basics ready package basics/ready/{topic['id']}.yaml: {'; '.join(problems)}")
+        log(f"Basics: using the ready package basics/ready/{topic['id']}.yaml (no LLM call)")
+        pkg = basics.ready_script(ready, topic)
+    else:
+        pkg = basics.write_script(cfg, topic, plan, log=log)
     (workdir / "package.json").write_text(json.dumps(
         {"topic": topic["id"], "title": topic["question"],
          "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]],
@@ -553,6 +572,72 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
     }
     return {"entry": entry, "videos": videos, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
             "workdir": workdir, "topic": topic, "scenes": pkg["scenes"]}
+
+
+def prepare_basics(cfg: dict, history: History, which: str) -> int:
+    """--prepare <topic id|next>: narrate an approved, unpublished topic as the edition does (narration rules,
+    subscribe ask, fact-check, packaging, Shorts material) and write its ready package basics/ready/<id>.yaml
+    for a PR. `next` = the first such topic (list order) without a package. Never uploads or records history.
+    0 = written; 1 = nothing written (why logged)."""
+    try:
+        topics = basics_topics()
+    except Exception as e:
+        log(f"Prepare failed: {e}")
+        return 1
+    published = {v["topic"] for v in history.uploaded() if v.get("kind") == "basics" and v.get("topic")}
+    folder = basics_ready_dir()
+    which = (which or "").strip()
+    if which == "next":
+        topic = next((t for t in topics if t.get("approved") is True and t["id"] not in published
+                      and not basics.ready_path(folder, t["id"]).exists()), None)
+        if topic is None:
+            log("Prepare: nothing to prepare (every approved, unpublished topic already has a ready package).")
+            return 1
+    else:
+        topic = next((t for t in topics if t.get("id") == which), None)
+        why = ("is not in basics/topics.yaml" if topic is None else
+               "is a draft (approved: false)" if topic.get("approved") is not True else
+               "is already published" if which in published else "")
+        if why:
+            log(f"Prepare: topic '{which}' {why}; nothing written.")
+            return 1
+    path = basics.ready_path(folder, topic["id"])
+    log(f"Preparing the ready package for {topic['id']} · {topic['question']}"
+        + (" (replacing the existing one)" if path.exists() else ""))
+    try:
+        problems = basics.packaging_problems(topic)
+        if problems:
+            raise RuntimeError(f"Basics packaging ({topic['id']}): {'; '.join(problems)}")
+        pkg = basics.write_script(cfg, topic, basics.scene_plan(topic), log=log)
+        problems = material.validate(material.build_basics(topic, pkg["scenes"], {"video_id": "-", "date": "-"}, cfg))
+        if problems:
+            raise RuntimeError(f"Basics Shorts material ({topic['id']}): {'; '.join(problems)}")
+        package = basics.ready_package(topic, pkg, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        problems = basics.validate_ready(package, topic, cfg)
+        if problems:
+            raise RuntimeError(f"ready package: {'; '.join(problems)}")
+    except Exception as e:
+        log(f"Prepare failed: {e}; nothing written.")
+        return 1
+    basics.save_ready(package, path)
+    log(f"Wrote {path.relative_to(ROOT)}: read it, then merge it by PR (the evergreen stock).")
+    return 0
+
+
+def basics_stock(cfg: dict, history: History) -> int:
+    """--stock: each approved topic's state and the number of ready, unpublished Basics episodes."""
+    try:
+        report = basics.stock(basics_topics(), history, basics_ready_dir(), cfg)
+    except Exception as e:
+        log(f"Stock report failed: {e}")
+        return 1
+    for r in report["rows"]:
+        state = ("published" if r["published"] else "ready" if r["ready"] else
+                 "package invalid: " + "; ".join(r["problems"]) if r["problems"] else "no package")
+        log(f"  {r['id']}: {state}")
+    log(f"Ready, unpublished Basics episodes: {len(report['ready'])}"
+        + (f" ({', '.join(report['ready'])})" if report["ready"] else ""))
+    return 0
 
 
 def save_material(made: dict, entry: dict, cfg: dict, workdir: Path) -> None:
@@ -681,6 +766,11 @@ def main(argv: list[str] | None = None) -> int:
                    help="timed run (schedule / outside timer): weekend rule, late/early skip, once per edition per day")
     p.add_argument("--as-edition", action="store_true",
                    help="manual run that counts as today's edition, so its timed run then skips")
+    p.add_argument("--prepare", default="", metavar="TOPIC_ID|next",
+                   help="Crypto Basics (with --session basics): write the ready package of an approved topic to "
+                        "basics/ready/<id>.yaml (narrated + checked; never uploaded)")
+    p.add_argument("--stock", action="store_true",
+                   help="Crypto Basics (with --session basics): report the ready, unpublished episodes")
     p.add_argument("--lesson-sample", action="store_true",
                    help="make the sample trading lesson on fixture candles (never uploaded; use with --no-upload)")
     args = p.parse_args(argv)
@@ -708,6 +798,11 @@ def main(argv: list[str] | None = None) -> int:
     session = cfg["sessions"][session_key]
     label = session["label"]
     kind = session.get("kind", "market")
+    if args.prepare or args.stock:
+        if kind != "basics":
+            log("--prepare / --stock work only with --session basics.")
+            return 1
+        return basics_stock(cfg, history) if args.stock else prepare_basics(cfg, history, args.prepare)
     start = session.get("start_utc") or DEFAULT_SESSIONS.get(session_key, {}).get("start_utc")
 
     wanted = session_platforms(session)

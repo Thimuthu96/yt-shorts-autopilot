@@ -26,6 +26,10 @@ points → the same narration rendered 16:9 (YouTube) and 9:16 (Facebook). Dark 
                                          revised draft with problems or an unknown number → RuntimeError at
                                          once (the edition stops, no retry)
     facts(topic)                         the only facts: question, summary, approved points (term + text)
+    ready_package / save_ready / load_ready / validate_ready / ready_script
+                                         the evergreen stock: basics/ready/<id>.yaml = a reviewed narration the
+                                         edition uses as it is (no LLM call); validate_ready re-runs every check
+    stock(topics, history, folder, cfg)  approved topics' state; "ready" = valid package, not yet published
     render_slides(cfg, topic, plan, layout, workdir)  title + concept + recap slides in one lesson_slides
                                          layout (LANDSCAPE / PORTRAIT); the caption band is never drawn into.
                                          A point with a diagram: "KEY IDEA n OF m" + the term + the drawn
@@ -414,6 +418,114 @@ def _fact_checked(cfg: dict, topic: dict, plan: list[dict], scenes: list[dict], 
     if problems:
         raise RuntimeError(f"Basics fact-check failed: {'; '.join(problems)}")
     return {"scenes": revised, "fact_check": {"verdict": verdict, "issues": issues}}
+
+
+# ─── ready packages (the evergreen stock: basics/ready/<id>.yaml) ────────────
+
+READY_VERSION = 1
+READY_FIELDS = ("version", "topic", "title", "thumbnail", "scenes", "fact_check", "prepared")
+READY_HEADER = """# Crypto Basics ready package (crypto-basics entry 8): the reviewed narration of one approved topic,
+# written by `python main.py --session basics --prepare <topic id|next>` and merged by PR. The edition uses it
+# as it is (no Gemini call at slot time), re-checked by basics.validate_ready; edit the text only with care:
+# it must keep the narration rules, the word budget, the subscribe ask (once, end of point_1) and no number
+# the topic's approved points don't hold.
+"""
+
+
+def ready_path(folder: Path, topic_id: str) -> Path:
+    return Path(folder) / f"{topic_id}.yaml"
+
+
+def ready_package(topic: dict, pkg: dict, prepared: str) -> dict:
+    """The package write_script's result becomes: topic id, title, thumbnail text, scenes [{id, text}],
+    fact-check verdict and the prepare time."""
+    return {"version": READY_VERSION, "topic": topic["id"], "title": _clean(topic["question"]),
+            "thumbnail": _clean(topic.get("thumbnail")),
+            "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]],
+            "fact_check": pkg.get("fact_check") or {}, "prepared": prepared}
+
+
+def save_ready(package: dict, path: Path) -> Path:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(READY_HEADER + yaml.safe_dump(package, allow_unicode=True, sort_keys=False, width=110),
+                    encoding="utf-8")
+    return path
+
+
+def load_ready(path: Path):
+    """The package at `path`, or None when there is no file (a broken file → ValueError)."""
+    path = Path(path)
+    if not path.exists():
+        return None
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise ValueError(f"{path.name}: not valid YAML ({e})")
+
+
+def validate_ready(package, topic: dict, cfg: dict) -> list[str]:
+    """Every reason a ready package can't be published as it is ([] = it can): its fields, the topic id, the
+    title and thumbnail text equal to the topic's current ones (and their packaging rules), one narration per
+    plan scene in order, check_script (narration rules, word budget, the subscribe ask) and no spoken
+    number the approved facts don't hold; a "reject" fact-check verdict."""
+    if not isinstance(package, dict):
+        return ["package must be a mapping"]
+    out = [f"missing field '{f}'" for f in READY_FIELDS if f not in package]
+    if package.get("version") != READY_VERSION:
+        out.append(f"version must be {READY_VERSION} (got {package.get('version')!r})")
+    if package.get("topic") != topic.get("id"):
+        out.append(f"topic {package.get('topic')!r} is not {topic.get('id')!r}")
+    if _clean(package.get("title")) != _clean(topic.get("question")):
+        out.append("title differs from the topic's question (prepare it again)")
+    if _clean(package.get("thumbnail")) != _clean(topic.get("thumbnail")):
+        out.append("thumbnail differs from the topic's thumbnail text (prepare it again)")
+    out += packaging_problems(topic)
+    if (package.get("fact_check") or {}).get("verdict") == "reject":
+        out.append("fact-check verdict: reject")
+    scenes = package.get("scenes")
+    if not isinstance(scenes, list) or not all(isinstance(x, dict) for x in scenes):
+        return out + ["scenes must be a list of {id, text}"]
+    plan = scene_plan(topic)
+    if [str(x.get("id")) for x in scenes] != [p["id"] for p in plan]:
+        out.append(f"scene ids {[x.get('id') for x in scenes]} are not the topic's {[p['id'] for p in plan]}")
+        return out
+    out += check_script(cfg, plan, [{"id": x["id"], "text": _clean(x.get("text"))} for x in scenes])
+    bad = unknown_numbers("\n".join(_clean(x.get("text")) for x in scenes), facts(topic))
+    if bad:
+        out.append("numbers not in the approved points: " + ", ".join(bad))
+    return out
+
+
+def ready_script(package: dict, topic: dict) -> dict:
+    """A validated package as write_script's result: {"scenes": [{id, text, visual, term?}], "fact_check"}."""
+    plan = scene_plan(topic)
+    texts = {str(x["id"]): _clean(x.get("text")) for x in package["scenes"]}
+    scenes = [{"id": p["id"], "text": texts[p["id"]], "visual": p["visual"], **({"term": p["term"]} if p.get("term") else {})}
+              for p in plan]
+    return {"scenes": scenes, "fact_check": package.get("fact_check") or {}}
+
+
+def stock(topics: list, history, folder: Path, cfg: dict) -> dict:
+    """The evergreen stock: {"rows": [{id, published, ready, problems}], "ready": [ids]} for every approved
+    topic in list order; "ready" = approved, unpublished topics whose package validates."""
+    published = {v["topic"] for v in history.uploaded() if v.get("kind") == "basics" and v.get("topic")}
+    rows, ready = [], []
+    for t in topics:
+        if not (isinstance(t, dict) and t.get("approved") is True):
+            continue
+        row = {"id": t.get("id"), "published": t.get("id") in published, "ready": False, "problems": []}
+        try:
+            pkg = load_ready(ready_path(folder, t["id"]))
+        except ValueError as e:
+            pkg, row["problems"] = None, [str(e)]
+        if pkg is not None:
+            row["problems"] = validate_ready(pkg, t, cfg)
+            row["ready"] = not row["problems"]
+        if row["ready"] and not row["published"]:
+            ready.append(t["id"])
+        rows.append(row)
+    return {"rows": rows, "ready": ready}
 
 
 # ─── slides ────────────────────────────────────────────────────────────────
