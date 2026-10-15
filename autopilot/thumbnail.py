@@ -4,10 +4,9 @@
   event  — a high-impact event is due soon ("CPI DAY" on yellow)
   split  — crypto and the US dollar moved opposite ways (green/red split)
   level  — BTC/ETH/gold is close to a round number ("1.2% AWAY FROM $100K")
-  gold   — the daily gold outlook ("BEARISH" + "BELOW $4,143" + 1H/4H chips + chart)
 
 choose() picks the template from the day's data (staying on the brief's focus assets when
-focus.pick() ran); choose_gold() builds the gold outlook card; render() draws it. Every number
+focus.pick() ran); render() draws it. Every number
 comes from the data. Top and bottom 150 px are kept clear (YouTube crops them in the grid).
 """
 import re
@@ -194,28 +193,6 @@ def choose(data: dict) -> dict:
             "facts": "daily market brief"}
 
 
-def choose_gold(data: dict) -> dict:
-    """Opening card of the daily gold outlook, from gold.analyze()."""
-    a = data["gold_analysis"]
-    daily = a["bias"]["Daily"]["bias"]
-    sc = a["scenarios"]
-    if daily == "bullish" and a.get("invalidation"):
-        hero, line = "BULLISH", f"ABOVE ${a['invalidation']['price']:,.0f}"
-    elif daily == "bearish" and a.get("invalidation"):
-        hero, line = "BEARISH", f"BELOW ${a['invalidation']['price']:,.0f}"
-    else:
-        lo = sc["bear"]["trigger"]["price"] if sc.get("bear") else a["today"]["low"]
-        hi = sc["bull"]["trigger"]["price"] if sc.get("bull") else a["today"]["high"]
-        hero, line = "RANGE", f"${lo:,.0f} – ${hi:,.0f}"
-    h1, h4 = a["bias"]["1H"]["bias"].upper(), a["bias"]["4H"]["bias"].upper()
-    words = {"BULLISH": "bullish", "BEARISH": "bearish", "RANGE": "neutral (range)"}
-    return {"template": "gold", "hero": hero, "line": line, "h1": h1, "h4": h4,
-            "series": data["gold"]["series"][-48:], "up": data["gold"]["change_24h"] >= 0,
-            "default_hook": "KEY LEVELS TODAY",
-            "facts": f"Gold's daily bias is {words[hero]}, {line.lower().replace('–', 'to')} "
-                     f"(1H {h1.lower()}, 4H {h4.lower()}); gold at ${a['price']:,.0f}"}
-
-
 BANNED = {"MOON", "BUY", "SELL", "GUARANTEED", "GUARANTEE", "RICH", "100X", "1000X", "INCOMING", "WILL",
           "SECRET", "SCAM", "NOW!"}
 
@@ -384,41 +361,14 @@ def _render_level(spec, accent, date_label, name):
     return img
 
 
-def _render_gold(spec, accent, date_label, name):
-    img = _grid_bg()
-    d = ImageDraw.Draw(img)
-    _brand(img, d, date_label, False, accent, name)
-    d.ellipse([64, 310, 194, 440], fill=GOLD)
-    d.text((129, 375), "XAU", font=_grotesk(44), fill=BG, anchor="mm")
-    d.text((222, 352), "GOLD OUTLOOK", font=_fit("GOLD OUTLOOK", _grotesk, 790, 72, 40), fill=FG, anchor="lm")
-    d.text((224, 414), "DAILY BIAS · XAU/USD", font=_grotesk(36, 600), fill=MUTED, anchor="lm")
-    col = {"BULLISH": GREEN, "BEARISH": RED}.get(spec["hero"], GOLD)
-    hero = _fit(spec["hero"], _anton, 990, 320, 180)
-    _draw_text_top(d, (44, 500), spec["hero"], hero, col)
-    top = 500 + hero.getbbox(spec["hero"])[3] - hero.getbbox(spec["hero"])[1] + 40
-    d.text((64, top), spec["line"], font=_fit(spec["line"], _grotesk, 950, 92, 50), fill=WHITE)
-    x, y = 64, top + 130
-    for label, val in (("1H", spec["h1"]), ("4H", spec["h4"])):
-        c = {"BULLISH": GREEN, "BEARISH": RED}.get(val, CHIP)
-        txt = f"{label} {val}"
-        fc = _grotesk(40)
-        w = fc.getlength(txt)
-        d.rounded_rectangle([x, y, x + w + 56, y + 72], radius=36, fill=c)
-        d.text((x + 28, y + 36), txt, font=fc, fill=WHITE, anchor="lm")
-        x += w + 80
-    _chart(img, spec["series"], spec["up"], box=(30, max(y + 110, 1060), 1000, 1400))
-    return img
-
-
 def render(spec: dict, cfg: dict, date_utc: str, path: Path, edition_short: str = "") -> Path:
     accent = _hex(cfg["video"].get("accent", "FFD400"))
     dt = datetime.fromisoformat(date_utc)
     date_label = f"{dt:%b} {dt.day}".upper() + (f" · {edition_short.upper()}" if edition_short else "")
     spec.setdefault("hook", spec["default_hook"])
-    fn = {"move": _render_move, "event": _render_event, "split": _render_split, "level": _render_level,
-          "gold": _render_gold}[spec["template"]]
+    fn = {"move": _render_move, "event": _render_event, "split": _render_split, "level": _render_level}[spec["template"]]
     img = fn(spec, accent, date_label, cfg["channel"].get("display_name", "CryptoFX Daily"))
-    if spec["template"] in ("move", "gold"):
+    if spec["template"] == "move":
         _hook(img, spec["hook"], 1450, accent, BG, BG + (255,))
     img.save(path, quality=92)
     return path

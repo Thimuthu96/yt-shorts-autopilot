@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 for _k in ("CF_ACCOUNT_ID", "CF_API_TOKEN", "FB_PAGE_ID", "FB_PAGE_TOKEN"):  # never reach real services
     os.environ.pop(_k, None)
 
-from autopilot import facebook, focus, gold, images, news_post, render, rules, script, seo, slides, thumbnail  # noqa: E402
+from autopilot import facebook, focus, images, news_post, render, rules, script, seo, slides, thumbnail  # noqa: E402
 from autopilot.history import History  # noqa: E402
 from autopilot.media import probe_duration, run  # noqa: E402
 from autopilot.youtube import build_metadata  # noqa: E402
@@ -91,14 +91,6 @@ NOTE = {"what_happened": "Spot bitcoin ETFs saw a third day of outflows (CoinDes
         "context": [], "watch": ["USD Core CPI 12:30 GMT"], "angle": "Why is Bitcoin slipping?"}
 
 
-def gold_pkg(plan):
-    words = "gold holds its range as yields stay firm"
-    return {"title": "Gold Outlook Oct 7: Range Day | XAU/USD Levels",
-            "scenes": [{"id": p["id"], "text": f"{p['id']} {words}."} for p in plan],
-            "description": "Gold outlook.", "tags": ["gold price today", "xauusd analysis"],
-            "hashtags": ["#Gold"], "headlines_used": [], "thumbnail_hook": "KEY LEVELS TODAY"}
-
-
 PKG = {
     "title": "Bitcoin Slips Ahead of US Inflation Data | Oct 7",
     "scenes": [
@@ -135,8 +127,6 @@ def main():
             return dict(NOTE)
         if "strict financial news editor" in prompt:
             return {"verdict": "ok", "package": json.loads(prompt.split("SCRIPT:\n", 1)[1].rsplit("\n\n1. Every", 1)[0])}
-        if "DAILY GOLD OUTLOOK" in prompt:
-            return gold_pkg(script.gold_plan(gdata, []))
         return json.loads(json.dumps(PKG))
     script.generate_json = fake_llm
     small = cfg | {"llm": cfg["llm"] | {"min_words": 40, "max_words": 90}}
@@ -145,7 +135,6 @@ def main():
     assert cover["facts"] in prompts[0] and pkg["scenes"][0]["visual"]["type"] == "title"
 
     # focused brief: Bitcoin story → charts stay on BTC + related coins; the EUR/USD chart is swapped
-    gdata = json.loads(json.dumps(data))
     f = focus.pick(data, None, [])
     assert f["lead"] == "BTC" and f["assets"][0] == "BTC" and "EURUSD" not in f["assets"], f
     assert f["story"]["source"] == "CoinDesk", f["story"]
@@ -242,7 +231,7 @@ def main():
 
     meta = build_metadata(PKG, data, cfg, "London Open")
     assert "not financial advice" in meta["description"].lower()
-    assert "not financial advice" in cfg["video"]["footer"].lower() and "not financial advice" in cfg["gold"]["footer"].lower()
+    assert "not financial advice" in cfg["video"]["footer"].lower() and "gold" not in cfg
     assert "not financial advice" in facebook.reel_caption(meta, PKG, data, cfg).lower()
     assert meta["tags"][0] == "bitcoin price today" and len(meta["tags"]) == len({t.lower() for t in meta["tags"]})
     assert "bitcoin" in meta["title"][:45].lower() and "Key numbers:" in meta["description"]
@@ -251,10 +240,9 @@ def main():
     print(f"OK: {out} ({got:.1f}s) · thumbnail {fcover['template']} '{fcover['hook']}' · contact sheet {work / 'contact.png'}")
     print(meta["description"])
 
-    test_gold(cfg, small, gdata)
     test_narration_rules(small)
     test_title_rules(cfg, data)
-    test_disclosure(cfg, data, gdata)
+    test_disclosure(cfg, data)
     test_focus_crypto_first()
     test_voice_fallback()
     test_voice_pacing(cfg)
@@ -372,8 +360,8 @@ OLD_DISCLAIMERS = ("information and education only", "news for information only"
                    "do your own research")
 
 
-def test_disclosure(cfg, data, gdata):
-    """narration-rules.md disclosure (CAP-7): a brief, a gold outlook, a Reel caption and a news post
+def test_disclosure(cfg, data):
+    """narration-rules.md disclosure (CAP-7): a brief (the render fixture), a Reel caption and a news post
     each carry the line exactly once and none of the old disclaimer text, even when the writer copied it."""
     line = rules.DISCLOSURE
     assert line == "Narrated with a synthetic voice. Researched from public market data. Not financial advice."
@@ -388,7 +376,6 @@ def test_disclosure(cfg, data, gdata):
     brief = build_metadata(PKG, data, cfg, "London Open", log=quiet)
     once(brief["description"], "brief")
     once(facebook.reel_caption(brief, PKG, data, cfg), "reel caption")
-    once(build_metadata(PKG, gdata, cfg, "Gold Outlook", log=quiet)["description"], "gold")
     ndata = news_data()
     story = news_post.pick_story(ndata, [], [], cfg, now=NOW, log=quiet)
     once(news_post.caption(dict(GOOD_POST), story, ndata, cfg), "news post")
@@ -537,84 +524,6 @@ def test_narration_rules(small):
     assert len(writes) == 3 and len(checks) == 3, (len(writes), len(checks))
     assert all(rules.NARRATION_RULES in p for p in writes + checks)
     print("OK narration rules (first person / quotes, price targets, 10x, buy/sell calls, dates; 3 failing drafts stop)")
-
-
-def test_gold(cfg, small, data):
-    """Daily gold outlook: analysis → card → plan + script (LLM mocked) → every gold slide → video."""
-    now = datetime(2026, 10, 7, 6, 15, tzinfo=timezone.utc)
-    data["kind"] = "gold"
-    prev = {"price": data["gold"]["price"] * 0.99, "daily_bias": "bullish", "time": "2026-10-06T06:20:00+00:00"}
-    a = gold.analyze(data, prev, now=now)
-    data["gold_analysis"] = a
-    assert a["asian_session"] and a["previous_day"]["date"] == "2026-10-06", a["previous_day"]
-    assert all(z["price"] > a["price"] for z in a["liquidity_above"]) and all(z["price"] < a["price"] for z in a["liquidity_below"])
-    assert {a["bias"][k]["bias"] for k in ("1H", "4H", "Daily")} <= {"bullish", "bearish", "neutral"}
-    assert a["review"] and a["review"]["bias"] == "bullish"
-    for side in ("bull", "bear"):
-        sc = a["scenarios"][side]
-        if sc and sc.get("objective"):
-            assert abs(sc["objective"]["price"] - sc["trigger"]["price"]) >= 0.6 * a["typical_move"]["next_4h"] - 0.2
-    cover = thumbnail.choose_gold(data)
-    llm, seen = script.generate_json, []
-
-    def signing_off(prompt, models, temperature=0.9):  # the writer adds a spoken disclaimer to the last scene
-        seen.append(prompt)
-        res = llm(prompt, models, temperature)
-        if "DAILY GOLD OUTLOOK" in prompt:
-            res["scenes"][-1]["text"] += " This is not financial advice."
-        return res
-    script.generate_json, logs = signing_off, []
-    try:
-        pkg = script.make_gold_script(small, data, [], cover, log=logs.append)
-    finally:
-        script.generate_json = llm
-    assert "financial advice" not in pkg["scenes"][-1]["text"].lower() and pkg["scenes"][-1]["text"], pkg["scenes"][-1]
-    assert any("sign-off" in m for m in logs), logs
-    assert not any(rules.narration_problems(s["text"]) for s in pkg["scenes"]), pkg["scenes"]
-    assert len(seen) == 2 and all(rules.NARRATION_RULES in p_ for p_ in seen) and "GMT time" not in seen[0]
-    types = [s["visual"]["type"] for s in pkg["scenes"]]
-    assert types == ["title", "review", "bias", "scenarios", "drivers"], types  # no gold_chart repeat, no outro
-    assert pkg["scenes"][0]["visual"]["follow"] == {"type": "gold_chart"}
-    # thin day (no review, no macro / USD events / gold news): still ≥ 4 scenes, ends on the levels
-    thin = dict(data, macro={}, rate_expectations=[], news=[],
-                gold_analysis=dict(a, review=None, events_usd=[]))
-    plan = script.gold_plan(thin, [])
-    assert [p["id"] for p in plan] == ["open", "bias", "liquidity", "levels"], plan
-    nogold = dict(data, macro={}, rate_expectations=[], gold_analysis=dict(a, events_usd=[]))
-    assert [p["id"] for p in script.gold_plan(nogold, [])] == ["open", "review", "bias", "levels", "news"]
-    work = ROOT / "output" / "test_gold"
-    work.mkdir(parents=True, exist_ok=True)
-    cover["hook"] = thumbnail.clean_hook(pkg["thumbnail_hook"], cover["default_hook"])
-    thumb = thumbnail.render(cover, cfg, data["date_utc"], work / "thumbnail.jpg", "Gold")
-    pics = slides.render_slides(cfg, data, pkg["scenes"], work, cover=thumb, edition="Gold Outlook",
-                                footer=cfg["gold"]["footer"])
-    audio = []
-    for i, s in enumerate(pkg["scenes"]):
-        wav = work / f"voice_{i:02d}.wav"
-        run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"sine=frequency={300 + 30 * i}:duration=2.0",
-             "-ar", "44100", "-ac", "1", wav])
-        audio.append({"audio": wav, "duration": probe_duration(wav),
-                      "words": [(0.1, 0.6, s["id"]), (0.7, 1.4, "gold")]})
-    out = work / "short.mp4"
-    total = render.build_video(audio, pics, cfg, work, out)
-    assert total <= cfg["video"]["max_seconds"] and pics[0]["follow"]["reveal"], pics[0]
-    check_opening(out, work, hold=min(render.COVER_HOLD, audio[0]["duration"] / 2))
-    # contact sheet from the video: frame 0 (the cover), the gold chart mid-reveal, then each later scene
-    stamps, t = [0.0, min(render.COVER_HOLD, audio[0]["duration"] / 2) + 0.4], audio[0]["duration"]
-    for a in audio[1:]:
-        stamps.append(t + a["duration"] * 0.6)
-        t += a["duration"]
-    for old in work.glob("frame_*.png"):
-        old.unlink()
-    for k, ts in enumerate(stamps):
-        run(["ffmpeg", "-y", "-v", "error", "-ss", f"{ts:.2f}", "-i", out, "-frames:v", "1",
-             "-vf", "scale=360:640", work / f"frame_{k:02d}.png"])
-    run(["ffmpeg", "-y", "-v", "error", "-i", work / "frame_%02d.png", "-vf", "tile=5x2:padding=8",
-         "-frames:v", "1", work / "contact.png"])
-    meta = build_metadata(pkg, data, cfg, "Gold Outlook")
-    assert "rule-based" in meta["description"].lower() and "Key levels:" in meta["description"]
-    assert meta["title"].startswith("Gold Price Today")  # the mock's title has no keyword → data-built title
-    print(f"OK gold: {out} · card {cover['hero']} {cover['line']} · contact sheet {work / 'contact.png'}")
 
 
 def test_voice_fallback():
@@ -774,7 +683,7 @@ def test_voice_pacing(cfg):
     with mock.patch.object(voice, "synthesize", fake_synth):
         app.narrate(cfg["voice"], scenes[:1], cfg["video"]["max_seconds"], Path("."), pauses=True, log=logs.append)
     assert calls == [("+0%", True)], calls  # within the limit: one recording
-    assert "pauses=True" in inspect.getsource(app.make_brief) and "pauses" not in inspect.getsource(app.make_lesson)
+    assert "pauses=True" in inspect.getsource(app.make_short) and "pauses" not in inspect.getsource(app.make_lesson)
     print("OK voice pacing (+0%, pauses after key numbers + before the term, captions aligned, re-record faster)")
 
 
@@ -785,7 +694,7 @@ def test_voice_ab(cfg, data):
     from unittest import mock
 
     import main as app
-    from autopilot import voice, youtube
+    from autopilot import voice
     a, b = cfg["voice"]["name"], cfg["voice"]["alternate"]
     assert a != b and a.endswith("Neural") and b.endswith("Neural"), (a, b)
     tmp = Path(tempfile.mkdtemp())
@@ -831,7 +740,7 @@ def test_voice_ab(cfg, data):
     finally:
         voice._speak, voice._piper_voice, voice.run, voice.probe_duration, voice._edge_down = saved
 
-    # make_brief (heavy steps faked) narrates with the rotated voice and logs the one that spoke
+    # a run narrates with the rotated voice and logs the one that spoke (as make_short / make_basics / … do)
     spoke = []
 
     def fake_synth(scenes_, name, rate, workdir, log=print, fallback=None, pauses=False):
@@ -840,16 +749,10 @@ def test_voice_ab(cfg, data):
         return [{"audio": None, "duration": 5.0, "words": [], "voice": who} for _ in scenes_]
 
     def brief(history):
-        with mock.patch.object(app, "ROOT", tmp), \
-                mock.patch.object(app.sources, "gather", lambda *a_, **k: json.loads(json.dumps(data))), \
-                mock.patch.object(app.script, "make_script", lambda *a_, **k: json.loads(json.dumps(PKG))), \
-                mock.patch.object(app.thumbnail, "render", lambda *a_, **k: tmp / "thumb.jpg"), \
-                mock.patch.object(voice, "synthesize", fake_synth), \
-                mock.patch.object(app.slides, "render_slides", lambda *a_, **k: []), \
-                mock.patch.object(app.render, "build_video", lambda *a_, **k: None), \
-                mock.patch.object(youtube, "build_metadata", lambda *a_, **k: {"title": "t"}), \
-                mock.patch.object(app.facebook, "reel_caption", lambda *a_, **k: "c"):
-            return app.make_brief(cfg, history, None, "london")["entry"]
+        v = app.ab_voice(cfg["voice"], history, "short_a")
+        with mock.patch.object(voice, "synthesize", fake_synth):
+            audio, _ = app.narrate(v, [{"text": "Bitcoin rose."}], 40, tmp, pauses=True, log=lambda m: None)
+        return {"session": "short_a", "kind": "short", "brief_date": "2026-10-07", "voice": audio[0]["voice"]}
 
     fake_synth.piper = False
     h2 = History(tmp / "h2.json")
@@ -865,6 +768,7 @@ def test_voice_ab(cfg, data):
     h2.add({**e3, "video_id": "Y3"})
     fake_synth.piper = False
     assert brief(h2)["voice"] == a  # Piper took no turn: voice a gets its run back
+    assert "ab_voice" in inspect.getsource(app.make_short)
     assert "ab_voice" not in inspect.getsource(app.make_lesson)  # lessons: one voice, entries unchanged
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK voice A/B (alternates per edition, Piper logged and skipped, voice in the entry, lessons one voice)")
@@ -5514,7 +5418,10 @@ def test_slate_timetable(cfg):
     sessions = live["sessions"]
     retired = ("asia", "london", "newyork", "gold")
     assert not set(retired) & set(sessions) and not set(retired) & set(app.DEFAULT_SESSIONS), sessions.keys()
-    assert "weekend_sessions" not in live and not hasattr(app, "auto_session")
+    assert "weekend_sessions" not in live and not hasattr(app, "auto_session") and not hasattr(app, "make_brief")
+    assert not (ROOT / "autopilot" / "gold.py").exists() and "gold" not in live
+    src = (ROOT / "main.py").read_text(encoding="utf-8")
+    assert "gold." not in src and "make_brief" not in src and "news_since_last_brief" not in src
     timed = {k: s for k, s in sessions.items() if s.get("start_utc")}
     want = {"news_morning": ("12:00", []), "news_midday": ("16:00", []), "news_evening": ("21:00", []),
             "short_a": ("13:00", []), "short_b": ("23:00", []), "basics": ("15:00", ["wed"]),

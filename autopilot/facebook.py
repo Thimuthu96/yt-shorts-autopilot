@@ -394,7 +394,7 @@ def reel_caption(meta: dict, pkg: dict, data: dict, cfg: dict) -> str:
     parts = [rules.without_disclosure(clean_text(x), disclosure) for x in (meta.get("title", ""), pkg.get("description", ""))]
     numbers = seo.key_numbers(data)
     if numbers:
-        parts.append(("Key levels:\n" if data.get("kind") == "gold" else "Key numbers:\n") + "\n".join(numbers))
+        parts.append("Key numbers:\n" + "\n".join(numbers))
     by_title = {n["title"].lower(): n["source"] for n in data.get("news", [])}
     sources = list(dict.fromkeys(by_title[t.lower()] for t in pkg.get("headlines_used", []) if t.lower() in by_title))
     if sources:

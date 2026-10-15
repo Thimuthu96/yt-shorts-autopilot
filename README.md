@@ -1,43 +1,35 @@
-# Shorts Autopilot: Daily Market Brief
+# Shorts Autopilot: CryptoFX Daily (crypto-only slate)
 
-Makes and publishes **crypto & forex market briefs** and a **daily gold outlook** as YouTube
-Shorts **and Facebook Reels** (one render, both platforms), four a day, plus **three news image
-posts** a day on the Facebook Page, with no manual work, running free on GitHub Actions.
+Makes and publishes a **crypto-only weekly slate** with no manual work, running free on GitHub Actions:
+two standalone **Shorts** a day (YouTube Short + Facebook Reel), a weekly **Crypto Basics** explainer and a
+weekly **trading lesson** (YouTube 16:9 + Facebook 9:16 video), **"why crypto just moved"** videos after big
+moves and a **Saturday recap** (YouTube only), plus **three crypto news image posts** a day on the Facebook
+Page. Every edition runs 7 days a week (no forex weekend rule).
 
 | Edition | UTC | Sri Lanka | What it is | Where |
 |---|---|---|---|---|
-| Asia Open | 00:30 | 06:00 | market brief: one lead story since the New York close | YouTube + Facebook Reel |
-| Morning News | 03:00 | 08:30 | news image post: one market-moving story | Facebook |
-| London Open | 05:40 | 11:10 | market brief: one lead story from the Asian session | YouTube + Facebook Reel |
-| Gold Outlook | 06:15 | 11:45 | XAU/USD: bias for the next 1h / 4h / day, liquidity, key levels (Mon–Fri) | YouTube + Facebook Reel |
-| Midday News | 09:30 | 15:00 | news image post | Facebook |
-| New York Open | 12:30 | 18:00 | market brief: one lead story since London | YouTube + Facebook Reel |
-| Trading Lesson | 15:00 | 20:30 | the next curriculum episode, Thursday (off until enabled, see [Trading lessons](#trading-lessons)) | YouTube (16:9) + Facebook video (9:16) |
-| Evening News | 16:30 | 22:00 | news image post | Facebook |
+| Morning News (`news_morning`) | 12:00 daily | 17:30 | news image post: one crypto story | Facebook |
+| Short A (`short_a`) | 13:00 daily | 18:30 | standalone Short from a long video's material | YouTube Short + Facebook Reel |
+| Crypto Basics (`basics`) | 15:00 Wed | 20:30 | the next approved beginner explainer | YouTube 16:9 + Facebook 9:16 video |
+| Trading Lesson (`lesson`) | 15:00 Thu | 20:30 | the next curriculum episode | YouTube 16:9 + Facebook 9:16 video |
+| Weekly Recap (`recap`) | 15:00 Sat | 20:30 | the week's biggest moves and why; skipped in a week with a triggered video → evergreen top-up when the week is short | YouTube 16:9 |
+| Sunday top-up (`topup_sun`) | 15:00 Sun | 20:30 | evergreen top-up (Basics first, then the next lesson) only when the week still has < 3 long videos | YouTube 16:9 + Facebook 9:16 video |
+| Midday News (`news_midday`) | 16:00 daily | 21:30 | news image post | Facebook |
+| Evening News (`news_evening`) | 21:00 daily | 02:30 | news image post | Facebook |
+| Short B (`short_b`) | 23:00 daily | 04:30 | standalone Short (yields to a triggered video on Wed/Thu) | YouTube Short + Facebook Reel |
+| Why Crypto Moved (`triggered`) | within ~3 h of a trigger | — | dispatched by the 30-minute trigger poll | YouTube 16:9 |
 
-**News image posts (Facebook):** each picks the most important story of the last 48 h that moves
-crypto or forex (rate decisions, central-bank speeches and statements, war and geopolitics,
-tariffs, regulation, macro data…), scored by topic, how many outlets cover it and how recent it
-is, and never one an earlier post used. Gemini writes a big 2–3 line headline and an SEO caption
-(fact-checked; numbers only from the data; source named; no hype, no links, ≤5 hashtags,
-disclaimer). The 1080×1350 card sits on a story-matched AI background (Cloudflare Workers AI,
-free tier; marked "AI illustration"), or an image from `assets/backgrounds/<topic>/`, or a drawn
-background. Three posts every day, weekends included: if every fresh story was used, the best
-unused one from the last 48 h is posted instead.
+**Budget:** at most 3 YouTube uploads per UTC day (a timed Short skips at 3; on Wednesday and Thursday, or any
+day that already has a long video, a triggered video takes Short B's 23:00 slot; a trigger that would be the
+4th upload holds to 00:00 UTC next day) and 3-4 long videos per ISO week (a shortfall is topped up Saturday
+15:00, or Sunday 15:00 when Saturday already had the recap or a triggered video; a fifth is refused).
 
-**One story per brief:** each market brief picks the day's lead story (scored from headlines,
-price moves and upcoming events; big crypto moves are favoured, a currency pair needs a scheduled
-event or a clearly bigger story to lead), researches how it spreads (e.g. a Bitcoin story → Ether and
-Solana; a Fed story → EUR/USD, gold, USD/JPY), and charts only those assets, instead of reading
-out every market. Each brief only uses news since the previous one.
-
-**Gold outlook:** published after the Asian session has set its range and before London opens,
-when gold is most liquid. Levels and bias come from fixed rules on hourly prices (EMA trend,
-market structure, previous-day / Asian / weekly highs and lows, equal highs/lows, sweeps, ATR
-ranges, dollar and real-yield tilt), and each video first says whether the last outlook played out.
-
-At weekends (forex and gold closed) only the London edition, the three news posts and the
-Saturday / Sunday lesson run (`weekend_sessions`).
+**News image posts (Facebook):** each picks the most important crypto story of the last 48 h (crypto or crypto
+regulation named in the headline or its lead), scored by topic, coverage and recency, never one an earlier post
+used. Gemini writes a big 2–3 line headline and an SEO caption (fact-checked; numbers only from the data; source
+named; no hype, no links, ≤5 hashtags, disclosure line). The 1080×1350 card sits on a story-matched AI background
+(Cloudflare Workers AI, free tier; marked "AI illustration"), or an image from `assets/backgrounds/<topic>/`, or a
+drawn background.
 
 **Timing:** GitHub's own schedule can start runs hours late or skip them, so runs are started
 on time by a free outside timer (cron-job.org) that presses "Run workflow" through the GitHub
@@ -45,21 +37,13 @@ API. GitHub's schedule stays as a backup 17 min later. Whichever runs first make
 other sees it's already up and stops. A timed run that starts over 3 h late is skipped rather
 than posting the wrong edition. Setup: [Outside timer](#outside-timer-cron-joborg) below.
 
-**Manual runs:** Actions → Shorts autopilot → **Run workflow** → pick the edition (`auto` picks
-a market edition by the current time, or `gold`) → Run. A manual run **always** makes and
-uploads a video, at any time, and never blocks the autopilot: that edition's timed run still
-happens. Tick **Count it as today's edition** only if you want the timed run to skip.
-Leave **Timed run** unticked (it's for the outside timer). Keep it to ~2 manual uploads a day:
-YouTube's API allows about 6 uploads daily in total. **Platforms** (`all` / `youtube` /
-`facebook`) limits where it goes, e.g. `facebook` to post a Reel that failed earlier; news
-posts (`news_*` editions) only ever go to Facebook. Session `lesson` makes and publishes the next
-unpublished trading lesson, any day, without filling the timed slot.
+**Manual runs:** Actions → Shorts autopilot → **Run workflow** → pick the edition → Run. A manual run
+**always** makes and uploads, at any time, and never blocks the autopilot: that edition's timed run still
+happens. Tick **Count it as today's edition** only if you want the timed run to skip. Leave **Timed run**
+unticked (it's for the outside timer). YouTube's API allows about 6 uploads daily in total, and the slate uses
+up to 3. **Platforms** (`all` / `youtube` / `facebook`) limits where it goes; news posts only ever go to
+Facebook, triggered and recap videos only to YouTube.
 
-```
-market data + news ─► lead story ─► research ─► script ─► fact-check ─► voiceover ─► graphics ─► render ─► upload
- (see below)          (scoring)     (Gemini)    (Gemini)  (Gemini vs data) (edge-tts)  (charts)    (ffmpeg)  (YouTube API)
-gold prices + macro ─► rule-based outlook ─► narration ─► fact-check ─► … same as above
-```
 
 **Sources (all free, no keys):**
 - **News:** public RSS feeds: CoinDesk, Cointelegraph, The Daily Hodl (full articles), the
@@ -68,7 +52,6 @@ gold prices + macro ─► rule-based outlook ─► narration ─► fact-check
 - **Economic calendar:** ForexFactory's official weekly calendar export (high-impact events).
 - **Crypto prices:** Coinbase public market data (BTC, ETH, SOL, XRP; 7-day hourly).
 - **Forex rates:** Frankfurter, daily central-bank reference rates (EUR/USD, GBP/USD, USD/JPY…).
-- **Gold:** PAXG (gold-backed token) hourly prices from Kraken/Coinbase, aligned to spot XAU/USD.
 - **Macro:** US Treasury yields (10Y, 2Y, 10Y real) and US CPI from the BLS.
 - **Fed rate odds:** taken from headlines that quote CME FedWatch (the FedWatch site, Myfxbook and
   forexfactory.com pages block automated access and forbid scraping).
@@ -76,8 +59,7 @@ gold prices + macro ─► rule-based outlook ─► narration ─► fact-check
 Every scene is a graphic drawn from that data (price chart that draws itself in, market
 board, headline card, calendar table), so there's no stock footage to mismatch. The script
 may only use numbers from the data, and a second pass checks it against the data before
-anything is recorded. Market briefs make no predictions; the gold outlook's bias comes only from
-its fixed rules and is worded as conditional ("bearish while below $4,142"). No buy/sell calls;
+anything is recorded. No predictions and no buy/sell calls;
 "Not financial advice" is in every slide's footer, and the YouTube description and Facebook
 caption carry the disclosure line once ("Narrated with a synthetic voice. Researched from public market
 data. Not financial advice.", `upload.disclaimer`); none of it is spoken and there's no outro card.
@@ -98,7 +80,6 @@ about a second, then the chart of the asset it shows draws in (gold: the gold ch
 | Event Day | a high-impact event is due within 12 hours | "CPI DAY" on yellow + WATCH BEFORE 12:30 |
 | Split | Bitcoin and the US dollar move opposite ways | green/red split + WHY THE SPLIT? |
 | Key Level | BTC/ETH/gold is within 2% of a round number | "1.2% AWAY FROM $100K" + SO CLOSE. |
-| Gold Outlook | the gold edition | "BEARISH" + "BELOW $4,142" + 1H/4H chips + KEY LEVELS TODAY |
 
 In market briefs the template is chosen only from the brief's lead-story assets.
 
@@ -209,7 +190,7 @@ Needs a Facebook Page you are an admin of. Everything here is free.
    secrets (Settings → Secrets and variables → Actions).
 7. Add the three news-post jobs to cron-job.org (see [Outside timer](#outside-timer-cron-joborg)).
 8. Test: Actions → Run workflow → session `news_morning` (a news post) and, for a Reel,
-   session `london` with platforms `facebook`.
+   session `short_a` with platforms `facebook`.
 
 To pause Facebook, set `facebook.enabled: false` in `config.yaml`.
 
@@ -268,14 +249,14 @@ While `lessons.enabled` is false, lesson runs log why and stop without fetching 
 |---|---|
 | `channel.niche` / `audience` / `tone` | What the channel is about and how it sounds |
 | `voice.name` | Narrator voice. List them: `edge-tts --list-voices` |
-| `voice.alternate` | Second edge-tts voice for the 30-day A/B test: briefs + gold alternate `name` / `alternate` per edition, logged as `voice` in `data/history.json`. Remove the line to keep one voice |
+| `voice.alternate` | Second edge-tts voice for the 30-day A/B test: Shorts and long videos alternate `name` / `alternate` per edition, logged as `voice` in `data/history.json`. Remove the line to keep one voice |
 | `voice.fallback` | Piper voice used when edge-tts is down (`en_US-ryan-high`); remove to fail instead |
 | `upload.review_window_hours` | `0` = public immediately. e.g. `6` = sits private for 6 h so you can watch and delete it first, then goes public on its own |
 | `channel.display_name` | Brand line at the top of every graphic |
 | `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
 | `video.accent` / `video.footer` | Brand colour and the footer line on every graphic |
 | Posting times | change all of: the cron-job.org job, `start_utc` in `config.yaml`, and the backup `cron` line in `.github/workflows/autopilot.yml` plus the matching string in its `EDITION:` line and `concurrency.group` |
-| Editions | `sessions` (focus text per edition, `platforms`) and `weekend_sessions` in `config.yaml` |
+| Editions | `sessions` (start_utc, `days`, `platforms`) and `slate` (daily / weekly budget) in `config.yaml` |
 | Facebook | `facebook.enabled`, `facebook.max_hashtags`; news posts: `news_posts.topic_weights`, `fresh_hours`, `disclaimer` |
 | Trading lessons | `lessons.enabled`, `review_window_hours`, `path_playlist`, `track_playlist`, `fb_published`, `max_seconds`; run days: `sessions.lesson.days` |
 | News post backgrounds | `images.provider` (`cloudflare` or `none`), `images.steps`; your own images in `assets/backgrounds/<topic>/` |
@@ -290,7 +271,7 @@ Needs Python 3.10+ and ffmpeg.
 ```bash
 pip install -r requirements.txt
 export GEMINI_API_KEY=...          # Windows PowerShell: $env:GEMINI_API_KEY="..."
-python main.py --no-upload --session london   # makes output/<time>/short.mp4 (+ thumbnail, data)
+python main.py --no-upload --session short_a  # makes output/<time>/short.mp4 (+ thumbnail, metadata)
 python main.py --no-upload --session news_morning   # makes output/<time>/post.jpg + caption_fb.txt
 python main.py --no-upload --session lesson   # next lesson: output/<time>/lesson_16x9.mp4 + lesson_9x16.mp4
 python tests/test_offline.py        # graphics + render + mocked Facebook check, no keys needed
@@ -345,9 +326,9 @@ config.yaml             all settings
 get_token.py            one-time YouTube login
 autopilot/sources.py    news feeds, economic calendar, crypto, forex + gold prices, US yields, CPI
 autopilot/focus.py      picks each brief's lead story and the assets it moves
-autopilot/gold.py       the gold outlook: levels, liquidity, 1h/4h/daily bias, scenarios
+autopilot/slate.py      the slate's budget: 3 YouTube uploads a day, Short B yield, trigger hold, weekly floor/cap
 autopilot/script.py     research note, grounded script + fact-check against the data (Gemini)
-autopilot/slides.py     charts, impact board, headline, calendar + gold outlook graphics
+autopilot/slides.py     shared slide constants + the (retired) brief's charts, kept as the offline render fixture
 autopilot/thumbnail.py  thumbnail templates + picking one from the data
 assets/fonts/           Anton + Space Grotesk (SIL Open Font License)
 autopilot/voice.py      narration + word timings (edge-tts)
@@ -373,11 +354,11 @@ data/history.json       what has been published (YouTube id, Facebook Reel / pos
 
 One-time setup, free, about 10 minutes.
 
-**Shortcut:** `python setup_cronjobs.py` creates or fixes all eight jobs from `config.yaml` through
-the cron-job.org API (jobs titled "CryptoFX · <edition>", times in UTC, gold Mon–Fri, lesson on its
-`days`: Thursday; `--disable lesson` creates that one paused). It asks for
-a cron-job.org API key (Settings → API) and the GitHub token from step 1, with hidden input. Run it
-again after changing any `start_utc`; `--dry-run` shows the plan. The manual steps below do the same.
+**Shortcut:** `python setup_cronjobs.py` creates or fixes the slate's nine jobs from `config.yaml` through
+the cron-job.org API (jobs titled "CryptoFX · <edition>", times in UTC, basics / lesson / recap / topup_sun on
+their `days`). `--delete-retired` also deletes the retired `asia`, `london`, `newyork` and `gold` jobs (or delete
+them by hand). It asks for a cron-job.org API key (Settings → API) and the GitHub token from step 1, with hidden
+input. Run it again after changing any `start_utc`; `--dry-run` shows the plan. The manual steps below do the same.
 
 1. **GitHub token:** your photo → Settings → Developer settings → Personal access tokens →
    **Fine-grained tokens** → Generate new token. Repository access: **Only select repositories**
@@ -385,17 +366,16 @@ again after changing any `start_utc`; `--dry-run` shows the plan. The manual ste
    else). Expiry: 1 year. Copy the token.
 2. **cron-job.org:** sign up → Create cronjob:
    - URL: `https://api.github.com/repos/Thimuthu96/yt-shorts-autopilot/actions/workflows/autopilot.yml/dispatches`
-   - Schedule: custom, time zone **Asia/Colombo**, every day at **06:00**
+   - Schedule: custom, time zone **UTC**, every day at **13:00**
    - Advanced → Request method **POST**, headers:
      `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`,
      `Content-Type: application/json`
-   - Body: `{"ref":"main","inputs":{"session":"asia","scheduled":"true"}}`
-   - Save, then **Test run**: `204` = it worked (a "Timer · asia" run appears in Actions).
-3. Copy the job three times, changing only the time and the session:
-   **11:10 → `london`**, **11:45 → `gold`** (set this one to **Monday–Friday**), **18:00 → `newyork`**.
-4. Facebook news posts: copy it three more times, **every day**:
-   **08:30 → `news_morning`**, **15:00 → `news_midday`**, **22:00 → `news_evening`**.
-5. Trading lessons (once they're enabled): **20:30 → `lesson`**, **Thursday** only.
+   - Body: `{"ref":"main","inputs":{"session":"short_a","scheduled":"true"}}`
+   - Save, then **Test run**: `204` = it worked (a "Timer · short_a" run appears in Actions).
+3. Copy the job, changing only the time, days and session (UTC): **23:00 → `short_b`**, **12:00 →
+   `news_morning`**, **16:00 → `news_midday`**, **21:00 → `news_evening`** (every day); **15:00 → `basics`**
+   (Wednesday), **`lesson`** (Thursday), **`recap`** (Saturday), **`topup_sun`** (Sunday).
+4. Delete the retired jobs: `asia`, `london`, `newyork`, `gold`.
 
 Keep the token only in cron-job.org (never in the repo or chat). If the jobs start failing
 with `401`, the token has expired: make a new one and paste it into all eight jobs. A `422`

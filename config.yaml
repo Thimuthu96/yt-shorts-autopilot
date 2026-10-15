@@ -1,11 +1,9 @@
 # ─── Channel ────────────────────────────────────────────────────────────────
 channel:
   niche: >-
-    Daily crypto, forex and gold market brief: one lead story per brief (Bitcoin,
-    Ethereum, gold or a major currency pair), the news behind it, how it spreads to
-    related markets, and the high-impact events traders are watching today. Plus a
-    daily gold (XAU/USD) outlook with key levels, liquidity and timeframe bias.
-  audience: Retail crypto and forex traders and curious beginners
+    Crypto education and crypto market explainers: daily standalone Shorts, weekly Crypto Basics
+    and trading lessons, "why crypto just moved" videos after big moves, and a Saturday recap.
+  audience: Retail crypto traders and curious beginners
   tone: Clear, fast, neutral and factual, like a market news anchor; no hype
   language: en
   display_name: CryptoFX Daily        # shown at the top of every graphic
@@ -237,10 +235,6 @@ shorts:
 # still tops that slot up. Epic 5 switches it on with the weekly floor.
 evergreen:
   enabled: false
-
-# ─── Gold outlook ───────────────────────────────────────────────────────────
-gold:
-  footer: "Not financial advice · Rule-based outlook · Data: PAXG/Kraken, Swissquote, US Treasury"
 
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:

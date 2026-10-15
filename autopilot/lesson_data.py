@@ -6,7 +6,7 @@
                       (00/04/08/12/16/20 UTC buckets; Coinbase has no 4H granularity), 1D over 365 days
 
 Crypto only since 2026-10-13 (CAP-3): lessons no longer fetch gold or forex history; the daily
-editions' gold / FX code in sources.py and gold.py is separate and unchanged.
+editions' gold outlook is retired (crypto slate); sources.py keeps only what news posts read.
 
 Only completed candles are kept: a candle whose period hasn't closed at `now` (start + timeframe
 length > now) is dropped, aggregated 4H included, so no fact quotes a close that can still change.

@@ -4,10 +4,12 @@ Context for Claude Code. Read this before changing anything.
 
 ## What this is
 
-A fully automated faceless YouTube Shorts channel, **CryptoFX Daily**
-(@CryptoFXDaily202), posting short crypto & forex market briefs (one lead story each) and a
-daily gold (XAU/USD) outlook, with no manual work. The same videos also go to the
-**CryptoFX Daily Facebook Page as Reels**, plus **3 Facebook-only news image posts a day**.
+A fully automated faceless crypto-education channel, **CryptoFX Daily** (@CryptoFXDaily202), on the
+**crypto-only weekly slate** (crypto pivot, epic 5; weekly-slate.md): two standalone Shorts a day (YouTube
+Short + **Facebook Reel**), Crypto Basics (Wed) and a trading lesson (Thu) as YouTube 16:9 + Facebook 9:16
+videos, triggered "why crypto moved" videos and a Saturday recap (YouTube only), evergreen top-ups for the
+weekly floor, plus **3 Facebook-only crypto news image posts a day**. The market briefs (asia / london /
+newyork) and the gold outlook are retired.
 Runs free on **GitHub Actions** (repo `Thimuthu96/yt-shorts-autopilot`, branch `main`).
 
 Owner goals: hands-off, near-zero cost, eventually monetized (YouTube Partner Program).
@@ -16,28 +18,22 @@ Owner is a developer (Flutter/Dart background), timezone Asia/Colombo (UTC+5:30)
 ## The pipeline (one run = one edition)
 
 ```
-sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
-  market brief:
-  → focus.pick()        lead story + the 1-3 assets it moves (scores: headlines, move; crypto-only: only a
-                        coin with crypto prices leads, never FX / gold / USD; no crypto prices → no focus)
-  → thumbnail.choose()  pick 1 of 4 templates, staying on the focus assets
-  → script.make_script()  research() analyst note → write() one-story script → fact_check()
-  gold outlook:
-  → gold.analyze()      rule-based levels, liquidity, 1H/4H/daily bias, scenarios, last call review
-  → thumbnail.choose_gold()  "BEARISH / BELOW $4,142" card
-  → script.make_gold_script()  fixed scene plan, Gemini only narrates it + fact_check()
-  → script.validate() → rules.narration_problems()  (briefs + gold) no first person, targets, 10x, buy/sell calls,
-                        dates/clock times/UTC → draft retried; 3 failures stop the edition (exit 1)
-  both:
-  → thumbnail.render()  thumbnail.jpg (1080x1920), also the video's first ~1 s (push-in), then its asset's chart
-  → main.narrate() → voice.synthesize()  edge-tts narration per scene + word timings; briefs + gold: A/B voice
+shared by every video format:
+  → script.validate-style rules: rules.narration_problems()  no first person, targets, 10x, buy/sell calls,
+                        dates/clock times/UTC → draft retried; failures stop the edition (exit 1)
+  → main.narrate() → voice.synthesize()  edge-tts narration per scene + word timings; A/B voice
                         (main.ab_voice, logged as "voice"), pauses after key numbers (voice.paced), over-limit → faster
-  → slides.render_slides()  one PNG graphic per scene (charts, board, news card, calendar…)
   → render.build_video()  ffmpeg: segments + animations + word-highlight captions + audio mix
-  → publish(pending)    per platform, one failure never blocks the other:
-       youtube.upload()   YouTube Data API v3 upload with SEO metadata (+ try set thumbnail)
-       facebook.publish_reel()  Graph API Reel (start → rupload → finish once → poll) + reel_caption()
-  → history.json        logs the ids (dedupe + "don't repeat headlines")
+  → publish per platform, one failure never blocks the other; Facebook follows the content (main.CONTENT_PLATFORMS):
+       Shorts → main.publish(): youtube.upload() + facebook.publish_reel(); Basics / lessons → YouTube 16:9 +
+       facebook.publish_video() 9:16; triggered / recap → YouTube only; news posts → facebook.publish_photo()
+  → history.json        logs the ids (dedupe, once-per-slot guard, the slate budget)
+  slate budget (autopilot/slate.py, config `slate`): ≤ 3 YouTube uploads per UTC day (timed Shorts skip at 3; Short B
+                        yields to a triggered video published / due that day on Wed/Thu or on a day with a long video;
+                        the trigger poll holds a would-be 4th trigger to 00:00 UTC next day: triggers.hold); 3-4 long
+                        videos (basics, lesson, triggered, recap) per ISO week: main.floor_top_up runs the evergreen
+                        top-up when a timed recap skips (Saturday) or at topup_sun (Sun 15:00) while the week has < 3;
+                        a counting long upload that would be the 5th is refused ("Weekly cap", exit 0)
   news image post (kind: post, Facebook only):
   → news_post.pick_story()  48 h of news (all feeds incl. geopolitics + regulation) filtered to crypto
                             stories (is_crypto: crypto named in the headline or its lead, never only the
@@ -154,34 +150,34 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → history.json            kind short, short_kind, material, segment (point_n / hook_n), source_video, hook, fingerprint
 ```
 
-Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishing in
-`publish()`; `main()` handles edition choice, `--platforms`, timed vs manual rules, the weekend
-rule and the once-per-edition-per-day-per-platform guard:
+Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make_lesson_edition()` /
+`make_triggered()` / `make_recap()` / `make_evergreen()` / `make_post()`; `main()` handles edition choice,
+`--platforms`, timed vs manual rules, the slate budget and the once-per-edition-per-day-per-platform guard:
 `pending = session platforms ∩ enabled − platforms published today for this session`.
 
-## Editions (3 market briefs + 1 gold outlook + 3 FB news posts a day; weekends: London + news; lesson Thursday)
+## Editions (the crypto-only slate, all times UTC, 7 days a week)
 
 | key | label | due (`start_utc`) | Sri Lanka | outside timer | backup cron (UTC) | platforms |
 |---|---|---|---|---|---|---|
-| `asia` | Asia Open | 00:30 | 06:00 | cron-job.org 06:00 Asia/Colombo | `47 0 * * *` | YT + FB Reel |
-| `news_morning` | Morning News | 03:00 | 08:30 | cron-job.org 08:30 Asia/Colombo | `17 3 * * *` | FB post |
-| `london` | London Open | 05:40 | 11:10 | cron-job.org 11:10 Asia/Colombo | `57 5 * * *` | YT + FB Reel |
-| `gold` | Gold Outlook | 06:15 | 11:45 | cron-job.org 11:45 Asia/Colombo, Mon–Fri | `32 6 * * 1-5` | YT + FB Reel |
-| `news_midday` | Midday News | 09:30 | 15:00 | cron-job.org 15:00 Asia/Colombo | `47 9 * * *` | FB post |
-| `newyork` | New York Open | 12:30 | 18:00 | cron-job.org 18:00 Asia/Colombo | `47 12 * * *` | YT + FB Reel |
-| `news_evening` | Evening News | 16:30 | 22:00 | cron-job.org 22:00 Asia/Colombo | `47 16 * * *` | FB post |
-| `lesson` | Trading Lesson | 15:00 | 20:30 | cron-job.org 20:30 Asia/Colombo, Thu | `17 15 * * 4` | YT 16:9 + FB video 9:16 |
-| `basics` | Crypto Basics (dark) | 15:00 | 20:30 | none yet (epic 5 wires the timers), Wed | none (dispatch option only) | YT 16:9 + FB video 9:16 |
-| `recap` | Weekly Recap (dark) | 15:00 | 20:30 | none yet (epic 5), Sat; setup_cronjobs would create one | none (dispatch option only) | YT 16:9 |
-| `short_a` / `short_b` | Standalone Shorts (dark) | 13:00 / 23:00 | 18:30 / 04:30 | none yet (epic 5) | none (dispatch options) | YT Short + FB Reel |
-| `triggered` | Why Crypto Moved (dark) | trigger's due time | — | triggers.yml poll (30 min) dispatches it | none | YT 16:9 |
+| `news_morning` | Morning News | 12:00 | 17:30 | cron-job.org, every day | `17 12 * * *` | FB post |
+| `short_a` | Short A | 13:00 | 18:30 | cron-job.org, every day | `17 13 * * *` | YT Short + FB Reel |
+| `basics` | Crypto Basics | 15:00 Wed | 20:30 | cron-job.org, Wed | `17 15 * * 3` | YT 16:9 + FB video 9:16 |
+| `lesson` | Trading Lesson | 15:00 Thu | 20:30 | cron-job.org, Thu | `17 15 * * 4` | YT 16:9 + FB video 9:16 |
+| `recap` | Weekly Recap (or the Saturday top-up) | 15:00 Sat | 20:30 | cron-job.org, Sat | `17 15 * * 6` | YT 16:9 |
+| `topup_sun` | Sunday top-up (kind: floor) | 15:00 Sun | 20:30 | cron-job.org, Sun | `17 15 * * 0` | the episode's: YT 16:9 + FB 9:16 |
+| `news_midday` | Midday News | 16:00 | 21:30 | cron-job.org, every day | `17 16 * * *` | FB post |
+| `news_evening` | Evening News | 21:00 | 02:30 | cron-job.org, every day | `17 21 * * *` | FB post |
+| `short_b` | Short B | 23:00 | 04:30 | cron-job.org, every day | `17 23 * * *` | YT Short + FB Reel |
+| `triggered` | Why Crypto Moved | trigger's due time | — | triggers.yml poll (30 min) dispatches it | none | YT 16:9 |
+| `evergreen` | Evergreen top-up | — (`--slot`) | — | called by recap / topup_sun | none | the episode's |
 
-- Defined in `config.yaml → sessions` (label, short, start_utc, focus text, `kind: gold` for gold,
-  `kind: post` + `platforms: [facebook]` for news posts; video editions default to
-  `[youtube, facebook]`; `kind: lesson` + `days: [thu]` for the lesson). `main.py` has
-  `DEFAULT_SESSIONS` as a fallback if config lacks them (no lesson there).
+- Retired by the slate (epic 5): `asia`, `london`, `newyork`, `gold` (+ `auto`, `weekend_sessions`, the forex
+  weekend skip and the gold outlook code). `--session` is required (no edition / `auto` → exit 1).
+- Defined in `config.yaml → sessions` (label, short, start_utc, `kind`, `days`, `platforms`). `main.py` has
+  `DEFAULT_SESSIONS` (news posts + Shorts) as a fallback if config lacks them. The release (5.7) turns on
+  `basics`, `triggers`, `recap`, `shorts` and `evergreen` (`*.enabled`); while one is false its timed runs skip.
 - **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
-  work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (gold without `days` = Mon–Fri).
+  work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (`--delete-retired` deletes the retired jobs).
 - **Crypto Basics is dark (`basics.enabled: false`):** a timed (`--scheduled`) basics run logs
   "basics.enabled is false…" and exits 0 before anything is made; a manual run makes and publishes the
   next approved topic of `basics/topics.yaml` (none approved yet → nothing to publish), private on YouTube for `basics.review_window_hours` (24)
@@ -210,12 +206,9 @@ rule and the once-per-edition-per-day-per-platform guard:
   unused crypto story → the best crypto story of the last 48 h not used by an earlier FB post → any
   crypto story. Fails (exit 1, nothing posted) only on no news, no crypto story at all, or a post that
   breaks the narration rules even as `fallback_post`.
-- **Gold time (06:15 UTC):** the Asian session (00:00–06:00 GMT) has set its range, London opens
-  next (07:00 GMT summer / 08:00 winter) and usually tests the Asian high/low first, and US data
-  (12:30–14:00 GMT) is still ahead, so the levels are fresh and useful for the whole day.
 - **Triggers.** GitHub's schedule proved unreliable (Oct 2026: the 12:30 run started 6.5 h late,
   the next day's 00:30 run never started), so the **primary trigger is cron-job.org** POSTing
-  `workflow_dispatch` with `{"ref":"main","inputs":{"session":"asia","scheduled":"true"}}`
+  `workflow_dispatch` with `{"ref":"main","inputs":{"session":"short_a","scheduled":"true"}}`
   (fine-grained PAT, this repo only, Actions read/write; setup in README "Outside timer").
   GitHub crons stay as a **backup 17 min later**, off the busy :00/:30 marks.
 - Both triggers pass `--scheduled` ("timed run"). Job concurrency group `timed-<edition>` queues
@@ -236,19 +229,15 @@ rule and the once-per-edition-per-day-per-platform guard:
 - The workflow maps the firing backup cron string → edition in the `EDITION:` env line **and**
   in the job's `concurrency.group`. **To change a time, change the cron-job.org job, `start_utc`,
   the cron line and the matching string in both places.**
-- Run names in Actions: "Timer · asia", "Backup schedule · 47 0 * * *", "Manual · gold".
-- Weekends: timed runs only make editions in `weekend_sessions` (`[london, news_morning,
-  news_midday, news_evening, lesson]`; no gold; the lesson then follows its own `days`).
+- Run names in Actions: "Timer · short_a", "Backup schedule · 17 13 * * *", "Manual · basics".
 - Job `timeout-minutes: 90` (a lesson renders two videos and polls Facebook up to 10 min).
 - Timed runs make each edition once per UTC day (`--force` overrides, CLI only). Old history
   entries without `session` count as `london`; without `counts` they count.
-- Market briefs keep only news since the previous *market* upload (if ≥6 fresh stories).
 
-Manual runs: Actions → Shorts autopilot → Run workflow → `session` (auto/asia/london/newyork/gold/
-news_morning/news_midday/news_evening/lesson/basics), `platforms` (all/youtube/facebook, limited to the edition's
-own), optional `as_edition`. `auto` = market edition by current UTC hour (<5 asia, <12 london, else newyork).
-**YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific).
-Autopilot uses 4 on weekdays (5 on Thursday with lessons on), so about 1–2 manual uploads a day fit.
+Manual runs: Actions → Shorts autopilot → Run workflow → `session` (short_a/short_b/news_*/basics/lesson/recap/
+topup_sun/evergreen/triggered), `platforms` (all/youtube/facebook, limited to the edition's own), optional
+`as_edition`, `slot` (top-ups), `trigger` (triggered).
+**YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific); the slate uses ≤ 3.
 
 ## Files
 
@@ -262,7 +251,8 @@ setup_cronjobs.py        creates / fixes the cron-job.org jobs from config.yaml 
 autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frankfurter FX, gold, macro,
                          CoinGecko market overview (`python -m autopilot.sources overview`)
 autopilot/focus.py       lead story + related assets (keywords, scoring, typical market links)
-autopilot/gold.py        gold outlook: levels, liquidity, 1H/4H/daily bias, scenarios, review
+autopilot/slate.py       the slate budget: day_uploads, short_skip (3 a day, Short B yield), hold_reason (trigger hold),
+                         long_videos (ISO-week floor / cap), next_day
 autopilot/script.py      Gemini prompt, fact-check, validate, fix_visuals (scene types)
 autopilot/rules.py       shared narration rules: narration_problems(text) + NARRATION_RULES prompt text; date/time patterns
                          + packaging checks title_problems(title) / thumbnail_text_problems(text) (CAP-8): logged
@@ -326,7 +316,7 @@ tests/basics/            sample_topic.yaml: the Crypto Basics tracer topic (+ a 
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
 data/material/           Shorts material per published long video (<kind>-<id>.json), committed by the workflow
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
-.github/workflows/autopilot.yml   8 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled, slot)
+.github/workflows/autopilot.yml   9 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled, slot)
 ```
 
 ## Data sources (all free, no API keys)
@@ -397,14 +387,9 @@ assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or g
   spoken disclaimer/goodbye phrases (`SIGN_OFF`, `GOODBYE`) are cut from the last line (rest of the
   sentence kept); an all-sign-off last scene is dropped if ≥ 4 scenes remain. Each change is logged.
 - Scene visual types: `title, price{asset}, fx{asset}, gold, board, news{source,headline}, calendar`
-  (no `outro` in Shorts since Oct 2026); gold outlook adds `gold_chart, review, bias, liquidity, scenarios, drivers`.
-- Gold outlook = 2 calls: `write_gold()` narrates the fixed `gold_plan()` scenes (by id) from
-  `gold.analyze()` only; biases worded as conditional reads ("bearish while below…"); never buy/
-  sell/long/short/entry/stop/target. `fact_check(…, GOLD_RULES)`. Plan: `open` (cover → gold chart)
-  → `review` (if any) → `bias` (price folded in) → `levels` (liquidity + scenarios, `scenarios`
-  visual) → one watch scene (`drivers` if macro/odds/USD events, else gold `news`, else none); no
-  `close`/outro, no spoken disclaimer (the last line's sign-off phrases are cut after `_merge_plan`; a
-  scene left empty fails validation). If that leaves < 4 scenes, `liquidity` gets its own scene again.
+  (no `outro` in Shorts since Oct 2026). The market-brief helpers (script.make_script, slides.render_slides,
+  thumbnail.choose/render, seo, youtube.build_metadata) are no edition's path any more: they stay as the offline
+  render fixture in tests/test_offline.py main() until a refactor sweep removes them (deferred-work).
 
 ## Thumbnails
 
@@ -562,7 +547,7 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
   score penalty), ~4/day, no hype.
 - **News photos in videos:** rejected — publisher images (Reuters/Getty/AP) are copyrighted →
   Content ID claims and reused-content risk. News is shown as drawn headline cards instead.
-- **Gold bias by LLM:** rejected — the bias/levels are deterministic rules in `gold.py` so they're
+- **Gold bias by LLM (retired gold outlook):** rejected — the bias/levels were deterministic rules in `gold.py` so they're
   repeatable and auditable; tomorrow's video reviews today's call honestly (`review`).
 - **"All markets" briefs:** replaced Oct 2026 by one-story briefs (owner: videos mixed BTC, ETH,
   EUR, GBP regardless of the news). Lead needs headlines: a move with no headline counts 0.7×.
@@ -592,7 +577,7 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
 - GitHub scheduled runs can start hours late or never (hence the outside timer); schedules
   also pause after 60 days of repo inactivity. A green 1-min run = a skip; read its last log line.
 - Run times in the Actions UI are in the browser's time zone (GMT+5:30), not UTC.
-- cron-job.org `401` = PAT expired (1-year expiry) → new token into all eight jobs.
+- cron-job.org `401` = PAT expired (1-year expiry) → new token into all nine jobs (setup_cronjobs.py re-patches them).
   `422` = `main`'s workflow lacks the `scheduled` input.
 - A cron expression in YAML must stay on one line inside `${{ }}`.
 - Node 20 deprecation warning for actions/checkout@v4, setup-python@v5, upload-artifact@v4 —
@@ -612,7 +597,7 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
 
 - Keep everything free-tier; no new paid APIs without asking the owner.
 - Every number shown or spoken must come from fetched data. No buy/sell language. Market briefs
-  make no predictions; the gold outlook's bias/scenarios come only from `gold.py` rules.
+  make no predictions.
 - Run `python tests/test_offline.py` after any change to rendering, slides, thumbnail or script flow.
 - Prefer small, explicit log lines (`log(...)`) — the Actions log is the only monitoring.
 - Owner applies changes via git (Mac or Windows); give exact file paths when handing over changes.

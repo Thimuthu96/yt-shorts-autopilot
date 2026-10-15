@@ -62,7 +62,6 @@ DEFAULT_FEEDS = {
 }
 # The video editions read the feeds they always did; "post" (Facebook news posts) reads them all.
 MARKET_FEEDS = ("crypto", "forex", "rates", "macro", "gold")
-GOLD_FEEDS = ("gold", "rates", "macro", "forex")
 # Paid press releases (e.g. Chainwire posts on The Daily Hodl) are adverts, not news.
 SPONSORED = re.compile(r"chainwire|press release|sponsored|partner content|\[pr\]", re.I)
 
@@ -540,11 +539,11 @@ def usd_strength(fx: dict) -> float | None:
 
 def gather(cfg: dict, kind: str = "market", log=print) -> dict:
     """Everything the script writer needs. Raises if there is no usable price data.
-    kind "market" = crypto/forex brief; "gold" = the daily gold outlook; "post" = a Facebook news
-    image post (all feeds, 48 h of news; prices are only used for the caption's key numbers)."""
+    kind "market" = the (retired) crypto/forex brief's data, kept for the offline render fixture; "post" = a
+    Facebook news image post (all feeds, 48 h of news; prices are only used for the caption's key numbers)."""
     now = datetime.now(timezone.utc)
     m = cfg.get("market", {})
-    names = {"market": MARKET_FEEDS, "gold": GOLD_FEEDS}.get(kind, tuple(DEFAULT_FEEDS))
+    names = MARKET_FEEDS if kind == "market" else tuple(DEFAULT_FEEDS)
     feeds = {k: v for k, v in DEFAULT_FEEDS.items() if k in names}
     if kind == "post":  # Google News searches cover 2 days for the 48 h news-post window
         feeds = {k: [(src, url.replace("when:1d", "when:2d")) for src, url in v] for k, v in feeds.items()}
@@ -563,8 +562,6 @@ def gather(cfg: dict, kind: str = "market", log=print) -> dict:
         "macro": fetch_macro(log=log),
     }
     data["rate_expectations"] = rate_expectations(data["news"])
-    if kind == "gold" and not data["gold"]:
-        raise RuntimeError("No gold price data; skipping rather than guessing")
     if kind == "post" and not data["news"]:
         raise RuntimeError("No news from any feed; a news post needs at least one story")
     if kind != "post" and not data["crypto"] and not data["fx"] and not data["gold"]:

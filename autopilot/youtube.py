@@ -63,12 +63,6 @@ def _stories(pkg: dict, data: dict) -> list[str]:
 
 
 def _credits(data: dict) -> str:
-    if data.get("kind") == "gold":
-        return ("Method: rule-based technical read of hourly XAU/USD (EMA trend, market structure, prior-day, "
-                "Asian-session and weekly ranges, liquidity sweeps, ATR ranges), not a forecast of certainty. "
-                "Data: gold prices from PAXG hourly candles (Kraken/Coinbase) aligned to spot XAU/USD "
-                "(Swissquote); US yields from the US Treasury; CPI from the BLS; forex reference rates via "
-                "Frankfurter; economic calendar from ForexFactory.")
     extra = []
     if data.get("gold"):
         extra.append("gold from PAXG hourly candles aligned to spot XAU/USD")
@@ -81,7 +75,7 @@ def _credits(data: dict) -> str:
 def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "", log=print) -> dict:
     """Title, description and tags tuned for search (see seo.py); falls back to the writer's
     output when there is no lead story (e.g. tests with plain data). The packaging title rules
-    (rules.title_problems) are only logged here: brief and gold titles are retired at switch-over."""
+    (rules.title_problems) are only logged here (the market-brief edition is retired; this is the render fixture's)."""
     title = _safe(seo.title(pkg.get("title", ""), data, edition))[:95]
     problems = rules.title_problems(title)
     if problems:
@@ -91,7 +85,7 @@ def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "", log=prin
     parts = [rules.without_disclosure(_safe(pkg.get("description", "")), disclosure)]
     numbers = seo.key_numbers(data)
     if numbers:
-        parts.append(("Key levels:\n" if data.get("kind") == "gold" else "Key numbers:\n") + "\n".join(numbers))
+        parts.append("Key numbers:\n" + "\n".join(numbers))
     stories = _stories(pkg, data)
     if stories:
         parts.append("Stories mentioned:\n" + "\n".join(stories))

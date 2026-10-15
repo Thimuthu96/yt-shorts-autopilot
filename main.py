@@ -1,31 +1,27 @@
-"""Crypto & forex market brief Shorts (Asia / London / New York open) plus a daily gold outlook:
-market data + news → lead story + research → grounded script → fact-check → voice → data
-graphics → render → publish (YouTube Short + Facebook Reel, one render).
-Plus Facebook-only news image posts (kind: post): story → headline + caption → card → Page photo.
+"""The crypto-only weekly slate (weekly-slate.md): standalone Shorts (YouTube Short + Facebook Reel), Crypto Basics and
+trading lessons (YouTube 16:9 + Facebook 9:16 video), triggered "why crypto moved" videos and the Saturday recap
+(YouTube only), evergreen top-ups for the weekly floor, and Facebook-only crypto news image posts.
 
-    python main.py --session london   # one video, made and published now (a manual run)
-    python main.py --session gold     # the daily gold (XAU/USD) outlook
+    python main.py --session short_a   # a standalone Short, made and published now (a manual run)
+    python main.py --session short_b --scheduled   # timed run: days rule, late/early skip, daily budget, once a day
     python main.py --session news_morning   # a Facebook news image post
-    python main.py                    # market edition picked from the current UTC time
-    python main.py --no-upload        # make it only, saved in output/
-    python main.py --session asia --platforms facebook   # publish to Facebook only
-    python main.py --session asia --scheduled   # timed run: days rule, late/early skip, once a day per platform
-    python main.py --session asia --as-edition  # manual run that fills today's slot (timed run skips)
+    python main.py --session short_a --no-upload   # make it only, saved in output/
+    python main.py --session short_a --platforms facebook   # publish to Facebook only
+    python main.py --session short_a --as-edition  # manual run that fills today's slot (timed run skips)
     python main.py --session lesson --scheduled  # trading lesson: next curriculum episode (YouTube + Facebook video)
     python main.py --session lesson --slot recap  # top-up: the next unpublished lesson, once, in today's recap slot
     python main.py --session lesson --no-upload  # make the next lesson only (works with lessons.enabled false)
     python main.py --lesson-sample --no-upload  # sample trading lesson (16:9 + 9:16) on fixture candles
     python main.py --session basics   # Crypto Basics: the next approved topic (basics/topics.yaml), 16:9 YouTube +
-                                      # 9:16 Facebook (timed runs: off while basics.enabled is false); a topic with
-                                      # a ready package (basics/ready/<id>.yaml) is published as it is
+                                      # 9:16 Facebook; a topic with a ready package (basics/ready/<id>.yaml) is
+                                      # published as it is
     python main.py --session evergreen --slot recap   # top-up: the next ready Basics episode, else the next lesson,
                                                       # once in today's recap slot (timed runs: evergreen.enabled)
+    python main.py --session topup_sun --scheduled   # Sunday 15:00: the evergreen top-up only when the week is short
     python main.py --session basics --prepare next   # write the next ready package (evergreen stock, for a PR)
     python main.py --session basics --stock          # how many ready, unpublished Basics episodes there are
     python main.py --session recap    # Saturday recap: the week's biggest moves and why (16:9, YouTube only; skipped
-                                      # when a triggered video published this ISO week; timed runs: recap.enabled)
-    python main.py --session short_a  # standalone Short (kind: short) from the Shorts material (data/material/);
-                                      # YouTube Short + Facebook Reel (timed runs: off while shorts.enabled is false)
+                                      # when a triggered video published this ISO week → the weekly-floor top-up)
     python main.py --session triggered --trigger <id|fixture.json> --no-upload   # "why crypto just moved" (16:9,
                                                       # YouTube only; timed runs: off while triggers.enabled is false)
 
@@ -36,14 +32,14 @@ import json
 import random
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
 
-from autopilot import (basics, facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
-                       lessons, material, news_post, recap, render, reveal, script, shorts, slate, slides, sources,
-                       thumbnail, triggered, triggers, voice)
+from autopilot import (basics, facebook, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
+                       lessons, material, news_post, recap, render, reveal, shorts, slate, sources,
+                       triggered, triggers, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot import lesson_material
 from autopilot.history import ID_KEYS, PLATFORM_IDS, History
@@ -88,8 +84,8 @@ def faster_rate(rate: str, factor: float) -> str:
 
 def narrate(v: dict, scenes: list[dict], limit: float, workdir: Path, pauses: bool = False,
             what: str = "Narration", log=log) -> tuple[list[dict], float]:
-    """Voice the scenes at `voice.rate`; over `limit` seconds → re-recorded once, faster. `pauses` (briefs,
-    gold): key-number / concept-term pauses (voice.paced) on both recordings. Returns (audio, seconds)."""
+    """Voice the scenes at `voice.rate`; over `limit` seconds → re-recorded once, faster. `pauses` (the
+    Shorts, long videos): key-number / concept-term pauses (voice.paced) on both recordings. Returns (audio, seconds)."""
     audio = voice.synthesize(scenes, v["name"], v["rate"], workdir, log=log, fallback=v.get("fallback"), pauses=pauses)
     total = sum(a["duration"] for a in audio)
     if total > limit:
@@ -102,7 +98,7 @@ def narrate(v: dict, scenes: list[dict], limit: float, workdir: Path, pauses: bo
 
 
 def ab_voice(v: dict, history: History, session_key: str) -> dict:
-    """The voice settings for a brief or gold run (narration-rules.md A/B): with `voice.alternate` set, each
+    """The voice settings for a Short / long video run (narration-rules.md A/B): with `voice.alternate` set, each
     edition alternates name / alternate, the other one from its latest uploaded edge-tts entry (Piper
     entries are skipped; none yet → name). Without it, `v` unchanged."""
     pair = (v["name"], v.get("alternate"))
@@ -116,96 +112,6 @@ def minutes_late(now: datetime, start_utc: str) -> int:
     h, m = (int(x) for x in str(start_utc).split(":"))
     diff = (now.hour * 60 + now.minute - (h * 60 + m)) % (24 * 60)
     return diff - 24 * 60 if diff > 12 * 60 else diff
-
-
-def news_since_last_brief(data: dict, history: History) -> None:
-    """Keep only news newer than the previous brief, so each edition says something new."""
-    last = history.last_upload_time("market")
-    if not last or datetime.now(timezone.utc) - last > timedelta(hours=24):
-        return
-    cutoff = (last - timedelta(hours=1)).isoformat()
-    fresh = [n for n in data["news"] if n.get("published") and n["published"] >= cutoff]
-    if len(fresh) >= 6:  # too few fresh stories: keep the wider window rather than an empty brief
-        data["news"] = fresh
-        data["news_since"] = last.strftime("%H:%M UTC")
-
-
-def make_brief(cfg: dict, history: History, args, session_key: str) -> dict:
-    session = cfg.get("sessions", {}).get(session_key, {})
-    kind = session.get("kind", "market")
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    workdir = ROOT / "output" / stamp
-    workdir.mkdir(parents=True, exist_ok=True)
-
-    log("Collecting market data and news...")
-    data = sources.gather(cfg, kind, log=log)
-    extra = {}
-    if kind == "gold":
-        prev = (history.last("gold") or {}).get("outlook")  # a re-make gets history without today's slot
-        data["gold_analysis"] = gold.analyze(data, prev)
-        a = data["gold_analysis"]
-        log(f"Gold {a['price']:,.1f}: bias 1H {a['bias']['1H']['bias']}, 4H {a['bias']['4H']['bias']}, "
-            f"daily {a['bias']['Daily']['bias']}" + (f"; last call {'played out' if a['review']['played_out'] else 'missed'}"
-                                                     if a.get("review") else ""))
-        extra["outlook"] = gold.record(a)
-        cover = thumbnail.choose_gold(data)
-    else:
-        news_since_last_brief(data, history)
-        f = focus.pick(data, (history.last("market") or {}).get("lead"), history.used_headlines())
-        if f:
-            log(f"Lead: {f['label']} ({', '.join(f['why'])}) · assets {f['assets']} · story: "
-                f"{(f.get('story') or {}).get('title', '(price move)')}")
-            extra["lead"] = f["lead"]
-        cover = thumbnail.choose(data)
-    (workdir / "data.json").write_text(json.dumps(data, indent=1, ensure_ascii=False, default=str))
-
-    log(f"Thumbnail: {cover['template']} ({cover['facts']})")
-    if kind == "gold":
-        pkg = script.make_gold_script(cfg, data, history.used_headlines(), cover, log=log)
-    else:
-        pkg = script.make_script(cfg, data, history.used_headlines(), cover, session, log=log)
-    cover["hook"] = thumbnail.clean_hook(pkg.get("thumbnail_hook"), cover["default_hook"])
-    pkg["thumbnail"] = {k: v for k, v in cover.items() if k != "series"}
-    (workdir / "package.json").write_text(json.dumps(pkg, indent=2, ensure_ascii=False))
-    log(f"Title: {pkg['title']} · hook: {cover['hook']}")
-    thumb = thumbnail.render(cover, cfg, data["date_utc"], workdir / "thumbnail.jpg", session.get("short", ""))
-
-    scenes = pkg["scenes"]
-    v = ab_voice(cfg["voice"], history, session_key)
-    log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
-    audio, total = narrate(v, scenes, cfg["video"]["max_seconds"], workdir, pauses=True)
-
-    log("Drawing the graphics...")
-    footer = (cfg.get("gold") or {}).get("footer") if kind == "gold" else None
-    pics = slides.render_slides(cfg, data, scenes, workdir, cover=thumb, edition=session.get("label", ""),
-                                footer=footer)
-
-    music_files = sorted((ROOT / "music").glob("*.mp3"))
-    music = random.choice(music_files) if music_files else None
-    out = workdir / "short.mp4"
-    render.build_video(audio, pics, cfg, workdir, out, music=music)
-    log(f"Rendered {out.relative_to(ROOT)}")
-
-    from autopilot import youtube  # imported late so --no-upload needs no Google libs configured
-    meta = youtube.build_metadata(pkg, data, cfg, session.get("label", ""), log=log)
-    (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
-    fb_caption = facebook.reel_caption(meta, pkg, data, cfg)
-    (workdir / "caption_fb.txt").write_text(fb_caption, encoding="utf-8")
-
-    entry = {
-        "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "brief_date": data["date_utc"],
-        "session": session_key,
-        "kind": kind,
-        "title": meta["title"],
-        "video_id": None,
-        "seconds": round(total, 1),
-        "voice": audio[0]["voice"] if audio else v["name"],
-        "headlines": pkg.get("headlines_used", [])[:10],
-        **extra,
-        "workdir": str(workdir.relative_to(ROOT)),
-    }
-    return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption}
 
 
 def lesson_video_cfg(cfg: dict, layout) -> dict:
@@ -1298,10 +1204,8 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             entry, failed = publish_basics(made, pending, cfg)
         else:
-            # re-making an edition for a platform it missed: use the history the first run saw
-            made = make_brief(cfg, history.excluding_slot(today, session_key) if remake else history,
-                              args, session_key)
-            entry, failed = publish(made, pending, cfg)
+            log(f"The {label} edition has an unknown kind '{kind}' (the market-brief and gold editions are retired).")
+            return 1
     except Exception as e:
         what = dict(post="Post", lesson="Lesson", basics="Basics", evergreen="Evergreen", triggered="Triggered",
                     recap="Recap", short="Short")

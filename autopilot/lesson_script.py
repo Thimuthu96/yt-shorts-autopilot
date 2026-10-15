@@ -8,7 +8,7 @@ approved key points, its glossary definitions and the examples' facts only.
                           data-desk narration rules (rules.narration_problems: first person, price
                           targets, "10x", buy/sell calls; dates stay the lesson's own stricter check),
                           numbers backed by the facts, disclaimer, ICT non-affiliation (track 4)
-    make_lesson_script()  up to 3 attempts, like script.make_gold_script
+    make_lesson_script()  up to 3 attempts (narration rules + fact_check)
 
 Live sample (needs GEMINI_API_KEY; sample curriculum + fixture candles, no market data):
     python -m autopilot.lesson_script
