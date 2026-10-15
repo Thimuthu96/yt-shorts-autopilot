@@ -17,7 +17,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
-from . import seo
+from . import rules, seo
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 LESSON_SCOPES = SCOPES + ["https://www.googleapis.com/auth/youtube",  # playlists, delete
@@ -63,12 +63,6 @@ def _stories(pkg: dict, data: dict) -> list[str]:
 
 
 def _credits(data: dict) -> str:
-    if data.get("kind") == "gold":
-        return ("Method: rule-based technical read of hourly XAU/USD (EMA trend, market structure, prior-day, "
-                "Asian-session and weekly ranges, liquidity sweeps, ATR ranges), not a forecast of certainty. "
-                "Data: gold prices from PAXG hourly candles (Kraken/Coinbase) aligned to spot XAU/USD "
-                "(Swissquote); US yields from the US Treasury; CPI from the BLS; forex reference rates via "
-                "Frankfurter; economic calendar from ForexFactory.")
     extra = []
     if data.get("gold"):
         extra.append("gold from PAXG hourly candles aligned to spot XAU/USD")
@@ -78,15 +72,20 @@ def _credits(data: dict) -> str:
             "banks); economic calendar from ForexFactory" + "".join(f"; {x}" for x in extra) + ".")
 
 
-def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "") -> dict:
+def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "", log=print) -> dict:
     """Title, description and tags tuned for search (see seo.py); falls back to the writer's
-    output when there is no lead story (e.g. tests with plain data)."""
+    output when there is no lead story (e.g. tests with plain data). The packaging title rules
+    (rules.title_problems) are only logged here (the market-brief edition is retired; this is the render fixture's)."""
     title = _safe(seo.title(pkg.get("title", ""), data, edition))[:95]
+    problems = rules.title_problems(title)
+    if problems:
+        log(f"Title check (log-only until switch-over): {'; '.join(problems)}")
     hashtags = seo.hashtags(data, pkg.get("hashtags", []))
-    parts = [_safe(pkg.get("description", ""))]
+    disclosure = rules.disclosure(cfg)
+    parts = [rules.without_disclosure(_safe(pkg.get("description", "")), disclosure)]
     numbers = seo.key_numbers(data)
     if numbers:
-        parts.append(("Key levels:\n" if data.get("kind") == "gold" else "Key numbers:\n") + "\n".join(numbers))
+        parts.append("Key numbers:\n" + "\n".join(numbers))
     stories = _stories(pkg, data)
     if stories:
         parts.append("Stories mentioned:\n" + "\n".join(stories))
@@ -95,11 +94,9 @@ def build_metadata(pkg: dict, data: dict, cfg: dict, edition: str = "") -> dict:
         parts.append("What to watch:\n" + "\n".join(ahead))
     parts.append(seo.schedule(cfg))
     parts.append(_credits(data))
-    disclaimer = (cfg.get("upload", {}).get("disclaimer") or "").strip()
-    if disclaimer:
-        parts.append("⚠️ " + disclaimer)
-    parts.append(" ".join(hashtags))
-    description = "\n\n".join(p for p in parts if p)[:4900]
+    # narration-rules.md: the line exactly once; a long writer text is cut, never the line or the hashtags
+    tail = "\n\n".join(p for p in ("⚠️ " + disclosure, " ".join(hashtags)) if p)
+    description = "\n\n".join(p for p in parts if p)[:4900 - len(tail) - 2].rstrip() + "\n\n" + tail
 
     tags, seen, total = [], set(), 0
     for t in seo.tag_seeds(data, edition) + list(pkg.get("tags", [])):

@@ -1,19 +1,26 @@
-"""Facebook news image posts: one important story that moves crypto / forex (rate decisions,
-central-bank speeches and statements, war and geopolitics, tariffs, regulation, macro data…).
+"""Facebook news image posts: one important crypto or crypto-regulation story (CAP-9). Rate decisions,
+geopolitics, tariffs or macro data only qualify when the headline or its lead names crypto.
 
-pick_story()  scores the last 48 h of headlines (topic weight + multi-outlet coverage + recency),
-              skips stories earlier Facebook posts used, and never comes back empty.
+is_crypto()   a story is crypto-relevant when its title or summary (the RSS lead) names crypto, a coin,
+              stablecoins, crypto ETFs, crypto exchanges or digital assets; the body never counts, and
+              a bare "ETF", "exchange" or "coin" does not either.
+pick_story()  keeps only crypto-relevant stories, then scores the last 48 h of them (topic weight +
+              multi-outlet coverage + recency), skips stories earlier Facebook posts used, and never
+              comes back empty while a crypto story exists (none at all → RuntimeError, no post).
 write_post()  Gemini writes the card text (kicker, 2-3 line headline, subline), the caption and a
               symbolic image prompt; script.fact_check() checks it against the story; numbers are
               verified against the facts. Any failure → a deterministic post from the story itself.
+              The finished post must pass rules.narration_problems (no price targets, "10x", buy/sell
+              calls, first person, dates or clock times); a failing Gemini post is replaced by the
+              deterministic one, and when that fails too the post stops (RuntimeError naming the rule).
 caption()     the final Facebook caption: hook first, source named, key numbers from fetched data,
-              disclaimer, ≤5 hashtags, no links.
+              the disclosure line once (rules.disclosure), ≤5 hashtags, no links.
 """
 import json
 import re
 from datetime import datetime, timezone
 
-from . import focus, seo, thumbnail
+from . import focus, rules, seo, thumbnail
 from .facebook import clean_text, fb_hashtags, strip_hashtags
 from .llm import generate_json
 from .script import _models, _news_row, fact_check
@@ -40,6 +47,15 @@ TOPICS = {
     "fx": (r"\bdollar\b|\beuro\b|\byen\b|\bpound\b|sterling|forex|currenc|\bfx\b", "FOREX", ["#Forex"]),
 }
 _TRX = {k: re.compile(v[0], re.I) for k, v in TOPICS.items()}
+
+# CAP-9: what makes a story crypto-relevant (title or summary only). Not TOPICS["crypto"]: that
+# one matches a bare "ETF". A bare "exchange" or "coin" doesn't count either ([a-z]+coin needs a name).
+CRYPTO_RX = re.compile(
+    r"\bcrypto|\bbitcoins?\b|\bbtc\b|\bether(eum)?\b|\beth\b|\bsolana\b|\bxrp\b|"
+    r"\bripple\b(?![\s-]+(effects?|through|across|into)\b)|\b[a-z]+coins?\b|\b(meme|stable)[\s-]coins?\b|"
+    r"\btether\b|\busd[tc]\b|\bdigital (assets?|currenc(y|ies))\b|\bcbdcs?\b|"
+    r"\bblockchains?\b|\bdefi\b|\bnfts?\b|\bweb3\b|\bcoinbase\b|\bbinance\b|\bkraken\b|\bbybit\b|"
+    r"\bokx\b|\bbitfinex\b|microstrategy|\bsaylor\b", re.I)
 DEFAULT_WEIGHTS = {"rates": 1.0, "central_bank": 0.85, "geopolitics": 0.9, "tariffs": 0.9, "regulation": 0.8,
                    "macro": 0.8, "crypto": 0.5, "gold": 0.5, "fx": 0.5}
 
@@ -78,6 +94,15 @@ def topics(item: dict) -> dict:
     return out
 
 
+def is_crypto(item: dict) -> bool:
+    """CAP-9: the headline or its lead names crypto (the body never counts). Google News "summaries"
+    are the title plus the publisher, so the publisher's name ("Bitcoin.com News") never counts."""
+    summary, source = item.get("summary", ""), item.get("source", "")
+    if source:
+        summary = re.sub(re.escape(source), " ", summary, flags=re.I)
+    return bool(CRYPTO_RX.search(f"{item.get('title', '')} {summary}"))
+
+
 def _similar(a: str, b: str) -> bool:
     wa, wb = focus._words(a), focus._words(b)
     if not wa or not wb:
@@ -96,8 +121,9 @@ def _age_hours(n: dict, now: datetime) -> float:
 
 def pick_story(data: dict, fb_used: list[str], video_used: list[str] | None = None, cfg: dict | None = None,
                last_topic: str | None = None, now: datetime | None = None, log=print) -> dict:
-    """The most important story not used by an earlier Facebook post. Tiers: fresh (≤ fresh_hours)
-    → anything in the 48 h window → any story at all (never skips while there is news)."""
+    """The most important crypto story not used by an earlier Facebook post. Only crypto-relevant
+    stories (is_crypto) are considered (CAP-9). Tiers: fresh (≤ fresh_hours) → anything in the 48 h
+    window → any crypto story at all (never skips while there is one; none → RuntimeError)."""
     np_cfg = (cfg or {}).get("news_posts") or {}
     weights = DEFAULT_WEIGHTS | (np_cfg.get("topic_weights") or {})
     fresh_h = float(np_cfg.get("fresh_hours", 12))
@@ -106,6 +132,12 @@ def pick_story(data: dict, fb_used: list[str], video_used: list[str] | None = No
     items = [n for n in data.get("news", []) if n.get("title")]
     if not items:
         raise RuntimeError("No news to post about")
+    crypto = [n for n in items if is_crypto(n)]
+    skipped = len(items) - len(crypto)
+    if not crypto:
+        raise RuntimeError(f"No crypto story to post about ({skipped} non-crypto stories skipped)")
+    log(f"News post: {len(crypto)} crypto stories, {skipped} non-crypto skipped")
+    items = crypto
     used = [h for h in fb_used if h]
     video = {h.lower() for h in (video_used or [])}
 
@@ -132,8 +164,9 @@ def pick_story(data: dict, fb_used: list[str], video_used: list[str] | None = No
              ("not used yet", [s for s in scored if s["age"] <= window_h and not s["used"]]),
              ("best available (all recent stories were used)",
               [s for s in scored if not (used and _similar(s["item"]["title"], used[-1]))] or scored)]
-    # stories whose own title has hype / prediction words only as a last resort (never skip a post)
-    calm = [(name, [s for s in pool if not _BANNED_RX.search(s["item"]["title"])]) for name, pool in tiers]
+    # stories whose own title has hype / prediction words or breaks a narration rule only as a last resort
+    calm = [(name, [s for s in pool if not _BANNED_RX.search(s["item"]["title"])
+                    and not rules.narration_problems(s["item"]["title"])]) for name, pool in tiers]
     tier, pool = next((name, pool) for name, pool in calm + tiers if pool)
     best = max(pool, key=lambda s: s["score"])
     n = best["item"]
@@ -180,7 +213,7 @@ POST_RULES = """
    the caption 50-160 words. Every number in "headline", "subline" and "caption" must be in the data.
    Remove predictions, hype and the words buy, sell, moon, guaranteed, will (about prices).
    "image_prompt" must describe a symbolic scene with no text, logos or real people; keep it as is
-   if it already does."""
+   if it already does.""" + rules.NARRATION_RULES
 
 
 def _prompt(cfg: dict, story: dict, facts: dict) -> str:
@@ -204,7 +237,7 @@ Write:
   naming the source ("according to {story['source']}"); why only if the story or the other coverage
   says so; which markets it matters for (crypto, the US dollar, gold, a currency) worded as general
   tendencies ("usually", "tends to") unless the story itself states the effect; and what to watch
-  next from the calendar if it is relevant. Use the words people search for (e.g. "Fed rate decision",
+  next from the calendar if it is relevant (no clock times). Use the words people search for (e.g. "Fed rate decision",
   "Bitcoin price", "US tariffs"). No hashtags, no links, no emojis.
 - "hashtags": 3-5 specific hashtags.
 - "image_prompt": max 40 words describing a symbolic background scene for the card: objects, places,
@@ -214,6 +247,7 @@ Write:
 
 Rules: every number must be in the facts (rounding is fine). "Why" only if a headline or article text
 says so. No predictions, price targets, buy/sell calls or hype; never use: {banned}. Neutral and factual.
+{rules.NARRATION_RULES}
 
 Return JSON: {{"kicker": "...", "headline": ["...", "..."], "accent_line": 1, "subline": "...",
 "caption": "...", "hashtags": ["#..."], "image_prompt": "..."}}"""
@@ -258,12 +292,14 @@ def _card_ok(lines: list[str], kicker: str, subline: str) -> bool:
     return not any(w.strip("?!.,:;'\"") in thumbnail.BANNED for w in words.split())
 
 
-def _drop_banned(text: str) -> str:
-    """Remove sentences with hype / prediction words from a caption."""
+def _drop_banned(text: str, narration: bool = False) -> str:
+    """Remove sentences with hype / prediction words from a caption (and, with narration=True,
+    sentences that break a narration rule)."""
     paras = []
     for para in re.split(r"\n\s*\n", text or ""):
         sents = re.split(r"(?<=[.!?])\s+", para.strip())
-        keep = [s for s in sents if s and not _BANNED_RX.search(s) and "now!" not in s.lower()]
+        keep = [s for s in sents if s and not _BANNED_RX.search(s) and "now!" not in s.lower()
+                and not (narration and rules.narration_problems(s))]
         if keep:
             paras.append(" ".join(keep))
     return "\n\n".join(paras)
@@ -328,7 +364,7 @@ def fallback_post(story: dict, data: dict) -> dict:
     detail = ""
     if summary and not _similar(summary[:len(title) + 40], title):
         first = re.split(r"(?<=[.!?])\s+", summary)[:2]
-        detail = _drop_banned(" ".join(first)[:320])
+        detail = _drop_banned(" ".join(first)[:320], narration=True)
     others = list(dict.fromkeys(c["source"] for c in story.get("coverage", []) if c["source"] != story["source"]))
     body = [title if title.endswith((".", "?", "!")) else title + "."]
     if detail:
@@ -344,8 +380,42 @@ def fallback_post(story: dict, data: dict) -> dict:
             "image_prompt": SCENES.get(story.get("topic"), SCENES["markets"]), "writer": "fallback"}
 
 
+# month "March" / "May" on a capitals card: after a time word, or before a day number ("IN MAY", "MARCH 12")
+_CARD_MONTH = re.compile(r"(\b(?:in|by|since|until|from|early|late|mid|this|next|last|through|of) )(march|may)\b"
+                         r"|()\b(march|may)(?= \d)")
+
+
+def _sentence_case(line: str) -> str:
+    """A capitals card line as a sentence ("BTC TO 1M" → "Btc to 1m"), "I" and months kept capitalised."""
+    out = re.sub(r"\bi\b", "I", line.strip().capitalize())
+    return _CARD_MONTH.sub(lambda m: (m.group(1) or "") + (m.group(2) or m.group(4)).capitalize(), out)
+
+
+def post_problems(post: dict) -> list[str]:
+    """rules.narration_problems over the post's kicker, headline, subline and caption. The kicker and card
+    lines are capitals, so they are also checked sentence-cased, each line and the headline as one."""
+    lines = [str(x) for x in post.get("headline") or []]
+    kicker = str(post.get("kicker") or "")
+    text = "\n".join([kicker, " ".join(lines), str(post.get("subline") or ""), str(post.get("caption") or "")])
+    cased = "\n".join(_sentence_case(x) for x in [kicker, *lines, " ".join(lines)] if x.strip())
+    found: dict[str, str] = {}
+    for p in rules.narration_problems(text) + rules.narration_problems(cased):
+        found.setdefault(p.lower(), p)  # "DECEMBER" / "December" / "december" → reported once
+    return list(found.values())
+
+
+def _checked_fallback(base: dict, why: str) -> dict:
+    """The deterministic post, or RuntimeError naming the rule when it breaks one too."""
+    problems = post_problems(base)
+    if problems:
+        raise RuntimeError(f"News post breaks the narration rules ({why}; the fallback post too): "
+                           + "; ".join(problems[:3]))
+    return base
+
+
 def write_post(cfg: dict, data: dict, story: dict, log=print) -> dict:
-    """Card text + caption + image prompt, fact-checked; falls back to fallback_post() piece by piece."""
+    """Card text + caption + image prompt, fact-checked; falls back to fallback_post() piece by piece,
+    and to the whole fallback_post() when the result breaks a narration rule (stops if that does too)."""
     facts = facts_for(story, data)
     base = fallback_post(story, data)
     try:
@@ -357,8 +427,9 @@ def write_post(cfg: dict, data: dict, story: dict, log=print) -> dict:
             raise RuntimeError(f"fact-check rejected the post: {issues[:3]}")
         pkg = checked if isinstance(checked, dict) else pkg
     except Exception as e:  # never skip a post: write it from the story itself
-        log(f"News post writer failed ({str(e)[:200]}); using the story's own headline")
-        return base | {"fact_check": {"verdict": "fallback", "error": str(e)[:300]}}
+        log(f"News post writer failed ({str(e)[:200]}); trying the story's own post")
+        return _checked_fallback(base, "writer failed") | {
+            "fact_check": {"verdict": "fallback", "error": str(e)[:300]}}
 
     post = dict(base, writer="gemini", fact_check={"verdict": verdict, "issues": issues})
     lines = [re.sub(r"\s+", " ", str(x)).strip().upper().replace("’", "'") for x in (pkg.get("headline") or [])]
@@ -386,6 +457,11 @@ def write_post(cfg: dict, data: dict, story: dict, log=print) -> dict:
     prompt = clean_text(str(pkg.get("image_prompt") or ""))
     if 4 <= len(prompt.split()) <= 70:
         post["image_prompt"] = prompt
+    problems = post_problems(post)
+    if problems:
+        log(f"News post breaks the narration rules ({'; '.join(problems[:3])}); trying the story's own post")
+        return _checked_fallback(base, "; ".join(problems[:3])) | {
+            "fact_check": {"verdict": "fallback", "narration": problems}}
     return post
 
 
@@ -400,9 +476,9 @@ def hashtags(post: dict, story: dict, data: dict, limit: int = 5) -> list[str]:
 
 def caption(post: dict, story: dict, data: dict, cfg: dict, ai_image: bool = False) -> str:
     """Hook first (Facebook shows ~280 characters before "See more"), then the body, the source,
-    key numbers from the fetched data, what's next, disclaimer and ≤5 hashtags. No links."""
-    np_cfg = cfg.get("news_posts") or {}
-    parts = [clean_text(post["caption"])]
+    key numbers from the fetched data, what's next, the disclosure line once and ≤5 hashtags. No links."""
+    disclosure = rules.disclosure(cfg, "news_posts")
+    parts = [rules.without_disclosure(clean_text(post["caption"]), disclosure)]
     if story["source"].lower() not in parts[0].lower():
         parts.append(f"Source: {story['source']}.")
     numbers = key_numbers(story, data)
@@ -419,9 +495,7 @@ def caption(post: dict, story: dict, data: dict, cfg: dict, ai_image: bool = Fal
     evs = [e for e in data.get("calendar", []) if e.get("currency") in cur and ahead(e)][:2]
     if evs:
         parts.append("Coming up (GMT):\n" + "\n".join(f"• {e['time_utc']} {e['currency']} {e['event']}" for e in evs))
-    disclaimer = " ".join(str(np_cfg.get("disclaimer") or cfg.get("upload", {}).get("disclaimer") or "").split())
-    if disclaimer:
-        parts.append("⚠️ " + disclaimer)
+    parts.append("⚠️ " + disclosure)
     if ai_image:
         parts.append("Image: AI illustration, not a photo of the event.")
     tags = " ".join(hashtags(post, story, data, int((cfg.get("facebook") or {}).get("max_hashtags", 5))))

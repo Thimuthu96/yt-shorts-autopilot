@@ -3,7 +3,8 @@
 Market briefs: focus.pick() chooses one lead story; research() writes an analyst note on what
 happened and how it spreads to related crypto/forex/gold; write() turns that into a script about
 that story only; fact_check() re-checks every claim against the data.
-Gold outlook: a fixed scene plan built from gold.analyze(); the LLM only narrates it.
+(The market-brief edition is retired by the crypto slate; these helpers remain the offline render fixture and
+fact_check / _merge_plan / _models / _news_row serve the new formats.)
 """
 import json
 import random
@@ -11,6 +12,7 @@ import re
 
 from . import seo
 from .llm import generate_json
+from .rules import NARRATION_RULES, narration_problems
 
 SCENE_TYPES = {
     "title": "opening card: a short headline (max 9 words) + a kicker (max 4 words)",
@@ -21,7 +23,6 @@ SCENE_TYPES = {
     "news": 'one headline card; needs "source" and "headline" (your own max-12-word paraphrase)',
     "calendar": "table of today's high-impact economic events (only if there are any)",
 }
-GOLD_TYPES = {"gold_chart", "review", "bias", "liquidity", "scenarios", "drivers"}
 
 # Opening lines with tension: a real number from the data + an open question the next scenes answer.
 HOOKS = [
@@ -133,7 +134,8 @@ Write notes:
   marked "typical". Say plainly if an asset did NOT follow.
 - context: facts from us_macro / fed_rate_odds_headlines ONLY if a headline ties them to this move
   (quote the source for odds); else [].
-- watch: upcoming calendar events that matter for these assets (time GMT).
+- watch: upcoming calendar events that matter for these assets ("later today" / "this week", no
+  clock times or time zones).
 - angle: the one question this Short answers, max 12 words.
 
 Return JSON: {{"what_happened": "...", "why": ["..."], "impact": [{{"asset": "...", "observed": "...",
@@ -215,6 +217,8 @@ Rules:
 - The calendar has times, forecasts and previous values only, never results: don't state an
   actual figure unless a headline in the data reports it.
 - No predictions, price targets, buy/sell calls or "this could explode". Neutral, factual.
+- Calendar events: say "later today" / "this week", never their clock time or time zone.
+{NARRATION_RULES}
 - No spoken disclaimer and no sign-off: "not financial advice" is already on screen and in the
   description. No "that's your brief", "see you", "stay tuned". The last line loops back to the
   opening fact (e.g. "So that 5.7% drop came with...", restating the number), so the video can loop.
@@ -275,13 +279,13 @@ def validate(cfg: dict, data: dict, pkg: dict) -> list[str]:
         t = v.get("type")
         if not (s.get("text") or "").strip():
             problems.append(f"scene {i + 1}: no narration")
-        if t not in SCENE_TYPES and t not in GOLD_TYPES:
+        if t not in SCENE_TYPES:
             problems.append(f"scene {i + 1}: unknown visual {t!r}")
         elif t == "price" and v.get("asset") not in data["crypto"]:
             problems.append(f"scene {i + 1}: no price data for {v.get('asset')!r}")
         elif t == "fx" and v.get("asset") not in data["fx"]:
             problems.append(f"scene {i + 1}: no FX data for {v.get('asset')!r}")
-        elif t in ("gold", "gold_chart") and not data.get("gold"):
+        elif t == "gold" and not data.get("gold"):
             problems.append(f"scene {i + 1}: no gold data")
         elif t == "news" and not (v.get("headline") or "").strip():
             problems.append(f"scene {i + 1}: news card without headline")
@@ -293,6 +297,7 @@ def validate(cfg: dict, data: dict, pkg: dict) -> list[str]:
         problems.append(f"{words} words (target {lo}-{hi})")
     if not (pkg.get("title") or "").strip():
         problems.append("missing title")
+    problems += narration_problems("\n".join((s.get("text") or "").strip() for s in scenes))
     return problems
 
 
@@ -308,11 +313,9 @@ def _chart_for(asset: str, data: dict) -> dict | None:
 
 def opening_chart(data: dict, cover: dict | None = None) -> dict | None:
     """The chart that takes over from the opening card in scene 1: the cover's asset when the cover
-    names one (move / level card; gold outlook card → gold chart), else the lead asset's chart (None if
+    names one (move / level card), else the lead asset's chart (None if
     the lead has no chart of its own, e.g. the US dollar; the board is shown then)."""
     cover = cover or {}
-    if cover.get("template") == "gold":
-        return {"type": "gold_chart"} if data.get("gold_analysis") else _chart_for("XAU", data)
     chart = _chart_for(cover["asset"], data) if cover.get("asset") else None
     lead = (data.get("focus") or {}).get("lead")
     return chart or (_chart_for(lead, data) if lead else None)
@@ -414,7 +417,7 @@ def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, s
         log("Writing the script...")
         pkg = write(cfg, data, used_headlines, cover, session, note)
         log(f"Draft: {pkg.get('title', '')}. Fact-checking against the data...")
-        verdict, pkg, issues = fact_check(cfg, facts, pkg)
+        verdict, pkg, issues = fact_check(cfg, facts, pkg, NARRATION_RULES)
         log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))
         fix_visuals(data, pkg, cover, log=log)
         problems = validate(cfg, data, pkg)
@@ -424,113 +427,7 @@ def make_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, s
                 pkg["research"] = note
             return pkg
         log(f"Discarding draft: verdict={verdict} problems={problems}")
-    raise RuntimeError("Could not produce a valid script in 3 attempts")
-
-
-# ─── gold outlook ──────────────────────────────────────────────────────────
-
-def gold_plan(data: dict, used_headlines: list[str]) -> list[dict]:
-    """Fixed scene order for the daily gold outlook; each scene says what its narration covers."""
-    a = data["gold_analysis"]
-    plan = [{"id": "open", "visual": {"type": "title", "follow": {"type": "gold_chart"}},
-             "covers": "the hook: state the opening-card fact (today's daily bias and the key level)"}]
-    if a.get("review"):
-        plan.append({"id": "review", "visual": {"type": "review"},
-                     "covers": "how the previous outlook did, honestly (review)"})
-    plan.append({"id": "bias", "visual": {"type": "bias"},
-                 "covers": "where gold is now (price and 24h change, one short clause), then the bias for the next "
-                           "hour (1H), the next 4 hours (4H) and the day, each with its main reason"})
-    watch = None
-    used = {h.lower() for h in used_headlines}
-    story = next((n for n in data.get("news", []) if n["category"] == "gold" and n["title"].lower() not in used), None)
-    if data.get("macro") or data.get("rate_expectations") or a.get("events_usd"):
-        watch = {"id": "drivers", "visual": {"type": "drivers"},
-                 "covers": "what to watch: today's USD events that can move gold (volatility risk, GMT time) and the "
-                           "macro drivers (dollar, US 10-year and real yields, Fed rate odds headlines); last line "
-                           "loops back to the key level from the opening"}
-    elif story:
-        watch = {"id": "news", "visual": {"type": "news", "source": story["source"], "headline": story["title"]},
-                 "covers": f"what to watch: the gold headline from {story['source']}: \"{story['title']}\"; "
-                           "last line loops back to the key level from the opening"}
-    levels = {"id": "levels", "visual": {"type": "scenarios"},
-              "covers": "the key levels: where liquidity rests above (buy-side, stops above highs) and below "
-                        "(sell-side, stops below lows), then the if/then scenarios: above the bull trigger the next "
-                        "objective, below the bear trigger the next objective"
-                        + ("" if watch else "; last line loops back to the key level from the opening")}
-    if len(plan) + 1 + (1 if watch else 0) < 4:  # too short: liquidity gets its own scene again
-        plan.append({"id": "liquidity", "visual": {"type": "liquidity"},
-                     "covers": "where liquidity rests: the nearest levels above (buy-side, stops above highs) and "
-                               "below (sell-side, stops below lows), and any sweep today"})
-        levels = dict(levels, covers="if/then scenarios: above the bull trigger the next objective, below the bear "
-                                     "trigger the next objective"
-                                     + ("" if watch else "; last line loops back to the key level from the opening"))
-    plan.append(levels)
-    if watch:
-        plan.append(watch)
-    return plan
-
-
-def write_gold(cfg: dict, data: dict, plan: list[dict], cover: dict, used_headlines: list[str]) -> dict:
-    ch, llm = cfg["channel"], cfg["llm"]
-    facts = gold_facts(data)
-    scenes = "\n".join(f'- "{p["id"]}": {p["covers"]}' for p in plan)
-    recent = "\n".join(f"- {h}" for h in used_headlines[-30:]) or "- (none)"
-    prompt = f"""You write a YouTube Short: a {llm['min_words']}-{llm['max_words']} word (about 35 seconds) DAILY GOLD OUTLOOK
-(XAU/USD) for {data['weekday']}, {data['date_utc']}.
-Channel: {ch['display_name']}. Audience: {ch['audience']}. Tone: a calm, precise market analyst.
-
-ANALYSIS (rule-based, from hourly prices; the only numbers and calls you may use):
-{json.dumps(facts, ensure_ascii=False, indent=1)}
-
-Write narration for each scene, in this order (1-2 short spoken sentences each):
-{scenes}
-
-Rules:
-- Every number and every bias must come from the analysis. The biases are rule-based reads, so
-  present them as conditional ("bias is bearish while below forty-one forty-three"), never as
-  certainty. Use "bias", "scenario", "if... then", "key level", "liquidity".
-- Say gold prices the way traders do: "forty-one forty-three" for $4,143, "forty-one hundred" for
-  $4,100. Dollar moves: "about ten dollars".
-- Never say buy, sell, long, short, entry, stop loss, take profit, guaranteed, or "will" + a price.
-- Explain liquidity simply: stop orders cluster above highs (buy-side) and below lows (sell-side);
-  price often reaches for them.
-- review: if the previous call did not play out, say so plainly.
-- Fed rate odds only from fed_rate_odds_headlines, naming the source.
-- Mention USD events today as volatility risk with their GMT time. No actual figures for them.
-- Scene "open" must state exactly: {cover['facts']}, as a hook with tension (e.g. "Gold is bearish
-  below forty-one forty-three. Here's where the stops sit.").
-- No spoken disclaimer and no sign-off ("not financial advice" is on screen and in the description);
-  no "that's your outlook", "see you". The last scene ends by looping back to the opening key level.
-- No greetings, no "in this video", no "like and subscribe".
-
-Headlines already covered (don't repeat):
-{recent}
-
-SEO:
-- title: max 70 chars, START with "Gold Price Today" (search keyword first), then the daily bias,
-  one key level and the date, e.g. "Gold Price Today: Bearish Below $4,143 | XAU/USD Oct 8". No hype.
-- description: 2-3 sentences. The first starts with "Gold price today" and gives the price, the
-  daily bias and the key level; then the 1H/4H read and the main driver. No hashtags or links.
-- tags: 8-12 searches ("gold price today", "xauusd analysis", "gold forecast today", ...).
-- hashtags: 2-3 (#Gold #XAUUSD ...).
-- thumbnail_hook: 2-4 words, max 22 characters, capitals, e.g. "{cover['default_hook']}"; no "will",
-  "buy", "sell", no emojis.
-
-Return JSON: {{"title": "...", "scenes": [{{"id": "open", "text": "..."}}, ...], "description": "2-3 sentences",
-"tags": ["..."], "hashtags": ["#Gold"], "headlines_used": ["exact titles you referred to"], "thumbnail_hook": "..."}}"""
-    return generate_json(prompt, _models(cfg), temperature=0.6)
-
-
-def gold_facts(data: dict) -> dict:
-    out = {"gold_analysis": data["gold_analysis"], "us_macro": data.get("macro", {}),
-           "fed_rate_odds_headlines": data.get("rate_expectations", []),
-           "gold_news": [_news_row(n) for n in data.get("news", []) if n["category"] == "gold"][:8]}
-    return out
-
-
-GOLD_RULES = """
-   Biases (1H / 4H / Daily) must match the analysis exactly and be worded as conditional reads.
-   Remove "buy", "sell", "long", "short", "entry", "stop loss", "take profit", "guaranteed"."""
+    raise RuntimeError(f"Could not produce a valid script in 3 attempts (last: verdict={verdict} problems={problems})")
 
 
 def _merge_plan(plan: list[dict], pkg: dict) -> dict:
@@ -540,21 +437,3 @@ def _merge_plan(plan: list[dict], pkg: dict) -> dict:
         texts = {p["id"]: (s.get("text") or "").strip() for p, s in zip(plan, scenes)}
     pkg["scenes"] = [{"id": p["id"], "text": texts.get(p["id"], ""), "visual": p["visual"]} for p in plan]
     return pkg
-
-
-def make_gold_script(cfg: dict, data: dict, used_headlines: list[str], cover: dict, log=print) -> dict:
-    plan = gold_plan(data, used_headlines)
-    for attempt in range(3):
-        log("Writing the gold outlook...")
-        pkg = _merge_plan(plan, write_gold(cfg, data, plan, cover, used_headlines))
-        log(f"Draft: {pkg.get('title', '')}. Fact-checking against the analysis...")
-        verdict, checked, issues = fact_check(cfg, gold_facts(data), pkg, GOLD_RULES)
-        pkg = _merge_plan(plan, checked)
-        _clean_last_line(pkg["scenes"], log, can_drop=False)  # fixed plan: never drop a scene
-        log(f"Fact-check: {verdict}" + (f" ({len(issues)} fixes)" if issues else ""))
-        problems = validate(cfg, data, pkg)
-        if verdict != "reject" and not problems:
-            pkg["fact_check"] = {"verdict": verdict, "issues": issues}
-            return pkg
-        log(f"Discarding draft: verdict={verdict} problems={problems}")
-    raise RuntimeError("Could not produce a valid gold script in 3 attempts")

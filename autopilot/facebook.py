@@ -18,7 +18,7 @@ from pathlib import Path
 
 import requests
 
-from . import seo, thumbnail
+from . import rules, seo, thumbnail
 
 GRAPH = "https://graph.facebook.com/{v}"
 RUPLOAD = "https://rupload.facebook.com/video-upload/{v}"
@@ -389,20 +389,18 @@ def fb_hashtags(tags: list[str], limit: int = 5) -> list[str]:
 
 def reel_caption(meta: dict, pkg: dict, data: dict, cfg: dict) -> str:
     """Facebook Reel description from the YouTube metadata: hook first (Facebook cuts at ~280
-    characters), the summary, key numbers, sources named (no links), disclaimer, ≤5 hashtags."""
-    parts = [clean_text(meta.get("title", "")), clean_text(pkg.get("description", ""))]
+    characters), the summary, key numbers, sources named (no links), disclosure line once, ≤5 hashtags."""
+    disclosure = rules.disclosure(cfg)
+    parts = [rules.without_disclosure(clean_text(x), disclosure) for x in (meta.get("title", ""), pkg.get("description", ""))]
     numbers = seo.key_numbers(data)
     if numbers:
-        parts.append(("Key levels:\n" if data.get("kind") == "gold" else "Key numbers:\n") + "\n".join(numbers))
+        parts.append("Key numbers:\n" + "\n".join(numbers))
     by_title = {n["title"].lower(): n["source"] for n in data.get("news", [])}
     sources = list(dict.fromkeys(by_title[t.lower()] for t in pkg.get("headlines_used", []) if t.lower() in by_title))
     if sources:
         parts.append("Sources: " + ", ".join(sources[:4]) + ".")
-    disclaimer = (cfg.get("upload", {}).get("disclaimer") or "").strip()
-    if disclaimer:
-        parts.append("⚠️ " + " ".join(disclaimer.split()))
     tags = fb_hashtags(seo.hashtags(data, pkg.get("hashtags", [])), int((cfg.get("facebook") or {}).get("max_hashtags", 5)))
-    tail = " ".join(tags)
+    tail = "⚠️ " + disclosure + "\n\n" + " ".join(tags)  # the line is never cut by the length limit
     body = "\n\n".join(p for p in (strip_hashtags(x) for x in parts) if p)
     return (body[:2190 - len(tail) - 2].rstrip() + "\n\n" + tail).strip()
 

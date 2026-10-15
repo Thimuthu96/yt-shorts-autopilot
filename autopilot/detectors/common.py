@@ -13,11 +13,12 @@ confirming candle i + width (`known(s)` = i + RIGHT for the default swings).
 
 Case -> example (`_example`): a case is {start, end, swings?, trend?, breaks?, primitives?, facts?,
 glossary?, rank?}. Swing markers come first, then each break's level + label (BOS / CHoCH), then the
-case's own `primitives`; facts are trend, swings, the breaks, the case's own `facts`, then source
-(+ daily_reference_fix for EUR/USD). `glossary` overrides the detector's key for that example.
+case's own `primitives`; facts are trend, swings, the breaks, the case's own `facts`, then source.
+`glossary` overrides the detector's key for that example.
 
-Ranking (`_ranked` / `_find`): per (asset, timeframe) one case; cases rank by (size desc, end time
-desc, asset order, timeframe order 1D/4H/1H), size = the case's `rank` or else its swing count.
+Ranking (`_ranked` / `_find`): only lesson_data.ASSETS (BTC/USD, ETH/USD) are looked at; any other
+asset in the history is ignored. Per (asset, timeframe) one case; cases rank by (size desc, end time
+desc, asset order BTC/ETH, timeframe order 1D/4H/1H), size = the case's `rank` or else its swing count.
 Example 1 is the top case, example 2 the best remaining one on another asset, else another timeframe.
 
 The fractal / ATR code is a separate copy of gold.py's helpers on purpose: the daily gold outlook
@@ -32,7 +33,6 @@ ATR_MULT = 1.0  # minimum leg between opposite swings, in ATRs
 PAD = 5  # candles shown either side of the region
 MAX_CANDLES = 150
 UP, DOWN = {"HH", "HL"}, {"LH", "LL"}
-REFERENCE_FIX = {"EUR/USD"}  # daily central-bank fix, not traded candles
 
 
 # ─── swing finder ──────────────────────────────────────────────────────────
@@ -145,8 +145,6 @@ def _example(detector: str, glossary: str, asset: str, tf: str, candles: list[di
     prims += case.get("primitives", [])
     facts.update(case.get("facts", {}))
     facts["source"] = SOURCES.get(asset, "")
-    if asset in REFERENCE_FIX:
-        facts["daily_reference_fix"] = True  # not live prices: open = high = low = close = the day's fix
     last_t = candles[case["end"]]["t"]
     return {
         "detector": detector, "glossary": case.get("glossary", glossary), "asset": asset, "timeframe": tf,
@@ -168,7 +166,7 @@ def _ranked(history: dict, case_fn, detector: str, glossary: str, timeframes: tu
     """Every series' case as an example, best first. `timeframes` limits the series looked at;
     `pass_tf` calls case_fn(candles, swings, timeframe) instead of case_fn(candles, swings)."""
     ranked = []
-    for asset in sorted(history, key=lambda a: _order(ASSETS, a)):
+    for asset in (a for a in ASSETS if a in history):  # lesson assets only, in tie-break order
         for tf in sorted(history[asset], key=lambda t: _order(TIMEFRAMES, t)):
             if timeframes is not None and tf not in timeframes:
                 continue

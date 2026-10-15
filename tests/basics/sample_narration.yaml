@@ -1,0 +1,24 @@
+# A narration of the sample topic (tests/basics/sample_topic.yaml) as the writer is asked to produce it:
+# scene id → spoken text. Every diagram part is named, in reveal order, in the sentence where it comes up
+# (its first `say` alias), so each part appears on that sentence. Passes rules.narration_problems.
+# tests/test_offline.py uses it as the mocked Gemini answer (test_basics) and for the reveal-order check
+# (test_diagrams).
+hook: >-
+  What is a Bitcoin ETF? Here is the simple version, one idea at a time.
+point_1: >-
+  An exchange-traded fund, or ETF, is a fund. The fund is divided into shares, just like a company has
+  shares. Those shares trade on a regular stock exchange.
+point_2: >-
+  A spot Bitcoin ETF is one kind of exchange-traded fund. It holds actual bitcoin, not a promise of it.
+  The value of each share follows the price of that bitcoin. The fund also charges fees, and those fees
+  come out of that value.
+point_3: >-
+  The fund keeps its bitcoin with someone else. A custodian stores it, a company that keeps the coins
+  secure on behalf of the fund. Shareholders own fund shares, not the coins themselves.
+point_4: >-
+  An ETF is one way in. Holding bitcoin directly is the other. With the ETF, exposure comes through a
+  brokerage account, with no wallet or private keys to manage. In return, the fund charges a yearly fee.
+  And its shares trade only while the stock exchange is open.
+recap: >-
+  So, a fund on a stock exchange, holding real bitcoin, kept by a custodian, with clear trade-offs.
+  This is education, not financial advice.

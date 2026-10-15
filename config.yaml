@@ -1,11 +1,9 @@
 # ─── Channel ────────────────────────────────────────────────────────────────
 channel:
   niche: >-
-    Daily crypto, forex and gold market brief: one lead story per brief (Bitcoin,
-    Ethereum, gold or a major currency pair), the news behind it, how it spreads to
-    related markets, and the high-impact events traders are watching today. Plus a
-    daily gold (XAU/USD) outlook with key levels, liquidity and timeframe bias.
-  audience: Retail crypto and forex traders and curious beginners
+    Crypto education and crypto market explainers: daily standalone Shorts, weekly Crypto Basics
+    and trading lessons, "why crypto just moved" videos after big moves, and a Saturday recap.
+  audience: Retail crypto traders and curious beginners
   tone: Clear, fast, neutral and factual, like a market news anchor; no hype
   language: en
   display_name: CryptoFX Daily        # shown at the top of every graphic
@@ -24,79 +22,117 @@ market:
   calendar_hours_ahead: 24    # economic events shown: from now until this many hours ahead
   calendar_impacts: [High]    # add Medium for more events
 
-# ─── Editions: up to 3 briefs a day, one per trading-session open ──────────
-# start_utc = when the edition is due. The runs are started by the outside timer (cron-job.org)
-# and the backup cron lines in .github/workflows/autopilot.yml; keep all three in step.
-# platforms: where an edition is published. Video editions default to [youtube, facebook]
-# (one render: a YouTube Short + a Facebook Reel); kind: post editions are Facebook-only.
+# ─── Editions: the crypto-only weekly slate (weekly-slate.md; all times UTC) ──
+# start_utc = when the edition is due. The runs are started by the outside timer (cron-job.org,
+# setup_cronjobs.py) and the backup cron lines in .github/workflows/autopilot.yml; keep all three in step
+# (and EDITION + concurrency.group in the workflow). Every edition runs 7 days a week unless it has `days`.
+# platforms: where an edition is published. Video editions default to [youtube, facebook];
+# kind: post editions are Facebook-only.
 sessions:
-  asia:
-    label: Asia Open
-    short: Asia
-    start_utc: "00:30"
-    focus: >-
-      Cover what moved since the New York close, crypto overnight, the yen and the
-      Australian dollar, and events coming up in the Asian and European sessions.
-  london:
-    label: London Open
-    short: London
-    start_utc: "05:40"
-    focus: >-
-      Cover what happened in the Asian session, the euro and the pound, and the day's
-      biggest scheduled events.
-  newyork:
-    label: New York Open
-    short: New York
-    start_utc: "12:30"
-    focus: >-
-      Cover moves since the London open, the US dollar, Bitcoin and Ethereum, and what is
-      still ahead on today's calendar.
-  # Daily gold outlook (not a market brief): bias for the next 1h / 4h / day, liquidity, levels.
-  # 06:15 UTC = after the Asian session has set its range (00:00-06:00 GMT), before London opens
-  # (07:00 GMT summer / 08:00 GMT winter), when gold is most liquid and Asian highs/lows get tested,
-  # and well before US data (12:30-14:00 GMT). Weekdays only (not in weekend_sessions).
-  gold:
-    label: Gold Outlook
-    short: Gold
-    start_utc: "06:15"
-    kind: gold
-  # Facebook news image posts (3 a day, weekends too): one market-moving story each, a big
-  # headline card + an SEO caption. 03:00 / 09:30 / 16:30 UTC = 08:30 / 15:00 / 22:00 Sri Lanka.
+  # Facebook news image posts (3 a day, every day, crypto stories only): one story each, a big headline
+  # card + an SEO caption. 12:00 / 16:00 / 21:00 UTC = 17:30 / 21:30 / 02:30 Sri Lanka. The keys stay so
+  # setup_cronjobs.py patches the existing cron-job.org jobs.
   news_morning:
     label: Morning News
     short: News
-    start_utc: "03:00"
+    start_utc: "12:00"
     kind: post
     platforms: [facebook]
   news_midday:
     label: Midday News
     short: News
-    start_utc: "09:30"
+    start_utc: "16:00"
     kind: post
     platforms: [facebook]
   news_evening:
     label: Evening News
     short: News
-    start_utc: "16:30"
+    start_utc: "21:00"
     kind: post
     platforms: [facebook]
   # Trading lesson (kind: lesson): the next curriculum episode as a 16:9 YouTube video (Education)
-  # and a 9:16 Facebook Page video, Tue/Thu/Sat/Sun only (`days`: timed runs skip other days; a
-  # manual run works any day). 14:30 UTC = 20:00 Sri Lanka. Off until `lessons.enabled: true`.
+  # and a 9:16 Facebook Page video, weekly on Thursday (`days`: timed runs skip other days; a manual
+  # run works any day). 15:00 UTC = 20:30 Sri Lanka. Off until `lessons.enabled: true`.
+  # Top-up in another slot (crypto-pivot weekly floor): `main.py --session lesson --slot <session>`
+  # makes the next unpublished episode once for that slot and day (recorded under it), never a repeat.
   lesson:
     label: Trading Lesson
     short: Lesson
-    start_utc: "14:30"
+    start_utc: "15:00"
     kind: lesson
-    days: [tue, thu, sat, sun]
+    days: [thu]
     platforms: [youtube, facebook]
-# Forex is closed at weekends, so only these editions run on Saturday and Sunday
-# (automatic runs only; a manual run can still choose any edition). News posts run every day;
-# the lesson runs on its own `days` (Saturday and Sunday included).
-weekend_sessions: [london, news_morning, news_midday, news_evening, lesson]
+  # Crypto Basics (kind: basics): one beginner explainer as a 16:9 YouTube video (Education) and a 9:16
+  # Facebook Page video from the same narration, Wednesdays (`days`; a manual run works any day).
+  # 15:00 UTC = 20:30 Sri Lanka. On since the slate release (5.7); `basics.enabled: false` makes timed runs skip again.
+  basics:
+    label: Crypto Basics
+    short: Basics
+    start_utc: "15:00"
+    kind: basics
+    days: [wed]
+    platforms: [youtube, facebook]
+  # "Publish next evergreen" (kind: evergreen, crypto-pivot CAP-6): no timer of its own; the weekly floor (recap / topup_sun)
+  # calls `--session evergreen --slot <session>`: the next ready Crypto Basics episode (basics/ready/), else the
+  # next lesson, once into that slot today (recorded under it). Platforms: the episode's own (main.CONTENT_PLATFORMS).
+  evergreen:
+    label: Evergreen top-up
+    short: Evergreen
+    kind: evergreen
+    platforms: [youtube, facebook]
+  # Sunday top-up (kind: floor, CAP-6 weekly floor): Sun 15:00 (= 20:30 Sri Lanka). When the ISO week still has fewer
+  # than slate.week_floor long videos (Saturday's slot already had the recap or a triggered video, or its top-up
+  # failed), it runs the evergreen top-up into this slot; otherwise it logs the count and stops.
+  topup_sun:
+    label: Sunday top-up
+    short: Top-up
+    start_utc: "15:00"
+    kind: floor
+    days: [sun]
+    platforms: [youtube, facebook]
+  # Triggered video (kind: triggered, CAP-4): "why crypto just moved", 16:9 on YouTube only, made for one trigger
+  # (`--trigger <id|fixture>`; autopilot/triggers.py). No start_utc: a timed run goes by the trigger's due time.
+  # On since the slate release (5.7); `triggers.enabled: false` stops the dispatch (the poll only logs).
+  triggered:
+    label: Why Crypto Moved
+    short: Triggered
+    kind: triggered
+    platforms: [youtube]
+  # Saturday recap (kind: recap, CAP-5): the week's 2-3 biggest moves and why, 16:9 on YouTube only, Sat 15:00
+  # (= 20:30 Sri Lanka). Made only when no triggered video published that ISO week (else the skip is logged).
+  # On since the slate release (5.7); a skipped recap hands the slot to the weekly-floor top-up.
+  recap:
+    label: Weekly Recap
+    short: Recap
+    start_utc: "15:00"
+    kind: recap
+    days: [sat]
+    platforms: [youtube]
+  # Standalone Shorts (kind: short, CAP-2): an original 30-40 s vertical Short written from one segment of a long
+  # video's Shorts material (data/material/), YouTube Short + Facebook Reel. On since the slate release (5.7) (`shorts.enabled`)
+  # (false → timed runs skip; manual runs make + publish). Short A 13:00, Short B 23:00 UTC.
+  short_a:
+    label: Short A
+    short: Short A
+    start_utc: "13:00"
+    kind: short
+    platforms: [youtube, facebook]
+  short_b:
+    label: Short B
+    short: Short B
+    start_utc: "23:00"
+    kind: short
+    platforms: [youtube, facebook]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180
+
+# ─── The slate's upload budget (autopilot/slate.py, weekly-slate.md) ────────
+slate:
+  day_cap: 3                  # YouTube uploads per UTC day: a timed Short skips at 3; a due trigger holds to 00:00
+  yield_days: [wed, thu]      # a triggered video takes Short B's (23:00) slot on these days (and on any day with a long video)
+  week_floor: 3               # long videos (basics, lesson, triggered, recap) per ISO week (UTC): top up below this …
+  week_cap: 4                 # … and never upload a fifth
 
 # ─── Facebook Page (Graph API; secrets FB_PAGE_ID + FB_PAGE_TOKEN, see README) ─
 # Skipped with a log line when the secrets are missing or enabled is false.
@@ -113,9 +149,8 @@ news_posts:
   # how much each kind of story matters (plus multi-outlet coverage and recency)
   topic_weights: {rates: 1.0, central_bank: 0.85, geopolitics: 0.9, tariffs: 0.9, regulation: 0.8,
                   macro: 0.8, crypto: 0.5, gold: 0.5, fx: 0.5}
-  disclaimer: >-
-    News for information only, not financial advice. Crypto and forex trading carry a high
-    risk of loss.
+  # the disclosure line (narration-rules.md), carried exactly once by every news-post caption
+  disclaimer: "Narrated with a synthetic voice. Researched from public market data. Not financial advice."
 
 # ─── News post backgrounds ──────────────────────────────────────────────────
 # cloudflare = Workers AI FLUX.1 schnell, free tier (secrets CF_ACCOUNT_ID + CF_API_TOKEN).
@@ -141,14 +176,73 @@ lessons:
   track_playlist: "Track {n} · {name}"          # {n} = track number, {name} = track name
   fb_published: true          # false = Facebook videos are uploaded unpublished
 
-# ─── Gold outlook ───────────────────────────────────────────────────────────
-gold:
-  footer: "Not financial advice · Rule-based outlook · Data: PAXG/Kraken, Swissquote, US Treasury"
+# ─── Crypto Basics (the `basics` edition) ───────────────────────────────────
+# One beginner topic narrated from its approved points: the next approved, unpublished topic in
+# basics/topics.yaml (none → nothing to publish), fact-checked against those points (a failure stops it).
+# Switch: while enabled is false, timed runs log why and stop; a manual run still makes and publishes
+# (review_window_hours > 0 / fb_published false hold a run back for review).
+basics:
+  enabled: true
+  min_words: 600              # narration length → roughly 4-6 minutes
+  max_words: 900
+  max_seconds: 390            # narration limit; re-recorded faster when over
+  review_window_hours: 0      # 0 = public on upload (the Wed 15:00 slot); N = private, then public N hours later
+  fb_published: true          # false = the Facebook video is uploaded unpublished (review on the Page)
+  category_id: "27"           # YouTube Education
+  # the one spoken subscribe ask, added at the end of the first explained point (never in the opening)
+  subscribe_ask: "If this helped, subscribe for the next Crypto Basics explainer."
+
+# ─── Triggers (the trigger engine + the `triggered` edition, CAP-4) ─────────
+# Switch: while enabled is false, the poll doesn't dispatch and timed triggered runs log why and stop; a manual run
+# with a trigger still makes it. On since the slate release (5.7).
+triggers:
+  enabled: true
+  move_pct: 5                 # rule 1: BTC or ETH moves ±5% or more in 24 h
+  cap_pct: 4                  # rule 2: total crypto market cap ±4% or more in 24 h (CoinGecko)
+  coin_pct: 15                # rule 3: a top-50 coin ±15% or more in 24 h, only with a headline naming it
+  major_hours: 6              # rule 4: a major crypto story (ETF decision, regulation, hack, upgrade) this fresh
+  week_cap: 2                 # at most 2 triggered videos per ISO week (UTC) …
+  spacing_hours: 48           # … at least 48 h apart; fired 03:00-11:00 UTC → due 12:00
+  publish_window_hours: 3     # not published within 3 h of its due time → dropped; a later timed run skips
+  max_seconds: 250            # narration limit; re-recorded faster when over
+  min_words: 420              # narration length → roughly 3-4 minutes
+  max_words: 600
+  # the one spoken subscribe ask, added at the end of the cause scene (the first payoff; never in the opening)
+  subscribe_ask: "If this was useful, subscribe for the next market explainer."
+  review_window_hours: 2      # private on upload, public 2 h later (inside the ~3 h publish window); 0 = public at once
+  category_id: "25"           # YouTube News & Politics
+
+# ─── Saturday recap (the `recap` edition, CAP-5) ───────────────────────────
+recap:
+  enabled: true
+  min_words: 560              # narration length → roughly 4-5 minutes
+  max_words: 750
+  max_seconds: 320            # narration limit; re-recorded faster when over
+  review_window_hours: 2      # private on upload, public 2 h later; 0 = public at once
+  category_id: "25"           # YouTube News & Politics
+  # the one spoken subscribe ask, added at the end of the first move (the first payoff)
+  subscribe_ask: "If this recap helps, subscribe for next week's."
+
+# ─── Standalone Shorts (the `short_a` / `short_b` editions, CAP-2) ──────────
+# Switch: while enabled is false, timed (--scheduled) Short runs log why and stop; a manual run still makes one.
+shorts:
+  enabled: true
+  min_words: 70               # script length → roughly 30-40 seconds
+  max_words: 105
+
+# ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
+# Switch: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
+# still tops that slot up. On since the slate release (5.7) with the weekly floor.
+evergreen:
+  enabled: true
 
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:
   name: en-US-AndrewMultilingualNeural   # list voices: edge-tts --list-voices
-  rate: "+10%"
+  # A/B test (narration-rules.md, first 30 days): briefs + gold alternate name / alternate per edition,
+  # logged as "voice" in data/history.json. Remove the line to keep one voice. Lessons always use name.
+  alternate: en-US-BrianMultilingualNeural
+  rate: "+0%"                 # normal speed (narration-rules.md); briefs + gold pause after key numbers
   # Used when Microsoft's TTS keeps refusing the runner (403): a free local Piper voice for that video
   # (downloaded on first use). Remove the line to fail the run instead.
   fallback: en_US-ryan-high
@@ -187,6 +281,6 @@ upload:
   # Also try to upload thumbnail.jpg as the custom thumbnail (YouTube only accepts this for
   # some channels, e.g. Partner Program members). Refusals are ignored.
   set_thumbnail: true
-  disclaimer: >-
-    This video is for information and education only and is not financial advice.
-    Crypto and forex trading carry a high risk of loss. Do your own research.
+  # the disclosure line (narration-rules.md), carried exactly once by every YouTube description and
+  # Reel caption; lesson descriptions read it too (trading-lessons 3.3 owns their check)
+  disclaimer: "Narrated with a synthetic voice. Researched from public market data. Not financial advice."

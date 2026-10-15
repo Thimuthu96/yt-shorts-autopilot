@@ -7,7 +7,9 @@ and the example / scene-plan schema the lesson pipeline builds on.
 Curriculum entry fields:
     id             stable slug; what history's `episode` field stores
     track          0-6
-    title          episode title
+    title          series label ("Structure #2: BOS vs CHoCH"): slides, narration, the recap's next episode
+    search_title   the YouTube / Facebook title (lesson_meta): "What Is X? (Crypto Chart Example)" or
+                   "What Are …? (Crypto Chart Example)", at most 100 chars, no rules.title_problems
     key_points     non-empty list of approved points (narration never adds concepts)
     concepts       glossary keys the key points use
     prerequisites  ids of earlier episodes
@@ -34,6 +36,8 @@ from typing import Callable
 
 import yaml
 
+from autopilot import rules
+
 ROOT = Path(__file__).resolve().parents[1]
 CURRICULUM = ROOT / "lessons" / "curriculum.yaml"
 GLOSSARY = ROOT / "lessons" / "glossary.yaml"
@@ -52,10 +56,12 @@ SWING_KINDS = {"HH", "HL", "LH", "LL", "high", "low"}
 TIME_FIELDS = {"t", "t1", "t2"}
 TEXT_FIELDS = {"kind", "label", "text"}
 
-ENTRY_FIELDS = ("id", "track", "title", "key_points", "concepts", "prerequisites", "visual", "detector")
+ENTRY_FIELDS = ("id", "track", "title", "search_title", "key_points", "concepts", "prerequisites", "visual", "detector")
 EXAMPLE_FIELDS = ("detector", "glossary", "asset", "timeframe", "date", "candles", "region", "primitives", "facts")
 LOWER_FIELDS = ("timeframe", "candles", "region", "primitives")  # the optional `lower` panel (mtf)
 SLUG = re.compile(r"^[a-z0-9]+(?:[-_][a-z0-9]+)*$")
+SEARCH_TITLE = re.compile(r"What (?:Is|Are) \S.*\? \(Crypto Chart Example\)")  # fullmatch
+MAX_TITLE = 100  # YouTube's title limit
 
 
 # ─── detector registry ─────────────────────────────────────────────────────
@@ -111,6 +117,19 @@ def _glossary_problem(key, glossary: dict) -> str | None:
     return None
 
 
+def search_title_problems(title) -> list[str]:
+    """Why `title` can't be an entry's search title ([] = it can)."""
+    if not (isinstance(title, str) and title.strip()):
+        return ["empty search_title"]
+    problems = []
+    if not SEARCH_TITLE.fullmatch(title):
+        problems.append(f"search_title {title!r} is not \"What Is/Are …? (Crypto Chart Example)\"")
+    if len(title) > MAX_TITLE:
+        problems.append(f"search_title is {len(title)} characters (at most {MAX_TITLE})")
+    problems += [f"search_title {p}" for p in rules.title_problems(title)]
+    return problems
+
+
 def validate(curriculum: list[dict], glossary: dict, detectors: dict | None = None) -> list[str]:
     """Every problem as "<episode id>: <reason>"; [] means the curriculum is usable."""
     detectors = DETECTORS if detectors is None else detectors
@@ -133,6 +152,9 @@ def validate(curriculum: list[dict], glossary: dict, detectors: dict | None = No
             err(f"track {e['track']!r} is not 0-6")
         if "title" in e and not (isinstance(e["title"], str) and e["title"].strip()):
             err("empty title")
+        if "search_title" in e:
+            for problem in search_title_problems(e["search_title"]):
+                err(problem)
         if "key_points" in e and not (isinstance(e["key_points"], list) and e["key_points"]
                                       and all(isinstance(p, str) and p.strip() for p in e["key_points"])):
             err("key_points must be a non-empty list of text")
@@ -282,7 +304,7 @@ def validate_example(ex: dict) -> list[str]:
     return errors
 
 
-SPOKEN_ASSETS = {"BTC/USD": "Bitcoin", "ETH/USD": "Ethereum", "XAU/USD": "gold", "EUR/USD": "euro-dollar"}
+SPOKEN_ASSETS = {"BTC/USD": "Bitcoin", "ETH/USD": "Ethereum"}  # the lesson assets (crypto only)
 SPOKEN_TIMEFRAMES = {"1H": "hourly", "4H": "four-hour", "1D": "daily"}
 
 
@@ -295,6 +317,91 @@ def spoken_chart(ex: dict) -> str:
 
 def example_label(ex: dict) -> str:
     return f"Historical example · {ex['asset']} · {ex['date']}"
+
+
+# ─── reveal steps (step-by-step annotation reveal) ─────────────────────────
+
+# what narration calls each step: group key (lower case) -> (name, spoken aliases); no digits anywhere
+SPOKEN_STEPS = {
+    "swings": ("the swing points", ("swing", "swing point", "swing high", "swing low", "higher high", "higher low",
+                                    "lower high", "lower low", "HH", "HL", "LH", "LL")),
+    "trendline": ("the trendline", ("trendline", "trend line")),
+    "bos": ("BOS", ("break of structure", "BOS")),
+    "choch": ("CHoCH", ("change of character", "CHoCH")),
+    "fvg": ("FVG", ("fair value gap", "FVG")),
+    "ob": ("OB", ("order block", "OB")),
+    "eqh": ("EQH", ("equal high", "EQH")),
+    "eql": ("EQL", ("equal low", "EQL")),
+    "bsl": ("BSL", ("buy-side liquidity", "BSL")),
+    "ssl": ("SSL", ("sell-side liquidity", "SSL")),
+    "idm": ("IDM", ("inducement", "IDM")),
+    "eq": ("EQ", ("equilibrium", "midpoint", "EQ")),
+    "level": ("the level", ("level",)),
+    "zone": ("the zone", ("zone",)),
+}
+WINDOW_STEP = "the lower-timeframe window"  # mtf: the zone over the lower panel's window
+
+
+def _group_key(p: dict) -> str:
+    kind = p.get("type")
+    if kind == "swing":
+        return "swings"
+    if kind == "trendline":
+        return "trendline"
+    text = p.get("text") if kind == "label" else p.get("label")
+    text = " ".join(re.sub(r"\d", " ", str(text or "")).split())  # "3 touches" -> "touches"
+    return text or str(kind)
+
+
+def _spoken(key: str) -> tuple[str, list[str]]:
+    name, aliases = SPOKEN_STEPS.get(key.lower(), (key, (key,)))
+    return name, list(aliases)
+
+
+def _panel_steps(prims: list, panel: int, where: str = "") -> list[dict]:
+    """Steps of one chart panel; `where` ("higher" / "lower", mtf) prefixes the key and names the panel."""
+    steps: dict[str, dict] = {}
+    for i, p in enumerate(prims or []):
+        if not isinstance(p, dict):
+            continue
+        key = _group_key(p)
+        if key not in steps:
+            name, names = _spoken(key)
+            steps[key] = {"key": f"{where} {key}".strip(), "name": f"{name} on the {where} timeframe" if where else name,
+                          "names": names, "items": []}
+        steps[key]["items"].append([panel, i])
+    return list(steps.values())
+
+
+def reveal_steps(example: dict, visual_type: str) -> list[dict]:
+    """The order an example scene's primitives appear in: [{key, name, names, items: [[panel, index]]}].
+    Primitives are grouped by what narration calls them, in first-appearance order: all swings one step
+    (one at a time in list order), a level / zone / label sharing a text one step (BOS level + BOS label),
+    trendlines one step. mtf: the higher panel's steps (panel 0), the lower-timeframe window zone (panel 0,
+    index len(primitives): the zone lesson_slides.mtf_panels appends last), then the lower panel's (panel 1).
+    `names` = the spoken aliases reveal.step_sentences looks for; no name or alias holds a digit."""
+    prims = list(example.get("primitives") or [])
+    if visual_type != "mtf":
+        return _panel_steps(prims, 0)
+    lower = example.get("lower") or {}
+    tf = str(lower.get("timeframe") or "")
+    window = ["lower timeframe", "lower time frame", "window"]
+    spoken_tf = re.sub(r"\d", "", SPOKEN_TIMEFRAMES.get(tf, "")).strip(" -")
+    if spoken_tf:
+        window.append(spoken_tf)
+    return (_panel_steps(prims, 0, "higher")
+            + [{"key": "window", "name": WINDOW_STEP, "names": window, "items": [[0, len(prims)]]}]
+            + _panel_steps(lower.get("primitives") or [], 1, "lower"))
+
+
+def naming_order(steps: list[dict]) -> str:
+    """The example cover's naming-order line (digit-free)."""
+    parts = []
+    for s in steps:
+        short = s["name"].split(" on the ")[0]
+        spoken = next((a for a in s["names"] if a.lower() != short.lower()), "")
+        parts.append(f"{short} ({spoken}){s['name'][len(short):]}" if spoken and " " not in short else s["name"])
+    return "; name the marked parts in this order, as they appear on screen: " + ", then ".join(parts)
 
 
 # ─── picker ────────────────────────────────────────────────────────────────
@@ -354,10 +461,12 @@ def scene_plan(entry: dict, examples: list[dict], next_entry: dict | None = None
          "covers": f"the concept, stated from its glossary entries ({concepts}) and the approved key points"},
     ]
     for n, ex in enumerate(examples[:2], 1):
+        steps = reveal_steps(ex, entry["visual"])  # the marks appear one step at a time as narration names them
         plan.append({"id": f"example_{n}",
-                     "visual": {"type": entry["visual"], "example": ex, "label": example_label(ex)},
+                     "visual": {"type": entry["visual"], "example": ex, "label": example_label(ex), "steps": steps},
                      "covers": f"real example {n}: the {spoken_chart(ex)} on screen, walking the viewer through "
-                               f"the marked '{ex['glossary']}' step by step, using only its facts"})
+                               f"the marked '{ex['glossary']}' step by step, using only its facts"
+                               + (naming_order(steps) if steps else "")})
     plan.append({"id": "misreads", "visual": {"type": "misreads"},
                  "covers": "common misreads, only within the approved key points"})
     nxt = next_entry["title"] if next_entry else None

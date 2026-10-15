@@ -22,7 +22,8 @@ Example = structure's example of the higher-timeframe case (detector "top_down")
     facts: trend, swings, source (as structure), htf {timeframe, trend},
            ltf {timeframe, trend, swings}, aligned (bool)
 
-Ranking as structure: (higher-timeframe swings desc, end time desc, asset order, timeframe order);
+Ranking as structure, lesson assets only (BTC/USD, ETH/USD; others ignored): (higher-timeframe swings
+desc, end time desc, asset order, timeframe order);
 example 2 is the best remaining pair on another asset, else the other pair on the same asset.
 """
 from datetime import timedelta
@@ -86,7 +87,7 @@ def _example(asset: str, htf: str, htf_candles: list[dict], case: dict, ltf_cand
 
 def find_top_down_examples(history: dict) -> list[dict]:
     ranked = []
-    for asset in sorted(history, key=lambda a: _order(ASSETS, a)):
+    for asset in (a for a in ASSETS if a in history):  # lesson assets only, in tie-break order
         series = history[asset]
         for htf in sorted((t for t in series if t in LOWER), key=lambda t: _order(TIMEFRAMES, t)):
             hc, lc = series[htf], series.get(LOWER[htf]) or []

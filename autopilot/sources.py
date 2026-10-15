@@ -1,6 +1,6 @@
 """Daily market data: news headlines, economic calendar, crypto, forex and gold prices, macro.
 
-All sources are free and need no API key:
+All sources are free and, except the CoinGecko market overview, need no API key:
   - News: public RSS feeds (CoinDesk, Cointelegraph, The Daily Hodl, Federal Reserve, Google News)
   - Calendar: ForexFactory's official weekly calendar export (JSON)
   - Crypto prices: Coinbase Exchange public candles
@@ -8,11 +8,15 @@ All sources are free and need no API key:
   - Gold: PAXG (a token backed 1:1 by physical gold) hourly candles from Kraken (Coinbase as
     backup), shifted onto spot XAU/USD with Swissquote's public quote (PAXG is within ~0.1%)
   - Macro: US Treasury daily yields (nominal + real), BLS consumer prices (CPI)
+  - Market overview (trigger engine): CoinGecko's free Demo API, key in COINGECKO_API_KEY
+    (total market cap + top 50 coins); anything shown from it credits "Data provided by CoinGecko"
 
 Not used (block bots and/or forbid scraping): forexfactory.com pages, Myfxbook, CME FedWatch.
 FedWatch odds still reach the script through headlines that quote them.
 """
 import html
+import math
+import os
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -58,7 +62,6 @@ DEFAULT_FEEDS = {
 }
 # The video editions read the feeds they always did; "post" (Facebook news posts) reads them all.
 MARKET_FEEDS = ("crypto", "forex", "rates", "macro", "gold")
-GOLD_FEEDS = ("gold", "rates", "macro", "forex")
 # Paid press releases (e.g. Chainwire posts on The Daily Hodl) are adverts, not news.
 SPONSORED = re.compile(r"chainwire|press release|sponsored|partner content|\[pr\]", re.I)
 
@@ -212,6 +215,129 @@ def fetch_crypto(log=print) -> dict:
                     "change_7d": _pct(price, closes[0]), "series_times": times, "series": closes,
                     "high_24h": max(closes[-24:]), "low_24h": min(closes[-24:])}
     return out
+
+
+# ─── market overview (CoinGecko Demo) ──────────────────────────────────────
+# Free Demo tier (owner, 2026-10-13: upgrade to Basic before monetizing). 30 calls/min,
+# 10k/month; one overview = 2 calls, so a 30-minute poll uses ~2,900 a month.
+CG_API = "https://api.coingecko.com/api/v3"
+CG_CREDIT = "Data provided by CoinGecko"
+CG_TOP = 50
+
+
+def _cg_get(path: str, params: dict | None, key: str, timeout: int = 15):
+    """One CoinGecko call, retried once on a network error, 429 or 5xx. Raises RuntimeError.
+    The key travels in a header, so it never appears in a URL, log line or exception."""
+    headers = {**UA, "accept": "application/json", "x-cg-demo-api-key": key}
+    last = "no response"
+    for attempt in range(2):
+        wait = 2.0
+        try:
+            r = requests.get(f"{CG_API}{path}", params=params, headers=headers, timeout=timeout)
+        except requests.RequestException as e:
+            last = type(e).__name__
+        else:
+            if r.status_code == 200:
+                try:
+                    return r.json()
+                except ValueError:
+                    raise RuntimeError(f"CoinGecko {path}: response is not JSON") from None
+            last = f"HTTP {r.status_code}"
+            if r.status_code == 429:
+                try:
+                    wait = min(10.0, max(1.0, float(r.headers.get("Retry-After") or wait)))
+                except (TypeError, ValueError):
+                    pass
+            elif r.status_code < 500:
+                break  # bad key / bad request: a retry won't help
+        if attempt == 0:
+            time.sleep(wait)
+    raise RuntimeError(f"CoinGecko {path}: {last}")
+
+
+def _num(v) -> float | None:
+    if isinstance(v, bool) or v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
+def parse_overview(global_json, markets_json, now: datetime | None = None) -> dict:
+    """CoinGecko /global + /coins/markets JSON → the overview. Raises ValueError if unusable."""
+    data = global_json.get("data") if isinstance(global_json, dict) else None
+    if not isinstance(data, dict):
+        raise ValueError("/global has no data")
+    total = _num((data.get("total_market_cap") or {}).get("usd"))
+    change = _num(data.get("market_cap_change_percentage_24h_usd"))
+    if total is None or change is None:
+        raise ValueError("/global has no total market cap or 24h change")
+    if not isinstance(markets_json, list):
+        raise ValueError("/coins/markets is not a list")
+    coins = []
+    for r in markets_json[:CG_TOP]:
+        if not isinstance(r, dict) or not r.get("symbol"):
+            continue
+        price = _num(r.get("current_price"))
+        ch24 = _num(r.get("price_change_percentage_24h_in_currency"))
+        if ch24 is None:
+            ch24 = _num(r.get("price_change_percentage_24h"))
+        if price is None or ch24 is None:
+            continue  # can't be judged on a 24h move
+        s7 = r.get("sparkline_in_7d")
+        spark = (s7.get("price") if isinstance(s7, dict) else None) or []
+        coins.append({"id": r.get("id") or "", "symbol": str(r["symbol"]).upper(),
+                      "name": r.get("name") or str(r["symbol"]).upper(),
+                      "rank": r.get("market_cap_rank"), "price": price,
+                      "market_cap": _num(r.get("market_cap")), "change_24h": ch24,
+                      "change_7d": _num(r.get("price_change_percentage_7d_in_currency")),
+                      "sparkline": [f for f in map(_num, spark if isinstance(spark, list) else []) if f is not None],
+                      "last_updated": r.get("last_updated") or ""})
+    if not coins:
+        raise ValueError("/coins/markets has no usable coins")
+    try:
+        as_of = datetime.fromtimestamp(_num(data.get("updated_at")), timezone.utc).isoformat()
+    except (TypeError, ValueError, OverflowError, OSError):
+        as_of = ""
+    return {"source": "CoinGecko", "credit": CG_CREDIT,
+            "fetched_utc": (now or datetime.now(timezone.utc)).isoformat(),
+            "as_of_utc": as_of,
+            "total_cap_usd": total, "total_cap_change_24h": change, "coins": coins}
+
+
+def fetch_market_overview(log=print, key: str | None = None) -> dict | None:
+    """Total crypto market cap (24h change) and the top 50 coins by market cap (price, 24h / 7d
+    change, 7-day hourly sparkline) from CoinGecko's Demo API. None (with a log line) when the
+    key is missing or a call fails — never raises."""
+    key = (key if key is not None else os.environ.get("COINGECKO_API_KEY", "")).strip()
+    if not key:
+        log("CoinGecko overview skipped: COINGECKO_API_KEY is not set")
+        return None
+    try:
+        glob = _cg_get("/global", None, key)
+        rows = _cg_get("/coins/markets", {"vs_currency": "usd", "order": "market_cap_desc",
+                                          "per_page": CG_TOP, "page": 1, "sparkline": "true",
+                                          "price_change_percentage": "24h,7d"}, key)
+        out = parse_overview(glob, rows)
+    except Exception as e:  # noqa: BLE001 -- a failed source is skipped, never a crash
+        log(f"CoinGecko overview skipped: {e}")
+        return None
+    log(f"CoinGecko overview: total cap {out['total_cap_change_24h']:+.2f}% 24h, {len(out['coins'])} coins")
+    return out
+
+
+def format_overview(ov: dict, limit: int = CG_TOP) -> str:
+    """Readable overview (CLI): the total cap line, then coins by the size of their 24h move."""
+    lines = [f"Total crypto market cap ${ov['total_cap_usd'] / 1e12:,.2f}T, "
+             f"24h {ov['total_cap_change_24h']:+.2f}% (as of {ov.get('as_of_utc') or ov['fetched_utc']})"]
+    for c in sorted(ov["coins"], key=lambda c: -abs(c["change_24h"]))[:limit]:
+        d7 = "n/a" if c["change_7d"] is None else f"{c['change_7d']:+.2f}%"
+        lines.append(f"  #{c['rank'] or '?':<3} {c['symbol']:<6} {c['name'][:18]:<18} ${c['price']:,.6g}  "
+                     f"24h {c['change_24h']:+6.2f}%  7d {d7:>8}  ({len(c['sparkline'])} pts)")
+    lines.append(ov["credit"])
+    return "\n".join(lines)
 
 
 def fetch_fx(days: int = 45, log=print) -> dict:
@@ -413,11 +539,11 @@ def usd_strength(fx: dict) -> float | None:
 
 def gather(cfg: dict, kind: str = "market", log=print) -> dict:
     """Everything the script writer needs. Raises if there is no usable price data.
-    kind "market" = crypto/forex brief; "gold" = the daily gold outlook; "post" = a Facebook news
-    image post (all feeds, 48 h of news; prices are only used for the caption's key numbers)."""
+    kind "market" = the (retired) crypto/forex brief's data, kept for the offline render fixture; "post" = a
+    Facebook news image post (all feeds, 48 h of news; prices are only used for the caption's key numbers)."""
     now = datetime.now(timezone.utc)
     m = cfg.get("market", {})
-    names = {"market": MARKET_FEEDS, "gold": GOLD_FEEDS}.get(kind, tuple(DEFAULT_FEEDS))
+    names = MARKET_FEEDS if kind == "market" else tuple(DEFAULT_FEEDS)
     feeds = {k: v for k, v in DEFAULT_FEEDS.items() if k in names}
     if kind == "post":  # Google News searches cover 2 days for the 48 h news-post window
         feeds = {k: [(src, url.replace("when:1d", "when:2d")) for src, url in v] for k, v in feeds.items()}
@@ -436,8 +562,6 @@ def gather(cfg: dict, kind: str = "market", log=print) -> dict:
         "macro": fetch_macro(log=log),
     }
     data["rate_expectations"] = rate_expectations(data["news"])
-    if kind == "gold" and not data["gold"]:
-        raise RuntimeError("No gold price data; skipping rather than guessing")
     if kind == "post" and not data["news"]:
         raise RuntimeError("No news from any feed; a news post needs at least one story")
     if kind != "post" and not data["crypto"] and not data["fx"] and not data["gold"]:
@@ -447,3 +571,19 @@ def gather(cfg: dict, kind: str = "market", log=print) -> dict:
         f"{len(data['calendar'])} calendar events, {len(data['news'])} headlines, "
         f"macro {sorted(data['macro'])}, {len(data['rate_expectations'])} rate-odds headlines")
     return data
+
+
+def _main(argv=None) -> int:
+    import argparse
+    p = argparse.ArgumentParser(prog="python -m autopilot.sources", description="Fetch one live source.")
+    p.add_argument("what", choices=["overview"], help="overview = CoinGecko market overview (needs COINGECKO_API_KEY)")
+    p.parse_args(argv)
+    ov = fetch_market_overview()
+    if not ov:
+        return 1
+    print(format_overview(ov))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

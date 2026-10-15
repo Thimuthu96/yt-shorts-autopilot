@@ -73,7 +73,8 @@ COVER_PUNCH_S = 0.35  # ...within this many seconds (eased out), then holds
 def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: str = "0x0E0F12",
              zoom: float = 0.035) -> None:
     """One scene: a still slide, either with a chart that draws itself left-to-right
-    (a background-coloured box slides off the chart) or with a gentle push-in (`zoom` = growth by the end)."""
+    (a background-coloured box slides off the chart) or with a gentle push-in (`zoom` = growth by the end).
+    A slide with `base` + timed `steps` layers (autopilot.reveal) shows its marks one at a time under the wipe."""
     img = str(Path(slide["image"]).resolve())
     base = ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", str(fps), "-t", f"{dur:.3f}", "-i", img]
     enc = ["-t", f"{dur:.3f}", "-r", str(fps), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
@@ -86,6 +87,29 @@ def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: s
               f"scale=w='trunc({w}*(1+{k})/2)*2':h=-2:eval=frame:flags=bicubic,"
               f"crop={w}:{h},setsar=1,format=yuv420p")
         run(base + ["-vf", vf] + enc)
+    elif (slide.get("base") and any(s["layers"] for s in slide.get("steps") or [])
+          and all("at" in ly for s in slide["steps"] for ly in s["layers"])):  # every layer timed
+        # step reveal (autopilot.reveal): the base (no marks) → each mark's layer fades in at its time →
+        # the draw-in box on top, so no mark ever shows ahead of the wipe
+        from .reveal import FADE
+        layers = [ly for s in slide["steps"] for ly in s["layers"]]
+        loop = ["-loop", "1", "-framerate", str(fps), "-t", f"{dur:.3f}", "-i"]
+        cmd = ["ffmpeg", "-y", "-v", "error"] + loop + [str(Path(slide["base"]).resolve())]
+        chain, cur = [], "[0:v]"
+        for n, ly in enumerate(layers, 1):
+            cmd += loop + [str(Path(ly["image"]).resolve())]
+            x, y = ly["xy"]
+            chain.append(f"[{n}:v]format=rgba,fade=t=in:st={float(ly['at']):.3f}:d={FADE}:alpha=1[l{n}]")
+            chain.append(f"{cur}[l{n}]overlay=x={int(x)}:y={int(y)}[s{n}]")
+            cur = f"[s{n}]"
+        if slide.get("reveal"):
+            x, y, cw, ch = slide["reveal"]
+            rev = max(min(dur * 0.6, 2.2), 0.5)
+            cmd += ["-f", "lavfi", "-i", f"color=c={bg}:s={cw}x{ch}:r={fps}:d={dur:.3f}"]
+            chain.append(f"{cur}[{len(layers) + 1}:v]overlay=x='{x}+{cw}*min(t/{rev:.3f},1)':y={y}:eval=frame[w]")
+            cur = "[w]"
+        chain.append(f"{cur}setsar=1,format=yuv420p[v]")
+        run(cmd + ["-filter_complex", ";".join(chain), "-map", "[v]"] + enc)
     elif slide.get("reveal"):
         x, y, cw, ch = slide["reveal"]
         rev = max(min(dur * 0.6, 2.2), 0.5)
