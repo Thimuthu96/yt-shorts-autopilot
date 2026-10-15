@@ -118,10 +118,20 @@ sessions:
     short: Triggered
     kind: triggered
     platforms: [youtube]
+  # Saturday recap (kind: recap, CAP-5): the week's 2-3 biggest moves and why, 16:9 on YouTube only, Sat 15:00
+  # (= 20:30 Sri Lanka). Made only when no triggered video published that ISO week (else the skip is logged).
+  # Dark until `recap.enabled: true` (timed runs skip; manual runs make + publish it). Epic 5 wires its timer.
+  recap:
+    label: Weekly Recap
+    short: Recap
+    start_utc: "15:00"
+    kind: recap
+    days: [sat]
+    platforms: [youtube]
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
 # (automatic runs only; a manual run can still choose any edition). News posts run every day;
 # the lesson runs on its own `days` (Thursday).
-weekend_sessions: [london, news_morning, news_midday, news_evening, lesson, triggered]
+weekend_sessions: [london, news_morning, news_midday, news_evening, lesson, triggered, recap]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180
@@ -203,6 +213,17 @@ triggers:
   subscribe_ask: "If this was useful, subscribe for the next market explainer."
   review_window_hours: 2      # private on upload, public 2 h later (inside the ~3 h publish window); 0 = public at once
   category_id: "25"           # YouTube News & Politics
+
+# ─── Saturday recap (the `recap` edition, CAP-5) ───────────────────────────
+recap:
+  enabled: false
+  min_words: 560              # narration length → roughly 4-5 minutes
+  max_words: 750
+  max_seconds: 320            # narration limit; re-recorded faster when over
+  review_window_hours: 2      # private on upload, public 2 h later; 0 = public at once
+  category_id: "25"           # YouTube News & Politics
+  # the one spoken subscribe ask, added at the end of the first move (the first payoff)
+  subscribe_ask: "If this recap helps, subscribe for next week's."
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
 # Dark: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot

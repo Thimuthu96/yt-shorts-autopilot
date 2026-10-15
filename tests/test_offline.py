@@ -287,6 +287,7 @@ def main():
     test_trigger_limits(cfg)
     test_trigger_poll(cfg)
     test_triggered_packaging(cfg)
+    test_recap(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -3155,7 +3156,8 @@ def test_lesson_edition(cfg):
     job = setup_cronjobs.job_for("lesson", sessions["lesson"], "T", True)["schedule"]
     assert (job["hours"], job["minutes"]) == ([15], [0]) and sessions["lesson"]["start_utc"] == "15:00", job
     assert wd["basics"] == [3], wd
-    assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "gold", "basics")), wd
+    assert wd["recap"] == [6], wd  # the Saturday recap (dark until recap.enabled; epic 5 wires the timer)
+    assert all(v == [-1] for k, v in wd.items() if k not in ("lesson", "gold", "basics", "recap")), wd
     # workflow: the lesson's backup cron (17 min after 15:00, Thursday) maps to `lesson` in EDITION and
     # concurrency.group; the old Tue/Thu/Sat/Sun line is gone; the `slot` input reaches --slot
     text = (ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8")
@@ -4929,6 +4931,120 @@ def test_triggered_packaging(cfg):
     print("OK triggered packaging: move + cause title from the data, 1-3 thumbnail words + 1280x720 thumbnail, "
           "disclosure + CoinGecko credit once, dated title stops, YouTube-only publish + kind triggered record, "
           "no second publish")
+
+
+
+RECAP_TEXT = {
+    "hook": "This week in crypto, three coins moved the most. Here is what moved and why.",
+    "move_1": "Sui rose about 18% over seven days after news about its network drew in buyers.",
+    "move_2": "Solana fell about 12% over the week as traders pulled back from the large coins.",
+    "move_3": "Bitcoin gained about 8% over seven days, helped by steady fund inflows.",
+    "market": "Across the wider market, the total crypto market cap moved about 2% in the last day.",
+    "watch": "Next week, watch whether the fund flows keep coming and how the network news develops.",
+    "recap": "Sui led, Solana lagged and Bitcoin climbed. This is market data, not financial advice."}
+
+
+def test_recap(cfg):
+    """Saturday recap (epic-volatility-videos entry 8): a week whose history holds a triggered video skips the recap
+    with a log line (no LLM call); a quiet fixture week renders a recap (mocked LLM, fact-check, voice and upload)
+    whose moves match the fixture data (the 3 biggest 7-day moves, Coinbase + CoinGecko) and whose metadata passes
+    title_problems, carries the disclosure and the CoinGecko credit once; YouTube only, kind: recap; a timed run while
+    recap.enabled is false skips; autopilot.yml offers `recap`."""
+    import main as app
+    from autopilot import recap, voice, youtube
+    from autopilot.sources import CG_CREDIT
+    now = datetime(2026, 10, 17, 15, 5, tzinfo=timezone.utc)  # Saturday, ISO week 42
+    t0 = (now - timedelta(days=2)).isoformat()
+    news = [{"category": "crypto", "source": "CoinDesk", "title": "Sui rallies after network news", "summary": "",
+             "published": t0},
+            {"category": "crypto", "source": "The Block", "title": "Solana slides as traders pull back", "summary": "",
+             "published": t0},
+            {"category": "crypto", "source": "Cointelegraph", "title": "Bitcoin climbs on steady ETF inflows",
+             "summary": "", "published": t0},
+            {"category": "crypto", "source": "Decrypt", "title": "Bitcoin fund flows stay positive", "summary": "",
+             "published": t0}]
+    data = {"crypto": {"BTC": _coin("Bitcoin", 62400, 1.0, 8.1, now), "ETH": _coin("Ethereum", 2450, 0.5, 3.0, now),
+                       "SOL": _coin("Solana", 142, -2.0, -12.0, now), "XRP": _coin("XRP", 0.53, 0.2, 1.0, now)},
+            "news": news}
+    ov = trigger_overview(cap=2.0, coins=[("BTC", "Bitcoin", 62400, 1.0), ("SUI", "Sui", 3.1, 15.0),
+                                          ("USDT", "Tether", 1.0, 30.0)])  # change_7d = 1.2 × change_24h
+    week = recap.build(data, ov, now)
+    assert week["coins"] == ["SUI", "SOL", "BTC"] and week["week"] == "2026-W42", week["coins"]
+    assert week["moves"]["SUI"]["change_7d"] == 18.0 and week["moves"]["SUI"]["source"] == "CoinGecko"
+    assert round(week["moves"]["SOL"]["change_7d"], 1) == -12.0 and week["moves"]["BTC"]["source"] == "Coinbase"
+    assert week["causes"]["SUI"]["title"] == "Sui rallies after network news"
+    assert week["causes"]["BTC"]["title"].startswith("Bitcoin"), week["causes"]
+    plan = recap.scene_plan(week)
+    assert [p_["id"] for p_ in plan] == list(RECAP_TEXT), [p_["id"] for p_ in plan]
+
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert live["recap"]["enabled"] is False and live["sessions"]["recap"]["kind"] == "recap"
+    assert live["sessions"]["recap"]["platforms"] == ["youtube"] and live["sessions"]["recap"]["days"] == ["sat"]
+    assert live["sessions"]["recap"]["start_utc"] == "15:00" and "recap" in live["weekend_sessions"]
+    tmp = Path(tempfile.mkdtemp())
+    c = json.loads(json.dumps(live))
+    c["recap"].update(min_words=60, max_words=400)
+    (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
+
+    class FixedNow(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now.astimezone(tz) if tz else now.replace(tzinfo=None)
+
+    prompts, logs, yt = [], [], []
+
+    def fake_llm(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        return {"scenes": [{"id": k, "text": v} for k, v in RECAP_TEXT.items()]}
+
+    def fake_upload_lesson(video, meta_, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
+                           log=print, playlist_privacy="public", playlists=True):
+        yt.append({"video": Path(video), "meta": dict(meta_), "thumbnail": Path(thumbnail)})
+        return {"video_id": f"R{len(yt)}", "publish_at": None, "errors": []}
+
+    def boom(*a, **k):
+        raise AssertionError("the recap goes to YouTube only, as a 16:9 upload")
+    saved = (app.ROOT, app.log, app.datetime, recap.fetch, recap.generate_json, recap.fact_check, voice.synthesize,
+             youtube.upload_lesson, facebook.publish_video, youtube.upload)
+    app.ROOT, app.log, app.datetime = tmp, logs.append, FixedNow
+    recap.fetch = lambda cfg_, log=print: (data, ov)
+    recap.generate_json, recap.fact_check = fake_llm, (lambda cfg_, f, pkg, extra_rules="": ("ok", pkg, []))
+    voice.synthesize, youtube.upload_lesson = _sine_voice([]), fake_upload_lesson
+    facebook.publish_video = youtube.upload = boom
+    hist = tmp / "data" / "history.json"
+    try:
+        assert app.main(["--session", "recap", "--scheduled"]) == 0 and any("recap.enabled is false" in m for m in logs)
+        # a triggered video this ISO week → the recap is skipped (logged), nothing made
+        hist.parent.mkdir(parents=True)
+        hist.write_text(json.dumps({"videos": [{"kind": "triggered", "trigger_id": "T", "video_id": "V1",
+                                                "date": (now - timedelta(days=3)).isoformat()}]}))
+        assert app.main(["--session", "recap"]) == 0 and any("Recap skipped" in m for m in logs) and not prompts
+        # a triggered video last week (and a simulated one this week) → the recap runs
+        hist.write_text(json.dumps({"videos": [
+            {"kind": "triggered", "trigger_id": "T", "video_id": "V1", "date": (now - timedelta(days=8)).isoformat()},
+            {"kind": "triggered", "trigger_id": "S", "video_id": "V2", "date": now.isoformat(), "simulated": True}]}))
+        assert app.main(["--session", "recap"]) == 0, logs
+        assert len(prompts) == 1 and "Sui rallies after network news" in prompts[0]
+        assert len(yt) == 1 and yt[0]["video"].name == "recap_16x9.mp4" and _probe_size(yt[0]["video"]) == (1920, 1080)
+        meta = yt[0]["meta"]
+        assert meta["title"] == recap.TITLE and not rules.title_problems(meta["title"])
+        assert meta["description"].count(rules.disclosure(live, "recap")) == 1 and meta["description"].count(CG_CREDIT) == 1
+        assert "Sui: +18.0% over 7 days" in meta["description"] and "Solana: −12.0%" in meta["description"], meta
+        from PIL import Image
+        with Image.open(yt[0]["thumbnail"]) as im:
+            assert im.size == (1280, 720)
+        e = json.loads(hist.read_text())["videos"][-1]
+        assert e["kind"] == "recap" and e["video_id"] == "R1" and e["week"] == "2026-W42" and e["platforms"] == ["youtube"]
+        assert e["coins"] == ["SUI", "SOL", "BTC"], e
+    finally:
+        (app.ROOT, app.log, app.datetime, recap.fetch, recap.generate_json, recap.fact_check, voice.synthesize,
+         youtube.upload_lesson, facebook.publish_video, youtube.upload) = saved
+    ap = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
+    assert "recap" in ap.get("on", ap.get(True))["workflow_dispatch"]["inputs"]["session"]["options"]
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK recap: skipped in a week with a triggered video (logged), quiet week → 16:9 recap of the 3 biggest "
+          "7-day moves (fixture numbers, causes), fixed title + disclosure + CoinGecko credit once, mini-board "
+          "thumbnail, YouTube only, dark timed skip, workflow option")
 
 
 if __name__ == "__main__":

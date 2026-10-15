@@ -293,6 +293,7 @@ class _Ctx:
     accent: tuple
     brand: str
     footer: str
+    chip: str = CHIP
 
 
 def _footer(trigger: dict) -> str:
@@ -306,9 +307,9 @@ def _base(ctx: _Ctx):
     x0, x1 = L.content_box[0], L.content_box[2]
     d.text((x0, L.header_y), ctx.brand, font=_font(max(34, L.min_text), True), fill=ctx.accent)
     f = _font(L.min_text, True)
-    cw, pad, ch = d.textlength(CHIP, font=f), round(L.min_text * 0.6), round(L.min_text * 1.5)
+    cw, pad, ch = d.textlength(ctx.chip, font=f), round(L.min_text * 0.6), round(L.min_text * 1.5)
     d.rounded_rectangle([x1 - cw - 2 * pad, L.header_y, x1, L.header_y + ch], radius=ch // 2, fill=ctx.accent)
-    d.text((x1 - cw - pad, L.header_y + ch / 2), CHIP, font=f, fill=BG, anchor="lm")
+    d.text((x1 - cw - pad, L.header_y + ch / 2), ctx.chip, font=f, fill=BG, anchor="lm")
     d.line([(x0, L.rule_y), (x1, L.rule_y)], fill=PANEL, width=3)
     f = _font(L.min_text)
     lines = _wrap(d, ctx.footer, f, x1 - x0, L.footer_lines)

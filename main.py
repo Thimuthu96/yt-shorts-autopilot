@@ -22,6 +22,8 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
                                                       # once in today's recap slot (timed runs: evergreen.enabled)
     python main.py --session basics --prepare next   # write the next ready package (evergreen stock, for a PR)
     python main.py --session basics --stock          # how many ready, unpublished Basics episodes there are
+    python main.py --session recap    # Saturday recap: the week's biggest moves and why (16:9, YouTube only; skipped
+                                      # when a triggered video published this ISO week; timed runs: recap.enabled)
     python main.py --session triggered --trigger <id|fixture.json> --no-upload   # "why crypto just moved" (16:9,
                                                       # YouTube only; timed runs: off while triggers.enabled is false)
 
@@ -38,8 +40,8 @@ from pathlib import Path
 import yaml
 
 from autopilot import (basics, facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
-                       lessons, material, news_post, render, reveal, script, slides, sources, thumbnail, triggered,
-                       triggers, voice)
+                       lessons, material, news_post, recap, render, reveal, script, slides, sources, thumbnail,
+                       triggered, triggers, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
@@ -75,6 +77,7 @@ LESSON_PATH_PLAYLIST = "Trading Lessons · The Path"  # cfg lessons.path_playlis
 LESSON_TRACK_PLAYLIST = "Track {n} · {name}"  # cfg lessons.track_playlist
 BASICS_MAX_SECONDS = 390  # Crypto Basics narration limit (cfg basics.max_seconds)
 TRIGGERED_MAX_SECONDS = 250  # triggered narration limit (cfg triggers.max_seconds)
+RECAP_MAX_SECONDS = 320  # recap narration limit (cfg recap.max_seconds)
 WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")  # a session's `days`, datetime.weekday() order
 
 
@@ -790,12 +793,13 @@ def make_triggered(cfg: dict, history: History, trigger: dict, session_key: str,
             "workdir": workdir, "trigger": trigger, "scenes": pkg["scenes"]}
 
 
-def publish_triggered(made: dict, pending: list[str], cfg: dict) -> tuple[dict, list[str]]:
-    """Publish a made triggered video to YouTube only (16:9 through youtube.upload_lesson: no playlists, private
-    then public after triggers.review_window_hours; its thumbnail). Facebook never gets it.
-    Returns (entry with the id it got, failed platforms)."""
+def publish_triggered(made: dict, pending: list[str], cfg: dict, section: str = "triggers",
+                      what: str = "triggered") -> tuple[dict, list[str]]:
+    """Publish a made triggered (or recap: section "recap") video to YouTube only (16:9 through
+    youtube.upload_lesson: no playlists, private then public after <section>.review_window_hours; its thumbnail).
+    Facebook never gets it. Returns (entry with the id it got, failed platforms)."""
     entry, failed = made["entry"], []
-    tc = cfg.get("triggers") or {}
+    tc = cfg.get(section) or {}
     if "youtube" in pending:
         meta = made["meta"]
         try:
@@ -809,11 +813,54 @@ def publish_triggered(made: dict, pending: list[str], cfg: dict) -> tuple[dict, 
             if res.get("publish_at"):
                 entry["publish_at"] = res["publish_at"]
             for err in res.get("errors") or []:
-                log(f"YouTube triggered video uploaded, but: {err}")
+                log(f"YouTube {what} video uploaded, but: {err}")
         except Exception as e:
-            log(f"YouTube triggered upload failed: {e}")
+            log(f"YouTube {what} upload failed: {e}")
             failed.append("youtube")
     return entry, failed
+
+
+def make_recap(cfg: dict, history: History, session_key: str, date: str) -> dict:
+    """The Saturday recap (kind: recap): the week's 2-3 biggest 7-day moves and their headline causes (recap.build
+    on Coinbase 7-day candles + the CoinGecko top 50), narrated (recap.write_script: 4-5 minutes, the subscribe ask
+    after the first move, narration rules + fact-check), the A/B voice, a 16:9 render, the mini-board thumbnail and
+    the metadata. Returns made (as make_triggered)."""
+    rc = cfg.get("recap") or {}
+    problems = recap.packaging_problems()
+    if problems:
+        raise RuntimeError(f"Recap packaging: {'; '.join(problems)}")
+    data, overview = recap.fetch(cfg, log=log)
+    week = recap.build(data, overview)
+    log("Recap moves: " + ", ".join(f"{s} {week['moves'][s]['change_7d']:+.1f}%" for s in week["coins"]))
+    workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    workdir.mkdir(parents=True, exist_ok=True)
+    plan = recap.scene_plan(week)
+    pkg = recap.write_script(cfg, week, plan, log=log)
+    (workdir / "package.json").write_text(json.dumps(
+        {"recap": week["id"], "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]],
+         "fact_check": pkg.get("fact_check")}, indent=2, ensure_ascii=False))
+    (workdir / "recap.json").write_text(json.dumps(week, indent=1, ensure_ascii=False))
+    v = ab_voice(cfg["voice"], history, session_key)
+    log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
+    audio, total = narrate(v, pkg["scenes"], rc.get("max_seconds", RECAP_MAX_SECONDS), workdir, pauses=True,
+                           what="Recap narration", log=log)
+    music_files = sorted((ROOT / "music").glob("*.mp3"))
+    music = random.choice(music_files) if music_files else None
+    layout = lesson_slides.LANDSCAPE
+    shape_dir = workdir / layout.name
+    pics = recap.render_slides(cfg, week, plan, layout, shape_dir)
+    out = workdir / f"recap_{layout.name}.mp4"
+    render.build_video(audio, pics, lesson_video_cfg(cfg, layout), shape_dir, out, music=music)
+    log(f"Rendered {out}")
+    thumb = recap.render_thumbnail(cfg, week, workdir / "thumbnail.jpg")
+    meta = recap.metadata(cfg, week)
+    (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    entry = {"date": datetime.now(timezone.utc).isoformat(timespec="seconds"), "brief_date": date,
+             "session": session_key, "kind": "recap", "week": week["week"], "title": meta["title"],
+             "coins": list(week["coins"]), "video_id": None, "seconds": round(total, 1),
+             "voice": audio[0]["voice"] if audio else v["name"], "workdir": str(workdir.relative_to(ROOT))}
+    return {"entry": entry, "videos": {layout.name: out}, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
+            "workdir": workdir, "recap": week, "scenes": pkg["scenes"]}
 
 
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
@@ -883,7 +930,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-upload", action="store_true", help="make it only, publish nowhere")
     p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
     p.add_argument("--session", default="auto",
-                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | basics | triggered | "
+                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | basics | triggered | recap | "
                         "auto (market edition by UTC time)")
     p.add_argument("--platforms", default="all",
                    help="all | youtube | facebook | youtube,facebook (limited to the edition's own platforms)")
@@ -1016,6 +1063,10 @@ def main(argv: list[str] | None = None) -> int:
             if late > window:
                 log(f"Trigger {trigger['id']} is more than {window} min past its due time; skipped.")
                 return 0
+    if kind == "recap" and args.scheduled and not (cfg.get("recap") or {}).get("enabled", False):
+        log("recap.enabled is false in config.yaml (the Saturday recap is dark), so the timed run is skipped. "
+            "A manual run (Run workflow, no `scheduled`) still makes it.")
+        return 0
     if args.scheduled and not topup and start:
         late = minutes_late(now, start)
         log(f"Timed run for the {label} edition (due {start} UTC, started {late:+d} min)")
@@ -1091,6 +1142,12 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             made = make_triggered(cfg, history, trigger, session_key, today)
             entry, failed = publish_triggered(made, [x for x in pending if x == "youtube"], cfg)
+        elif kind == "recap":
+            if not args.force and recap.week_has_triggered(history, now):
+                log("Recap skipped: a triggered video already published this ISO week (the recap covers quiet weeks).")
+                return 0
+            made = make_recap(cfg, history, session_key, today)
+            entry, failed = publish_triggered(made, [x for x in pending if x == "youtube"], cfg, "recap", "recap")
         elif kind == "basics":
             # re-making for a platform it missed: the history the first run saw (same A/B voice)
             made = make_basics(cfg, history.excluding_slot(today, session_key) if remake else history,
@@ -1104,7 +1161,8 @@ def main(argv: list[str] | None = None) -> int:
                               args, session_key)
             entry, failed = publish(made, pending, cfg)
     except Exception as e:
-        what = dict(post="Post", lesson="Lesson", basics="Basics", evergreen="Evergreen", triggered="Triggered")
+        what = dict(post="Post", lesson="Lesson", basics="Basics", evergreen="Evergreen", triggered="Triggered",
+                    recap="Recap")
         log(f"{what.get(kind, 'Brief')} "
             f"failed: {e}")
         return 1
