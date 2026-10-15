@@ -95,6 +95,11 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
   → publish_basics(pending) youtube.upload_lesson() 16:9 (no playlists, basics.review_window_hours) ·
                             facebook.publish_video() 9:16 (basics.fb_published); one failure never blocks the other
   → history.json            kind: basics, topic, title, video_id, fb_video_id, seconds, voice
+  evergreen top-up (kind: evergreen, `--session evergreen --slot <session>`, CAP-6; the merged lesson --slot path):
+                            make_evergreen → the next ready Basics episode (basics.stock, ready package only) into
+                            today's slot, else make_lesson_edition under the slot's key (only with lessons.enabled);
+                            once per slot/day (topup guard), recorded under the slot (trigger topup, evergreen: true);
+                            dark: timed runs skip while evergreen.enabled is false; epic 5 (5.3) calls it
   evergreen stock: `--session basics --prepare <id|next>` narrates an approved, unpublished topic exactly as the
                             edition does and writes basics/ready/<id>.yaml (for a PR; never uploads); the edition uses
                             a picked topic's package as it is (basics.validate_ready re-checks it, no LLM call; invalid

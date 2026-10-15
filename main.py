@@ -18,6 +18,8 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
     python main.py --session basics   # Crypto Basics: the next approved topic (basics/topics.yaml), 16:9 YouTube +
                                       # 9:16 Facebook (timed runs: off while basics.enabled is false); a topic with
                                       # a ready package (basics/ready/<id>.yaml) is published as it is
+    python main.py --session evergreen --slot recap   # top-up: the next ready Basics episode, else the next lesson,
+                                                      # once in today's recap slot (timed runs: evergreen.enabled)
     python main.py --session basics --prepare next   # write the next ready package (evergreen stock, for a PR)
     python main.py --session basics --stock          # how many ready, unpublished Basics episodes there are
 
@@ -497,7 +499,8 @@ def basics_topic(history: History) -> dict | None:
     return topic
 
 
-def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dict | None:
+def make_basics(cfg: dict, history: History, session_key: str, date: str, topic: dict | None = None,
+                ready_only: bool = False) -> dict | None:
     """One Crypto Basics edition (kind: basics) from the next approved topic (basics_topic; None = nothing
     to publish): narration of its approved points with the subscribe ask after the first payoff
     (basics.write_script: 3 attempts, then the fact-check, whose failure stops it), the A/B voice with pauses,
@@ -505,7 +508,8 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
     the workdir; nothing is uploaded).
     Returns {"entry", "videos": {"16x9", "9x16"}, "thumbnail", "meta", "seconds", "workdir"}."""
     bc = cfg.get("basics") or {}
-    topic = basics_topic(history)
+    if topic is None:
+        topic = basics_topic(history)
     if topic is None:
         return None
     log(f"Basics topic: {topic['id']} · {topic['question']}")
@@ -523,6 +527,8 @@ def make_basics(cfg: dict, history: History, session_key: str, date: str) -> dic
             raise RuntimeError(f"Basics ready package basics/ready/{topic['id']}.yaml: {'; '.join(problems)}")
         log(f"Basics: using the ready package basics/ready/{topic['id']}.yaml (no LLM call)")
         pkg = basics.ready_script(ready, topic)
+    elif ready_only:
+        raise RuntimeError(f"{topic['id']} has no ready package (basics/ready/{topic['id']}.yaml)")
     else:
         pkg = basics.write_script(cfg, topic, plan, log=log)
     (workdir / "package.json").write_text(json.dumps(
@@ -639,6 +645,39 @@ def basics_stock(cfg: dict, history: History) -> int:
     log(f"Ready, unpublished Basics episodes: {len(report['ready'])}"
         + (f" ({', '.join(report['ready'])})" if report["ready"] else ""))
     return 0
+
+
+def make_evergreen(cfg: dict, history: History, date: str, slot_key: str, pending: list[str], no_upload: bool,
+                   force: bool) -> tuple[dict | None, list[str], str]:
+    """"Publish next evergreen" (CAP-6 top-up; `--session evergreen --slot <session>`): the next ready Basics
+    episode (approved, unpublished, a valid basics/ready package) into today's `slot_key` slot, else the next
+    lesson through make_lesson_edition under that slot's key (only while lessons.enabled). A slot that already
+    recorded a Basics topic or a lesson today re-makes that one for its missing platforms. Returns (made,
+    pending, "basics" | "lesson"); made None = nothing to publish."""
+    recorded = [v for v in history.uploaded() if v.get("brief_date") == date
+                and v.get("session", "london") == slot_key and v.get("counts", True)]
+    rec_topic = next((v.get("topic") for v in recorded if v.get("kind") == "basics" and v.get("topic")), None)
+    if not any(v.get("episode") for v in recorded):
+        topics = basics_topics()
+        if rec_topic:
+            topic = next((t for t in topics if t.get("id") == rec_topic), None)
+            if topic is None:
+                raise RuntimeError(f"this slot's recorded Basics topic {rec_topic} is no longer in basics/topics.yaml")
+            log(f"This slot already recorded Basics topic {rec_topic}: making it again for {', '.join(pending)}")
+            hist = history.excluding_slot(date, slot_key)
+        else:
+            ready = basics.stock(topics, history, basics_ready_dir(), cfg)["ready"]
+            topic = next((t for t in topics if ready and t.get("id") == ready[0]), None)
+            hist = history
+        if topic is not None:
+            log(f"Evergreen: the ready Basics episode {topic['id']} fills today's {slot_key} slot")
+            return make_basics(cfg, hist, slot_key, date, topic=topic, ready_only=True), pending, "basics"
+        log("Evergreen: no ready Basics episode in the stock; falling back to the next lesson")
+    if not (cfg.get("lessons") or {}).get("enabled", False) and not no_upload:
+        log("Evergreen: lessons are off (lessons.enabled is false), so nothing to publish in this slot.")
+        return None, pending, "lesson"
+    made, pending = make_lesson_edition(cfg, history, date, slot_key, pending, no_upload, counts=True, force=force)
+    return made, pending, "lesson"
 
 
 def save_material(made: dict, entry: dict, cfg: dict, workdir: Path) -> None:
@@ -811,14 +850,21 @@ def main(argv: list[str] | None = None) -> int:
     # slot_key: the edition slot this run fills and is recorded under (a top-up fills another edition's)
     slot_key = (args.slot or "").strip().lower() or session_key
     topup = bool((args.slot or "").strip())
-    if topup and kind != "lesson":
-        log(f"--slot works only with --session lesson (the {label} edition can't top up another slot).")
+    if topup and kind not in ("lesson", "evergreen"):
+        log(f"--slot works only with --session lesson or evergreen (the {label} edition can't top up another slot).")
+        return 1
+    if kind == "evergreen" and not topup:
+        log("The evergreen edition needs --slot <session>: the slot it fills (e.g. --slot recap).")
+        return 1
+    if kind == "evergreen" and slot_key == session_key:
+        log("--slot evergreen can't fill itself; name another edition's slot.")
         return 1
     if topup and slot_key not in cfg.get("sessions", {}):
         log(f"Unknown slot '{slot_key}'. Choose one of: {', '.join(cfg.get('sessions', {}))}")
         return 1
     if topup and cfg["sessions"][slot_key].get("kind") == "post":
-        log(f"The {slot_key} slot is a Facebook news post; a lesson top-up can't fill it.")
+        log(f"The {slot_key} slot is a Facebook news post; a {'lesson' if kind == 'lesson' else 'video'} top-up "
+            "can't fill it.")
         return 1
     start = session.get("start_utc") or DEFAULT_SESSIONS.get(session_key, {}).get("start_utc")
 
@@ -851,6 +897,10 @@ def main(argv: list[str] | None = None) -> int:
         log("Lessons are off (lessons.enabled is false in config.yaml), so the lesson is skipped. "
             "Use --no-upload on a manual run to make one anyway.")
         return 0
+    if kind == "evergreen" and args.scheduled and not (cfg.get("evergreen") or {}).get("enabled", False):
+        log("evergreen.enabled is false in config.yaml (the evergreen top-up is dark), so the timed run is skipped. "
+            "A manual run (Run workflow with `slot`, no `scheduled`) still tops the slot up.")
+        return 0
     if kind == "basics" and args.scheduled and not (cfg.get("basics") or {}).get("enabled", False):
         log("basics.enabled is false in config.yaml (Crypto Basics is dark), so the timed run is skipped. "
             "A manual run (Run workflow, no `scheduled`) still makes and publishes it.")
@@ -881,9 +931,10 @@ def main(argv: list[str] | None = None) -> int:
     if topup and not args.force and not args.no_upload:
         other = sorted({v.get("kind", "market") for v in history.uploaded() if v.get("brief_date") == today
                         and v.get("session", "london") == slot_key and v.get("counts", True)
-                        and not v.get("episode")})
+                        and not v.get("episode") and not (kind == "evergreen" and v.get("kind") == "basics")})
         if other:
-            log(f"Today's {slot_key} slot already published a {', '.join(other)} upload; no lesson top-up.")
+            log(f"Today's {slot_key} slot already published a {', '.join(other)} upload; no "
+                f"{'lesson' if kind == 'lesson' else 'evergreen'} top-up.")
             return 0
     if (args.scheduled or topup) and not args.force and not args.no_upload:
         done = [x for x in pending if history.published_on(today, slot_key, x)]
@@ -916,6 +967,12 @@ def main(argv: list[str] | None = None) -> int:
             if made is None:
                 return 0
             entry, failed = publish_lesson(made, pending, cfg)
+        elif kind == "evergreen":
+            made, pending, what = make_evergreen(cfg, history, today, slot_key, pending, args.no_upload, args.force)
+            if made is None:
+                return 0
+            entry, failed = (publish_basics if what == "basics" else publish_lesson)(made, pending, cfg)
+            entry["evergreen"] = True
         elif kind == "basics":
             # re-making for a platform it missed: the history the first run saw (same A/B voice)
             made = make_basics(cfg, history.excluding_slot(today, session_key) if remake else history,
@@ -929,7 +986,8 @@ def main(argv: list[str] | None = None) -> int:
                               args, session_key)
             entry, failed = publish(made, pending, cfg)
     except Exception as e:
-        log(f"{dict(post='Post', lesson='Lesson', basics='Basics').get(kind, 'Brief')} failed: {e}")
+        log(f"{dict(post='Post', lesson='Lesson', basics='Basics', evergreen='Evergreen').get(kind, 'Brief')} "
+            f"failed: {e}")
         return 1
     if any(entry.get(k) for k in ID_KEYS):
         entry["trigger"] = "topup" if topup else "timed" if args.scheduled else "manual"
@@ -940,7 +998,7 @@ def main(argv: list[str] | None = None) -> int:
         (workdir / "history_entry.json").write_text(json.dumps(entry, indent=2, ensure_ascii=False))
         history.add(entry)
         history.save()
-        if kind == "basics":
+        if entry.get("kind") == "basics":
             save_material(made, entry, cfg, workdir)
     if failed:
         log(f"Not published on: {', '.join(failed)} (see the errors above)")

@@ -102,6 +102,14 @@ sessions:
     kind: basics
     days: [wed]
     platforms: [youtube, facebook]
+  # "Publish next evergreen" (kind: evergreen, crypto-pivot CAP-6): no timer of its own; epic 5's weekly floor
+  # calls `--session evergreen --slot <session>`: the next ready Crypto Basics episode (basics/ready/), else the
+  # next lesson, once into that slot today (recorded under it). Platforms: the episode's own (FB routing: epic 5).
+  evergreen:
+    label: Evergreen top-up
+    short: Evergreen
+    kind: evergreen
+    platforms: [youtube, facebook]
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
 # (automatic runs only; a manual run can still choose any edition). News posts run every day;
 # the lesson runs on its own `days` (Thursday).
@@ -167,6 +175,12 @@ basics:
   category_id: "27"           # YouTube Education
   # the one spoken subscribe ask, added at the end of the first explained point (never in the opening)
   subscribe_ask: "If this helped, subscribe for the next Crypto Basics explainer."
+
+# ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
+# Dark: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
+# still tops that slot up. Epic 5 switches it on with the weekly floor.
+evergreen:
+  enabled: false
 
 # ─── Gold outlook ───────────────────────────────────────────────────────────
 gold:

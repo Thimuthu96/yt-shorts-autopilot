@@ -281,6 +281,7 @@ def main():
     test_material(cfg)
     test_basics(cfg)
     test_basics_ready(cfg)
+    test_evergreen(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -3141,7 +3142,10 @@ def test_lesson_edition(cfg):
 
     # cron-job.org: lesson (Thursday 15:00 UTC) and basics on their days, gold Mon-Fri, the rest every day
     sessions = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))["sessions"]
-    wd = {k: setup_cronjobs.job_for(k, s, "T", True)["schedule"]["wdays"] for k, s in sessions.items()}
+    # as setup_cronjobs.main: only editions with a start_utc get a job (evergreen has none: epic 5 calls it)
+    wd = {k: setup_cronjobs.job_for(k, s, "T", True)["schedule"]["wdays"] for k, s in sessions.items()
+          if s.get("start_utc")}
+    assert "evergreen" in sessions and "evergreen" not in wd, wd
     assert wd["lesson"] == [4] and wd["gold"] == [1, 2, 3, 4, 5] and wd["asia"] == [-1], wd
     job = setup_cronjobs.job_for("lesson", sessions["lesson"], "T", True)["schedule"]
     assert (job["hours"], job["minutes"]) == ([15], [0]) and sessions["lesson"]["start_utc"] == "15:00", job
@@ -4341,6 +4345,153 @@ def test_basics_ready(cfg):
     print("OK basics ready: --prepare next/<id> writes a validating package (no upload, no history), unknown "
           "number / draft / unknown / published topic → nothing written, exit 1; edition uses the package with no "
           "LLM call; tampered package stops it; --stock counts ready minus published")
+
+
+def test_evergreen(cfg):
+    """"Publish next evergreen" (crypto-basics entry 9) through main(), on the merged --slot top-up path:
+    `--session evergreen --slot recap` publishes the next ready Basics episode into today's recap slot (no LLM
+    call; history session recap, trigger topup, counts, evergreen; Shorts material saved); a second run for the
+    same slot and day publishes nothing; with an empty stock it takes the lesson path (make_lesson_edition under
+    the slot's key) only while lessons are on, else nothing; a slot holding another edition's upload is left
+    alone; no --slot / a news-post slot → exit 1; a dark timed run skips; the workflow offers `evergreen` and
+    passes the `slot` input to --slot."""
+    import main as app
+    from autopilot import basics, voice, youtube
+
+    clock = [datetime(2026, 11, 21, 15, 5, tzinfo=timezone.utc)]  # a Saturday
+
+    class FixedNow(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock[0].astimezone(tz) if tz else clock[0].replace(tzinfo=None)
+
+    topic = dict(basics.sample_topic(), thumbnail="BITCOIN ETF?", approved=True)
+    queue = [topic, dict(basics.load_topics()[0], approved=True)]
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "basics").mkdir(parents=True)
+    (tmp / "basics" / "topics.yaml").write_text(yaml.safe_dump({"topics": queue}, allow_unicode=True, sort_keys=False),
+                                                encoding="utf-8")
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert live["evergreen"]["enabled"] is False and live["sessions"]["evergreen"]["kind"] == "evergreen"
+    assert not live["sessions"]["evergreen"].get("start_utc")  # no timer of its own (setup_cronjobs skips it)
+
+    def write_cfg(evergreen: bool, lessons_on: bool):
+        c = json.loads(json.dumps(live))
+        c["basics"].update(min_words=30, max_words=400)
+        c["evergreen"]["enabled"] = evergreen
+        c["lessons"]["enabled"] = lessons_on
+        c["sessions"]["recap"] = {"label": "Weekly Recap", "short": "Recap", "start_utc": "15:00",
+                                  "platforms": ["youtube"]}  # epic 3 adds the real one
+        (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
+
+    calls, logs, yt, fb, lesson_calls = [], [], [], [], []
+
+    def fake_llm(prompt, models, temperature=0.9):
+        calls.append(prompt)
+        return {"scenes": [{"id": k, "text": v} for k, v in _sample_narration().items()]}
+
+    def fake_fact_check(cfg_, facts, pkg, extra_rules=""):
+        calls.append("fact_check")
+        return "ok", pkg, []
+
+    def fake_voice(scenes, name, rate, workdir, log=print, fallback=None, pauses=False):
+        return [{"audio": Path(workdir) / f"v{i}.wav", "duration": 0.3 * len(sc["text"].split()) + 0.5, "voice": name,
+                 "words": [(j * 0.3, j * 0.3 + 0.27, w) for j, w in enumerate(sc["text"].split())]}
+                for i, sc in enumerate(scenes)]
+
+    def fake_build(audio, pics, vcfg, workdir, out, music=None):
+        Path(out).write_bytes(b"")
+
+    def fake_upload_lesson(video, meta, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
+                           log=print, playlist_privacy="public", playlists=True):
+        yt.append(meta["title"])
+        return {"video_id": f"Y{len(yt)}", "errors": []}
+
+    def fake_publish_video(video, title, description, cfg_, published=True, poll_minutes=None, log=print):
+        fb.append(title)
+        return f"F{len(fb)}"
+
+    def fake_lesson_edition(cfg_, history, date, session_key, pending, no_upload=False, counts=True, force=False):
+        lesson_calls.append((date, session_key, list(pending), counts))
+        return None, pending
+
+    def go(*argv) -> int:
+        logs.clear()
+        return app.main(list(argv))
+
+    def said(text: str) -> bool:
+        return any(text in m for m in logs)
+
+    def history() -> list[dict]:
+        f = tmp / "data" / "history.json"
+        return json.loads(f.read_text())["videos"] if f.exists() else []
+
+    saved = (app.ROOT, app.datetime, app.log, app.make_lesson_edition, basics.generate_json, basics.fact_check,
+             voice.synthesize, render.build_video, youtube.upload_lesson, facebook.publish_video)
+    env = {k: os.environ.get(k) for k in ("FB_PAGE_ID", "FB_PAGE_TOKEN")}
+    app.ROOT, app.datetime, app.log, app.make_lesson_edition = tmp, FixedNow, logs.append, fake_lesson_edition
+    basics.generate_json, basics.fact_check, voice.synthesize, render.build_video = (fake_llm, fake_fact_check,
+                                                                                      fake_voice, fake_build)
+    youtube.upload_lesson, facebook.publish_video = fake_upload_lesson, fake_publish_video
+    os.environ["FB_PAGE_ID"], os.environ["FB_PAGE_TOKEN"] = "PAGE", "TOKEN"
+    try:
+        write_cfg(False, False)
+        assert go("--session", "basics", "--prepare", "next") == 0, logs  # the stock: one ready episode
+        # dark: a timed evergreen run skips
+        calls.clear()
+        assert go("--session", "evergreen", "--slot", "recap", "--scheduled") == 0 and said("evergreen.enabled is false")
+        assert not history() and not calls
+        # bad calls
+        assert go("--session", "evergreen") == 1 and said("needs --slot"), logs
+        assert go("--session", "evergreen", "--slot", "news_midday") == 1 and said("Facebook news post"), logs
+        assert go("--session", "evergreen", "--slot", "nope") == 1 and said("Unknown slot"), logs
+        # the ready Basics episode fills today's recap slot: no LLM call, both platforms, recorded under recap
+        assert go("--session", "evergreen", "--slot", "recap") == 0, logs
+        assert not calls and said("using the ready package") and said("Evergreen: the ready Basics episode"), logs
+        e = history()[-1]
+        assert (e["kind"], e["topic"], e["session"], e["trigger"], e["counts"], e["evergreen"]) == (
+            "basics", topic["id"], "recap", "topup", True, True), e
+        assert e["video_id"] == "Y1" and e["fb_video_id"] == "F1" and e["brief_date"] == "2026-11-21", e
+        assert (tmp / "data" / "material" / f"basics-{topic['id']}.json").exists() and not lesson_calls
+        # the same slot and day again: nothing published
+        assert go("--session", "evergreen", "--slot", "recap") == 0 and said("already published"), logs
+        assert len(history()) == 1 and len(yt) == 1 and not lesson_calls
+        # next day, empty stock: lessons off → nothing; lessons on → the lesson path under the slot's key
+        clock[0] = datetime(2026, 11, 22, 15, 5, tzinfo=timezone.utc)
+        assert go("--session", "evergreen", "--slot", "recap") == 0 and said("no ready Basics episode"), logs
+        assert said("lessons are off") and not lesson_calls and len(history()) == 1
+        write_cfg(False, True)
+        assert go("--session", "evergreen", "--slot", "recap") == 0, logs
+        assert lesson_calls == [("2026-11-22", "recap", ["youtube", "facebook"], True)], lesson_calls
+        # a slot that already holds another edition's upload is left alone
+        h = json.loads((tmp / "data" / "history.json").read_text())
+        h["videos"].append({"brief_date": "2026-11-22", "session": "recap", "kind": "recap", "video_id": "R1",
+                            "counts": True})
+        (tmp / "data" / "history.json").write_text(json.dumps(h))
+        assert go("--session", "evergreen", "--slot", "recap") == 0 and said("no evergreen top-up"), logs
+        assert len(lesson_calls) == 1
+        # enabled: a timed run tops up too
+        write_cfg(True, True)
+        clock[0] = datetime(2026, 11, 23, 15, 5, tzinfo=timezone.utc)
+        assert go("--session", "evergreen", "--slot", "recap", "--scheduled") == 0 and len(lesson_calls) == 2, logs
+    finally:
+        (app.ROOT, app.datetime, app.log, app.make_lesson_edition, basics.generate_json, basics.fact_check,
+         voice.synthesize, render.build_video, youtube.upload_lesson, facebook.publish_video) = saved
+        for k, v in env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(tmp, ignore_errors=True)
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
+    on = wf.get("on", wf.get(True))
+    assert "evergreen" in on["workflow_dispatch"]["inputs"]["session"]["options"]
+    assert "slot" in on["workflow_dispatch"]["inputs"]
+    run_step = next(st for st in wf["jobs"]["make-and-upload"]["steps"] if st.get("name") == "Make and publish")
+    assert "--slot" in run_step["env"]["SLOT"] and "$SLOT" in run_step["run"], run_step
+    print("OK evergreen: --session evergreen --slot recap → ready Basics episode (no LLM, recorded under the slot, "
+          "material), once per slot/day, empty stock → lesson path under the slot (lessons on) else nothing, other "
+          "edition in the slot → left alone, bad slot / no slot → exit 1, dark timed skip, workflow option + slot")
 
 
 if __name__ == "__main__":
