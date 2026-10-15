@@ -284,6 +284,7 @@ def main():
     test_evergreen(cfg)
     test_triggered(cfg)
     test_trigger_rules(cfg)
+    test_trigger_limits(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -4677,6 +4678,72 @@ def test_trigger_rules(cfg):
     assert [t["rule"] for t in got] == [1, 2, 4], [t["rule"] for t in got]
     print("OK trigger rules: 1-4 at their thresholds (not just below), coin gate (no story → no trigger, logged), "
           "ETF approval → rule 4 with its cause, gated-out coin never leads, rule order")
+
+
+
+def test_trigger_limits(cfg):
+    """Trigger limits (epic-volatility-videos entry 4) over a simulated week: a third trigger in an ISO week is
+    dropped, one 40 hours after the last published one is dropped, a 05:00 trigger is due at 12:00, a stale
+    trigger is dropped with a log line, a repeat fire for a pending cause adds nothing; triggers.load by id."""
+    from autopilot import triggers
+    base = triggers.evaluate(trigger_data(), now=TRIGGER_NOW, log=lambda m: None)[0]
+
+    def fire(at: datetime, cause: str) -> dict:
+        return dict(base, id=f"{at:%Y%m%d-%H%M}-r1-btc", key=f"r1:BTC:{cause}", fired_utc=at.isoformat(),
+                    due_utc=at.isoformat())
+
+    def at(day: int, hour: int, minute: int = 0) -> datetime:
+        return datetime(2026, 10, day, hour, minute, tzinfo=timezone.utc)  # 12 = Monday … 18 = Sunday
+
+    assert triggers.due_time(at(14, 5)) == at(14, 12) and triggers.due_time(at(14, 3)) == at(14, 12)
+    assert triggers.due_time(at(14, 11)) == at(14, 11) and triggers.due_time(at(14, 2, 59)) == at(14, 2, 59)
+    state, videos, logs = {"version": 1, "triggers": []}, [], []
+
+    def publish(t: dict, when: datetime):
+        videos.append({"kind": "triggered", "trigger_id": t["id"], "video_id": f"V{len(videos)}",
+                       "date": when.isoformat(), "session": "triggered"})
+
+    def rec(t, now):
+        logs.clear()
+        return triggers.record(state, [t], videos, now=now, log=logs.append)
+
+    a = rec(fire(at(12, 14), "a"), at(12, 14))
+    assert a and a["due_utc"] == at(12, 14).isoformat() and triggers.due_now(state, at(12, 14, 10))["id"] == a["id"]
+    assert rec(fire(at(12, 14, 30), "a"), at(12, 14, 30)) is None and any("already pending" in m for m in logs)
+    assert len(state["triggers"]) == 1
+    publish(a, at(12, 14, 30))
+    # 40 h after the published one (Wed 06:30 → held to 12:00, still < 48 h) → dropped
+    assert rec(fire(at(14, 6, 30), "b"), at(14, 6, 30)) is None and any("dropped" in m and "48 h" in m for m in logs)
+    assert state["triggers"][0]["status"] == "published" and state["triggers"][-1]["status"] == "dropped"
+    # a 05:00 trigger (Thu, > 48 h after) is due at 12:00
+    c = rec(fire(at(15, 5), "c"), at(15, 5))
+    assert c and c["due_utc"] == at(15, 12).isoformat() and triggers.due_now(state, at(15, 11)) is None
+    assert triggers.due_now(state, at(15, 12, 5))["id"] == c["id"]
+    triggers.mark_dispatched(state, c["id"], at(15, 12, 5))
+    publish(c, at(15, 14))
+    # a third trigger in the same ISO week (Sat, > 48 h after) → dropped by the cap
+    assert rec(fire(at(17, 15), "d"), at(17, 15)) is None and any("this week already has 2" in m for m in logs), logs
+    # next week: a new trigger, then stale (not published within 3 h of its due time) → dropped with a log line
+    e = rec(fire(at(19, 20), "e"), at(19, 20))
+    assert e and triggers.due_now(state, at(19, 23, 30)) is None
+    assert rec(fire(at(19, 23, 30), "f"), at(19, 23, 30))  # refresh drops e, so f (a new cause) is pending
+    assert any(f"Trigger {e['id']} dropped: not published within 3 h" in m for m in logs), logs
+    assert next(x for x in state["triggers"] if x["id"] == e["id"])["status"] == "dropped"
+    # simulated history entries never count
+    sim = {"kind": "triggered", "trigger_id": "X", "video_id": "S", "date": at(21, 12).isoformat(), "simulated": True}
+    assert triggers.published([sim]) == {}
+    # state on disk + triggers.load by id
+    tmp = Path(tempfile.mkdtemp())
+    triggers.save_state(state, tmp / triggers.STATE)
+    assert triggers.load(c["id"], tmp)["due_utc"] == c["due_utc"]
+    try:
+        triggers.load("nope", tmp)
+        raise AssertionError("an unknown id must fail")
+    except ValueError:
+        pass
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK trigger limits: 48 h spacing, 2 per ISO week, 03:00-11:00 → 12:00, stale dropped (logged), "
+          "repeat cause adds nothing, simulated never counts, load by id")
 
 
 if __name__ == "__main__":

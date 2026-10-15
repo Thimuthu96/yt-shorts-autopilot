@@ -190,7 +190,12 @@ basics:
 triggers:
   enabled: false
   move_pct: 5                 # rule 1: BTC or ETH moves ±5% or more in 24 h
-  publish_window_hours: 3     # a timed run more than this past the trigger's due time is skipped
+  cap_pct: 4                  # rule 2: total crypto market cap ±4% or more in 24 h (CoinGecko)
+  coin_pct: 15                # rule 3: a top-50 coin ±15% or more in 24 h, only with a headline naming it
+  major_hours: 6              # rule 4: a major crypto story (ETF decision, regulation, hack, upgrade) this fresh
+  week_cap: 2                 # at most 2 triggered videos per ISO week (UTC) …
+  spacing_hours: 48           # … at least 48 h apart; fired 03:00-11:00 UTC → due 12:00
+  publish_window_hours: 3     # not published within 3 h of its due time → dropped; a later timed run skips
   max_seconds: 250            # narration limit; re-recorded faster when over
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────

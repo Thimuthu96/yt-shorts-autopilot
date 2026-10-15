@@ -22,12 +22,31 @@ A trigger (JSON, also the fixture format of `main.py --session triggered --trigg
                                        upgrade) published in the last `major_hours`
                                      Every trigger carries its cause and the 1-3 coins it moved; data = sources-style
                                      {crypto, news}
-    load(ref, root) -> trigger       `ref` = a fixture path: a trigger JSON ({"trigger": …} or a trigger), or
-                                     market data ({crypto, news, overview?}) whose first firing trigger is used
+    load(ref, root) -> trigger       `ref` = a trigger id in data/triggers.json, or a fixture path: a trigger JSON
+                                     ({"trigger": …} or a trigger), or market data ({crypto, news, overview?})
+                                     whose first firing trigger is used
+
+Limits (state in data/triggers.json, written only by the poll job, `python -m autopilot.triggers check`):
+
+    {"version": 1, "triggers": [{<trigger>, "status": "pending" | "dispatched" | "published" | "dropped",
+                                 "reason": "…", "dispatched_utc": ISO}]}
+
+    due_time(fired)                  fired 03:00-11:00 UTC → 12:00 that day, else the fired time
+    record(state, fired, history, now, cfg, log) -> trigger | None   refresh, then judge each fired trigger:
+                                     same cause (key) pending / dispatched, or seen within the spacing → nothing
+                                     new; ISO week (UTC) already holding `week_cap` (2) triggered videos,
+                                     published or pending → dropped; within `spacing_hours` (48) of a published
+                                     triggered video or a pending trigger's due time → dropped; else pending
+    refresh(state, history, now, cfg, log)  a trigger whose kind: triggered history record (by trigger_id) is
+                                     uploaded → published; pending / dispatched more than publish_window_hours (3)
+                                     past its due time → dropped with a log line
+    due_now(state, now, cfg) -> trigger | None  the pending trigger whose due time has come (within the window)
+    mark_dispatched(state, id, now)
+Spacing and the cap count published `kind: triggered` history records (simulated ones never count).
 """
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from autopilot import focus
@@ -262,14 +281,152 @@ def evaluate(data: dict, overview: dict | None = None, now: datetime | None = No
     return out
 
 
+# ─── limits + state ────────────────────────────────────────────────────────
+
+STATE = Path("data") / "triggers.json"
+WEEK_CAP = 2  # cfg triggers.week_cap
+SPACING_HOURS = 48  # cfg triggers.spacing_hours
+HOLD = (3, 11)  # a trigger fired from 03:00 up to 11:00 UTC …
+HOLD_TO = 12  # … is due at 12:00 UTC
+WINDOW_HOURS = 3  # cfg triggers.publish_window_hours
+OPEN = ("pending", "dispatched")
+
+
+def _t(iso: str) -> datetime:
+    t = datetime.fromisoformat(iso)
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def due_time(fired: datetime) -> datetime:
+    fired = fired.astimezone(timezone.utc)
+    if HOLD[0] <= fired.hour < HOLD[1]:
+        return fired.replace(hour=HOLD_TO, minute=0, second=0, microsecond=0)
+    return fired
+
+
+def load_state(path: Path) -> dict:
+    path = Path(path)
+    try:
+        state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except ValueError:
+        state = {}
+    if not isinstance(state, dict) or not isinstance(state.get("triggers"), list):
+        state = {"version": 1, "triggers": []}
+    return state
+
+
+def save_state(state: dict, path: Path) -> Path:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path
+
+
+def _limits(cfg: dict | None) -> tuple[int, float, float]:
+    tc = (cfg or {}).get("triggers") or {}
+    return (int(tc.get("week_cap", WEEK_CAP)), float(tc.get("spacing_hours", SPACING_HOURS)),
+            float(tc.get("publish_window_hours", WINDOW_HOURS)))
+
+
+def published(history) -> dict:
+    """{trigger_id: published time} of the uploaded kind: triggered history records (simulated ones left out)."""
+    rows = history.uploaded() if hasattr(history, "uploaded") else list(history or [])
+    out = {}
+    for v in rows:
+        if v.get("kind") != "triggered" or v.get("simulated") or not v.get("trigger_id"):
+            continue
+        try:
+            out.setdefault(v["trigger_id"], _t(v.get("publish_at") or v["date"]))
+        except (KeyError, ValueError):
+            continue
+    return out
+
+
+def refresh(state: dict, history, now: datetime, cfg: dict | None = None, log=print) -> None:
+    pub = published(history)
+    window = _limits(cfg)[2]
+    for t in state["triggers"]:
+        if t.get("status") not in OPEN:
+            continue
+        if t["id"] in pub:
+            t["status"] = "published"
+        elif now > _t(t["due_utc"]) + timedelta(hours=window):
+            t["status"], t["reason"] = "dropped", f"not published within {window:g} h of its due time"
+            log(f"Trigger {t['id']} dropped: not published within {window:g} h of its due time ({t['due_utc']})")
+
+
+def _judge(state: dict, t: dict, pub: dict, cfg: dict | None) -> str:
+    """'' = keep it pending, else why it is dropped."""
+    cap, spacing, _ = _limits(cfg)
+    due = _t(t["due_utc"])
+    week = due.isocalendar()[:2]
+    open_ = [_t(x["due_utc"]) for x in state["triggers"] if x.get("status") in OPEN and x["id"] not in pub]
+    times = list(pub.values()) + open_
+    n = sum(1 for x in times if x.isocalendar()[:2] == week)
+    if n >= cap:
+        return f"this week already has {n} triggered videos (at most {cap})"
+    near = [x for x in times if abs((due - x).total_seconds()) < spacing * 3600]
+    if near:
+        gap = min(abs((due - x).total_seconds()) for x in near) / 3600
+        return f"{gap:.0f} h from another triggered video (at least {spacing:g} h apart)"
+    return ""
+
+
+def record(state: dict, fired: list[dict], history, now: datetime | None = None, cfg: dict | None = None,
+           log=print) -> dict | None:
+    """Refresh the state, then judge each fired trigger (see the module doc). Returns the new pending trigger."""
+    now = _now(now)
+    refresh(state, history, now, cfg, log)
+    pub = published(history)
+    spacing = _limits(cfg)[1]
+    new = None
+    for t in fired:
+        same = [x for x in state["triggers"] if x.get("key") == t["key"]]
+        if any(x.get("status") in OPEN for x in same):
+            log(f"Trigger {t['id']}: the same cause is already pending; nothing new")
+            continue
+        if any(now - _t(x["fired_utc"]) < timedelta(hours=spacing) for x in same):
+            log(f"Trigger {t['id']}: the same cause fired within {spacing:g} h; nothing new")
+            continue
+        t = dict(t, due_utc=_iso(due_time(_t(t["fired_utc"]))))
+        why = _judge(state, t, pub, cfg)
+        if why:
+            state["triggers"].append(dict(t, status="dropped", reason=why))
+            log(f"Trigger {t['id']} dropped: {why}")
+            continue
+        state["triggers"].append(dict(t, status="pending"))
+        log(f"Trigger {t['id']} recorded: due {t['due_utc']}")
+        new = new or t
+    return new
+
+
+def due_now(state: dict, now: datetime | None = None, cfg: dict | None = None) -> dict | None:
+    now = _now(now)
+    window = _limits(cfg)[2]
+    for t in state["triggers"]:
+        if t.get("status") == "pending" and _t(t["due_utc"]) <= now <= _t(t["due_utc"]) + timedelta(hours=window):
+            return t
+    return None
+
+
+def mark_dispatched(state: dict, trigger_id: str, now: datetime | None = None) -> None:
+    for t in state["triggers"]:
+        if t["id"] == trigger_id:
+            t["status"], t["dispatched_utc"] = "dispatched", _iso(_now(now))
+
+
 def load(ref: str, root: Path | None = None, now: datetime | None = None) -> dict:
-    """A trigger from a fixture path (a trigger JSON, {"trigger": …}, or market data that fires).
-    Unknown / nothing fires → ValueError."""
+    """A trigger by id (data/triggers.json under `root`) or from a fixture path (a trigger JSON, {"trigger": …},
+    or market data that fires). Unknown / nothing fires → ValueError."""
     path = Path(ref)
     if not path.exists() and root is not None:
         path = Path(root) / ref
     if not path.is_file():
-        raise ValueError(f"trigger '{ref}' is not a fixture file")
+        state = load_state(Path(root or ".") / STATE)
+        found = next((t for t in state["triggers"] if t.get("id") == ref), None)
+        if found is None:
+            raise ValueError(f"trigger '{ref}' is neither in {STATE} nor a fixture file")
+        return found
     raw = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(raw, dict) and isinstance(raw.get("trigger"), dict):
         raw = raw["trigger"]
