@@ -109,6 +109,32 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
                             data/material/basics-<topic>.json (a later run merges a missed platform's id) + a copy
                             output/<stamp>/material.json, which the workflow's Save history step merges back after
                             its reset (`python -m autopilot.material add`) and commits with data/history.json
+  trigger engine (CAP-4; dark: triggers.enabled false; autopilot/triggers.py, no LLM):
+  → triggers.yml poll       every 30 min (13,43 * * * *, light install): `python -m autopilot.triggers check` = Coinbase
+                            prices + crypto/regulation news + CoinGecko overview → evaluate: rule 1 BTC/ETH ±5% 24 h;
+                            2 total cap ±4%; 3 top-50 coin ±15% only with a crypto headline naming it (coin gate);
+                            4 focus.major_story (ETF decision / regulation / hack / upgrade, ≤ 6 h old) → record in
+                            data/triggers.json (only the poll writes it): same cause pending → nothing; ≤ 2 per ISO week,
+                            ≥ 48 h apart (published kind: triggered history by trigger_id + pending; simulated never
+                            count), fired 03:00-11:00 UTC → due 12:00, not published within 3 h of due → dropped (logged)
+                            → due + enabled → marked dispatched, commit, `gh workflow run autopilot.yml session=triggered
+                            trigger=<id> scheduled=true`; disabled → logs only
+  triggered video (kind: triggered, `--session triggered --trigger <id|fixture>`, YouTube 16:9 only):
+  → triggered.py            packaging first (title "Why Bitcoin Just Dropped 7% (What Actually Happened)" from the data,
+                            rules.title_problems; thumbnail "WHY -7%?" → "Triggered packaging", exit 1); scene plan move →
+                            cause → coins (flow diagram cause → 1-3 coins, step reveal) → context → watch → recap;
+                            420-600 words, subscribe ask after the cause, narration rules (3 attempts), fact_check +
+                            number check (spoken number must round from fetched data) → stop; A/B voice; thumbnail
+                            1280x720 (badge, arrow, %); description: cause, coins, headlines, Coinbase + "Data provided
+                            by CoinGecko" once when used, disclosure once → publish_triggered (upload_lesson, review 2 h)
+                            → history kind triggered + trigger_id (an already-published trigger is never re-made);
+                            timed runs check triggers.enabled and the trigger's due time (not start_utc)
+  Saturday recap (kind: recap, Sat 15:00, YouTube 16:9 only; dark: recap.enabled false; autopilot/recap.py):
+                            skipped (logged) when a triggered video published this ISO week; else the 2-3 biggest 7-day
+                            moves (Coinbase + CoinGecko top 50) and their headline causes, 560-750 words, ask after
+                            move_1, fact-checked; title "This Week in Crypto: What Moved and Why", mini-board thumbnail
+  market Shorts material    triggered / recap publishes write data/material/<kind>-<id>.json with a `market` section
+                            (fetched numbers + source, data_source, credit, series, causes, ≥ 2 hooks; no segment minimum)
 ```
 
 Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishing in
@@ -129,6 +155,8 @@ rule and the once-per-edition-per-day-per-platform guard:
 | `news_evening` | Evening News | 16:30 | 22:00 | cron-job.org 22:00 Asia/Colombo | `47 16 * * *` | FB post |
 | `lesson` | Trading Lesson | 15:00 | 20:30 | cron-job.org 20:30 Asia/Colombo, Thu | `17 15 * * 4` | YT 16:9 + FB video 9:16 |
 | `basics` | Crypto Basics (dark) | 15:00 | 20:30 | none yet (epic 5 wires the timers), Wed | none (dispatch option only) | YT 16:9 + FB video 9:16 |
+| `recap` | Weekly Recap (dark) | 15:00 | 20:30 | none yet (epic 5), Sat; setup_cronjobs would create one | none (dispatch option only) | YT 16:9 |
+| `triggered` | Why Crypto Moved (dark) | trigger's due time | — | triggers.yml poll (30 min) dispatches it | none | YT 16:9 |
 
 - Defined in `config.yaml → sessions` (label, short, start_utc, focus text, `kind: gold` for gold,
   `kind: post` + `platforms: [facebook]` for news posts; video editions default to
@@ -262,6 +290,14 @@ lessons/                 curriculum.yaml (episode queue, list order) + glossary.
 basics/topics.yaml       Crypto Basics topic list (list order = queue): id, question (search question = title),
                          thumbnail (1-3 words), summary, points (≥ 4) [{term, text, diagram}], approved; ships 4 builder
                          DRAFTS (approved: false) until the owner approves via PR (crypto-basics entry 4)
+autopilot/triggers.py    trigger engine: evaluate (rules 1-4, coin gate), limits + data/triggers.json state, load(id|fixture),
+                         check (the 30-minute poll, `python -m autopilot.triggers check`)
+autopilot/triggered.py   triggered video: scene plan, narration + checks + fact-check, slides, draw_move_chart (16:9 + 9:16),
+                         packaging (title_for, thumbnail_words, render_thumbnail, metadata)
+autopilot/recap.py       Saturday recap: fetch, week_has_triggered, build (biggest 7-day moves), narration, slides, board
+                         thumbnail, metadata
+data/triggers.json       trigger state (written only by the trigger poll workflow)
+.github/workflows/triggers.yml    30-minute trigger poll (light install, commits data/triggers.json, dispatches `triggered`)
 autopilot/media.py       ffmpeg/ffprobe helpers
 assets/fonts/            Anton + Space Grotesk (SIL OFL) for thumbnails
 tests/test_offline.py    full offline render test with sample data + mocked LLM (incl. the lesson and basics editions)

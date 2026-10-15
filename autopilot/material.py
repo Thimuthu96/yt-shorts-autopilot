@@ -18,9 +18,26 @@ Format (version 1), documented for epics 3 and 4:
          "diagram": {<autopilot/diagrams.py spec>} | null,
          "facts": ["<approved fact>", …],              the only facts a Short of it may state
          "hooks": ["<hook question ≤ 60 chars>", …]}   at least one; no title rule broken
-      ]
+      ],
+      "market": {…}                                    market material only (below)
     }
 
+Market material (source kind "triggered" | "recap", epic-volatility-videos entry 9; epic 4's market Short reads it):
+segments may be empty (the 5-segment minimum applies to concept material only: Basics / Lesson) and a `market`
+section is required:
+
+    "market": {"numbers": {"<SYM>": {"name", "price", "change_24h", "change_7d", "source"}},   as fetched
+               "total_cap_change_24h": <float> | null,
+               "data_source": ["Coinbase", "CoinGecko"],      where those numbers came from
+               "credit": "Data provided by CoinGecko" | "",   a Short using CoinGecko numbers adds it
+               "series": {"<SYM>": [<price>, …]},             the chart series as fetched
+               "cause_headline": "<the cause>" | null,        recap: the first move's cause
+               "causes": {"<SYM>": "<headline>" | null},
+               "hooks": ["<hook question ≤ 60 chars>", …]}    at least 2 distinct, no title / narration rule broken
+
+    build_triggered(trigger, meta, entry) / build_recap(recap, meta, entry)   market material of a published
+                                         triggered / recap video (its fetched numbers, sources, series, causes and
+                                         ≥ 2 hook candidates)
     build_basics(topic, scenes, entry, cfg)  the material of one Basics episode: an overview segment (the
                                          question answered by the hook narration, the summary as its fact)
                                          + one concept segment per point (its narration without the
@@ -44,6 +61,9 @@ VERSION = 1
 MIN_SEGMENTS = 5  # owner, 2026-10-14: enough unused segments for ~10 evergreen Shorts a week
 MAX_HOOK = 60  # characters (packaging.md: a Short's title is its hook question, ≤ 60)
 KINDS = ("overview", "concept")
+MARKET_SOURCES = ("triggered", "recap")  # market material: a `market` section, no segment minimum
+MIN_HOOKS = 2  # market material: distinct hook candidates (epic 4 makes up to 2 Shorts from distinct ones)
+MARKET_FIELDS = ("numbers", "data_source", "credit", "series", "cause_headline", "hooks")
 FIELDS = ("version", "source", "youtube_id", "facebook_id", "published_at", "segments")
 SEGMENT_FIELDS = ("id", "kind", "term", "narration", "diagram", "facts", "hooks")
 FOLDER = Path("data") / "material"
@@ -117,6 +137,93 @@ def build_basics(topic: dict, scenes: list[dict], entry: dict, cfg: dict) -> dic
             "segments": segments}
 
 
+def _pct_words(v: float) -> str:
+    a = abs(v)
+    return f"{round(a)}" if a >= 1 else f"{a:.1f}"
+
+
+def _market_hooks(cands: list[str]) -> list[str]:
+    seen, out = set(), []
+    for h in cands:
+        h = _clean(h)
+        if _hook_ok(h) and h.lower() not in seen:
+            seen.add(h.lower())
+            out.append(h)
+    return out
+
+
+def _numbers(moves: dict) -> dict:
+    return {s: {k: m.get(k) for k in ("name", "price", "change_24h", "change_7d", "source")} for s, m in moves.items()}
+
+
+def _market_base(kind: str, id_: str, title: str, entry: dict, moves: dict, market: dict | None, sources: list,
+                 causes: dict, cause: str | None, hooks: list[str]) -> dict:
+    from autopilot.sources import CG_CREDIT
+    return {"version": VERSION, "source": {"kind": kind, "id": id_, "title": _clean(title)},
+            "youtube_id": entry.get("video_id"), "facebook_id": entry.get("fb_video_id"),
+            "published_at": entry.get("publish_at") or entry.get("date"), "segments": [],
+            "market": {"numbers": _numbers(moves),
+                       "total_cap_change_24h": (market or {}).get("total_cap_change_24h"),
+                       "data_source": list(sources), "credit": CG_CREDIT if "CoinGecko" in sources else "",
+                       "series": {s: list(m.get("series") or []) for s, m in moves.items()},
+                       "cause_headline": cause, "causes": causes, "hooks": _market_hooks(hooks)}}
+
+
+def build_triggered(trigger: dict, meta: dict, entry: dict) -> dict:
+    """The market material of a published triggered video."""
+    moves = trigger.get("moves") or {}
+    lead = moves.get(trigger.get("lead")) or {}
+    move = lead.get("change_24h")
+    if move is None:
+        move = (trigger.get("market") or {}).get("total_cap_change_24h") or 0.0
+    name = _clean(trigger.get("label")) or "Crypto"
+    up = move >= 0
+    hooks = [f"Why did {name} just {'jump' if up else 'drop'} {_pct_words(move)}%?",
+             f"What really moved {name}?", f"Why is {name} {'up' if up else 'down'} {_pct_words(move)}%?",
+             "Why did crypto just move?"]
+    cause = (trigger.get("cause") or {}).get("title")
+    return _market_base("triggered", trigger["id"], meta.get("title") or name, entry, moves, trigger.get("market"),
+                        trigger.get("data_sources") or [], {s: cause for s in trigger.get("coins") or []}, cause, hooks)
+
+
+def build_recap(recap: dict, meta: dict, entry: dict) -> dict:
+    """The market material of a published Saturday recap."""
+    moves = recap.get("moves") or {}
+    hooks = ["What moved crypto this week?"]
+    for s in recap.get("coins") or []:
+        m = moves[s]
+        up = m["change_7d"] >= 0
+        hooks.append(f"Why did {_clean(m['name'])} {'rise' if up else 'fall'} {_pct_words(m['change_7d'])}% this week?")
+    hooks.append("Which coins moved most this week?")
+    causes = {s: (c or {}).get("title") for s, c in (recap.get("causes") or {}).items()}
+    first = (recap.get("coins") or [None])[0]
+    return _market_base("recap", recap["id"], meta.get("title") or "This Week in Crypto", entry, moves,
+                        recap.get("market"), recap.get("data_sources") or [], causes, causes.get(first), hooks)
+
+
+def _market_problems(mk) -> list[str]:
+    if not isinstance(mk, dict):
+        return ["market material needs a `market` section"]
+    out = [f"market: missing field '{f}'" for f in MARKET_FIELDS if f not in mk]
+    nums = mk.get("numbers")
+    if not (isinstance(nums, dict) and nums):
+        out.append("market: numbers must name at least one coin")
+    else:
+        for sym, n in nums.items():
+            if not isinstance(n, dict) or not _clean(n.get("source")) or \
+                    all(n.get(k) is None for k in ("change_24h", "change_7d")):
+                out.append(f"market: {sym} needs a fetched move and its source")
+    src = mk.get("data_source")
+    if not (isinstance(src, list) and src and all(x in ("Coinbase", "CoinGecko") for x in src)):
+        out.append("market: data_source must list Coinbase and/or CoinGecko")
+    hooks = mk.get("hooks")
+    if not isinstance(hooks, list) or len({_clean(h).lower() for h in hooks}) < MIN_HOOKS:
+        out.append(f"market: needs at least {MIN_HOOKS} distinct hook candidates")
+    else:
+        out += [f"market: hook {h!r} is over {MAX_HOOK} characters or breaks a rule" for h in hooks if not _hook_ok(_clean(h))]
+    return out
+
+
 def validate(m) -> list[str]:
     """Every problem with one material file ([] = usable), one reason each."""
     if not isinstance(m, dict):
@@ -136,7 +243,10 @@ def validate(m) -> list[str]:
         out.append("segments must be a list")
         segs = []
     segs = segs or []
-    if len(segs) < MIN_SEGMENTS:
+    market = isinstance(src, dict) and src.get("kind") in MARKET_SOURCES
+    if market:
+        out += _market_problems(m.get("market"))
+    elif len(segs) < MIN_SEGMENTS:
         out.append(f"{len(segs)} segments (at least {MIN_SEGMENTS})")
     ids = set()
     for i, s in enumerate(segs, 1):

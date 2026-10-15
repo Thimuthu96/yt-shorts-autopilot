@@ -4922,6 +4922,18 @@ def test_triggered_packaging(cfg):
         assert len(h) == 1 and h[0]["kind"] == "triggered" and h[0]["trigger_id"] == t["id"], h
         assert h[0]["video_id"] == "T1" and h[0]["platforms"] == ["youtube"] and h[0]["title"] == title, h
         assert h[0]["session"] == "triggered" and h[0]["trigger"] == "manual", h
+        # Shorts material (entry 9): market section with the fetched numbers, their source and ≥ 2 hooks
+        from autopilot import material
+        mat = json.loads((tmp / "data" / "material" / f"triggered-{t['id']}.json").read_text())
+        assert material.validate(mat) == [] and mat["youtube_id"] == "T1" and mat["segments"] == [], mat["source"]
+        mk = mat["market"]
+        assert mk["numbers"]["BTC"]["change_24h"] == -7.2 and mk["numbers"]["BTC"]["source"] == "Coinbase", mk["numbers"]
+        assert mk["data_source"] == ["CoinGecko", "Coinbase"] and mk["credit"] == CG_CREDIT
+        assert len(mk["hooks"]) >= 2 and mk["hooks"][0] == "Why did Bitcoin just drop 7%?", mk["hooks"]
+        assert mk["cause_headline"] == t["cause"]["title"] and len(mk["series"]["BTC"]) == 168
+        assert material.validate(dict(mat, market=dict(mk, hooks=mk["hooks"][:1]))) == [
+            "market: needs at least 2 distinct hook candidates"]
+        assert any("market material needs" in r for r in material.validate(dict(mat, market=None)))
         assert app.main(["--session", "triggered", "--trigger", str(fixture)]) == 0 and len(yt) == 1, logs
         assert any("already published" in m for m in logs), logs
     finally:
@@ -5036,6 +5048,12 @@ def test_recap(cfg):
         e = json.loads(hist.read_text())["videos"][-1]
         assert e["kind"] == "recap" and e["video_id"] == "R1" and e["week"] == "2026-W42" and e["platforms"] == ["youtube"]
         assert e["coins"] == ["SUI", "SOL", "BTC"], e
+        from autopilot import material
+        mat = json.loads((tmp / "data" / "material" / "recap-recap-2026-W42.json").read_text())
+        assert material.validate(mat) == [] and mat["youtube_id"] == "R1", material.validate(mat)
+        mk = mat["market"]
+        assert mk["numbers"]["SUI"]["change_7d"] == 18.0 and mk["numbers"]["SUI"]["source"] == "CoinGecko"
+        assert mk["credit"] == CG_CREDIT and len(mk["hooks"]) >= 2 and mk["causes"]["SUI"] == news[0]["title"], mk
     finally:
         (app.ROOT, app.log, app.datetime, recap.fetch, recap.generate_json, recap.fact_check, voice.synthesize,
          youtube.upload_lesson, facebook.publish_video, youtube.upload) = saved

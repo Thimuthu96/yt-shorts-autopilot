@@ -687,15 +687,26 @@ def make_evergreen(cfg: dict, history: History, date: str, slot_key: str, pendin
     return made, pending, "lesson"
 
 
+def build_material(made: dict, entry: dict, cfg: dict) -> dict:
+    """The Shorts material of a made long video: Basics (concept segments) or triggered / recap (market)."""
+    kind = entry.get("kind")
+    if kind == "triggered":
+        return material.build_triggered(made["trigger"], made["meta"], entry)
+    if kind == "recap":
+        return material.build_recap(made["recap"], made["meta"], entry)
+    return material.build_basics(made["topic"], made["scenes"], entry, cfg)
+
+
 def save_material(made: dict, entry: dict, cfg: dict, workdir: Path) -> None:
-    """After a Basics publish: its Shorts material (autopilot/material.py) merged into data/material/
-    (a later run for a missed platform adds its id) and a copy in the run's folder, which the workflow
-    merges again after resetting to the latest main. A failure here is logged, never fatal (published)."""
+    """After a Basics / triggered / recap publish: its Shorts material (autopilot/material.py) merged into
+    data/material/ (a later run for a missed platform adds its id) and a copy in the run's folder, which the
+    workflow merges again after resetting to the latest main. A failure here is logged, never fatal (published)."""
     try:
-        m = material.build_basics(made["topic"], made["scenes"], entry, cfg)
+        m = build_material(made, entry, cfg)
         material.save(m, workdir / "material.json")
         path = material.write(m, ROOT)
-        log(f"Shorts material: {path.relative_to(ROOT)} ({len(m['segments'])} segments)")
+        log(f"Shorts material: {path.relative_to(ROOT)} ({len(m['segments'])} segments"
+            + (f", {len(m['market']['hooks'])} hooks" if m.get("market") else "") + ")")
     except Exception as e:  # the video is out; the material can be rebuilt from package.json
         log(f"Shorts material not saved: {e}")
 
@@ -789,8 +800,12 @@ def make_triggered(cfg: dict, history: History, trigger: dict, session_key: str,
         "voice": audio[0]["voice"] if audio else v["name"],
         "workdir": str(workdir.relative_to(ROOT)),
     }
-    return {"entry": entry, "videos": {layout.name: out}, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
+    made = {"entry": entry, "videos": {layout.name: out}, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
             "workdir": workdir, "trigger": trigger, "scenes": pkg["scenes"]}
+    problems = material.validate(build_material(made, {**entry, "video_id": "-"}, cfg))  # makeable before publishing
+    if problems:
+        raise RuntimeError(f"Triggered Shorts material ({trigger['id']}): {'; '.join(problems)}")
+    return made
 
 
 def publish_triggered(made: dict, pending: list[str], cfg: dict, section: str = "triggers",
@@ -859,8 +874,12 @@ def make_recap(cfg: dict, history: History, session_key: str, date: str) -> dict
              "session": session_key, "kind": "recap", "week": week["week"], "title": meta["title"],
              "coins": list(week["coins"]), "video_id": None, "seconds": round(total, 1),
              "voice": audio[0]["voice"] if audio else v["name"], "workdir": str(workdir.relative_to(ROOT))}
-    return {"entry": entry, "videos": {layout.name: out}, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
+    made = {"entry": entry, "videos": {layout.name: out}, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
             "workdir": workdir, "recap": week, "scenes": pkg["scenes"]}
+    problems = material.validate(build_material(made, {**entry, "video_id": "-"}, cfg))
+    if problems:
+        raise RuntimeError(f"Recap Shorts material ({week['id']}): {'; '.join(problems)}")
+    return made
 
 
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
@@ -1175,7 +1194,7 @@ def main(argv: list[str] | None = None) -> int:
         (workdir / "history_entry.json").write_text(json.dumps(entry, indent=2, ensure_ascii=False))
         history.add(entry)
         history.save()
-        if entry.get("kind") == "basics":
+        if entry.get("kind") in ("basics", "triggered", "recap"):
             save_material(made, entry, cfg, workdir)
     if failed:
         log(f"Not published on: {', '.join(failed)} (see the errors above)")
