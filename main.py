@@ -885,26 +885,37 @@ def make_recap(cfg: dict, history: History, session_key: str, date: str) -> dict
 
 
 def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict | None:
-    """One standalone Short (kind: short; autopilot/shorts.py) from the Shorts material in data/material/: the
-    picked segment → a new hook and 30-40 s script (Gemini + shorts.check_script, 3 attempts), the A/B voice with
-    pauses, 9:16 slides (hook card = frame 0, the segment's diagram with step reveal), render, metadata. None =
-    nothing to make (logged). Returns made for main.publish."""
-    picked = shorts.pick_concept(shorts.load_materials(ROOT, log=log), history)
+    """One standalone Short (kind: short; autopilot/shorts.py) from the Shorts material in data/material/
+    (shorts.pick: a market Short from a triggered / recap video under 3 days old with an unused hook candidate,
+    else a concept Short from the oldest Basics / Lesson material with an unused segment): a new 30-40 s script
+    (Gemini + shorts.check_script, 3 attempts; packaging rules), the A/B voice with pauses, 9:16 slides (hook card
+    = frame 0), render, metadata. None = nothing to make (logged). Returns made for main.publish."""
+    now = datetime.now(timezone.utc)
+    picked = shorts.pick(shorts.load_materials(ROOT, log=log), history, now, log=log)
     if picked is None:
-        log("Shorts: no Basics or Lesson material with an unused segment; nothing to publish in this slot.")
+        log("Shorts: no market hook or Basics / Lesson segment left unused; nothing to publish in this slot.")
         return None
-    m, seg = picked
-    log(f"Short: {shorts.key(m)} · segment {seg['id']} ({seg['term']})")
-    workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    what, m, which = picked
+    workdir = ROOT / "output" / now.strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
-    pkg = shorts.write_concept(cfg, m, seg, log=log)
-    (workdir / "package.json").write_text(json.dumps({"material": shorts.key(m), "segment": seg["id"], **pkg},
+    if what == "market":
+        seg, segment = None, shorts.hook_id(which)
+        log(f"Short (market): {shorts.key(m)} · {segment} ({m['market']['hooks'][which]})")
+        pkg = shorts.write_market(cfg, m, which, log=log)
+    else:
+        seg, segment = which, which["id"]
+        log(f"Short (concept): {shorts.key(m)} · segment {segment} ({seg['term']})")
+        pkg = shorts.write_concept(cfg, m, seg, log=log)
+    (workdir / "package.json").write_text(json.dumps({"material": shorts.key(m), "segment": segment, **pkg},
                                                      indent=2, ensure_ascii=False))
     v = ab_voice(cfg["voice"], history, session_key)
     log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
     audio, total = narrate(v, pkg["scenes"], cfg["video"]["max_seconds"], workdir, pauses=True,
                            what="Short narration", log=log)
-    pics, thumb = shorts.render_slides(cfg, m, seg, pkg, workdir)
+    if what == "market":
+        pics, thumb = shorts.render_market_slides(cfg, m, pkg, workdir)
+    else:
+        pics, thumb = shorts.render_slides(cfg, m, seg, pkg, workdir)
     reveal.time_steps(pics, pkg["scenes"], audio, log=log)
     music_files = sorted((ROOT / "music").glob("*.mp3"))
     out = workdir / "short.mp4"
@@ -914,11 +925,10 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
     fb_caption = shorts.reel_caption(meta, cfg)
     (workdir / "caption_fb.txt").write_text(fb_caption, encoding="utf-8")
-    entry = {"date": datetime.now(timezone.utc).isoformat(timespec="seconds"), "brief_date": date,
-             "session": session_key, "kind": "short", "short_kind": "concept", "material": shorts.key(m),
-             "segment": seg["id"], "source_video": m.get("youtube_id"), "hook": pkg["hook"], "title": meta["title"],
-             "video_id": None, "seconds": round(total, 1), "voice": audio[0]["voice"] if audio else v["name"],
-             "workdir": str(workdir.relative_to(ROOT))}
+    entry = {"date": now.isoformat(timespec="seconds"), "brief_date": date, "session": session_key, "kind": "short",
+             "short_kind": what, "material": shorts.key(m), "segment": segment, "source_video": m.get("youtube_id"),
+             "hook": pkg["hook"], "title": meta["title"], "video_id": None, "seconds": round(total, 1),
+             "voice": audio[0]["voice"] if audio else v["name"], "workdir": str(workdir.relative_to(ROOT))}
     return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption, "material": m}
 
 

@@ -7,6 +7,14 @@ and script, written from one segment of a long video's Shorts material (autopilo
     used_segments(history)               {(material key, segment id)} already used by published Shorts
     pick_concept(materials, history)     (material, segment) of the oldest Basics / Lesson material with an
                                          unused segment, else None
+    pick_market(materials, history, now, log)  (material, hook index) of a triggered / recap material under
+                                         MARKET_MAX_DAYS old with an unused hook candidate and fewer than
+                                         MAX_PER_MARKET Shorts, else None (an old or used-up source is logged)
+    pick(materials, history, now, log)   a market Short when one is due, else a concept Short, else None
+    write_market(cfg, m, idx, log)       the candidate is the hook; Gemini writes the scenes from the material's
+                                         fetched numbers + causes only (triggered.unknown_numbers); 3 attempts
+    render_market_slides(...)            hook card → the move chart (triggered.draw_move_chart), the cause → coins
+                                         flow diagram with step reveal, the key numbers
     opening_problems(text)               a subscribe ask in the first sentence → [reason] (narration-rules.md)
     check_script(cfg, pkg, known)        deterministic problems: every scene narrated, word bounds, narration
                                          rules, no subscribe ask in the opening, spoken numbers in the facts
@@ -27,7 +35,7 @@ and script, written from one segment of a long video's Shorts material (autopilo
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -44,6 +52,8 @@ CARD_WORDS = 4  # the hook card (frame 0): 1-4 words
 MIN_WORDS, MAX_WORDS = 70, 105  # cfg shorts.min_words / max_words: 30-40 s at +0%
 SCENES = ("hook", "explain", "payoff")
 CONCEPT_SOURCES = ("basics", "lesson")
+MARKET_MAX_DAYS = 3  # a market Short goes up within 3 days of its source video
+MAX_PER_MARKET = 2  # up to 2 market Shorts per source, each from a distinct hook candidate
 CHIPS = {"basics": "CRYPTO BASICS", "lesson": "TRADING LESSON", "triggered": "WHY IT MOVED", "recap": "WEEKLY RECAP"}
 DISCLAIMER = "Education only · Not financial advice"
 SUBSCRIBE_OPEN = re.compile(r"\bsubscri[bp]\w*|\bhit the (?:bell|like)\b|\blike and (?:share|follow)\b|"
@@ -102,6 +112,51 @@ def pick_concept(materials: list[dict], history) -> tuple[dict, dict] | None:
             if (key(m), s["id"]) not in used:
                 return m, s
     return None
+
+
+def _when(text: str) -> datetime | None:
+    try:
+        t = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def hook_id(idx: int) -> str:
+    return f"hook_{idx}"
+
+
+def pick_market(materials: list[dict], history, now: datetime, log=_log) -> tuple[dict, int] | None:
+    """The oldest market material still under MARKET_MAX_DAYS old with fewer than MAX_PER_MARKET Shorts and an
+    unused hook candidate → (material, hook index); a source over the age limit or used up is logged."""
+    used = used_segments(history)
+    count = {}
+    for v in _shorts(history):
+        count[v.get("material")] = count.get(v.get("material"), 0) + 1
+    for m in sorted((m for m in materials if m["source"]["kind"] in material.MARKET_SOURCES), key=_published):
+        k, at = key(m), _when(m.get("published_at"))
+        if at is None or now - at >= timedelta(days=MARKET_MAX_DAYS):
+            if at is not None and now - at < timedelta(days=MARKET_MAX_DAYS + 7):
+                log(f"Shorts: {k} is {(now - at).days} days old (market Shorts only within {MARKET_MAX_DAYS} days); "
+                    "refused")
+            continue
+        if count.get(k, 0) >= MAX_PER_MARKET:
+            log(f"Shorts: {k} already has {MAX_PER_MARKET} market Shorts; refused")
+            continue
+        free = [i for i in range(len(m["market"]["hooks"])) if (k, hook_id(i)) not in used]
+        if free:
+            return m, free[0]
+    return None
+
+
+def pick(materials: list[dict], history, now: datetime, log=_log):
+    """("market", material, hook index) when a market Short is due, else ("concept", material, segment), else
+    None."""
+    got = pick_market(materials, history, now, log)
+    if got:
+        return ("market", *got)
+    got = pick_concept(materials, history)
+    return ("concept", *got) if got else None
 
 
 # ─── script ────────────────────────────────────────────────────────────────
@@ -193,7 +248,7 @@ def card_problems(card: str) -> list[str]:
 
 
 def _card_fallback(pkg: dict, term: str) -> str:
-    for c in (_clean(term).upper() + "?", " ".join(_clean(pkg["hook"]).upper().split()[:CARD_WORDS])):
+    for c in ((_clean(term).upper() + "?") if term else "", " ".join(_clean(pkg["hook"]).upper().split()[:CARD_WORDS])):
         if not card_problems(c):
             return c
     return "KEY IDEA"
@@ -233,6 +288,56 @@ def concept_facts(m: dict, seg: dict) -> dict:
     return {"term": seg["term"], "facts": seg["facts"], "narration": seg["narration"], "title": m["source"]["title"]}
 
 
+def market_facts(m: dict) -> dict:
+    mk = m["market"]
+    return {"numbers": mk["numbers"], "total_cap_change_24h": mk.get("total_cap_change_24h"),
+            "causes": mk.get("causes"), "cause_headline": mk.get("cause_headline"), "data_source": mk["data_source"]}
+
+
+def _market_prompt(cfg: dict, m: dict, idx: int, problems: list[str]) -> str:
+    lo, hi = _bounds(cfg)
+    ch = cfg.get("channel") or {}
+    hook = m["market"]["hooks"][idx]
+    period = "this week" if m["source"]["kind"] == "recap" else "in the last 24 hours"
+    redo = ("\nYour last draft was rejected: " + "; ".join(problems) + "\n") if problems else ""
+    return f"""You write a NEW standalone YouTube Short ({lo}-{hi} words, 30-40 seconds) for
+{ch.get('display_name', 'CryptoFX Daily')}, a crypto data desk, about a market move {period}.
+HOOK: {hook}
+It answers that hook in its own words (the long video "{m['source']['title']}" is the source; never copy it).
+
+FETCHED DATA (the only facts and numbers you may state; change_24h / change_7d are percent):
+{json.dumps(market_facts(m), ensure_ascii=False, indent=1)}
+
+Write three scenes:
+- "hook": opens with the hook (a tension line with the real move).
+- "explain": why it moved, only from the headlines above; name the news first, then each coin as it comes up.
+- "payoff": the one number to remember, looping back to the hook.
+Rules:
+- Every number must round from a value above. No predictions, targets, prices to come, advice or buy/sell words.
+- Never ask viewers to subscribe, like or follow, and above all never in the opening.
+- No greetings, no "in this video", no sign-off. "card": 1-4 words for the opening card, e.g. "WHY -7%?".
+{rules.NARRATION_RULES}{redo}
+Return JSON: {{"card": "...", "scenes": [{{"id": "hook", "text": "..."}}, {{"id": "explain", "text": "..."}},
+{{"id": "payoff", "text": "..."}}]}}"""
+
+
+def write_market(cfg: dict, m: dict, idx: int, log=_log) -> dict:
+    """{hook (= hook candidate idx), card, scenes} for a market Short; numbers only from the material."""
+    from autopilot.triggered import unknown_numbers
+    problems: list[str] = []
+    known = market_facts(m)
+    for attempt in range(1, 4):
+        log(f"Writing the market Short script ({key(m)} · {hook_id(idx)}, attempt {attempt}/3)...")
+        pkg = _parse(generate_json(_market_prompt(cfg, m, idx, problems), _models(cfg), temperature=0.8))
+        pkg["hook"] = _clean(m["market"]["hooks"][idx])
+        problems = check_script(cfg, pkg, known, unknown=unknown_numbers)
+        if not problems:
+            log(f"Short script: {_words(pkg['scenes'])} words · hook: {pkg['hook']}")
+            return package(cfg, pkg, "", log)
+        log(f"Discarding Short draft: {'; '.join(problems)}")
+    raise RuntimeError(f"Could not write a valid market Short in 3 attempts: {'; '.join(problems)}")
+
+
 def write_concept(cfg: dict, m: dict, seg: dict, log=_log) -> dict:
     """{hook, card, scenes} for a concept Short of `seg`; a draft with any check_script problem is discarded
     (its problems are sent back); RuntimeError after 3 attempts."""
@@ -265,9 +370,12 @@ class _Ctx:
 
 
 def _ctx(cfg: dict, m: dict, layout: Layout = PORTRAIT) -> _Ctx:
+    footer = DISCLAIMER
+    if m.get("market"):
+        footer = f"Not financial advice · Data: {', '.join(m['market']['data_source'])}"
     return _Ctx(cfg, layout, _hex(cfg["video"].get("accent", "FFD400")),
                 cfg["channel"].get("display_name", "CryptoFX Daily").upper(),
-                CHIPS.get(m["source"]["kind"], "CRYPTO"), DISCLAIMER)
+                CHIPS.get(m["source"]["kind"], "CRYPTO"), footer)
 
 
 def _base(ctx: _Ctx):
@@ -374,11 +482,87 @@ def render_slides(cfg: dict, m: dict, seg: dict, pkg: dict, workdir: Path) -> tu
     return out, card
 
 
+def _pct(v: float) -> str:
+    return f"{'+' if v >= 0 else '−'}{abs(v):.1f}%"
+
+
+def _change(m: dict, sym: str):
+    n = m["market"]["numbers"].get(sym) or {}
+    first = "change_7d" if m["source"]["kind"] == "recap" else "change_24h"
+    return n.get(first) if n.get(first) is not None else n.get("change_7d" if first == "change_24h" else "change_24h")
+
+
+def lead_coin(m: dict) -> str:
+    """The coin whose move leads: the biggest move among coins with a chart series (else any coin)."""
+    nums, series = m["market"]["numbers"], m["market"].get("series") or {}
+    with_series = [s for s in nums if len(series.get(s) or []) >= 2] or list(nums)
+    return max(with_series, key=lambda s: abs(_change(m, s) or 0))
+
+
+def market_diagram(m: dict) -> dict:
+    """The cause → coins flow diagram (as triggered.diagram, from the material's numbers)."""
+    from autopilot.triggered import ALIASES
+    nums = m["market"]["numbers"]
+    coins = sorted(nums, key=lambda s: -abs(_change(m, s) or 0))[:3]
+    nodes = [{"label": "The news", "say": ["headline", "news"]}]
+    for i, sym in enumerate(coins):
+        name, ch = _clean(nums[sym].get("name")) or sym, _change(m, sym)
+        node = {"label": f"{name} {_pct(ch)}" if ch is not None else name, "arrow": "moved" if i == 0 else "and",
+                "say": [name] + ALIASES.get(sym, [])}
+        if re.fullmatch(r"[A-Z]{2,5}", sym):
+            node["coin"] = sym
+        nodes.append(node)
+    return {"type": "flow", "nodes": nodes}
+
+
+def chart_slide(ctx: _Ctx, m: dict, sym: str) -> tuple[Image.Image, tuple]:
+    """The lead coin's move (heading + drawn chart) → (image, the chart's draw-in box (x, y, w, h))."""
+    from autopilot.triggered import draw_move_chart
+    img, d = _base(ctx)
+    L = ctx.layout
+    x0, y0, x1, y1 = L.content_box
+    n = m["market"]["numbers"][sym]
+    ch = _change(m, sym)
+    period = "7 days" if m["source"]["kind"] == "recap" else "24 hours"
+    y = _flow(d, [{"text": f"{_clean(n.get('name')) or sym} {_pct(ch)}" if ch is not None else sym, "size": 110,
+                   "title": True, "fill": FG, "gap": 18, "max_lines": 2},
+                  {"text": f"over {period}", "size": 48, "bold": True, "fill": ctx.accent, "gap": 30, "max_lines": 1}],
+              L.content_box, L, who="market chart heading")
+    draw_move_chart(img, (x0, y, x1, y1), m["market"]["series"][sym], L, ctx.accent)
+    return img, (x0, y, x1 - x0, y1 - y)
+
+
+def render_market_slides(cfg: dict, m: dict, pkg: dict, workdir: Path) -> tuple[list[dict], Path]:
+    """The market Short's slides → (slides, hook card path)."""
+    workdir = Path(workdir)
+    workdir.mkdir(parents=True, exist_ok=True)
+    ctx = _ctx(cfg, m)
+    sym = lead_coin(m)
+    has_chart = len((m["market"].get("series") or {}).get(sym) or []) >= 2
+    follow, box = chart_slide(ctx, m, sym) if has_chart else (term_slide(ctx, pkg["hook"]), None)
+    cover, card = _cover(ctx, pkg.get("card") or pkg["hook"], follow, workdir)
+    cover["follow"]["reveal"] = box  # the move draws in left to right
+    spec = market_diagram(m)
+    path = workdir / "short_02.png"
+    diagram_slide(ctx, "Why it moved", spec).save(path)
+    slide = {"image": path, "reveal": None, "id": "explain"}
+    slide["base"], slide["steps"] = diagrams.step_layers(
+        lambda show: diagram_slide(ctx, "Why it moved", spec, show=show), diagrams.steps(spec), workdir, "short_02")
+    nums = m["market"]["numbers"]
+    lines = [f"{_clean(nums[s].get('name')) or s}: {_pct(_change(m, s))}" for s in list(nums)[:4]
+             if _change(m, s) is not None]
+    path3 = workdir / "short_03.png"
+    text_slide(ctx, "THE NUMBERS", " · ".join(lines)).save(path3)
+    return [cover, slide, {"image": path3, "reveal": None, "id": "payoff"}], card
+
+
 # ─── packaging ─────────────────────────────────────────────────────────────
 
 def hashtags(m: dict, seg: dict | None = None) -> list[str]:
-    tags = ["#Crypto", "#CryptoBasics" if m["source"]["kind"] == "basics" else "#Trading"]
-    text = " ".join([m["source"]["title"], (seg or {}).get("term", "")]).lower()
+    kind = m["source"]["kind"]
+    tags = ["#Crypto", {"basics": "#CryptoBasics", "lesson": "#Trading"}.get(kind, "#CryptoNews")]
+    names = " ".join(_clean(n.get("name")) for n in (m.get("market") or {}).get("numbers", {}).values())
+    text = " ".join([m["source"]["title"], (seg or {}).get("term", ""), names]).lower()
     for word, tag in (("bitcoin", "#Bitcoin"), ("ethereum", "#Ethereum"), ("ether", "#Ethereum")):
         if word in text and tag not in tags:
             tags.append(tag)
@@ -413,7 +597,9 @@ def metadata(cfg: dict, m: dict, seg: dict | None, pkg: dict, extra: list[str] |
     body = rules.without_disclosure(_no_tags(payoff), line)
     tags = hashtags(m, seg)
     link = source_link(m)
-    parts = [f"▶ Full video: {link}" if link else "", _no_tags(pkg["hook"]), body, *(extra or []),
+    mk = m.get("market") or {}
+    credits = [f"Data: {', '.join(mk['data_source'])}", mk.get("credit") or ""] if mk else []
+    parts = [f"▶ Full video: {link}" if link else "", _no_tags(pkg["hook"]), body, *(extra or []), *credits,
              f"From the full video: {m['source']['title']}",
              "⚠️ " + line, " ".join(tags)]
     return {"title": _no_tags(pkg["hook"])[:MAX_TITLE], "description": "\n\n".join(p for p in parts if p),

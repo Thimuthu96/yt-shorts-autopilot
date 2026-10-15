@@ -291,6 +291,7 @@ def main():
     test_short_concept(cfg)
     test_short_packaging(cfg)
     test_short_related(cfg)
+    test_short_market(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5266,6 +5267,75 @@ def test_short_related(cfg):
         e = r.history()[-1]
         assert e["source_video"] == "Xvid123" and not any("related" in k for k in e), e
     print("OK short related: youtu.be/<source> first line of the description + Reel caption, Studio task logged")
+
+
+def _market_material(tid: str = "t1", vid: str = "TV1", published: datetime | None = None,
+                     sources=("Coinbase", "CoinGecko"), kind: str = "triggered") -> dict:
+    """A triggered (or recap) Shorts material in epic 3 entry 9's format: Bitcoin −7.2%, Ethereum −4.5%."""
+    from autopilot.sources import CG_CREDIT
+    published = published or SHORT_NOW - timedelta(days=1)
+    return {"version": 1, "source": {"kind": kind, "id": tid, "title": "Why Bitcoin Just Dropped 7% (What Actually Happened)"},
+            "youtube_id": vid, "facebook_id": None, "published_at": published.isoformat(), "segments": [],
+            "market": {"numbers": {"BTC": {"name": "Bitcoin", "price": 62400, "change_24h": -7.2, "change_7d": -9.1,
+                                           "source": "Coinbase"},
+                                   "ETH": {"name": "Ethereum", "price": 2450, "change_24h": -4.5, "change_7d": -6.0,
+                                           "source": "Coinbase"}},
+                       "total_cap_change_24h": -5.1, "data_source": list(sources),
+                       "credit": CG_CREDIT if "CoinGecko" in sources else "",
+                       "series": {"BTC": [67200 - 100 * i for i in range(49)], "ETH": [2565 - 2.4 * i for i in range(49)]},
+                       "cause_headline": "Bitcoin slides as spot ETF outflows hit a record",
+                       "causes": {"BTC": "Bitcoin slides as spot ETF outflows hit a record", "ETH": None},
+                       "hooks": ["Why did Bitcoin just drop 7%?", "What really moved Bitcoin?", "Why is Bitcoin down 7%?"]}}
+
+
+def _market_answer(n: int, prompt: str, bad: bool = False) -> dict:
+    a = _short_answer(n, prompt)
+    a["scenes"][0]["text"] = "Bitcoin fell 7.2% in a day. " + a["scenes"][0]["text"]
+    a["scenes"][2]["text"] = f"Ethereum lost {'9.9' if bad else '4.5'}% too. " + a["scenes"][2]["text"]
+    a["card"] = "WHY -7%?"
+    return a
+
+
+def test_short_market(cfg):
+    """Market Short (entry 4): a triggered material under 3 days old renders a market Short (mocked LLM; a draft
+    with a number the material lacks is discarded) whose hook is the first candidate and whose spoken numbers
+    match the material; a second Short uses the other hook candidate; a third is refused (logged); the CoinGecko
+    credit is in the description exactly once for a CoinGecko-sourced material and absent for Coinbase-only; a
+    4-day-old source is refused with a log line."""
+    from autopilot import material, shorts
+    from autopilot.sources import CG_CREDIT
+    m = _market_material()
+    assert material.validate(m) == [], material.validate(m)
+    assert shorts.lead_coin(m) == "BTC" and shorts.market_diagram(m)["nodes"][1]["label"] == "Bitcoin −7.2%"
+
+    def answer(n, prompt):
+        return _market_answer(n, prompt, bad=n == 1)
+    with _ShortRun([m], answer=answer) as r:
+        assert r.run("--session", "short_a") == 0, r.logs[-5:]
+        assert any("Discarding Short draft" in x and "9.9" in x for x in r.logs), r.logs
+        assert "HOOK: Why did Bitcoin just drop 7%?" in r.prompts[0] and "62400" in r.prompts[0]
+        assert _probe_size(r.yt[0]["video"]) == (1080, 1920)
+        meta = r.yt[0]["meta"]
+        assert meta["title"] == "Why did Bitcoin just drop 7%?" and meta["description"].count(CG_CREDIT) == 1
+        assert r.fb[0]["caption"].count(CG_CREDIT) == 1 and "https://youtu.be/TV1" in meta["description"]
+        said = " ".join(sc["text"] for sc in r.spoken[-1])
+        assert "7.2%" in said and "4.5%" in said and "9.9" not in said
+        e = r.history()[-1]
+        assert e["short_kind"] == "market" and e["material"] == "triggered-t1" and e["segment"] == "hook_0", e
+        assert r.run("--session", "short_b") == 0
+        assert r.yt[1]["meta"]["title"] == "What really moved Bitcoin?" and r.history()[-1]["segment"] == "hook_1"
+        assert r.run("--session", "short_a") == 0 and len(r.yt) == 2
+        assert any("triggered-t1 already has 2 market Shorts; refused" in x for x in r.logs)
+        assert any("nothing to publish in this slot" in x for x in r.logs)
+    with _ShortRun([_market_material(tid="t2", sources=("Coinbase",))]) as r:
+        r.answer = _market_answer
+        assert r.run("--session", "short_a") == 0 and CG_CREDIT not in r.yt[0]["meta"]["description"]
+        assert "Data: Coinbase" in r.yt[0]["meta"]["description"]
+    with _ShortRun([_market_material(tid="t3", published=SHORT_NOW - timedelta(days=4))]) as r:
+        assert r.run("--session", "short_a") == 0 and not r.yt and not r.prompts
+        assert any("triggered-t3 is 4 days old" in x and "refused" in x for x in r.logs), r.logs
+    print("OK short market: own hook per candidate (2 max, third refused), numbers from the material only, move "
+          "chart + stepped cause diagram, CoinGecko credit once only when sourced, 4-day-old source refused")
 
 
 if __name__ == "__main__":
