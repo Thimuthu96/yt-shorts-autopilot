@@ -1049,6 +1049,38 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-15T15:12:41+00:00",
+      "brief_date": "2026-10-15",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "valid-trendlines",
+      "track": 1,
+      "title": "What Is a Valid Trendline? (Crypto Chart Example)",
+      "video_id": "7xiuZEJL6t8",
+      "fb_video_id": "1023304477390375",
+      "seconds": 294.2,
+      "examples": [
+        {
+          "asset": "BTC/USD",
+          "timeframe": "4H",
+          "start": "2026-10-05T00:00:00+00:00",
+          "end": "2026-10-14T08:00:00+00:00"
+        },
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-10-12T07:00:00+00:00",
+          "end": "2026-10-13T14:00:00+00:00"
+        }
+      ],
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
