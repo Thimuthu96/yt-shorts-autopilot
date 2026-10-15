@@ -911,7 +911,10 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     while True:  # originality guard: a segment whose script stays too close to an earlier Short's is passed over
         picked = shorts.pick(materials, history, now, log=log, skip=skip)
         if picked is None:
-            log("Shorts: no market hook or Basics / Lesson segment left unused; nothing to publish in this slot.")
+            log(f"Shorts: no market hook or Basics / Lesson segment left unused; the {session_key} slot is skipped "
+                "(nothing to publish in this slot).")
+            log("Shorts low-stock warning: 0 unused concept segments; publish Basics / Lesson episodes to refill "
+                "the Shorts material.")
             return None
         what, m, which = picked
         seg, segment = (None, shorts.hook_id(which)) if what == "market" else (which, which["id"])
@@ -924,6 +927,10 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
         except shorts.TooClose as e:
             log(f"Originality guard: {shorts.key(m)} · {segment}: {e}; moving to another segment")
             skip.add((shorts.key(m), segment))
+    left = shorts.stock(materials, history) - (what == "concept")
+    if left < shorts.LOW_STOCK:
+        log(f"Shorts low-stock warning: {left} unused concept segment(s) left after this Short (under "
+            f"{shorts.LOW_STOCK}); publish Basics / Lesson episodes to refill the Shorts material.")
     workdir = ROOT / "output" / now.strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
     (workdir / "package.json").write_text(json.dumps({"material": shorts.key(m), "segment": segment, **pkg},

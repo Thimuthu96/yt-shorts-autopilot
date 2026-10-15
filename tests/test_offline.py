@@ -294,6 +294,7 @@ def main():
     test_short_market(cfg)
     test_short_originality(cfg)
     test_short_lesson(cfg)
+    test_short_mix(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5090,9 +5091,9 @@ def _short_answer(n: int, prompt: str, first: str | None = None) -> dict:
 
     def text(k):
         return " ".join(rnd.choice(SHORT_VOCAB) for _ in range(k)).capitalize() + "."
-    hook = f"Why does {term.lower()} matter?"[:60].rstrip()
-    if not hook.endswith("?"):
-        hook = hook[:59].rstrip() + "?"
+    hook = f"Why does {term.lower()} matter for the {SHORT_VOCAB[n % len(SHORT_VOCAB)]}?"
+    if len(hook) > 60:
+        hook = f"What does the {SHORT_VOCAB[n % len(SHORT_VOCAB)]} part show?"
     return {"hook": hook, "card": "WHY IT MATTERS?",
             "scenes": [{"id": "hook", "text": first or f"Why does {term.lower()} matter? " + text(22)},
                        {"id": "explain", "text": text(15) + " " + text(15)},
@@ -5272,7 +5273,7 @@ def test_short_related(cfg):
 
 
 def _market_material(tid: str = "t1", vid: str = "TV1", published: datetime | None = None,
-                     sources=("Coinbase", "CoinGecko"), kind: str = "triggered") -> dict:
+                     sources=("Coinbase", "CoinGecko"), kind: str = "triggered", hooks=None) -> dict:
     """A triggered (or recap) Shorts material in epic 3 entry 9's format: Bitcoin −7.2%, Ethereum −4.5%."""
     from autopilot.sources import CG_CREDIT
     published = published or SHORT_NOW - timedelta(days=1)
@@ -5287,7 +5288,8 @@ def _market_material(tid: str = "t1", vid: str = "TV1", published: datetime | No
                        "series": {"BTC": [67200 - 100 * i for i in range(49)], "ETH": [2565 - 2.4 * i for i in range(49)]},
                        "cause_headline": "Bitcoin slides as spot ETF outflows hit a record",
                        "causes": {"BTC": "Bitcoin slides as spot ETF outflows hit a record", "ETH": None},
-                       "hooks": ["Why did Bitcoin just drop 7%?", "What really moved Bitcoin?", "Why is Bitcoin down 7%?"]}}
+                       "hooks": list(hooks or ["Why did Bitcoin just drop 7%?", "What really moved Bitcoin?",
+                                               "Why is Bitcoin down 7%?"])}}
 
 
 def _market_answer(n: int, prompt: str, bad: bool = False) -> dict:
@@ -5414,6 +5416,59 @@ def test_short_lesson(cfg):
         assert _probe_size(r.yt[0]["video"]) == (1080, 1920) and "https://youtu.be/L1" in r.yt[0]["meta"]["description"]
     print("OK short lesson: BTC lesson → validating material (key points + glossary terms + example) → concept "
           "Short; gold / EUR/USD / no-example lessons give none")
+
+
+def test_short_mix(cfg):
+    """Daily Shorts mix (entry 7): a simulated week of timed short_a / short_b runs (14 slots, shorts.enabled on)
+    gives 4 market Shorts when 2 market videos are published that week (none from a 5-day-old one) and only
+    evergreen Shorts when there are none, with no segment repeated; a slot's second timed run stops under the
+    once-per-slot guard; with every segment used a slot logs the skip and the low-stock warning and publishes
+    nothing."""
+    import main as app
+    week0 = SHORT_NOW.replace(hour=10, minute=0)
+    basics_m = [_basics_material(cfg, vid=f"B{i}", topic_id=f"topic-{i}",
+                                 published=(week0 - timedelta(days=20 - i)).isoformat()) for i in range(3)]
+    market = [_market_material(tid="m1", vid="M1", published=week0),
+              _market_material(tid="m2", vid="M2", published=week0 + timedelta(days=3),
+                               hooks=["Why did crypto slide again?", "What dragged Ethereum lower?"]),
+              _market_material(tid="m0", vid="M0", published=week0 - timedelta(days=5))]
+    saved = app.render.build_video
+    app.render.build_video = lambda audio, pics, cfg_, wd, out, music=None: Path(out).write_bytes(b"mp4") and 0.0
+
+    def week(materials):
+        def answer(n, prompt):
+            return (_market_answer if "HOOK: " in prompt else _short_answer)(n, prompt)
+        with _ShortRun(materials, answer=answer, update={"shorts": {"enabled": True}}) as r:
+            for d in range(7):
+                for sess, hour in (("short_a", 13), ("short_b", 23)):
+                    r.now = (SHORT_NOW + timedelta(days=d)).replace(hour=hour, minute=5)
+                    assert r.run("--session", sess, "--scheduled") == 0, r.logs[-6:]
+            r.now = (SHORT_NOW + timedelta(days=6)).replace(hour=23, minute=20)
+            assert r.run("--session", "short_b", "--scheduled") == 0
+            assert any("already published" in x for x in r.logs[-4:]), r.logs[-4:]
+            return r.history(), list(r.logs)
+    try:
+        hist, logs = week(basics_m + market)
+        assert len(hist) == 14 and len({(e["session"], e["brief_date"]) for e in hist}) == 14
+        kinds = [e["short_kind"] for e in hist]
+        assert kinds.count("market") == 4 and kinds.count("concept") == 10, kinds
+        assert {e["material"] for e in hist if e["short_kind"] == "market"} == {"triggered-m1", "triggered-m2"}
+        assert len({(e["material"], e["segment"]) for e in hist}) == 14
+        assert any("triggered-m0 is 5 days old" in x for x in logs)
+        assert [e["material"] for e in hist if e["short_kind"] == "concept"][:5] == ["basics-topic-0"] * 5
+        hist, _ = week(basics_m)
+        assert [e["short_kind"] for e in hist] == ["concept"] * 14 and len({(e["material"], e["segment"]) for e in hist}) == 14
+        used = [{"kind": "short", "session": "short_b", "brief_date": "2026-10-14", "material": "basics-topic-0",
+                 "segment": s_["id"], "hook": f"Old hook {s_['id']}?", "video_id": f"U{s_['id']}"}
+                for s_ in basics_m[0]["segments"]]
+        with _ShortRun([basics_m[0]], update={"shorts": {"enabled": True}}, history=used) as r:
+            assert r.run("--session", "short_a", "--scheduled") == 0 and not r.yt and not r.prompts
+            assert any("the short_a slot is skipped" in x for x in r.logs), r.logs[-4:]
+            assert any("low-stock warning: 0 unused" in x for x in r.logs) and len(r.history()) == len(used)
+    finally:
+        app.render.build_video = saved
+    print("OK short mix: simulated week → 4 market + 10 evergreen Shorts with 2 market videos (old one refused), "
+          "14 evergreen with none, no segment repeated, once per slot, empty stock → skip + low-stock warning")
 
 
 if __name__ == "__main__":

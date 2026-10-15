@@ -10,7 +10,10 @@ and script, written from one segment of a long video's Shorts material (autopilo
     pick_market(materials, history, now, log)  (material, hook index) of a triggered / recap material under
                                          MARKET_MAX_DAYS old with an unused hook candidate and fewer than
                                          MAX_PER_MARKET Shorts, else None (an old or used-up source is logged)
-    pick(materials, history, now, log)   a market Short when one is due, else a concept Short, else None
+    pick(materials, history, now, log)   the daily mix for short_a / short_b: a market Short when one is due
+                                         (about 4 a week from 2 market videos), else a concept Short from the oldest
+                                         Basics / Lesson material with an unused segment, else None (slot skipped)
+    stock(materials, history)            unused concept segments left; under LOW_STOCK → a low-stock warning
     write_market(cfg, m, idx, log)       the candidate is the hook; Gemini writes the scenes from the material's
                                          fetched numbers + causes only (triggered.unknown_numbers); 3 attempts
     render_market_slides(...)            hook card → the move chart (triggered.draw_move_chart), the cause → coins
@@ -59,6 +62,7 @@ SCENES = ("hook", "explain", "payoff")
 CONCEPT_SOURCES = ("basics", "lesson")
 MARKET_MAX_DAYS = 3  # a market Short goes up within 3 days of its source video
 MAX_PER_MARKET = 2  # up to 2 market Shorts per source, each from a distinct hook candidate
+LOW_STOCK = 7  # unused concept segments: under half a week of evergreen Shorts → a low-stock warning
 CHIPS = {"basics": "CRYPTO BASICS", "lesson": "TRADING LESSON", "triggered": "WHY IT MOVED", "recap": "WEEKLY RECAP"}
 DISCLAIMER = "Education only · Not financial advice"
 SUBSCRIBE_OPEN = re.compile(r"\bsubscri[bp]\w*|\bhit the (?:bell|like)\b|\blike and (?:share|follow)\b|"
@@ -147,6 +151,13 @@ def _limit(cfg: dict) -> float:
     return float((cfg.get("shorts") or {}).get("max_similarity", MAX_SIMILARITY))
 
 
+def stock(materials: list[dict], history) -> int:
+    """Unused segments of the Basics / Lesson material (what evergreen concept Shorts can still be made from)."""
+    used = used_segments(history)
+    return sum((key(m), s["id"]) not in used for m in materials if m["source"]["kind"] in CONCEPT_SOURCES
+               for s in m["segments"])
+
+
 def pick_concept(materials: list[dict], history, skip: set | None = None) -> tuple[dict, dict] | None:
     """The oldest Basics / Lesson material's first unused segment (concept segments before the overview)."""
     used = used_segments(history) | set(skip or ())
@@ -181,6 +192,8 @@ def pick_market(materials: list[dict], history, now: datetime, log=_log,
         count[v.get("material")] = count.get(v.get("material"), 0) + 1
     for m in sorted((m for m in materials if m["source"]["kind"] in material.MARKET_SOURCES), key=_published):
         k, at = key(m), _when(m.get("published_at"))
+        if at is not None and at > now:  # scheduled (publishAt) and not public yet
+            continue
         if at is None or now - at >= timedelta(days=MARKET_MAX_DAYS):
             if at is not None and now - at < timedelta(days=MARKET_MAX_DAYS + 7):
                 log(f"Shorts: {k} is {(now - at).days} days old (market Shorts only within {MARKET_MAX_DAYS} days); "

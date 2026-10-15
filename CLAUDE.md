@@ -135,6 +135,23 @@ sources.gather(kind)  prices + gold + news + calendar + macro    (free, no keys)
                             move_1, fact-checked; title "This Week in Crypto: What Moved and Why", mini-board thumbnail
   market Shorts material    triggered / recap publishes write data/material/<kind>-<id>.json with a `market` section
                             (fetched numbers + source, data_source, credit, series, causes, ≥ 2 hooks; no segment minimum)
+  standalone Shorts (kind: short, short_a 13:00 / short_b 23:00 UTC, YT Short + FB Reel; dark: shorts.enabled false;
+  autopilot/shorts.py + lesson_material.py; main.make_short → main.publish):
+  → shorts.pick             daily mix: a market Short when a triggered / recap material < 3 days old (not future) has an
+                            unused hook candidate (≤ 2 per source, distinct candidates, hook text never re-used), else the
+                            oldest Basics / Lesson material's first unused segment (lesson material rebuilt from history's
+                            BTC / ETH lessons + curriculum + glossary); nothing → slot skipped + low-stock warning (also
+                            when < 7 unused segments remain)
+  → write_concept / write_market  Gemini: hook / explain / payoff, 70-105 words, narration rules, no subscribe ask in
+                            the first sentence, numbers only from the material; originality guard (MinHash `fingerprint`
+                            in history, ≥ 0.5 overlap → one rewrite → next segment); title = hook ≤ 60 chars + title rules
+                            (one rewrite, else "Short packaging", exit 1); card 1-4 words
+  → 9:16 slides             hook card = frame 0 / thumbnail; concept: term → diagram (step reveal) → payoff; market:
+                            move chart draw-in → cause → coins diagram → numbers; A/B voice logged as `voice`
+  → metadata                first line "▶ Full video: https://youtu.be/<source>", hook, payoff, data + CoinGecko credit
+                            once (market), disclosure once, hashtags (#Shorts last); Reel caption = same without #Shorts;
+                            after upload a "Studio task: set the related video" line (no API field)
+  → history.json            kind short, short_kind, material, segment (point_n / hook_n), source_video, hook, fingerprint
 ```
 
 Entry point: `main.py`. Producing is in `make_brief()` / `make_post()`, publishing in
@@ -156,6 +173,7 @@ rule and the once-per-edition-per-day-per-platform guard:
 | `lesson` | Trading Lesson | 15:00 | 20:30 | cron-job.org 20:30 Asia/Colombo, Thu | `17 15 * * 4` | YT 16:9 + FB video 9:16 |
 | `basics` | Crypto Basics (dark) | 15:00 | 20:30 | none yet (epic 5 wires the timers), Wed | none (dispatch option only) | YT 16:9 + FB video 9:16 |
 | `recap` | Weekly Recap (dark) | 15:00 | 20:30 | none yet (epic 5), Sat; setup_cronjobs would create one | none (dispatch option only) | YT 16:9 |
+| `short_a` / `short_b` | Standalone Shorts (dark) | 13:00 / 23:00 | 18:30 / 04:30 | none yet (epic 5) | none (dispatch options) | YT Short + FB Reel |
 | `triggered` | Why Crypto Moved (dark) | trigger's due time | — | triggers.yml poll (30 min) dispatches it | none | YT 16:9 |
 
 - Defined in `config.yaml → sessions` (label, short, start_utc, focus text, `kind: gold` for gold,
