@@ -974,6 +974,62 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-15T09:09:12+00:00",
+      "brief_date": "2026-10-15",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "point_1",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "What Are Swing Highs and Swing Lows?",
+      "fingerprint": [
+        "023cbe8e",
+        "03f825f8",
+        "0019b20e",
+        "00afc353",
+        "05bf0396",
+        "04ccef8f",
+        "026313ba",
+        "015381ce",
+        "028ef159",
+        "013179ae",
+        "04936489",
+        "009bc704",
+        "03fecb40",
+        "0074d06b",
+        "00522a17",
+        "01b04c87",
+        "02b0aeac",
+        "014f5f60",
+        "00cfd0c5",
+        "02755a73",
+        "04b4f1e5",
+        "003fc14f",
+        "03a96a28",
+        "02730ea6",
+        "012de6d2",
+        "0214ac7e",
+        "1358a142",
+        "080f24e7",
+        "014ad99a",
+        "00abc3ef",
+        "025b58ad",
+        "09c5937a"
+      ],
+      "title": "What Are Swing Highs and Swing Lows?",
+      "video_id": "kN5eJHqyCDk",
+      "seconds": 36.5,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1114714581208600",
+      "trigger": "manual",
+      "counts": false,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
