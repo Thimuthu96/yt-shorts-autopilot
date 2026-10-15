@@ -289,6 +289,7 @@ def main():
     test_triggered_packaging(cfg)
     test_recap(cfg)
     test_short_concept(cfg)
+    test_short_packaging(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5205,6 +5206,48 @@ def test_short_concept(cfg):
     print("OK short concept: Basics material → own hook + script (subscribe-first draft discarded), 9:16 render with "
           "the stepped diagram, YouTube Short + Reel via main.publish, history kind short + material/segment/voice, "
           "dark timed skip, workflow options")
+
+
+def test_short_packaging(cfg):
+    """Short packaging (entry 2): a 61-character or dated hook title is rewritten once (and the rewrite is used),
+    one still breaking a rule stops the Short (exit 1, nothing published); the title carries no hashtag, the
+    description carries the hashtags (#Shorts last) and the disclosure line exactly once, the Reel caption the
+    same without #Shorts; frame 0 is the hook card (1-4 words)."""
+    from autopilot import shorts
+    long_hook = "Why does an exchange-traded fund matter to an everyday saver?"
+    assert len(long_hook) == 61 and shorts.title_problems(long_hook)
+    assert shorts.title_problems("What changed for Bitcoin ETFs on Oct 15, 2026?")
+    assert not shorts.title_problems("What is an exchange-traded fund?")
+    assert not shorts.card_problems("WHAT IS AN ETF?") and shorts.card_problems("WHAT IS AN ETF REALLY?")
+    m = _basics_material(cfg)
+    line = rules.disclosure(cfg, "shorts")
+
+    def answer(n, prompt):
+        if "Rewrite the title" in prompt:
+            return {"hook": "What is an exchange-traded fund?", "card": "WHAT IS AN ETF?"}
+        return dict(_short_answer(n, prompt), hook=long_hook, card="")
+    with _ShortRun([m], answer=answer) as r:
+        assert r.run("--session", "short_a") == 0, r.logs[-5:]
+        assert any("Short title rewrite" in x for x in r.logs) and sum("Rewrite the title" in p for p in r.prompts) == 1
+        meta = r.yt[0]["meta"]
+        assert meta["title"] == "What is an exchange-traded fund?" and "#" not in meta["title"]
+        d = meta["description"]
+        assert d.count(line) == 1 and d.rstrip().endswith("#Shorts") and "#Crypto" in d, d
+        cap = r.fb[0]["caption"]
+        assert cap.count(line) == 1 and "#Shorts" not in cap and "#Crypto" in cap, cap
+        check_opening(r.yt[0]["video"], r.yt[0]["video"].parent, hold=0.85)  # mocked voice: a short hook scene
+        assert r.fb[0]["cover"].name == "thumbnail.jpg"
+        assert json.loads((r.yt[0]["video"].parent / "package.json").read_text())["card"] == "WHAT IS AN ETF?"
+
+    def dated(n, prompt):
+        if "Rewrite the title" in prompt:
+            return {"hook": "What changed for Bitcoin ETFs on Oct 15?", "card": "ETF NEWS"}
+        return dict(_short_answer(n, prompt), hook="What changed for Bitcoin ETFs on Oct 15?")
+    with _ShortRun([m], answer=dated) as r:
+        assert r.run("--session", "short_a") == 1
+        assert any("Short packaging" in x for x in r.logs) and not r.yt and not r.fb and not r.history()
+    print("OK short packaging: long title rewritten once, dated title stops the Short, hashtags + disclosure once "
+          "in the description and Reel caption (no #Shorts there), frame 0 = hook card")
 
 
 if __name__ == "__main__":

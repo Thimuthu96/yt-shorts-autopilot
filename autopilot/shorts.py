@@ -13,7 +13,13 @@ and script, written from one segment of a long video's Shorts material (autopilo
     write_concept(cfg, m, seg, log)      Gemini writes {hook, scenes: hook / explain / payoff}; 3 attempts
     render_slides(cfg, m, seg, pkg, wd)  9:16: the hook card (frame 0, `cover`) → the term, the segment's diagram
                                          with step reveal (diagrams.step_layers) or its fact, the payoff card
-    metadata(cfg, m, seg, pkg)           title = hook, description, tags; reel_caption(meta, cfg) for Facebook
+    title_problems(hook) / card_problems(card)   packaging.md Short row: the hook question is the title (≤ 60
+                                         characters, rules.title_problems); the hook card (frame 0) carries 1-4 words
+    package(cfg, pkg, ctx, log)          a hook breaking a title rule is rewritten once by Gemini, else
+                                         RuntimeError ("Short packaging"); a bad card falls back to the term / hook
+    metadata(cfg, m, seg, pkg)           title = hook (no hashtag); description = hook, payoff, source, the
+                                         disclosure line once, hashtags (#Shorts last); reel_caption(meta, cfg):
+                                         the same metadata without #Shorts
 """
 import json
 import re
@@ -25,11 +31,13 @@ from PIL import Image, ImageDraw
 
 from autopilot import diagrams, material, rules
 from autopilot.basics import unknown_numbers as _concept_unknown
-from autopilot.lesson_slides import BG, FG, MUTED, PORTRAIT, Layout, _flow, _font
+from autopilot.lesson_slides import BG, FG, MUTED, PORTRAIT, Layout, _flow, _font, _title_font
 from autopilot.llm import generate_json
 from autopilot.script import _models
 from autopilot.slides import PANEL, _hex, _wrap
 
+MAX_TITLE = 60  # packaging.md: a Short's title is its hook question, 60 characters or fewer
+CARD_WORDS = 4  # the hook card (frame 0): 1-4 words
 MIN_WORDS, MAX_WORDS = 70, 105  # cfg shorts.min_words / max_words: 30-40 s at +0%
 SCENES = ("hook", "explain", "payoff")
 CONCEPT_SOURCES = ("basics", "lesson")
@@ -120,8 +128,6 @@ def check_script(cfg: dict, pkg: dict, known: dict, unknown=_concept_unknown) ->
     scenes = pkg.get("scenes") or []
     texts = {s.get("id"): _clean(s.get("text")) for s in scenes}
     out = [f"scene '{k}': no narration" for k in SCENES if not texts.get(k)]
-    if not _clean(pkg.get("hook")):
-        out.append("no hook")
     n = _words(scenes)
     if not lo <= n <= hi:
         out.append(f"{n} words (target {lo}-{hi})")
@@ -163,9 +169,61 @@ Rules:
 - Never ask viewers to subscribe, like or follow, and above all never in the opening.
 - No greetings, no "in this video", no sign-off.
 - "hook" (the title): a question of 60 characters or fewer, no date, no hashtag, no hype words.
+- "card": 1-4 words for the opening card (frame 0), e.g. "WHAT IS AN ETF?".
 {rules.NARRATION_RULES}{redo}
-Return JSON: {{"hook": "...", "scenes": [{{"id": "hook", "text": "..."}}, {{"id": "explain", "text": "..."}},
+Return JSON: {{"hook": "...", "card": "...", "scenes": [{{"id": "hook", "text": "..."}}, {{"id": "explain", "text": "..."}},
 {{"id": "payoff", "text": "..."}}]}}"""
+
+
+def title_problems(hook: str) -> list[str]:
+    hook = _clean(hook)
+    out = [] if hook else ["no hook"]
+    if len(hook) > MAX_TITLE:
+        out.append(f"title is {len(hook)} characters (at most {MAX_TITLE})")
+    if hook and not hook.endswith("?"):
+        out.append("title must be the hook question (ends with '?')")
+    return out + [f"title {r}" for r in rules.title_problems(hook)]
+
+
+def card_problems(card: str) -> list[str]:
+    return rules.thumbnail_text_problems(_clean(card), max_words=CARD_WORDS) if _clean(card) else ["no card words"]
+
+
+def _card_fallback(pkg: dict, term: str) -> str:
+    for c in (_clean(term).upper() + "?", " ".join(_clean(pkg["hook"]).upper().split()[:CARD_WORDS])):
+        if not card_problems(c):
+            return c
+    return "KEY IDEA"
+
+
+def _rewrite_prompt(pkg: dict, problems: list[str], context: str) -> str:
+    return f"""Rewrite the title of a YouTube Short. It is the Short's hook question, read before the video plays.
+Current title: "{pkg['hook']}"
+Problems: {'; '.join(problems)}
+What the Short says: {context}
+Rules: a question of {MAX_TITLE} characters or fewer, ending with "?"; no date, no session or time stamp, no hashtag,
+no price target, no "10x", no "explode", no hype. Also give 1-{CARD_WORDS} words for the opening card.
+Return JSON: {{"hook": "...", "card": "..."}}"""
+
+
+def package(cfg: dict, pkg: dict, term: str, log=_log) -> dict:
+    """The packaging rules on a written script (in place): a title breaking them is rewritten once (Gemini),
+    then RuntimeError("Short packaging: …"); the card words fall back to the term or the hook's first words."""
+    problems = title_problems(pkg["hook"])
+    if problems:
+        log(f"Short title rewrite ({pkg['hook']!r}): {'; '.join(problems)}")
+        context = " ".join(s["text"] for s in pkg["scenes"])
+        got = generate_json(_rewrite_prompt(pkg, problems, context), _models(cfg), temperature=0.5) or {}
+        hook, card = _clean(got.get("hook")), _clean(got.get("card"))
+        again = title_problems(hook)
+        if again:
+            raise RuntimeError(f"Short packaging: the title {hook or pkg['hook']!r} still breaks the rules after one "
+                               f"rewrite ({'; '.join(again)})")
+        pkg["hook"], pkg["card"] = hook, card or pkg.get("card")
+    if card_problems(pkg.get("card") or ""):
+        pkg["card"] = _card_fallback(pkg, term)
+    log(f"Short title: {pkg['hook']} · card: {pkg['card']}")
+    return pkg
 
 
 def concept_facts(m: dict, seg: dict) -> dict:
@@ -186,7 +244,7 @@ def write_concept(cfg: dict, m: dict, seg: dict, log=_log) -> dict:
                 if s["id"] == "explain":
                     s["term"] = seg["term"]
             log(f"Short script: {_words(pkg['scenes'])} words · hook: {pkg['hook']}")
-            return pkg
+            return package(cfg, pkg, seg["term"], log)
         log(f"Discarding Short draft: {'; '.join(problems)}")
     raise RuntimeError(f"Could not write a valid Short in 3 attempts: {'; '.join(problems)}")
 
@@ -230,23 +288,34 @@ def _base(ctx: _Ctx):
     return img, d
 
 
+def _fit(d, text: str, size: int, width: int) -> int:
+    """The largest title size ≤ `size` at which the longest word of `text` fits `width` (words never break)."""
+    longest = max(_clean(text).split() or [""], key=len)
+    while size > 40 and d.textlength(longest, font=_title_font(size)) > width:
+        size -= 6
+    return size
+
+
 def hook_card(ctx: _Ctx, text: str) -> Image.Image:
-    """Frame 0: the hook in huge type on the channel ground (no captions over it)."""
+    """Frame 0: the hook card words in huge type over an accent bar (no captions over it)."""
     img, d = _base(ctx)
     L = ctx.layout
     x0, y0, x1, y1 = L.content_box
-    _flow(d, [{"text": _clean(text).upper(), "size": 190, "title": True, "fill": FG, "gap": 40, "max_lines": 5},
-              {"text": "▬▬▬", "size": 60, "bold": True, "fill": ctx.accent, "max_lines": 1}],
-          (x0, y0, x1, y1), L, valign="center", max_scale=1.0, who="hook card")
+    text = _clean(text).upper()
+    y = _flow(d, [{"text": text, "size": _fit(d, text, 190, x1 - x0), "title": True, "fill": FG, "gap": 40,
+                   "max_lines": 5}], (x0, y0, x1, y1 - 60), L, valign="center", who="hook card")
+    d.rectangle([x0, y, x0 + 240, y + 22], fill=ctx.accent)
     return img
 
 
 def term_slide(ctx: _Ctx, term: str, sub: str = "") -> Image.Image:
     img, d = _base(ctx)
-    items = [{"text": term, "size": 130, "title": True, "fill": FG, "gap": 30, "max_lines": 3}]
+    x0, _, x1, _ = ctx.layout.content_box
+    items = [{"text": term, "size": _fit(d, term, 130, x1 - x0), "title": True, "fill": FG, "gap": 30,
+              "max_lines": 3}]
     if sub:
         items.append({"text": sub, "size": 56, "bold": True, "fill": ctx.accent, "max_lines": 3})
-    _flow(d, items, ctx.layout.content_box, ctx.layout, valign="center", max_scale=1.2, who="term slide")
+    _flow(d, items, ctx.layout.content_box, ctx.layout, valign="center", who="term slide")
     return img
 
 
@@ -254,7 +323,8 @@ def diagram_slide(ctx: _Ctx, term: str, spec: dict, show=None) -> Image.Image:
     img, d = _base(ctx)
     L = ctx.layout
     x0, y0, x1, y1 = L.content_box
-    y = _flow(d, [{"text": term, "size": 88, "title": True, "fill": FG, "max_lines": 2}], L.content_box, L,
+    y = _flow(d, [{"text": term, "size": _fit(d, term, 88, x1 - x0), "title": True, "fill": FG, "max_lines": 2}],
+              L.content_box, L,
               who="Short diagram heading")
     diagrams.draw(img, (x0, y + DIAGRAM_GAP, x1, y1), spec, L, ctx.accent, show=show, who="Short diagram")
     return img
@@ -312,19 +382,33 @@ def hashtags(m: dict, seg: dict | None = None) -> list[str]:
     return tags[:4] + ["#Shorts"]
 
 
-def metadata(cfg: dict, m: dict, seg: dict, pkg: dict) -> dict:
+HASHTAG = re.compile(r"(?<![\w&])#\w+")
+
+
+def _no_tags(text: str) -> str:
+    return _clean(HASHTAG.sub("", text or ""))
+
+
+def metadata(cfg: dict, m: dict, seg: dict | None, pkg: dict, extra: list[str] | None = None) -> dict:
+    """YouTube metadata: title = the hook question (packaging rules already checked; any hashtag removed);
+    description = hook → payoff → `extra` lines → source → the disclosure line once → hashtags (#Shorts last)."""
     line = rules.disclosure(cfg, "shorts")
-    body = rules.without_disclosure(_clean(" ".join(s["text"] for s in pkg["scenes"] if s["id"] == "payoff")), line)
+    payoff = " ".join(s["text"] for s in pkg["scenes"] if s["id"] == pkg["scenes"][-1]["id"])
+    body = rules.without_disclosure(_no_tags(payoff), line)
     tags = hashtags(m, seg)
-    description = "\n\n".join(p for p in (pkg["hook"], body, f"From: {m['source']['title']}", "⚠️ " + line,
-                                          " ".join(tags)) if p)
-    return {"title": pkg["hook"], "description": description,
-            "tags": [t.lstrip("#") for t in tags if t != "#Shorts"] + [seg["term"]]}
+    parts = [_no_tags(pkg["hook"]), body, *(extra or []), f"From the full video: {m['source']['title']}",
+             "⚠️ " + line, " ".join(tags)]
+    return {"title": _no_tags(pkg["hook"])[:MAX_TITLE], "description": "\n\n".join(p for p in parts if p),
+            "tags": [t.lstrip("#") for t in tags if t != "#Shorts"] + ([seg["term"]] if seg else []),
+            "hashtags": tags}
 
 
 def reel_caption(meta: dict, cfg: dict) -> str:
-    """The Facebook Reel caption from the same metadata (no #Shorts)."""
-    return "\n\n".join(p for p in meta["description"].replace(" #Shorts", "").split("\n\n") if p).strip()
+    """The Facebook Reel caption from the same metadata: no #Shorts, the disclosure line once, < 2,200 chars."""
+    parts = [p for p in meta["description"].split("\n\n") if p]
+    tags = " ".join(t for t in meta.get("hashtags", []) if t.lower() != "#shorts")
+    body = "\n\n".join(parts[:-1] if parts and parts[-1].startswith("#") else parts)
+    return (body[:2190 - len(tags) - 2].rstrip() + "\n\n" + tags).strip()
 
 
 def now_iso(now: datetime) -> str:
