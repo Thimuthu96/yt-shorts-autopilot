@@ -1,0 +1,68 @@
+name: Trigger check
+run-name: "${{ github.event_name == 'schedule' && 'Poll' || 'Manual poll' }}"
+
+# The trigger engine (CAP-4): every 30 minutes, off the busy :00/:30 marks, evaluate the four trigger rules
+# (autopilot/triggers.py), record them in data/triggers.json (only this job writes it) and, when a trigger is
+# due and triggers.enabled is true, dispatch the Shorts autopilot's `triggered` edition with its id.
+# While triggers.enabled is false it only evaluates and logs. Public repo: Actions minutes are free.
+on:
+  schedule:
+    - cron: "13,43 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write             # commits data/triggers.json
+  actions: write              # dispatches autopilot.yml
+
+concurrency:
+  group: trigger-check        # one poll at a time; a slow one never overlaps the next
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python packages (light, no video tools)
+        run: pip install -q "requests>=2.32" "pyyaml>=6.0" "feedparser>=6.0"
+
+      - name: Check the triggers
+        id: check
+        env:
+          PYTHONUNBUFFERED: "1"
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: python -m autopilot.triggers check
+
+      - name: Save trigger state
+        id: save
+        run: |
+          cp data/triggers.json "$RUNNER_TEMP/triggers.json"
+          git config user.name "shorts-autopilot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Other runs may have pushed meanwhile (history saves): start from the latest main, put our state back.
+          for attempt in 1 2 3 4 5; do
+            git fetch -q origin "$GITHUB_REF_NAME"
+            git reset -q --hard "origin/$GITHUB_REF_NAME"
+            cp "$RUNNER_TEMP/triggers.json" data/triggers.json
+            git add data/triggers.json
+            if git diff --cached --quiet; then echo "Trigger state unchanged"; exit 0; fi
+            git commit -qm "Trigger check"
+            if git push -q origin "HEAD:$GITHUB_REF_NAME"; then echo "Trigger state saved"; exit 0; fi
+            echo "Push rejected (attempt $attempt), retrying"
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not save data/triggers.json"
+          exit 1
+
+      - name: Dispatch the triggered edition
+        if: steps.check.outputs.due != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DUE: ${{ steps.check.outputs.due }}
+        run: gh workflow run autopilot.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f session=triggered -f trigger="$DUE" -f scheduled=true

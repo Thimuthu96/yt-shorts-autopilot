@@ -3,6 +3,7 @@ episodes:
   - id: swing-structure
     track: 0
     title: "Structure #1: Swing Points and HH/HL/LH/LL"
+    search_title: "What Are Swing Highs and Swing Lows? (Crypto Chart Example)"
     key_points:
       - "A swing high has lower highs on both sides; a swing low has higher lows on both sides."
       - "Higher highs and higher lows mark an uptrend; lower highs and lower lows a downtrend."
@@ -13,6 +14,7 @@ episodes:
   - id: bos-vs-choch
     track: 0
     title: "Structure #2: BOS vs CHoCH"
+    search_title: "What Is a Break of Structure? (Crypto Chart Example)"
     key_points:
       - "A BOS closes beyond the last swing in the trend's direction and continues the trend."
       - "A CHoCH is the first close beyond the last swing against the trend."
@@ -23,6 +25,7 @@ episodes:
   - id: top-down-reading
     track: 0
     title: "Structure #3: Top-Down Reading"
+    search_title: "What Is Top-Down Analysis? (Crypto Chart Example)"
     key_points:
       - "Read the higher timeframe's structure first: its swings set the trend you are reading inside."
       - "Then read the lower timeframe's swings inside the higher timeframe's last leg and check whether they agree with it."

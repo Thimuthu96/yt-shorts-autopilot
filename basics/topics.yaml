@@ -1,0 +1,250 @@
+# Crypto Basics topic list (epic crypto-basics, entry 3). The basics edition publishes the first topic in
+# this list (list order = the queue) that is `approved: true` and not yet published (basics.pick; a published
+# topic is never repeated). basics.validate_topics checks every topic (tests/test_offline.py runs it):
+#
+#   id         kebab-case slug, unique; the history entry's `topic`
+#   question   the video title: the search question verbatim (packaging.md), with a "?", at most 100
+#              characters, no date, session stamp, hashtag, price target, "10x" or "EXPLODE"; unique
+#   thumbnail  1-3 words for the thumbnail, same title rules
+#   summary    the description text; passes rules.narration_problems
+#   points     the approved points (the narration may explain only these): term + text (both pass
+#              rules.narration_problems: no first person, price target, prediction, buy/sell call or date)
+#              + a drawn diagram (autopilot/diagrams.py: flow / compare / timeline + notes; `say` = the
+#              spoken aliases that reveal a part, first one = the name the writer is asked to use)
+#   approved   true only once the owner has approved the topic (via PR, entry 4)
+#
+# Same point shape as tests/basics/sample_topic.yaml, so basics.scene_plan takes a topic unchanged.
+#
+# DRAFTS: the four topics below were written by the builder from packaging.md's search seeds, within plain
+# textbook facts and with no digits. They are NOT owner-approved (`approved: false`): the owner rewrites
+# and approves them via PR (entry 4). Until then basics.pick returns nothing.
+topics:
+  # DRAFT (builder, not owner-approved). Seed: "what is bitcoin and how does it work"
+  - id: what-is-bitcoin-and-how-does-it-work
+    approved: false  # DRAFT: the owner approves via PR (entry 4)
+    question: "What Is Bitcoin and How Does It Work? (Explained Simply)"
+    thumbnail: "WHAT IS BITCOIN?"
+    summary: >-
+      Bitcoin is digital money that people send to each other without a bank in the middle. This
+      explainer covers how a payment travels, what the blockchain records, who checks the payments,
+      and what a wallet and its private keys do.
+    points:
+      - term: Digital money
+        text: >-
+          Bitcoin is digital money that people send directly to each other over the internet. A sender
+          pays a receiver through the Bitcoin network, with no bank in the middle.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Sender, say: [sender]}
+            - {label: Bitcoin network, coin: BTC, arrow: pays through, say: [bitcoin network, network]}
+            - {label: Receiver, arrow: arrives at, say: [receiver]}
+          notes:
+            - {text: No bank in the middle, say: [bank]}
+      - term: The blockchain
+        text: >-
+          Every payment is recorded in a shared public record called the blockchain. Payments are grouped
+          into blocks, and each new block links to the one before it.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Payments, say: [payments, payment]}
+            - {label: Block, arrow: grouped into, say: [blocks, block]}
+            - {label: Blockchain, note: a shared public record, arrow: linked into, say: [blockchain, chain]}
+      - term: Nodes
+        text: >-
+          Many computers around the world, called nodes, keep their own copy of the blockchain. They
+          check that each payment follows the rules before it is added.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Nodes, note: computers around the world, say: [nodes, node, computers]}
+            - {label: Own copy of the blockchain, arrow: keep, say: [copy]}
+            - {label: Payment follows the rules, arrow: check, say: [rules, check]}
+      - term: Wallets and private keys
+        text: >-
+          A wallet holds private keys, the secret codes that prove who owns the coins. Whoever controls
+          the private keys can spend the bitcoin.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Wallet, say: [wallet]}
+            - {label: Private keys, note: secret codes, arrow: holds, say: [private keys, keys]}
+            - {label: Spend the bitcoin, coin: BTC, arrow: control, say: [spend]}
+
+  # DRAFT (builder, not owner-approved). Seed: "ethereum vs bitcoin"
+  - id: ethereum-vs-bitcoin
+    approved: false  # DRAFT: the owner approves via PR (entry 4)
+    question: "Ethereum vs Bitcoin: What's the Difference?"
+    thumbnail: "ETH VS BTC"
+    summary: >-
+      Bitcoin and Ethereum are the two best-known blockchains, built for different jobs. This explainer
+      compares what each one is for, what smart contracts are, how their supplies differ, and how each
+      network is secured.
+    points:
+      - term: What each one is for
+        text: >-
+          Bitcoin was built mainly as digital money. Ethereum was built as a shared network that runs
+          apps, and its own coin, called ether, pays for using it.
+        diagram:
+          type: compare
+          left: {label: Bitcoin, coin: BTC, say: [bitcoin]}
+          right: {label: Ethereum, coin: ETH, say: [ethereum]}
+          rows:
+            - {left: Digital money, right: A network that runs apps, say: [digital money, apps]}
+            - {left: "Coin: bitcoin", right: "Coin: ether", say: [ether]}
+      - term: Smart contracts
+        text: >-
+          Ethereum runs smart contracts. A smart contract is a program stored on the network that carries
+          out its rules on its own when set conditions are met.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Smart contract, note: a program on the network, say: [smart contract, smart contracts]}
+            - {label: Conditions met, arrow: waits until, say: [conditions]}
+            - {label: Rules carried out, arrow: then, say: [carries out, rules]}
+      - term: Supply
+        text: >-
+          Bitcoin has a fixed maximum supply written into its code. Ether has no fixed maximum; new ether
+          is issued, and part of every fee is destroyed.
+        diagram:
+          type: compare
+          left: {label: Bitcoin, coin: BTC, say: [bitcoin]}
+          right: {label: Ether, coin: ETH, say: [ether]}
+          rows:
+            - {left: Fixed maximum supply, right: No fixed maximum, say: [fixed maximum, maximum]}
+            - {left: Written into the code, right: "New ether issued, part of fees destroyed", say: [destroyed, issued]}
+      - term: Mining and staking
+        text: >-
+          Bitcoin is secured by mining, where computers compete to add the next block. Ethereum is secured
+          by staking, where holders lock up ether to help confirm blocks.
+        diagram:
+          type: compare
+          left: {label: Bitcoin, coin: BTC, say: [bitcoin]}
+          right: {label: Ethereum, coin: ETH, say: [ethereum]}
+          rows:
+            - {left: Mining, right: Staking, say: [mining, staking]}
+            - {left: Computers compete, right: Holders lock up ether, say: [compete, lock up]}
+
+  # DRAFT (builder, not owner-approved). Seed: "what is the lightning network"
+  - id: what-is-the-lightning-network
+    approved: false  # DRAFT: the owner approves via PR (entry 4)
+    question: "What Is the Lightning Network? (Explained Simply)"
+    thumbnail: "LIGHTNING NETWORK?"
+    summary: >-
+      The Lightning Network is a second layer on top of Bitcoin for small, fast payments. This explainer
+      covers what a payment channel is, how payments hop across connected channels, and what gets
+      recorded on the Bitcoin blockchain.
+    points:
+      - term: A second layer
+        text: >-
+          The Lightning Network is a second layer built on top of Bitcoin. It handles small, fast payments
+          away from the main blockchain.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Bitcoin blockchain, coin: BTC, say: [bitcoin, main blockchain]}
+            - {label: Lightning Network, note: a second layer, arrow: built on top, say: [lightning network, second layer]}
+          notes:
+            - {text: "Small, fast payments", say: [fast payments, payments]}
+      - term: Payment channels
+        text: >-
+          Two people open a payment channel by locking bitcoin in a shared address on the blockchain. They
+          can then pay each other many times inside the channel without recording each payment on the
+          blockchain.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Bitcoin locked, coin: BTC, note: in a shared address, say: [locking, locked]}
+            - {label: Payment channel, arrow: opens, say: [payment channel, channel]}
+            - {label: Many payments, arrow: inside, say: [pay each other, many times]}
+          notes:
+            - {text: Not each one recorded on the blockchain, say: [recording, recorded]}
+      - term: Routing
+        text: >-
+          A payment can hop from the payer through connected channels to the receiver. The two people need
+          no direct channel of their own.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Payer, say: [payer]}
+            - {label: Connected channels, arrow: hops through, say: [connected channels, hop]}
+            - {label: Receiver, arrow: arrives at, say: [receiver]}
+          notes:
+            - {text: No direct channel needed, say: [direct channel]}
+      - term: Closing a channel
+        text: >-
+          When a channel closes, only its final balance is recorded on the Bitcoin blockchain. The many
+          payments in between stay off the main chain.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Channel closes, say: [closes, close]}
+            - {label: Final balance, arrow: leaves, say: [final balance, balance]}
+            - {label: Bitcoin blockchain, coin: BTC, arrow: recorded on, say: [bitcoin blockchain, blockchain]}
+          notes:
+            - {text: Payments in between stay off the main chain, say: [in between, off the main chain]}
+
+  # DRAFT (builder, not owner-approved). Seed: "bitcoin mining explained"
+  - id: bitcoin-mining-explained
+    approved: false  # DRAFT: the owner approves via PR (entry 4)
+    question: "Bitcoin Mining Explained: How Does It Work?"
+    thumbnail: "BITCOIN MINING?"
+    summary: >-
+      Bitcoin mining is how new blocks are added to the Bitcoin blockchain and how new bitcoin is
+      created. This explainer covers what miners do, proof of work, the block reward, difficulty and the
+      halving.
+    points:
+      - term: What miners do
+        text: >-
+          Miners are computers that collect waiting payments into a new block and compete to add that
+          block to the blockchain.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Waiting payments, say: [waiting payments, payments]}
+            - {label: New block, note: built by miners, arrow: collected into, say: [new block, miners]}
+            - {label: Blockchain, coin: BTC, arrow: added to, say: [blockchain]}
+      - term: Proof of work
+        text: >-
+          To add a block, a miner has to find a special number by guessing over and over. This guessing is
+          called proof of work, and it uses a lot of computing power and electricity.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Guesses, note: over and over, say: [guessing, guesses]}
+            - {label: Special number found, arrow: until, say: [special number, number]}
+            - {label: Block added, arrow: then, say: [add a block, block]}
+          notes:
+            - {text: Uses computing power and electricity, say: [proof of work, electricity]}
+      - term: The block reward
+        text: >-
+          The miner who adds a block receives newly created bitcoin plus the fees from the payments in that
+          block. This reward is how new bitcoin enters circulation.
+        diagram:
+          type: flow
+          nodes:
+            - {label: Miner adds a block, say: [miner]}
+            - {label: Block reward, coin: BTC, note: new bitcoin plus fees, arrow: receives, say: [newly created bitcoin, reward]}
+          notes:
+            - {text: How new bitcoin enters circulation, say: [circulation]}
+      - term: Difficulty
+        text: >-
+          The network adjusts how hard the guessing is. When more miners join, the difficulty rises, which
+          keeps new blocks arriving at a steady pace.
+        diagram:
+          type: flow
+          nodes:
+            - {label: More miners join, say: [more miners]}
+            - {label: Difficulty rises, arrow: so, say: [difficulty]}
+            - {label: Steady pace of blocks, arrow: keeps, say: [steady pace]}
+      - term: The halving
+        text: >-
+          At regular intervals, the new-coin part of the block reward is cut in half. This event is called
+          the halving, and it makes new bitcoin arrive more slowly over time.
+        diagram:
+          type: timeline
+          events:
+            - {label: Block reward, say: [block reward, reward]}
+            - {label: Halving, note: new-coin part cut in half, say: [halving, half]}
+            - {label: Smaller new-coin reward, say: [more slowly, smaller]}

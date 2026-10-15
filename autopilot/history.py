@@ -6,8 +6,10 @@ One entry per run that published anywhere. It carries the id of each platform it
 A run that publishes a platform the edition missed earlier (e.g. Facebook after a failure) adds a
 second entry for the same edition, so each platform's guard is checked on its own.
 
-Entries carry "trigger" (timed | manual) and "counts" (does it fill that day's edition slot?).
+Entries carry "trigger" (timed | manual | topup: a lesson filling another edition's slot, main.py --slot)
+and "counts" (does it fill that day's edition slot?).
 Manual runs don't count unless started with --as-edition, so they never stop the autopilot.
+Brief and gold entries carry "voice" (the edge-tts voice or Piper model that narrated; main.ab_voice).
 
     python -m autopilot.history add output/*/history_entry.json   # merge (used by the workflow)
 """
@@ -33,9 +35,10 @@ class History:
         return [v for v in self.data["videos"] if any(v.get(k) for k in ID_KEYS)]
 
     def used_headlines(self) -> list[str]:
-        """Headlines of recent video editions (news image posts are tracked separately; lessons have none)."""
+        """Headlines of recent video editions (news image posts are tracked separately; lessons and Crypto
+        Basics have none)."""
         out = []
-        for v in [v for v in self.uploaded() if v.get("kind") not in ("post", "lesson")][-15:]:
+        for v in [v for v in self.uploaded() if v.get("kind") not in ("post", "lesson", "basics")][-15:]:
             out += v.get("headlines", [])
         return out
 
@@ -79,6 +82,14 @@ class History:
         for v in reversed(self.uploaded()):
             if v.get("kind", "market") == kind:
                 return v
+        return None
+
+    def last_voice(self, session: str, voices) -> str | None:
+        """The "voice" of the latest uploaded entry of that edition that used one of `voices` (the A/B pair;
+        a Piper fallback entry is skipped), or None."""
+        for v in reversed(self.uploaded()):
+            if v.get("session", "london") == session and v.get("voice") in voices:
+                return v["voice"]
         return None
 
     def last_upload_time(self, kind: str = "market") -> datetime | None:

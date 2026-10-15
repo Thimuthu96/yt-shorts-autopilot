@@ -4,9 +4,11 @@ approved key points, its glossary definitions and the examples' facts only.
     lesson_facts()        the only inputs the writer sees (title, key points, glossary, examples' facts)
     write_lesson()        one Gemini call → {"scenes": [{"id", "text"}]}
     script.fact_check()   with LESSON_RULES and a cfg copy holding the lesson word bounds (550-700)
-    check_lesson()        deterministic: every scene narrated, word bounds, banned words/claims,
+    check_lesson()        deterministic: every scene narrated, word bounds, banned words/claims, the
+                          data-desk narration rules (rules.narration_problems: first person, price
+                          targets, "10x", buy/sell calls; dates stay the lesson's own stricter check),
                           numbers backed by the facts, disclaimer, ICT non-affiliation (track 4)
-    make_lesson_script()  up to 3 attempts, like script.make_gold_script
+    make_lesson_script()  up to 3 attempts (narration rules + fact_check)
 
 Live sample (needs GEMINI_API_KEY; sample curriculum + fixture candles, no market data):
     python -m autopilot.lesson_script
@@ -17,9 +19,10 @@ import sys
 from pathlib import Path
 
 from autopilot import detectors  # noqa: F401  (registers the detectors, so their glossary keys are known)
-from autopilot import lessons
+from autopilot import lessons, rules
 from autopilot.llm import generate_json
 from autopilot.news_post import unverified_numbers
+from autopilot.rules import _MONTHS, DASHES, SPOKEN_DATE_WORDS, SPOKEN_TIME  # noqa: F401  (moved; same names)
 from autopilot.script import _merge_plan, _models, fact_check
 
 MIN_WORDS, MAX_WORDS = 550, 700
@@ -33,22 +36,11 @@ BANNED = [re.compile(p, re.I) for p in (
     r"\btake[- ]profit", r"\btarget", r"\bwin[- ]?rate", r"\bguarantee", r"\bprofit",
     r"\bwill (?:reach|hit|go|drop|rise)\b",
 )]
-DASHES = re.compile("[\u2010-\u2015\u2212]")  # Unicode hyphens / dashes / minus → "-" before matching
 
 # times and dates are not numbers a viewer is told: dropped from the facts for the number check, and
-# spoken dates / clock times are taken out of the narration before it (else "2026-09-05" backs 9, 5, 2026)
+# spoken dates / clock times are taken out of the narration before it (else "2026-09-05" backs 9, 5, 2026);
+# SPOKEN_TIME / SPOKEN_DATE_WORDS (years included for lessons) live in rules.py
 TIME_KEYS = {"t", "t1", "t2", "swing_t", "date", "start", "end"}
-_MONTHS = ("jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
-           "sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?")
-SPOKEN_TIME = re.compile(
-    r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:\d{2}|Z)?)?"
-    r"|\b\d{1,2}:\d{2}\b"
-    rf"|\b(?:{_MONTHS})\.? \d{{1,2}}(?:st|nd|rd|th)?\b(?:,? \d{{4}}\b)?"
-    rf"|\b\d{{1,2}}(?:st|nd|rd|th)? (?:of )?(?:{_MONTHS})\b(?:,? \d{{4}}\b)?", re.I)
-
-# spoken dates beyond SPOKEN_TIME: years 2010-2039, month names ("may"/"march" excluded: ordinary words), UTC
-SPOKEN_DATE_WORDS = re.compile(r"\b20[1-3]\d\b|\b(?:january|february|april|june|july|august|september|"
-                               r"october|november|december|sept?|oct|nov|dec)\b|\butc\b|\bgmt\b", re.I)
 
 LESSON_RULES = """
    This is a trading LESSON, not a news brief. DATA holds the episode's approved key points, its
@@ -58,6 +50,9 @@ LESSON_RULES = """
    Keep sentences short and simple. Remove "buy" / "sell" (except "buy-side" /
    "sell-side" liquidity), "entry", "stop loss", "take profit", "target", "win rate", "profit",
    "guaranteed", predictions ("will reach / hit / go / drop / rise") and performance claims.
+   Data desk, not a person: remove first person ("I", "I'm", "me", "my"), price targets ("could hit
+   $150,000") and "10x" / "100x". Never pair "could / may / might / will" with "reach" or "hit", even
+   with no price ("price may reach for the liquidity" → "price often reaches for the liquidity").
    Keep each scene's "id". The "recap" scene must keep: "This is education, not financial advice."
    If the recap names the next episode, keep that sentence last. """
 ICT_RULE = f"""
@@ -121,6 +116,9 @@ Rules:
 - No predictions, no advice, no performance claims. Never say buy, sell, entry, stop loss, take
   profit, target, win rate, profit, guaranteed, or "will" + reach / hit / go / drop / rise.
   "Buy-side" and "sell-side" liquidity are allowed terms.
+- Data desk, not a person: no first person ("I", "I'm", "me", "my"; say "notice…", "here the chart…"),
+  no price targets ("could hit $150,000"), no "10x" / "100x". Never pair "could / may / might / will"
+  with "reach" or "hit", even with no price: say "price often reaches for the liquidity", not "price may reach for it".
 - "hook": no title card is shown; example 1's chart is already on screen, marked. Point at the marked
   concept by name and where it sits on the chart, without its numbers; walk through it in "example_1".
 - "recap" says: "{DISCLAIMER}"{ict}
@@ -170,6 +168,8 @@ def check_lesson(pkg: dict, entry: dict, plan: list[dict], facts: dict) -> list[
         hits += [m.group(0) for m in rx.finditer(narration)]
     if hits:
         problems.append("banned wording: " + ", ".join(dict.fromkeys(h.lower() for h in hits)))
+    # the shared data-desk rules; their date/time hits are left to the stricter check above (no double report)
+    problems += [f"narration rule: {r}" for r in rules.narration_problems(narration) if not r.startswith("date/time:")]
     # numbers may come from the facts or the scene list the writer was given (e.g. next episode title)
     known = _no_times({"facts": facts, "covers": [p["covers"] for p in plan]})
     bad = unverified_numbers(SPOKEN_DATE_WORDS.sub(" ", SPOKEN_TIME.sub(" ", narration)), known)  # dates: own problem

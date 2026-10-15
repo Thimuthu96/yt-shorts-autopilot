@@ -89,8 +89,30 @@ def test_validate():
     assert e == ["bos-vs-choch: prerequisites must be a list of episode ids"], e
     e = errors(lambda c: c[0].pop("id"))
     assert "#1: missing field 'id'" in e and "bos-vs-choch: prerequisite 'swing-structure' is not an earlier episode" in e
+    # search titles (CAP-5): required, "What Is/Are …? (Crypto Chart Example)", ≤ 100 chars, no title-rule hit
+    e = errors(lambda c: c[1].pop("search_title"))
+    assert e == ["bos-vs-choch: missing field 'search_title'"], e
+    for bad in ("", " ", None, 7):
+        e = errors(lambda c: c[1].update(search_title=bad))
+        assert e == ["bos-vs-choch: empty search_title"], (bad, e)
+    for bad in ("Order Blocks Explained", "What Is an Order Block?", "What Is an Order Block (Crypto Chart Example)",
+                "Structure #2: BOS vs CHoCH | What Is a Break of Structure? (Crypto Chart Example)",
+                "What is an Order Block? (Crypto Chart Example)"):
+        e = errors(lambda c: c[1].update(search_title=bad))
+        assert e == [f"bos-vs-choch: search_title {bad!r} is not \"What Is/Are …? (Crypto Chart Example)\""], (bad, e)
+    long = "What Is " + "a Very " * 13 + "Long Name? (Crypto Chart Example)"
+    assert len(long) > 100
+    e = errors(lambda c: c[1].update(search_title=long))
+    assert e == [f"bos-vs-choch: search_title is {len(long)} characters (at most 100)"], e
+    e = errors(lambda c: c[1].update(search_title="What Is a 10x Move? (Crypto Chart Example)"))
+    assert e == ['bos-vs-choch: search_title 10x: "10x"'], e
+    e = errors(lambda c: c[1].update(search_title="What Is the October 5 Break? (Crypto Chart Example)"))
+    assert e == ['bos-vs-choch: search_title date: "October 5"'], e
+    e = errors(lambda c: c[1].update(search_title="What Are London Open Highs? (Crypto Chart Example)"))
+    assert e == ['bos-vs-choch: search_title session stamp: "London Open"'], e
+    assert lessons.search_title_problems("What Are Order Blocks? (Crypto Chart Example)") == []
     print("OK validate (sample passes; unknown visual, missing detector, missing/empty glossary key, "
-          "duplicates, missing fields, prerequisites)")
+          "duplicates, missing fields, prerequisites, search titles)")
 
 
 def test_pick():
@@ -243,11 +265,11 @@ def test_examples():
 
 def test_scene_plan():
     cur, _, _ = sample()
-    ex2 = example(asset="XAU/USD", timeframe="4H")
+    ex2 = example(asset="ETH/USD", timeframe="4H")
     plan = lessons.scene_plan(cur[1], [example(), ex2], next_entry=None)
     assert [s["id"] for s in plan] == ["hook", "concept", "example_1", "example_2", "misreads", "recap"]
     assert plan[2]["visual"]["type"] == "chart" and plan[2]["visual"]["label"] == "Historical example · BTC/USD · 2026-09-30"
-    assert plan[3]["visual"]["example"]["asset"] == "XAU/USD"
+    assert plan[3]["visual"]["example"]["asset"] == "ETH/USD"
     assert all(set(s) == {"id", "visual", "covers"} and s["visual"]["type"] for s in plan)
     assert plan[-1]["visual"]["disclaimer"] and not plan[-1]["visual"]["non_affiliation"]
     plan = lessons.scene_plan(cur[0], [example(), ex2, example()], next_entry=cur[1])
@@ -267,6 +289,36 @@ def test_scene_plan():
     v = plan[2]["visual"]
     assert v["type"] == "mtf" and v["example"]["lower"]["timeframe"] == "1H"
     assert v["label"] == "Historical example · BTC/USD · 2026-09-30"
+    # step reveal: the example scenes carry the reveal order (higher panel, the lower-timeframe window, lower
+    # panel); the hook (fully drawn) and the other scenes carry none
+    assert [st["key"] for st in v["steps"]] == ["higher swings", "higher BOS", "higher trendline", "higher FVG",
+                                                "window", "lower swings"], [st["key"] for st in v["steps"]]
+    assert v["steps"][4]["items"] == [[0, 5]] and v["steps"][5]["items"] == [[1, 0]]
+    assert "steps" not in plan[0]["visual"] and all("steps" not in s["visual"] for s in plan if s["id"] != "example_1")
+    assert "the lower-timeframe window" in plan[2]["covers"]
+    plan = lessons.scene_plan(cur[1], [example(), ex2], next_entry=cur[0])
+    order = "; name the marked parts in this order"
+    for s in plan:  # the naming-order line (and every step name / alias) holds no digit
+        assert ("steps" in s["visual"]) == s["id"].startswith("example_") == (order in s["covers"]), s["id"]
+        line = s["covers"].partition(order)[2]
+        names = [a for st in s["visual"].get("steps", []) for a in [st["name"], *st["names"]]]
+        assert not any(ch.isdigit() for ch in line + "".join(names)), (s["id"], line, names)
+    v = plan[2]["visual"]
+    assert [(st["key"], st["items"]) for st in v["steps"]] == [
+        ("swings", [[0, 0]]), ("BOS", [[0, 1], [0, 4]]), ("trendline", [[0, 2]]), ("FVG", [[0, 3]])], v["steps"]
+    assert plan[2]["covers"].endswith("name the marked parts in this order, as they appear on screen: the swing points, "
+                                      "then BOS (break of structure), then the trendline, then FVG (fair value gap)"), \
+        plan[2]["covers"]
+    assert "break of structure" in v["steps"][1]["names"] and "BOS" in v["steps"][1]["names"]
+    assert "steps" not in plan[0]["visual"] and plan[0]["visual"]["still"]
+    # covers stay digit-free even when a label holds a number ("3 touches" → "touches")
+    tl = example(primitives=[{"type": "trendline", "t1": "2026-09-30T00:00:00+00:00", "p1": 62900.0,
+                              "t2": "2026-09-30T01:00:00+00:00", "p2": 63150.0},
+                             {"type": "label", "t": "2026-09-30T01:00:00+00:00", "price": 63150.0, "text": "3 touches"}])
+    plan = lessons.scene_plan(cur[0], [tl])
+    line = plan[2]["covers"].partition(order)[2]
+    assert line and not any(ch.isdigit() for ch in line), plan[2]["covers"]
+    assert [st["name"] for st in plan[2]["visual"]["steps"]] == ["the trendline", "touches"]
     try:
         lessons.scene_plan(cur[0], [])
         raise AssertionError("scene_plan without an example must fail")
@@ -292,6 +344,12 @@ def test_real_files():
     assert lessons.DETECTORS["top_down"].glossary_keys() == ("top_down_analysis", "market_structure")
     for d in lessons.DETECTORS.values():
         assert set(d.glossary_keys()) <= set(glo), d
+    # every entry has a search title of the CAP-5 shape, distinct from the others, and the series label stays
+    assert all(lessons.SEARCH_TITLE.fullmatch(e["search_title"]) and len(e["search_title"]) <= 100
+               and lessons.search_title_problems(e["search_title"]) == [] and e["title"] for e in cur)
+    assert len({e["search_title"] for e in cur}) == len(cur)
+    assert next(e for e in cur if e["id"] == "bos-vs-choch")["search_title"] == \
+        "What Is a Break of Structure? (Crypto Chart Example)"
     s_cur, s_glo, _ = sample()
     assert lessons.validate(s_cur, s_glo) == [], lessons.validate(s_cur, s_glo)  # real registry
     td = next(e for e in s_cur if e["id"] == "top-down-reading")
@@ -306,8 +364,8 @@ def candles(name: str) -> list[dict]:
     return json.loads((CANDLES / f"{name}.json").read_text(encoding="utf-8"))
 
 
-def daily_fix(series: list[dict]) -> list[dict]:
-    """A series as a daily reference fix would look (EUR/USD): o = h = l = c."""
+def flat(series: list[dict]) -> list[dict]:
+    """The series with no bodies or wicks: o = h = l = c (a close-only line)."""
     return [dict(c, o=c["c"], h=c["c"], l=c["c"]) for c in series]
 
 
@@ -428,20 +486,27 @@ def test_detectors():
     ex = find("swings", h)
     check(ex, h)
     assert len(ex) == 2 and {e["asset"] for e in ex} == {"BTC/USD", "ETH/USD"}
-    h = {"XAU/USD": {"1H": up, "4H": down}}
+    h = {"ETH/USD": {"1H": up, "4H": down}}
     ex = find("swings", h)
     check(ex, h)
     assert len(ex) == 2 and ex[0]["asset"] == ex[1]["asset"] and ex[0]["timeframe"] != ex[1]["timeframe"]
-    h = {"BTC/USD": {"1D": up, "4H": down}, "XAU/USD": {"1H": down}}  # all tie on swings + end: asset, tf order
+    h = {"ETH/USD": {"1H": down}, "BTC/USD": {"1D": up, "4H": down}}  # all tie on swings + end: asset, tf order
     ex = find("swings", h)
     check(ex, h)
-    assert [(e["asset"], e["timeframe"]) for e in ex] == [("BTC/USD", "1D"), ("XAU/USD", "1H")], ex
-    h = {"BTC/USD": {"1H": down}, "EUR/USD": {"1D": daily_fix(down)}}
-    ex = find("bos_choch", h)
-    check(ex, h)
-    assert [e["asset"] for e in ex] == ["BTC/USD", "EUR/USD"]
-    assert ex[1]["facts"]["daily_reference_fix"] is True and "daily_reference_fix" not in ex[0]["facts"]
-    assert "Frankfurter" in ex[1]["facts"]["source"]
+    assert [(e["asset"], e["timeframe"]) for e in ex] == [("BTC/USD", "1D"), ("ETH/USD", "1H")], ex
+    h = {"ETH/USD": {"1H": down}, "BTC/USD": {"1H": down}}  # full tie: BTC first, then ETH
+    assert [e["asset"] for e in find("bos_choch", h)] == ["BTC/USD", "ETH/USD"]
+
+    # crypto only: gold / EUR/USD series in a history are ignored; only-foreign history -> []
+    foreign = {"XAU/USD": {"1H": up, "4H": down}, "EUR/USD": {"1D": flat(down), "1H": down}}
+    h = {"BTC/USD": {"1H": down}, **foreign}
+    for name in ("swings", "bos_choch"):
+        ex = find(name, h)
+        check(ex, h)
+        assert ex and ex == find(name, {"BTC/USD": {"1H": down}}), name
+        assert {e["asset"] for e in ex} == {"BTC/USD"} and all(e["facts"]["source"] == "Coinbase" for e in ex)
+        assert all("daily_reference_fix" not in e["facts"] for e in ex)
+        assert find(name, foreign) == [], name
 
     # more swings ranks first; a long run is trimmed to fit 150 candles
     long = []
@@ -456,18 +521,19 @@ def test_detectors():
     assert len(ex[0]["candles"]) <= 150 and ex[0]["region"]["end"][:10] == "2026-09-12"
 
     # no clean case: choppy range, empty and too-short history
-    for h in ({"BTC/USD": {"1H": chop}}, {"EUR/USD": {"1D": daily_fix(chop)}}, {}, {"BTC/USD": {"1H": up[:6]}}):
+    for h in ({"BTC/USD": {"1H": chop}}, {"ETH/USD": {"1D": flat(chop)}}, {}, {"BTC/USD": {"1H": up[:6]}}):
         assert find("swings", h) == [] and find("bos_choch", h) == [], h.keys()
 
     # repeat run: same history -> identical examples, byte for byte; input untouched
-    h = {"BTC/USD": {"1H": down, "4H": up}, "ETH/USD": {"1H": up}, "EUR/USD": {"1D": daily_fix(down)}}
+    h = {"BTC/USD": {"1H": down, "4H": up}, "ETH/USD": {"1H": up, "1D": flat(down)}}
     before = json.dumps(h, sort_keys=True)
     for name in ("swings", "bos_choch"):
         a, b = find(name, h), find(name, copy.deepcopy(h))
         assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True) and a
     assert json.dumps(h, sort_keys=True) == before
     print("OK detectors (uptrend swings, BOS then CHoCH, latest-swing breaks + one disagreeing swing, "
-          "range after trend -> no CHoCH, second example on another asset/timeframe, daily fix, "
+          "range after trend -> no CHoCH, second example on another asset/timeframe, BTC/ETH tie-break, "
+          "gold / EUR/USD series ignored, "
           "ranking + 150-candle cap, choppy -> [], repeat runs identical, all examples valid)")
 
 
@@ -622,8 +688,9 @@ TRACK12 = {  # detector -> (its own fixture, primitive types its example must dr
     "inducement": ("inducement", {"swing", "level", "label"}),
 }
 # sha256 of the swings / bos_choch examples on the 1.2 fixtures, taken before the shared code moved
-# to detectors/common.py: the move must not change a byte
-STRUCTURE_DIGEST = "bcac0aba0d47fa432ccadf62b96f1809ec4365db5805c19c24f3d31b626cdcde"
+# to detectors/common.py: the move must not change a byte. Re-taken for the crypto-only story with the
+# "mixed" history's gold series moved to ETH/USD 1D, computed on the code before that story
+STRUCTURE_DIGEST = "1f39d575295fec5ec3d6ef0d79782f9513a477714f63697e07ab3f921d8407ec"
 COUNTS = {"touches"}  # facts that are counts, not prices
 
 
@@ -761,7 +828,7 @@ def test_detectors_tracks_1_2():
     assert all(t["price"] > f["asia"]["high"] if t["side"] == "high" else t["price"] < f["asia"]["low"] for t in f["taken"])
     s1h = candles("sessions_1h")
     # 4H buckets don't line up with the sessions, and daily data has none: only 4H / 1D series -> []
-    for h in ({"BTC/USD": {"4H": aggregate(s1h, 4 * 3600)}}, {"BTC/USD": {"1D": retime(s1h, 24)}}, {"EUR/USD": {"1D": daily_fix(retime(s1h, 24))}},
+    for h in ({"BTC/USD": {"4H": aggregate(s1h, 4 * 3600)}}, {"BTC/USD": {"1D": retime(s1h, 24)}}, {"ETH/USD": {"1D": flat(retime(s1h, 24))}},
               {"BTC/USD": {"1D": aggregate(s1h, 86400)}}):
         assert find("session_highs_lows", h) == [], h.keys()
 
@@ -813,22 +880,22 @@ def test_detectors_tracks_1_2():
     ex = find("trendline", h)
     check_track12(ex, h)
     assert len(ex) == 2 and {e["asset"] for e in ex} == {"BTC/USD", "ETH/USD"}
-    h = {"XAU/USD": {"1H": candles("equal_highs"), "4H": candles("equal_highs")}}
+    h = {"ETH/USD": {"1H": candles("equal_highs"), "4H": candles("equal_highs")}}
     ex = find("equal_highs_lows", h)
     check_track12(ex, h)
     assert [e["timeframe"] for e in ex] == ["4H", "1H"]
 
-    # no clean case: choppy range, its daily-fix twin, empty and too-short series -> [] from every new detector
+    # no clean case: choppy range, its flat twin, empty and too-short series -> [] from every new detector
     chop, short = candles("choppy"), candles("trendline_retest")[:6]
-    for h in ({"BTC/USD": {"1H": chop}}, {"EUR/USD": {"1D": daily_fix(chop)}}, {}, {"BTC/USD": {"1H": short}},
+    for h in ({"BTC/USD": {"1H": chop}}, {"ETH/USD": {"1D": flat(chop)}}, {}, {"BTC/USD": {"1H": short}},
               {"BTC/USD": {"1H": chop, "4H": aggregate(chop, 4 * 3600)}}):
         for name in new:
             assert find(name, h) == [], (name, h.keys())
 
     # repeat run: same history -> identical examples, byte for byte; input untouched
     h = {"BTC/USD": {fixture_tf: candles(f) for fixture_tf, f in (("1H", "sweep_breakout"), ("4H", "trendline_retest"))},
-         "ETH/USD": {"1H": candles("sessions_1h")}, "XAU/USD": {"1H": candles("inducement")},
-         "EUR/USD": {"1D": daily_fix(candles("liquidity_pools"))}}
+         "ETH/USD": {"1H": candles("sessions_1h"), "4H": candles("inducement"),
+                     "1D": flat(candles("liquidity_pools"))}}
     before = json.dumps(h, sort_keys=True)
     for name in new:
         a, b = find(name, h), find(name, copy.deepcopy(h))
@@ -877,8 +944,8 @@ def structure_digest() -> str:
     s = {n: candles(n) for n in names}
     out = {n: json.dumps({d: find(d, {"BTC/USD": {"1H": s[n]}}) for d in ("swings", "bos_choch")}, sort_keys=True)
            for n in names}
-    h = {"BTC/USD": {"1H": s["downtrend_bos_choch"], "4H": s["uptrend"]}, "ETH/USD": {"1H": s["uptrend"]},
-         "XAU/USD": {"1D": s["downtrend_hl_choch"]}}
+    h = {"BTC/USD": {"1H": s["downtrend_bos_choch"], "4H": s["uptrend"]},
+         "ETH/USD": {"1H": s["uptrend"], "1D": s["downtrend_hl_choch"]}}
     out["mixed"] = json.dumps({d: find(d, h) for d in ("swings", "bos_choch")}, sort_keys=True)
     return hashlib.sha256("".join(out[k] for k in sorted(out)).encode()).hexdigest()
 
@@ -1074,27 +1141,27 @@ def test_detectors_track_3():
     check_track12(ex, h)
     assert len(ex) == 2 and {e["asset"] for e in ex} == {"BTC/USD", "ETH/USD"}
     assert {e["facts"]["kind"] for e in ex} == {"breaker", "mitigation"}
-    h = {"XAU/USD": {"1H": candles("premium_discount"), "4H": candles("premium_discount")}}
+    h = {"ETH/USD": {"1H": candles("premium_discount"), "4H": candles("premium_discount")}}
     ex = find("premium_discount", h)
     check_track12(ex, h)
     assert [e["timeframe"] for e in ex] == ["4H", "1H"]
 
-    # no clean case: choppy range, its daily-fix twin, empty and too-short series -> [] from every SMC detector
+    # no clean case: choppy range, its flat twin, empty and too-short series -> [] from every SMC detector
     chop, short = candles("choppy"), candles("sweep_choch_model")[:6]
-    for h in ({"BTC/USD": {"1H": chop}}, {"EUR/USD": {"1D": daily_fix(chop)}}, {}, {"BTC/USD": {"1H": short}},
+    for h in ({"BTC/USD": {"1H": chop}}, {"ETH/USD": {"1D": flat(chop)}}, {}, {"BTC/USD": {"1H": short}},
               {"BTC/USD": {"1H": candles("sweep_choch_model")[:20]}},
               {"BTC/USD": {"1H": chop, "4H": aggregate(chop, 4 * 3600)}}):
         for name in new:
             assert find(name, h) == [], (name, h.keys())
-    # a daily fix has no candle bodies or wicks: no gap, order block or sweep is read from it
-    h = {"EUR/USD": {"1D": daily_fix(candles("sweep_choch_model"))}}
+    # a flat series has no candle bodies or wicks: no gap, order block or sweep is read from it
+    h = {"ETH/USD": {"1D": flat(candles("sweep_choch_model"))}}
     for name in ("fvg", "order_block", "mitigation_breaker", "sweep_choch_model"):
         assert find(name, h) == [], name
 
     # repeat run: same history -> identical examples, byte for byte; input untouched
     h = {"BTC/USD": {"1H": candles("sweep_choch_model"), "4H": candles("fvg")},
-         "ETH/USD": {"1H": candles("breaker")}, "XAU/USD": {"1H": candles("premium_discount")},
-         "EUR/USD": {"1D": daily_fix(candles("order_block"))}}
+         "ETH/USD": {"1H": candles("breaker"), "4H": candles("premium_discount"),
+                     "1D": flat(candles("order_block"))}}
     before = json.dumps(h, sort_keys=True)
     for name in new:
         a, b = find(name, h), find(name, copy.deepcopy(h))
@@ -1109,11 +1176,42 @@ def test_detectors_track_3():
     assert track3_digest() == TRACK3_DIGEST
     print(f"OK track 3 detectors ({', '.join(new)}: clean case per fixture, FVG fill / open, OB + BOS + revisit, "
           "breaker vs mitigation + return from the other side, EQ + premium / discount + confirmation, "
-          "sweep -> CHoCH -> OB/FVG in time order, CHoCH before sweep / beyond the sweep / tested gap -> none, choppy / short / daily fix -> [], "
+          "sweep -> CHoCH -> OB/FVG in time order, CHoCH before sweep / beyond the sweep / tested gap -> none, choppy / short / flat -> [], "
           "second example, repeat runs identical, facts from candles, 1.2, 1.7 and 1.12 outputs unchanged)")
 
 
 # ─── lesson price history (network mocked) ─────────────────────────────────
+
+def test_lesson_assets():
+    """Crypto only (CAP-3): every registered detector on every fixture names only BTC/USD / ETH/USD;
+    gold / EUR/USD series in the history are ignored, an only-foreign history gives []."""
+    assert lesson_data.ASSETS == ("BTC/USD", "ETH/USD")
+    assert set(lessons.SPOKEN_ASSETS) == set(lesson_data.ASSETS), lessons.SPOKEN_ASSETS
+    assert lessons.SPOKEN_ASSETS == {"BTC/USD": "Bitcoin", "ETH/USD": "Ethereum"}
+    assert lessons.spoken_chart({"asset": "ETH/USD", "timeframe": "4H"}) == "Ethereum four-hour chart"
+    names = sorted(p.stem for p in CANDLES.glob("*.json"))
+    found = 0
+    for n in names:
+        c1 = candles(n)
+        series = {"1H": c1, "4H": aggregate(c1, 4 * 3600)}
+        d4 = retime(c1, 4)
+        crypto = {"BTC/USD": series, "ETH/USD": {"1D": aggregate(d4, 86400), "4H": d4}}
+        foreign = {"XAU/USD": series, "EUR/USD": {"1D": flat(c1), "1H": c1}}
+        mixed = {"XAU/USD": foreign["XAU/USD"], **crypto, "EUR/USD": foreign["EUR/USD"]}
+        for d in sorted(lessons.DETECTORS):
+            ex = find(d, mixed)
+            assert all(e["asset"] in lesson_data.ASSETS for e in ex), (n, d, [e["asset"] for e in ex])
+            assert all(e["facts"].get("source") == "Coinbase" and "daily_reference_fix" not in e["facts"]
+                       for e in ex), (n, d)
+            assert json.dumps(ex, sort_keys=True) == json.dumps(find(d, copy.deepcopy(mixed)), sort_keys=True)
+            assert ex == find(d, crypto), (n, d)  # the foreign series change nothing
+            assert find(d, foreign) == [], (n, d)
+            found += len(ex)
+    assert found, "no detector found an example on any fixture"
+    print(f"OK lesson assets (BTC/USD + ETH/USD only; {len(lessons.DETECTORS)} detectors x {len(names)} fixtures, "
+          f"{found} examples: gold / EUR/USD series ignored, only-foreign -> [], repeat runs identical; "
+          "spoken names Bitcoin / Ethereum)")
+
 
 class _Resp:
     def __init__(self, data):
@@ -1128,63 +1226,52 @@ def _cb(t: int) -> tuple:
     return base, base + 2, base - 2, base + 1  # o, h, l, c
 
 
-def _kr(t: int) -> tuple:
-    base = 4000.0 + (t // 3600) % 30
-    return base, base + 3, base - 3, base + 1
-
-
-def fake_market(now: datetime, spot_shift: float | None = 5.0, fail=(), spot_body=None):
-    """A stand-in for sources._get: Coinbase (newest first, inclusive ends), Kraken, Swissquote,
-    Frankfurter. Like the real APIs, each returns the candle still forming at `now` but nothing
-    later. `fail` names sources that raise; `spot_body` replaces Swissquote's answer."""
+def fake_market(now: datetime, fail=()):
+    """A stand-in for sources._get: Coinbase candles (newest first, inclusive ends). Like the real API
+    it returns the candle still forming at `now` but nothing later. `fail` names products ("ETH-USD")
+    or product + granularity ("ETH-USD86400") that raise; any other host gets a 404."""
     calls = []
-    kr_end = int(now.timestamp()) // 3600 * 3600
 
     def get(url, params=None, timeout=30):
         params = dict(params or {})
         calls.append((url, params))
-        name = next((n for n in ("ETH-USD", "BTC-USD", "kraken", "swissquote", "frankfurter") if n in url), url)
-        if name in fail or (name == "kraken" and f"kraken{params['interval']}" in fail):
+        name = next((n for n in ("ETH-USD", "BTC-USD") if n in url), None)
+        if name is None or not url.startswith("https://api.exchange.coinbase.com/"):
+            raise RuntimeError(f"404 unexpected request {url}")
+        g = params["granularity"]
+        if name in fail or f"{name}{g}" in fail:
             raise RuntimeError(f"{name}: 503 Service Unavailable")
-        if name in ("BTC-USD", "ETH-USD"):
-            g = params["granularity"]
-            s, e = (int(datetime.fromisoformat(params[k]).timestamp()) for k in ("start", "end"))
-            assert (e - s) // g < 300, "more than 300 candles asked of Coinbase"
-            top = min(e, int(now.timestamp()) // g * g)  # up to the forming candle, never the future
-            return _Resp([[t, _cb(t)[2], _cb(t)[1], _cb(t)[0], _cb(t)[3], 12.5] for t in range(top, s - 1, -g)])
-        if name == "kraken":
-            step = params["interval"] * 60
-            end = kr_end - kr_end % step  # the forming candle is Kraken's last row
-            rows = [[t, *(f"{v:.2f}" for v in _kr(t)), "0", "1.0", 3] for t in range(end - 719 * step, end + 1, step)]
-            return _Resp({"error": [], "result": {"PAXGUSD": rows, "last": end}})
-        if name == "swissquote":
-            if spot_body is not None:
-                return _Resp(spot_body)
-            last = _kr(kr_end)[3]  # spot moves with the newest (forming) PAXG price
-            return _Resp([{"spreadProfilePrices": [{"bid": last + spot_shift - 0.1, "ask": last + spot_shift + 0.1}]}])
-        if name == "frankfurter":
-            d0 = datetime.fromisoformat(params["from"]).date()
-            # v2 has weekend rows too; today's row (still the forming day) is the last one
-            rows = [{"date": (d0 + timedelta(days=i)).isoformat(), "quote": "EUR", "rate": 0.9 + i * 0.0001}
-                    for i in range(0, 366) if d0 + timedelta(days=i) <= now.date()]
-            return _Resp(rows + [{"date": d0.isoformat(), "quote": "GBP", "rate": 0.75}])
-        raise AssertionError(f"unexpected request {url}")
+        s, e = (int(datetime.fromisoformat(params[k]).timestamp()) for k in ("start", "end"))
+        assert (e - s) // g < 300, "more than 300 candles asked of Coinbase"
+        top = min(e, int(now.timestamp()) // g * g)  # up to the forming candle, never the future
+        return _Resp([[t, _cb(t)[2], _cb(t)[1], _cb(t)[0], _cb(t)[3], 12.5] for t in range(top, s - 1, -g)])
     return get, calls
 
 
 def test_fetch():
     now = datetime(2026, 10, 9, 6, 30, tzinfo=timezone.utc)
-    get, calls = fake_market(now, fail=("ETH-USD", "kraken240"))
+
+    # crypto only: BTC/USD + ETH/USD from Coinbase, nothing asked of Kraken / Swissquote / Frankfurter
+    get, calls = fake_market(now)
     logs = []
     with mock.patch.object(sources, "_get", get):
         h = lesson_data.fetch_history(log=logs.append, now=now)
+    assert list(h) == ["BTC/USD", "ETH/USD"] == list(lesson_data.ASSETS), list(h)
+    assert all(list(h[a]) == ["1D", "4H", "1H"] for a in h), {a: list(h[a]) for a in h}
+    assert calls and all(u.startswith("https://api.exchange.coinbase.com/products/") for u, _ in calls), calls
+    assert not any(k in u.lower() for u, _ in calls for k in ("kraken", "swissquote", "frankfurter"))
+    assert set(lesson_data.SOURCES) == set(lesson_data.ASSETS) and set(lesson_data.SOURCES.values()) == {"Coinbase"}
+    assert not any("failed" in m or "skipped" in m for m in logs), logs
 
-    # one source down (ETH) and one timeframe down (gold 4H): logged and left out, the rest present
-    assert list(h) == ["BTC/USD", "XAU/USD", "EUR/USD"], list(h)
-    assert list(h["BTC/USD"]) == ["1D", "4H", "1H"] and list(h["XAU/USD"]) == ["1D", "1H"]
+    # one source down (ETH): logged and left out, the rest present
+    get, calls = fake_market(now, fail=("ETH-USD",))
+    logs = []
+    with mock.patch.object(sources, "_get", get):
+        h = lesson_data.fetch_history(log=logs.append, now=now)
+    assert list(h) == ["BTC/USD"], list(h)
+    assert list(h["BTC/USD"]) == ["1D", "4H", "1H"]
     assert any("ETH/USD 1H" in m and "503" in m for m in logs) and any("ETH/USD 1D" in m for m in logs), logs
     assert any("ETH/USD 4H" in m and "1H, which failed" in m for m in logs), logs  # 4H skip has its own line
-    assert any("XAU/USD 4H" in m for m in logs), logs
     assert any(m == "Lesson data: BTC/USD 1H 1440 candles" for m in logs), logs
     for asset in h:
         for tf, cs in h[asset].items():
@@ -1220,42 +1307,22 @@ def test_fetch():
                      "c": hs[-1]["c"]}, b
     assert any(m == "Lesson data: BTC/USD 4H 359 candles" for m in logs), logs
 
-    # Kraken PAXG + one Swissquote offset (+5.00, against the newest, forming price) on every
-    # timeframe; Kraken's forming last row is dropped
-    for tf in ("1H", "1D"):
-        for g in h["XAU/USD"][tf]:
-            raw = _kr(int(datetime.fromisoformat(g["t"]).timestamp()))
-            assert (g["o"], g["h"], g["l"], g["c"]) == tuple(round(v + 5.0, 2) for v in raw), (tf, g)
-    assert len(h["XAU/USD"]["1H"]) == 719 and h["XAU/USD"]["1H"][-1]["t"] == "2026-10-09T05:00:00+00:00"
-    assert h["XAU/USD"]["1D"][-1]["t"] == "2026-10-08T00:00:00+00:00"
-    assert any("offset +5.00" in m for m in logs)
-
-    # Frankfurter: EUR/USD = 1 / (USD->EUR), o = h = l = c, weekend rows kept, today's row dropped,
-    # other quotes ignored
-    eur = h["EUR/USD"]["1D"]
-    assert eur[0]["t"] == "2025-10-09T00:00:00+00:00" and eur[0]["c"] == round(1 / 0.9, 5)
-    assert len(eur) == 365 and eur[-1]["t"] == "2026-10-08T00:00:00+00:00"
-    assert all(x["o"] == x["h"] == x["l"] == x["c"] for x in eur) and all(x["c"] > 1 for x in eur)
-    assert "ECB" not in lesson_data.SOURCES["EUR/USD"] and "Frankfurter" in lesson_data.SOURCES["EUR/USD"]
-
-    # spot quote fails its sanity check / fails outright / answers an unexpected shape: PAXG as is
-    for kw in ({"spot_shift": 400.0}, {"fail": ("swissquote",)}, {"spot_body": {"error": "maintenance"}}):
-        get, _ = fake_market(now, **kw)
-        logs = []
-        with mock.patch.object(sources, "_get", get):
-            g = lesson_data.fetch_history(log=logs.append, now=now)["XAU/USD"]["1H"][-1]
-        assert g["c"] == _kr(int(datetime.fromisoformat(g["t"]).timestamp()))[3], (kw, g)
-        assert any("using PAXG prices" in m for m in logs) and any("offset +0.00" in m for m in logs), logs
+    # one timeframe down (ETH 1D): logged and left out, ETH's 1H / 4H kept
+    get, _ = fake_market(now, fail=("ETH-USD86400",))
+    logs = []
+    with mock.patch.object(sources, "_get", get):
+        h = lesson_data.fetch_history(log=logs.append, now=now)
+    assert list(h) == ["BTC/USD", "ETH/USD"] and list(h["ETH/USD"]) == ["4H", "1H"], {a: list(h[a]) for a in h}
+    assert any("ETH/USD 1D" in m and "503" in m for m in logs), logs
 
     # everything down: empty history, nothing raised, each series logged (4H skips included)
-    get, _ = fake_market(now, fail=("ETH-USD", "BTC-USD", "kraken", "frankfurter"))
+    get, _ = fake_market(now, fail=("ETH-USD", "BTC-USD"))
     logs = []
     with mock.patch.object(sources, "_get", get):
         assert lesson_data.fetch_history(log=logs.append, now=now) == {}
-    assert len(logs) == 10 and sum("4H" in m for m in logs) == 3 and find("swings", {}) == [], logs
-    print("OK fetch (Coinbase reorder/sort/paging/dedupe, completed candles only, 4H aggregation, "
-          "Kraken + spot offset and its sanity check / errors, Frankfurter inversion, failed source / "
-          "timeframe skipped and logged)")
+    assert len(logs) == 6 and sum("4H" in m for m in logs) == 2 and find("swings", {}) == [], logs
+    print("OK fetch (crypto only: Coinbase BTC/ETH, no Kraken / Swissquote / Frankfurter request; reorder/sort/"
+          "paging/dedupe, completed candles only, 4H aggregation, failed source / timeframe skipped and logged)")
 
 
 # ─── narration ─────────────────────────────────────────────────────────────
@@ -1340,7 +1407,23 @@ def test_narration():
         assert any("Discarding draft" in m and "banned wording" in m for m in logs), (bad, logs)
     problems = lesson_script.check_lesson(draft(plan, 600, {"concept": "Buy here and set a stop-loss."}),
                                           entry, plan, facts)
-    assert problems == ["banned wording: buy, stop-loss"], problems
+    assert problems == ["banned wording: buy, stop-loss", 'narration rule: buy/sell call: "Buy here"'], problems
+
+    # data-desk narration rules (CAP-4, rules.narration_problems): first person, price targets, "10x"
+    assert "Data desk, not a person" in writer and "Data desk, not a person" in checker
+    for bad, rule in (("I'm buying here.", 'narration rule: first person: "I\'m"'),
+                      ("Let me show you the break.", 'narration rule: first person: "me"'),
+                      ("Bitcoin could hit $150,000 next.", 'narration rule: price target: "could hit $150,000"'),
+                      ("That was a 10x move.", 'narration rule: 10x: "10x"')):
+        p = lesson_script.check_lesson(draft(plan, 600, {"concept": bad}), entry, plan, facts)
+        assert rule in p, (bad, p)
+        pkg, logs = run(draft(plan, 600, {"concept": bad}), clean)
+        assert len(drafts) == 0 and any("Discarding draft" in m and rule in m for m in logs), (bad, logs)
+    # a first-person quote attributed to a source is fine; a spoken date is still one problem (the lesson's own)
+    quoted = draft(plan, 600, {"concept": '"I see a shift," said one analyst.'})
+    assert lesson_script.check_lesson(quoted, entry, plan, facts) == []
+    p = lesson_script.check_lesson(draft(plan, 600, {"concept": "On October 5 the swing broke."}), entry, plan, facts)
+    assert len(p) == 1 and p[0].startswith("says a date or time: "), p
 
     # liquidity terms are allowed
     liq = draft(plan, 600, {"misreads": "Sell-side liquidity rests below lows and buy-side liquidity above highs; "
@@ -1427,6 +1510,55 @@ def test_narration():
           "disclaimer + ICT non-affiliation, fact-check reject retried, 3 failures raise; Gemini mocked)")
 
 
+def test_lesson_meta():
+    """build_lesson_metadata (CAP-5): the entry's search title on YouTube and Facebook, the "Track N · <title>"
+    label and the disclosure exactly once in both descriptions (configured, unset, echoed by a key point),
+    the old "education, not financial advice" line gone, the tail never cut."""
+    from autopilot import lesson_meta, rules
+    from autopilot.lesson_slides import NON_AFFILIATION
+    entry, glossary, plan, examples = lesson_script.sample_episode()
+    ch = lesson_meta.chapters(plan, [{"duration": 15.0} for _ in plan], examples, glossary)
+    quiet = lambda m: None  # noqa: E731
+    custom = "Synthetic voice. Public market data. Not financial advice."
+    old = "this is education, not financial advice"
+
+    def once(text, line, what):
+        n = " ".join(text.split()).lower().count(line.lower())
+        assert n == 1 and text.count(line) == 1, (what, n, text)
+        assert old not in text.lower(), (what, text)
+
+    label = f"Track 0 · {entry['title']}"
+    assert label == "Track 0 · Structure #2: BOS vs CHoCH"
+    for cfg, line in (({"upload": {"disclaimer": custom}}, custom), ({}, rules.DISCLOSURE),
+                      ({"upload": {"disclaimer": "  "}}, rules.DISCLOSURE)):
+        for e, what in ((entry, "plain"), (dict(entry, key_points=list(entry["key_points"]) + [line]), "echoed"),
+                        (dict(entry, key_points=[line.upper()]), "only the line")):
+            m = lesson_meta.build_lesson_metadata(e, examples, ch, cfg, log=quiet)
+            assert m["title"] == m["fb_title"] == "What Is a Break of Structure? (Crypto Chart Example)", m["title"]
+            for key in ("description", "fb_description"):
+                once(m[key], line, (what, key))
+                assert label in m[key] and entry["title"] not in m["title"], (what, key, m[key])
+            d = m["description"]
+            assert d.index(label) < d.index("Chapters:") < d.index(line), d
+            assert d.rsplit("\n\n", 1)[1].startswith("#") and "⚠️ " + line in d and NON_AFFILIATION not in d
+    m = lesson_meta.build_lesson_metadata(entry, examples, ch, {}, log=quiet)
+    assert m["description"].startswith(" ".join(entry["key_points"]) + "\n\n" + label), m["description"]
+    assert m["fb_description"].startswith(" ".join(entry["key_points"]) + "\n\n" + label), m["fb_description"]
+
+    # a description over the limit: the body is cut, never the disclosure, the ICT line or the hashtags
+    ict = dict(entry, track=4, key_points=["Word " * 600 + "end.", "A second point.", "A third point."])
+    huge = [dict(c, title="Chapter " * 40) for c in ch * 8]
+    m = lesson_meta.build_lesson_metadata(ict, examples, huge, {}, log=quiet)
+    d = m["description"]
+    assert len(d) <= lesson_meta.MAX_DESCRIPTION, len(d)
+    assert d.endswith("⚠️ " + rules.DISCLOSURE + "\n\n" + NON_AFFILIATION + "\n\n" + " ".join(
+        lesson_meta.hashtags(ict, examples))), d[-400:]
+    once(d, rules.DISCLOSURE, "cut")
+    assert "#ICTConcepts" in d and NON_AFFILIATION in m["fb_description"] and "Track 4 · " in m["fb_description"]
+    print("OK lesson meta (search title on YouTube + Facebook, track label, disclosure once: configured / unset / "
+          "echoed, old line gone, tail never cut)")
+
+
 def main():
     test_validate()
     test_pick()
@@ -1437,8 +1569,10 @@ def main():
     test_top_down()
     test_detectors_tracks_1_2()
     test_detectors_track_3()
+    test_lesson_assets()
     test_fetch()
     test_narration()
+    test_lesson_meta()
 
 
 if __name__ == "__main__":

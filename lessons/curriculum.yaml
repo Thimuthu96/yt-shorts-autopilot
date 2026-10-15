@@ -3,14 +3,18 @@
 # with no code change. Drafted in ChatGPT Go, cross-checked by a second model, approved by the owner.
 # Checked by `python tests/test_lessons.py` (autopilot.lessons.validate).
 #
-# Fields: id (stable slug; never rename a published one), track (0-6), title, key_points (narration
-# teaches only these), concepts (glossary keys), prerequisites (earlier ids), visual (chart | mtf),
-# detector (registered detector that finds the real examples).
+# Fields: id (stable slug; never rename a published one), track (0-6), title (series label: slides,
+# narration, the recap's "next episode"), search_title (the YouTube / Facebook title: "What Is X? (Crypto
+# Chart Example)" or "What Are …? (Crypto Chart Example)", at most 100 characters, no date / price target /
+# "10x"; editing it never retitles a published video), key_points (narration teaches only these), concepts
+# (glossary keys), prerequisites (earlier ids), visual (chart | mtf), detector (registered detector that
+# finds the real examples).
 episodes:
   # ── Track 0 · Structure ──
   - id: swing-structure
     track: 0
     title: "Structure #1: Swing Points and Market Structure"
+    search_title: "What Are Swing Highs and Swing Lows? (Crypto Chart Example)"
     key_points:
       - "Identify swing highs and swing lows by comparing each turning point with the candles on both sides."
       - "Label each new swing high as a higher high or lower high against the previous swing high."
@@ -23,6 +27,7 @@ episodes:
   - id: bos-vs-choch
     track: 0
     title: "Structure #2: BOS vs CHoCH"
+    search_title: "What Is a Break of Structure? (Crypto Chart Example)"
     key_points:
       - "A BOS is a candle close beyond the latest swing in the direction of the existing structure."
       - "A CHoCH is the first candle close beyond the latest swing against the existing structure."
@@ -35,6 +40,7 @@ episodes:
   - id: top-down-reading
     track: 0
     title: "Structure #3: Top-Down Multi-Timeframe Reading"
+    search_title: "What Is Top-Down Analysis? (Crypto Chart Example)"
     key_points:
       - "Establish the sequence of swing highs and lows on the higher timeframe before looking at the lower timeframe."
       - "Read the lower timeframe's swings inside the higher timeframe's latest leg to see the local movement within it."
@@ -48,6 +54,7 @@ episodes:
   - id: valid-trendlines
     track: 1
     title: "Trendlines #1: Identifying Valid Trendlines"
+    search_title: "What Is a Valid Trendline? (Crypto Chart Example)"
     key_points:
       - "Connect swing lows for a rising trendline, or swing highs for a falling trendline."
       - "A valid trendline needs at least three touches, with no candle closing beyond it between the first and last touch."
@@ -60,6 +67,7 @@ episodes:
   - id: trendline-breaks
     track: 1
     title: "Trendlines #2: Breaks, Fakeouts and Retests"
+    search_title: "What Is a Trendline Break and Retest? (Crypto Chart Example)"
     key_points:
       - "A trendline break is a candle close through a previously respected line, not just a touch."
       - "A fakeout is a close through the line that fails, with price closing back on the original side within a few candles."
@@ -72,6 +80,7 @@ episodes:
   - id: trendline-liquidity
     track: 1
     title: "Trendlines #3: Trendline Liquidity"
+    search_title: "What Is Trendline Liquidity? (Crypto Chart Example)"
     key_points:
       - "Stop orders tend to cluster just beyond a widely watched trendline with repeated touches."
       - "Each extra touch makes the line more obvious and the cluster of stops beyond it larger."
@@ -85,6 +94,7 @@ episodes:
   - id: bsl-ssl
     track: 2
     title: "Liquidity #1: Buy-Side and Sell-Side Liquidity"
+    search_title: "What Is Buy-Side and Sell-Side Liquidity? (Crypto Chart Example)"
     key_points:
       - "Buy-side liquidity sits above visible swing highs, where stop orders cluster."
       - "Sell-side liquidity sits below visible swing lows, where stop orders cluster."
@@ -97,6 +107,7 @@ episodes:
   - id: equal-highs-lows
     track: 2
     title: "Liquidity #2: Equal Highs and Lows"
+    search_title: "What Are Equal Highs and Equal Lows? (Crypto Chart Example)"
     key_points:
       - "Equal highs are two or more swing highs formed at almost the same price."
       - "Equal lows are two or more swing lows formed at almost the same price."
@@ -109,6 +120,7 @@ episodes:
   - id: session-highs-lows
     track: 2
     title: "Liquidity #3: Session Highs and Lows"
+    search_title: "What Are Session Highs and Lows? (Crypto Chart Example)"
     key_points:
       - "Mark the highest and lowest prices traded during each session: Asia, London and New York."
       - "Keep the session times the same when comparing highs and lows across days."
@@ -121,6 +133,7 @@ episodes:
   - id: sweep-vs-breakout
     track: 2
     title: "Liquidity #4: Sweeps vs Breakouts"
+    search_title: "What Is a Liquidity Sweep? (Crypto Chart Example)"
     key_points:
       - "A liquidity sweep trades beyond a visible high or low and closes back on the original side of it."
       - "A breakout closes beyond a visible level and the following closes stay beyond it."
@@ -133,6 +146,7 @@ episodes:
   - id: inducement
     track: 2
     title: "Liquidity #5: Inducement"
+    search_title: "What Is Inducement in Trading? (Crypto Chart Example)"
     key_points:
       - "Inducement is a small, obvious swing inside a pullback that sits in front of a larger swing."
       - "Price often takes out that small swing first, sweeping the liquidity around it."
@@ -146,6 +160,7 @@ episodes:
   - id: order-blocks
     track: 3
     title: "SMC #1: Order Blocks"
+    search_title: "What Is an Order Block? (Crypto Chart Example)"
     key_points:
       - "An order block is the last opposite-colour candle before a strong move that breaks structure."
       - "Mark the zone from that candle's low to its high, the same way every time."
@@ -158,6 +173,7 @@ episodes:
   - id: fair-value-gaps
     track: 3
     title: "SMC #2: Fair Value Gaps"
+    search_title: "What Is a Fair Value Gap? (Crypto Chart Example)"
     key_points:
       - "A bullish fair value gap forms when the first candle's high is below the third candle's low."
       - "A bearish fair value gap forms when the first candle's low is above the third candle's high."
@@ -170,6 +186,7 @@ episodes:
   - id: mitigation-breaker
     track: 3
     title: "SMC #3: Mitigation and Breaker Blocks"
+    search_title: "What Are Mitigation and Breaker Blocks? (Crypto Chart Example)"
     key_points:
       - "Both start as an order block that fails when price closes through it."
       - "It is a breaker block when price swept a prior high or low just before the failure."
@@ -182,6 +199,7 @@ episodes:
   - id: premium-discount
     track: 3
     title: "SMC #4: Premium, Discount and Equilibrium"
+    search_title: "What Are Premium and Discount Zones? (Crypto Chart Example)"
     key_points:
       - "Define the dealing range with a clearly selected swing high and swing low."
       - "Equilibrium is the 50% midpoint between those two levels."
@@ -194,6 +212,7 @@ episodes:
   - id: sweep-choch-model
     track: 3
     title: "SMC #5: The Sweep → CHoCH → OB/FVG Model"
+    search_title: "What Is the Liquidity Sweep and CHoCH Model? (Crypto Chart Example)"
     key_points:
       - "Step one is a liquidity sweep of a visible high or low."
       - "Step two is a CHoCH: the first close beyond the latest swing against the prior structure."

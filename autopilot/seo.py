@@ -29,8 +29,6 @@ def _kind(asset: str, data: dict) -> str:
 
 def primary(data: dict) -> tuple[str, str] | None:
     """(name that must appear in the title, primary search phrase)"""
-    if data.get("kind") == "gold":
-        return "Gold Price", "Gold price today"  # "gold price" is what people search, not just "gold"
     lead = (data.get("focus") or {}).get("lead")
     if not lead:
         return None
@@ -60,12 +58,6 @@ def _change(asset: str, data: dict) -> float | None:
 
 
 def fallback_title(data: dict, edition: str) -> str:
-    if data.get("kind") == "gold":
-        a = data["gold_analysis"]
-        bias = a["bias"]["Daily"]["bias"].title()
-        lvl = a.get("invalidation") or (a["scenarios"].get("bull") or {}).get("trigger")
-        key = f" {'Below' if bias == 'Bearish' else 'Above'} ${lvl['price']:,.0f}" if lvl and bias != "Neutral" else ""
-        return f"Gold Price Today: {bias}{key} | XAU/USD Outlook {_date(data)}"
     lead = data["focus"]["lead"]
     kind = _kind(lead, data)
     head = {"crypto": "Price Today", "gold": "Price Today", "fx": "Forecast Today"}.get(kind, "News Today")
@@ -86,18 +78,15 @@ def title(pkg_title: str, data: dict, edition: str) -> str:
 
 def hashtags(data: dict, llm: list[str]) -> list[str]:
     out: list[str] = []
-    if data.get("kind") == "gold":
-        out += ["#Gold", "#XAUUSD", "#GoldPrice"]
-    else:
-        f = data.get("focus") or {}
-        assets = f.get("assets") or []
-        lead = f.get("lead")
-        if lead:
-            out += HASHTAGS.get(lead, [])[:1]
-            out.append(MARKET_TAG[_kind(lead, data)])
-        for a in assets:
-            if a != lead:
-                out += HASHTAGS.get(a, [])[:1]
+    f = data.get("focus") or {}
+    assets = f.get("assets") or []
+    lead = f.get("lead")
+    if lead:
+        out += HASHTAGS.get(lead, [])[:1]
+        out.append(MARKET_TAG[_kind(lead, data)])
+    for a in assets:
+        if a != lead:
+            out += HASHTAGS.get(a, [])[:1]
     for h in llm or []:
         h = h if h.startswith("#") else f"#{h}"
         out.append("".join(h.split()))
@@ -110,9 +99,6 @@ def hashtags(data: dict, llm: list[str]) -> list[str]:
 
 
 def tag_seeds(data: dict, edition: str) -> list[str]:
-    if data.get("kind") == "gold":
-        return ["gold price today", "xauusd analysis today", "gold forecast today", "gold price prediction",
-                "xauusd liquidity levels", "gold technical analysis", "gold outlook"]
     f = data.get("focus") or {}
     lead = f.get("lead")
     if not lead:
@@ -128,18 +114,6 @@ def tag_seeds(data: dict, edition: str) -> list[str]:
 
 
 def key_numbers(data: dict) -> list[str]:
-    if data.get("kind") == "gold":
-        a = data["gold_analysis"]
-        b = a["bias"]
-        lines = [f"• Gold (XAU/USD): ${a['price']:,.0f} ({_pct(a['change_24h_pct'])} 24h)",
-                 f"• Bias: 1H {b['1H']['bias']}, 4H {b['4H']['bias']}, daily {b['Daily']['bias']}"]
-        for side, word in (("bull", "Bullish case: above"), ("bear", "Bearish case: below")):
-            sc = a["scenarios"].get(side)
-            if sc:
-                nxt = f" → next ${sc['objective']['price']:,.0f}" if sc.get("objective") else ""
-                lines.append(f"• {word} ${sc['trigger']['price']:,.0f} ({sc['trigger']['label']}){nxt}")
-        lines.append(f"• Typical day: ${a['projected_range']['low']:,.0f} – ${a['projected_range']['high']:,.0f}")
-        return lines
     out = []
     for a in (data.get("focus") or {}).get("assets") or []:
         chg = _change(a, data)
@@ -157,8 +131,6 @@ def key_numbers(data: dict) -> list[str]:
 
 def watch(data: dict) -> list[str]:
     cur = set((data.get("focus") or {}).get("currencies") or [])
-    if data.get("kind") == "gold":
-        cur = {"USD"}
     evs = [e for e in data.get("calendar", []) if not cur or e.get("currency") in cur]
     return [f"• {e['time_utc']} GMT · {e['currency']} {e['event']}" for e in evs[:3]]
 
@@ -167,6 +139,6 @@ def schedule(cfg: dict) -> str:
     # only the editions that go to YouTube (the Facebook-only news posts aren't listed)
     s = {k: v for k, v in cfg.get("sessions", {}).items()
          if v.get("kind") != "post" and "youtube" in (v.get("platforms") or ["youtube"])}
-    parts = [f"{v['label']} {v['start_utc']}" + (" (Mon–Fri)" if v.get("kind") == "gold" else "")
+    parts = [f"{v['label']} {v['start_utc']}"
              for v in sorted(s.values(), key=lambda v: v.get("start_utc", "")) if v.get("start_utc")]
     return "Daily briefs (GMT): " + " · ".join(parts) + ". Subscribe so you don't miss the next one."
