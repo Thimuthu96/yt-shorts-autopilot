@@ -24,6 +24,13 @@ day that already has a long video, a triggered video takes Short B's 23:00 slot;
 4th upload holds to 00:00 UTC next day) and 3-4 long videos per ISO week (a shortfall is topped up Saturday
 15:00, or Sunday 15:00 when Saturday already had the recap or a triggered video; a fifth is refused).
 
+**Release checklist (crypto slate, owner):** on a Monday you pick — (1) approve the Crypto Basics topics and fill
+the evergreen stock to 4 ready episodes (`python main.py --session basics --prepare next`, `--stock`); (2) add the
+`COINGECKO_API_KEY` secret; (3) delete the retired cron-job.org jobs (`asia`, `london`, `newyork`, `gold`; or
+`python setup_cronjobs.py --delete-retired`); (4) push (together with the Thursday lesson-slot change); (5) run
+`python setup_cronjobs.py` to move the news jobs and add the new ones; (6) check the first day's runs against the
+table above. Details: CLAUDE.md "Release checklist".
+
 **News image posts (Facebook):** each picks the most important crypto story of the last 48 h (crypto or crypto
 regulation named in the headline or its lead), scored by topic, coverage and recency, never one an earlier post
 used. Gemini writes a big 2–3 line headline and an SEO caption (fact-checked; numbers only from the data; source

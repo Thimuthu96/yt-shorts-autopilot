@@ -64,7 +64,7 @@ sessions:
     platforms: [youtube, facebook]
   # Crypto Basics (kind: basics): one beginner explainer as a 16:9 YouTube video (Education) and a 9:16
   # Facebook Page video from the same narration, Wednesdays (`days`; a manual run works any day).
-  # 15:00 UTC = 20:30 Sri Lanka. Dark until `basics.enabled: true` (timed runs skip; manual runs make + publish).
+  # 15:00 UTC = 20:30 Sri Lanka. On since the slate release (5.7); `basics.enabled: false` makes timed runs skip again.
   basics:
     label: Crypto Basics
     short: Basics
@@ -72,9 +72,9 @@ sessions:
     kind: basics
     days: [wed]
     platforms: [youtube, facebook]
-  # "Publish next evergreen" (kind: evergreen, crypto-pivot CAP-6): no timer of its own; epic 5's weekly floor
+  # "Publish next evergreen" (kind: evergreen, crypto-pivot CAP-6): no timer of its own; the weekly floor (recap / topup_sun)
   # calls `--session evergreen --slot <session>`: the next ready Crypto Basics episode (basics/ready/), else the
-  # next lesson, once into that slot today (recorded under it). Platforms: the episode's own (FB routing: epic 5).
+  # next lesson, once into that slot today (recorded under it). Platforms: the episode's own (main.CONTENT_PLATFORMS).
   evergreen:
     label: Evergreen top-up
     short: Evergreen
@@ -92,7 +92,7 @@ sessions:
     platforms: [youtube, facebook]
   # Triggered video (kind: triggered, CAP-4): "why crypto just moved", 16:9 on YouTube only, made for one trigger
   # (`--trigger <id|fixture>`; autopilot/triggers.py). No start_utc: a timed run goes by the trigger's due time.
-  # Dark until `triggers.enabled: true` (timed runs skip; manual runs make it).
+  # On since the slate release (5.7); `triggers.enabled: false` stops the dispatch (the poll only logs).
   triggered:
     label: Why Crypto Moved
     short: Triggered
@@ -100,7 +100,7 @@ sessions:
     platforms: [youtube]
   # Saturday recap (kind: recap, CAP-5): the week's 2-3 biggest moves and why, 16:9 on YouTube only, Sat 15:00
   # (= 20:30 Sri Lanka). Made only when no triggered video published that ISO week (else the skip is logged).
-  # Dark until `recap.enabled: true` (timed runs skip; manual runs make + publish it). Epic 5 wires its timer.
+  # On since the slate release (5.7); a skipped recap hands the slot to the weekly-floor top-up.
   recap:
     label: Weekly Recap
     short: Recap
@@ -109,8 +109,8 @@ sessions:
     days: [sat]
     platforms: [youtube]
   # Standalone Shorts (kind: short, CAP-2): an original 30-40 s vertical Short written from one segment of a long
-  # video's Shorts material (data/material/), YouTube Short + Facebook Reel. Dark until `shorts.enabled: true`
-  # (timed runs skip; manual runs make + publish). Epic 5 times the two slots.
+  # video's Shorts material (data/material/), YouTube Short + Facebook Reel. On since the slate release (5.7) (`shorts.enabled`)
+  # (false → timed runs skip; manual runs make + publish). Short A 13:00, Short B 23:00 UTC.
   short_a:
     label: Short A
     short: Short A
@@ -179,24 +179,24 @@ lessons:
 # ─── Crypto Basics (the `basics` edition) ───────────────────────────────────
 # One beginner topic narrated from its approved points: the next approved, unpublished topic in
 # basics/topics.yaml (none → nothing to publish), fact-checked against those points (a failure stops it).
-# Dark: while enabled is false, timed runs log why and stop; a manual run still makes and publishes,
-# private on YouTube for review_window_hours and unpublished on Facebook, so it can be checked first.
+# Switch: while enabled is false, timed runs log why and stop; a manual run still makes and publishes
+# (review_window_hours > 0 / fb_published false hold a run back for review).
 basics:
-  enabled: false
+  enabled: true
   min_words: 600              # narration length → roughly 4-6 minutes
   max_words: 900
   max_seconds: 390            # narration limit; re-recorded faster when over
-  review_window_hours: 24     # 0 = public on upload; N = private, then public on its own N hours later
-  fb_published: false         # false = the Facebook video is uploaded unpublished (review on the Page)
+  review_window_hours: 0      # 0 = public on upload (the Wed 15:00 slot); N = private, then public N hours later
+  fb_published: true          # false = the Facebook video is uploaded unpublished (review on the Page)
   category_id: "27"           # YouTube Education
   # the one spoken subscribe ask, added at the end of the first explained point (never in the opening)
   subscribe_ask: "If this helped, subscribe for the next Crypto Basics explainer."
 
 # ─── Triggers (the trigger engine + the `triggered` edition, CAP-4) ─────────
-# Dark: while enabled is false, timed (--scheduled) triggered runs log why and stop; a manual run with a trigger
-# still makes it. Epic 5 (5.7) switches it on.
+# Switch: while enabled is false, the poll doesn't dispatch and timed triggered runs log why and stop; a manual run
+# with a trigger still makes it. On since the slate release (5.7).
 triggers:
-  enabled: false
+  enabled: true
   move_pct: 5                 # rule 1: BTC or ETH moves ±5% or more in 24 h
   cap_pct: 4                  # rule 2: total crypto market cap ±4% or more in 24 h (CoinGecko)
   coin_pct: 15                # rule 3: a top-50 coin ±15% or more in 24 h, only with a headline naming it
@@ -214,7 +214,7 @@ triggers:
 
 # ─── Saturday recap (the `recap` edition, CAP-5) ───────────────────────────
 recap:
-  enabled: false
+  enabled: true
   min_words: 560              # narration length → roughly 4-5 minutes
   max_words: 750
   max_seconds: 320            # narration limit; re-recorded faster when over
@@ -224,17 +224,17 @@ recap:
   subscribe_ask: "If this recap helps, subscribe for next week's."
 
 # ─── Standalone Shorts (the `short_a` / `short_b` editions, CAP-2) ──────────
-# Dark: while enabled is false, timed (--scheduled) Short runs log why and stop; a manual run still makes one.
+# Switch: while enabled is false, timed (--scheduled) Short runs log why and stop; a manual run still makes one.
 shorts:
-  enabled: false
+  enabled: true
   min_words: 70               # script length → roughly 30-40 seconds
   max_words: 105
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
-# Dark: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
-# still tops that slot up. Epic 5 switches it on with the weekly floor.
+# Switch: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
+# still tops that slot up. On since the slate release (5.7) with the weekly floor.
 evergreen:
-  enabled: false
+  enabled: true
 
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:

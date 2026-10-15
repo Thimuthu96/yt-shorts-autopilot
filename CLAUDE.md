@@ -60,7 +60,7 @@ shared by every video format:
                             (/{page}/videos); one failure never blocks the other
   → history.json            kind: lesson, episode, track, examples (asset/timeframe/start/end), video_id,
                             fb_video_id
-  Crypto Basics (kind: basics, make_basics() + publish_basics(); dark: basics.enabled false):
+  Crypto Basics (kind: basics, make_basics() + publish_basics(); switch: basics.enabled, on since 5.7):
   → main.basics_topic()     basics/topics.yaml (list order = queue): basics.validate_topics (problems → logged,
                             exit 1) → basics.pick (first `approved: true` topic no uploaded kind: basics entry has
                             as its `topic`); none → "Basics: nothing to publish", exit 0 (ships 4 drafts, none
@@ -95,7 +95,7 @@ shared by every video format:
                             make_evergreen → the next ready Basics episode (basics.stock, ready package only) into
                             today's slot, else make_lesson_edition under the slot's key (only with lessons.enabled);
                             once per slot/day (topup guard), recorded under the slot (trigger topup, evergreen: true);
-                            dark: timed runs skip while evergreen.enabled is false; epic 5 (5.3) calls it
+                            timed runs skip while evergreen.enabled is false (on since 5.7); main.floor_top_up calls it
   evergreen stock: `--session basics --prepare <id|next>` narrates an approved, unpublished topic exactly as the
                             edition does and writes basics/ready/<id>.yaml (for a PR; never uploads); the edition uses
                             a picked topic's package as it is (basics.validate_ready re-checks it, no LLM call; invalid
@@ -105,7 +105,7 @@ shared by every video format:
                             data/material/basics-<topic>.json (a later run merges a missed platform's id) + a copy
                             output/<stamp>/material.json, which the workflow's Save history step merges back after
                             its reset (`python -m autopilot.material add`) and commits with data/history.json
-  trigger engine (CAP-4; dark: triggers.enabled false; autopilot/triggers.py, no LLM):
+  trigger engine (CAP-4; switch: triggers.enabled, on since 5.7; autopilot/triggers.py, no LLM):
   → triggers.yml poll       every 30 min (13,43 * * * *, light install): `python -m autopilot.triggers check` = Coinbase
                             prices + crypto/regulation news + CoinGecko overview → evaluate: rule 1 BTC/ETH ±5% 24 h;
                             2 total cap ±4%; 3 top-50 coin ±15% only with a crypto headline naming it (coin gate);
@@ -125,13 +125,13 @@ shared by every video format:
                             by CoinGecko" once when used, disclosure once → publish_triggered (upload_lesson, review 2 h)
                             → history kind triggered + trigger_id (an already-published trigger is never re-made);
                             timed runs check triggers.enabled and the trigger's due time (not start_utc)
-  Saturday recap (kind: recap, Sat 15:00, YouTube 16:9 only; dark: recap.enabled false; autopilot/recap.py):
+  Saturday recap (kind: recap, Sat 15:00, YouTube 16:9 only; switch: recap.enabled, on since 5.7; autopilot/recap.py):
                             skipped (logged) when a triggered video published this ISO week; else the 2-3 biggest 7-day
                             moves (Coinbase + CoinGecko top 50) and their headline causes, 560-750 words, ask after
                             move_1, fact-checked; title "This Week in Crypto: What Moved and Why", mini-board thumbnail
   market Shorts material    triggered / recap publishes write data/material/<kind>-<id>.json with a `market` section
                             (fetched numbers + source, data_source, credit, series, causes, ≥ 2 hooks; no segment minimum)
-  standalone Shorts (kind: short, short_a 13:00 / short_b 23:00 UTC, YT Short + FB Reel; dark: shorts.enabled false;
+  standalone Shorts (kind: short, short_a 13:00 / short_b 23:00 UTC, YT Short + FB Reel; switch: shorts.enabled, on since 5.7;
   autopilot/shorts.py + lesson_material.py; main.make_short → main.publish):
   → shorts.pick             daily mix: a market Short when a triggered / recap material < 3 days old (not future) has an
                             unused hook candidate (≤ 2 per source, distinct candidates, hook text never re-used), else the
@@ -178,10 +178,10 @@ Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make
   `basics`, `triggers`, `recap`, `shorts` and `evergreen` (`*.enabled`); while one is false its timed runs skip.
 - **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
   work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (`--delete-retired` deletes the retired jobs).
-- **Crypto Basics is dark (`basics.enabled: false`):** a timed (`--scheduled`) basics run logs
-  "basics.enabled is false…" and exits 0 before anything is made; a manual run makes and publishes the
-  next approved topic of `basics/topics.yaml` (none approved yet → nothing to publish), private on YouTube for `basics.review_window_hours` (24)
-  and unpublished on Facebook (`basics.fb_published: false`) so it can be reviewed first.
+- **Crypto Basics is live (`basics.enabled: true`, 5.7):** the Wednesday timed run publishes the next approved
+  topic of `basics/topics.yaml` (a ready package from the evergreen stock as it is; none approved → nothing to
+  publish), public on YouTube (`basics.review_window_hours: 0`) and on Facebook (`basics.fb_published: true`).
+  `basics.enabled: false` makes timed runs log "basics.enabled is false…" and exit 0 again.
 - **Lessons are off until `lessons.enabled: true`** (owner: after merging the curriculum; the existing
   `YT_REFRESH_TOKEN` works while `lessons.playlists: false`, the owner's choice — playlists by hand). While off, lesson runs log why and exit 0 without
   fetching or publishing; a manual `--no-upload` run still makes one. An episode whose detector finds
@@ -239,6 +239,23 @@ topup_sun/evergreen/triggered), `platforms` (all/youtube/facebook, limited to th
 `as_edition`, `slot` (top-ups), `trigger` (triggered).
 **YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific); the slate uses ≤ 3.
 
+## Release checklist (crypto slate, epic 5.7; owner, hitl)
+
+The code ships switched on (`basics`, `triggers`, `recap`, `shorts`, `evergreen`, `lessons` enabled). Nothing goes
+live until the owner pushes; do these in order, on a **Monday** (the owner picks the date):
+
+1. Before the push: approve the Crypto Basics topics (`basics/topics.yaml`, `approved: true`, by PR) and fill the
+   evergreen stock to **4 ready episodes** (`python main.py --session basics --prepare next`, PR each package;
+   `--stock` reports the count).
+2. Add the **`COINGECKO_API_KEY`** repository secret (CoinGecko Demo key; the trigger poll and recap need it).
+3. Delete the retired cron-job.org jobs (`CryptoFX · asia`, `london`, `newyork`, `gold`) — by hand or with
+   `python setup_cronjobs.py --delete-retired`.
+4. Push this epic's commits together with trading-lessons epic-crypto-lessons entry 4 (the Thursday lesson slot).
+5. Run `python setup_cronjobs.py` (check with `--dry-run` first): it moves the news jobs to 12:00 / 16:00 / 21:00
+   and creates short_a, short_b, basics, recap and topup_sun (lesson stays Thursday 15:00).
+6. First day: Shorts at 13:00 and 23:00, news posts at 12:00, 16:00 and 21:00, no legacy edition runs, cron-job.org
+   lists only the slate's nine jobs, and the trigger poll's runs log their evaluation with triggers enabled.
+
 ## Files
 
 ```
@@ -277,7 +294,7 @@ autopilot/lesson_data.py multi-timeframe candles for the detectors (Coinbase, Kr
 autopilot/lesson_script.py  lesson narration from approved key points (Gemini + checks + fact_check)
 autopilot/lesson_slides.py  lesson slides + thumbnail, 16:9 (LANDSCAPE) and 9:16 (PORTRAIT), TRACKS names
 autopilot/reveal.py      step reveal (generic): example-scene marks fade in one at a time as narration names them (lessons.reveal_steps → lesson_slides base + diff-crop layers → time_steps → render._segment; hook stays fully drawn)
-autopilot/basics.py      Crypto Basics (dark): sample_topic, load_topics / validate_topic / validate_topics (topic
+autopilot/basics.py      Crypto Basics: sample_topic, load_topics / validate_topic / validate_topics (topic
                          list validator: fields, question + thumbnail packaging rules, narration rules, diagrams,
                          unique ids / questions) and pick (first approved, never-published topic; main.basics_topic),
                          scene_plan, write_script (Gemini + checks, 3 attempts; subscribe ask after point_1;

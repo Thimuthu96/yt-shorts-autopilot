@@ -3850,14 +3850,14 @@ def test_basics(cfg):
                                                                    sort_keys=False), encoding="utf-8")
     write_topics(queue)
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    assert live["basics"]["enabled"] is False and live["basics"]["review_window_hours"] == 24
-    assert live["basics"]["fb_published"] is False and str(live["basics"]["category_id"]) == "27"
+    assert live["basics"]["enabled"] is True and live["basics"]["review_window_hours"] == 0  # live since 5.7
+    assert live["basics"]["fb_published"] is True and str(live["basics"]["category_id"]) == "27"
     assert live["sessions"]["basics"] == {"label": "Crypto Basics", "short": "Basics", "start_utc": "15:00",
                                           "kind": "basics", "days": ["wed"], "platforms": ["youtube", "facebook"]}
 
     def write_cfg(enabled: bool):
         c = json.loads(json.dumps(live))
-        c["basics"].update(enabled=enabled, min_words=30, max_words=400)
+        c["basics"].update(enabled=enabled, min_words=30, max_words=400, review_window_hours=24, fb_published=False)
         (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
 
     def history() -> list[dict]:
@@ -4295,7 +4295,7 @@ def test_evergreen(cfg):
     (tmp / "basics" / "topics.yaml").write_text(yaml.safe_dump({"topics": queue}, allow_unicode=True, sort_keys=False),
                                                 encoding="utf-8")
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    assert live["evergreen"]["enabled"] is False and live["sessions"]["evergreen"]["kind"] == "evergreen"
+    assert live["evergreen"]["enabled"] is True and live["sessions"]["evergreen"]["kind"] == "evergreen"
     assert not live["sessions"]["evergreen"].get("start_utc")  # no timer of its own (setup_cronjobs skips it)
 
     def write_cfg(evergreen: bool, lessons_on: bool):
@@ -4499,12 +4499,12 @@ def test_triggered(cfg):
     assert triggered.unknown_numbers("Bitcoin fell 12% to 58,000", triggered.facts(t)) == ["12", "58,000"]
 
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    assert live["triggers"]["enabled"] is False and (live["triggers"]["min_words"], live["triggers"]["max_words"]) == (420, 600)
+    assert live["triggers"]["enabled"] is True and (live["triggers"]["min_words"], live["triggers"]["max_words"]) == (420, 600)
     assert live["sessions"]["triggered"]["kind"] == "triggered" and live["sessions"]["triggered"]["platforms"] == ["youtube"]
     assert not live["sessions"]["triggered"].get("start_utc")
     tmp = Path(tempfile.mkdtemp())
     c = json.loads(json.dumps(live))
-    c["triggers"].update(min_words=60, max_words=400)
+    c["triggers"].update(min_words=60, max_words=400, enabled=False)  # dark: timed runs skip, manual runs make it
     (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
     fixture = tmp / "btc_drop.json"
     fixture.write_text(json.dumps(trigger_data(btc=-7.2)), encoding="utf-8")
@@ -4723,6 +4723,8 @@ def test_trigger_poll(cfg):
     from autopilot import triggers
     tmp = Path(tempfile.mkdtemp())
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert live["triggers"]["enabled"] is True  # on since the slate release (5.7)
+    live["triggers"]["enabled"] = False  # the dark poll first
     logs, fetched = [], []
 
     def fake_fetch(cfg_, log=print):
@@ -4906,12 +4908,12 @@ def test_recap(cfg):
     assert [p_["id"] for p_ in plan] == list(RECAP_TEXT), [p_["id"] for p_ in plan]
 
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    assert live["recap"]["enabled"] is False and live["sessions"]["recap"]["kind"] == "recap"
+    assert live["recap"]["enabled"] is True and live["sessions"]["recap"]["kind"] == "recap"
     assert live["sessions"]["recap"]["platforms"] == ["youtube"] and live["sessions"]["recap"]["days"] == ["sat"]
     assert live["sessions"]["recap"]["start_utc"] == "15:00" and "weekend_sessions" not in live
     tmp = Path(tempfile.mkdtemp())
     c = json.loads(json.dumps(live))
-    c["recap"].update(min_words=60, max_words=400)
+    c["recap"].update(min_words=60, max_words=400, enabled=False)  # dark: timed runs skip, manual runs make it
     (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
 
     class FixedNow(datetime):
@@ -5091,7 +5093,7 @@ def test_short_concept(cfg):
     and exits 0; autopilot.yml offers short_a and short_b."""
     from autopilot import shorts
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    assert live["shorts"]["enabled"] is False
+    assert live["shorts"]["enabled"] is True
     assert live["sessions"]["short_a"]["start_utc"] == "13:00" and live["sessions"]["short_b"]["start_utc"] == "23:00"
     assert all(live["sessions"][k]["kind"] == "short" for k in ("short_a", "short_b"))
     assert shorts.opening_problems("Subscribe for more! Here is what an ETF is.")
@@ -5101,7 +5103,7 @@ def test_short_concept(cfg):
 
     def answer(n, prompt):
         return _short_answer(n, prompt, first="Subscribe for more, but first: what is a fund?" if n == 1 else None)
-    with _ShortRun([m], answer=answer) as r:
+    with _ShortRun([m], answer=answer, update={"shorts": {"enabled": False}}) as r:
         assert r.run("--session", "short_a", "--scheduled") == 0
         assert any("shorts.enabled is false" in x for x in r.logs) and not r.prompts
         assert r.run("--session", "short_a") == 0, r.logs[-5:]
@@ -5116,7 +5118,7 @@ def test_short_concept(cfg):
         assert r.spoken and r.spoken[0][0]["id"] == "hook"
     ap = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
     opts = ap.get("on", ap.get(True))["workflow_dispatch"]["inputs"]["session"]["options"]
-    assert opts[-3:] == ["recap", "short_a", "short_b"], opts
+    assert {"recap", "short_a", "short_b"} <= set(opts), opts
     print("OK short concept: Basics material → own hook + script (subscribe-first draft discarded), 9:16 render with "
           "the stepped diagram, YouTube Short + Reel via main.publish, history kind short + material/segment/voice, "
           "dark timed skip, workflow options")
