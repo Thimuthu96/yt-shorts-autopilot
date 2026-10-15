@@ -1,5 +1,5 @@
 name: Shorts autopilot
-run-name: "${{ github.event_name == 'schedule' && 'Backup schedule' || (github.event.inputs.scheduled == 'true' && 'Timer' || 'Manual') }} · ${{ github.event_name == 'schedule' && github.event.schedule || inputs.session }}${{ inputs.slot && format(' · slot {0}', inputs.slot) || '' }}"
+run-name: "${{ github.event_name == 'schedule' && 'Backup schedule' || (github.event.inputs.scheduled == 'true' && 'Timer' || 'Manual') }} · ${{ github.event_name == 'schedule' && github.event.schedule || inputs.session }}${{ inputs.slot && format(' · slot {0}', inputs.slot) || '' }}${{ inputs.trigger && format(' · trigger {0}', inputs.trigger) || '' }}"
 
 on:
   # The main trigger is an outside timer (cron-job.org) calling workflow_dispatch on time with
@@ -19,9 +19,9 @@ on:
   workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
     inputs:
       session:
-        description: "Edition to make (news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`)"
+        description: "Edition to make (news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`, triggered = why crypto moved for `trigger`)"
         type: choice
-        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening, lesson, basics, evergreen]
+        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening, lesson, basics, evergreen, triggered]
         default: auto
       platforms:
         description: "Where to publish (limited to the edition's own platforms)"
@@ -40,6 +40,10 @@ on:
         description: "Top-up only: fill this edition's slot today (a config.yaml session key; session lesson or evergreen); once per slot"
         type: string
         default: ""
+      trigger:
+        description: "Triggered edition only: the trigger id (data/triggers.json; the trigger poll passes it)"
+        type: string
+        default: ""
 
 permissions:
   contents: write             # lets the job save data/history.json back to the repo
@@ -52,9 +56,10 @@ jobs:
     # Timed runs of the same edition (timer + backup) queue one after the other, so the second sees
     # the first's upload and stops. Top-ups (`slot`) queue in their own group per slot (topup-<slot>), so a
     # slot's backup cron never cancels a waiting top-up; main.py's history check stops a second one.
+    # Triggered runs (dispatched by the trigger poll, triggers.yml) queue in their own `triggered` group.
     # Manual runs get their own group: they never wait or cancel anything.
     concurrency:
-      group: "${{ inputs.slot && format('topup-{0}', inputs.slot) || (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || github.event.schedule == '17 15 * * 4' && 'lesson' || 'newyork') || inputs.session) || format('manual-{0}', github.run_id) }}"
+      group: "${{ inputs.slot && format('topup-{0}', inputs.slot) || inputs.session == 'triggered' && 'triggered' || (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || github.event.schedule == '17 15 * * 4' && 'lesson' || 'newyork') || inputs.session) || format('manual-{0}', github.run_id) }}"
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +86,7 @@ jobs:
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           # which edition: from the backup cron that fired, or from the timer's / manual run's choice
           EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'asia' || github.event.schedule == '57 5 * * *' && 'london' || github.event.schedule == '32 6 * * 1-5' && 'gold' || github.event.schedule == '17 3 * * *' && 'news_morning' || github.event.schedule == '47 9 * * *' && 'news_midday' || github.event.schedule == '47 16 * * *' && 'news_evening' || github.event.schedule == '17 15 * * 4' && 'lesson' || 'newyork') || inputs.session || 'auto' }}"
           SCHEDULED: ${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && '--scheduled' || '' }}
@@ -88,7 +94,9 @@ jobs:
           PLATFORMS: ${{ inputs.platforms || 'all' }}
           # top-up into another edition's slot (crypto-pivot weekly floor); main.py checks the name
           SLOT: ${{ inputs.slot && format('--slot={0}', inputs.slot) || '' }}
-        run: python main.py --session "$EDITION" --platforms "$PLATFORMS" $SCHEDULED $AS_EDITION ${SLOT:+"$SLOT"}
+          # the trigger a triggered run answers (main.py reads it through triggers.load)
+          TRIGGER: ${{ inputs.trigger && format('--trigger={0}', inputs.trigger) || '' }}
+        run: python main.py --session "$EDITION" --platforms "$PLATFORMS" $SCHEDULED $AS_EDITION ${SLOT:+"$SLOT"} ${TRIGGER:+"$TRIGGER"}
 
       - name: Save history
         if: always()
@@ -127,6 +135,8 @@ jobs:
             output/*/short.mp4
             output/*/lesson_*.mp4
             output/*/basics_*.mp4
+            output/*/triggered_*.mp4
+            output/*/trigger.json
             output/*/package.json
             output/*/material.json
             output/*/metadata.json

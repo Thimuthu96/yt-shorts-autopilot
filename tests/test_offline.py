@@ -285,6 +285,7 @@ def main():
     test_triggered(cfg)
     test_trigger_rules(cfg)
     test_trigger_limits(cfg)
+    test_trigger_poll(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -3166,7 +3167,7 @@ def test_lesson_edition(cfg):
     assert "Manual" in wf["run-name"] and "slot {0}" in wf["run-name"]
     step = next(x for x in job["steps"] if x.get("name") == "Make and publish")
     assert "'17 15 * * 4' && 'lesson'" in step["env"]["EDITION"]
-    assert "--slot=" in step["env"]["SLOT"] and step["run"].endswith('${SLOT:+"$SLOT"}'), step
+    assert "--slot=" in step["env"]["SLOT"] and '${SLOT:+"$SLOT"}' in step["run"], step
     assert on["workflow_dispatch"]["inputs"]["slot"]["type"] == "string"
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK lesson edition (Thursday days, disabled, both platforms, guard, held, FB failure + recorded-episode "
@@ -4744,6 +4745,63 @@ def test_trigger_limits(cfg):
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK trigger limits: 48 h spacing, 2 per ISO week, 03:00-11:00 → 12:00, stale dropped (logged), "
           "repeat cause adds nothing, simulated never counts, load by id")
+
+
+
+def test_trigger_poll(cfg):
+    """Trigger polling job (epic-volatility-videos entry 5): `triggers.check` on fetched data (mocked) records a
+    trigger and, when it is due, marks it dispatched only with triggers.enabled true (dark: logs only); the two
+    workflow files: triggers.yml on a 30-minute cron off :00/:30 with a light install, the COINGECKO_API_KEY secret,
+    the state commit with retries and the `triggered` dispatch; autopilot.yml's `triggered` choice, `trigger`
+    input → --trigger, its concurrency group and the secret."""
+    from autopilot import triggers
+    tmp = Path(tempfile.mkdtemp())
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    logs, fetched = [], []
+
+    def fake_fetch(cfg_, log=print):
+        fetched.append(1)
+        return trigger_data(btc=-7.2), trigger_overview(cap=-2.0)
+
+    # dark: a 14:00 trigger is recorded and due at once, but never dispatched
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
+    res = triggers.check(live, tmp, now=now, log=logs.append, fetch=fake_fetch)
+    assert res["recorded"] and res["due"] == "" and any("triggers.enabled is false" in m for m in logs), (res, logs)
+    state = triggers.load_state(tmp / triggers.STATE)
+    assert [t["status"] for t in state["triggers"]] == ["pending"] and "CoinGecko" in state["triggers"][0]["data_sources"]
+    # on: the next poll dispatches it once (marked dispatched), the one after doesn't again
+    on = json.loads(json.dumps(live))
+    on["triggers"]["enabled"] = True
+    res = triggers.check(on, tmp, now=now + timedelta(minutes=30), log=logs.append, fetch=fake_fetch)
+    assert res["due"] == state["triggers"][0]["id"] and res["recorded"] == "", res
+    assert triggers.load_state(tmp / triggers.STATE)["triggers"][0]["status"] == "dispatched"
+    res = triggers.check(on, tmp, now=now + timedelta(minutes=60), log=logs.append, fetch=fake_fetch)
+    assert res["due"] == "" and len(fetched) == 3, res
+    shutil.rmtree(tmp, ignore_errors=True)
+
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "triggers.yml").read_text(encoding="utf-8"))
+    on_ = wf.get("on", wf.get(True))
+    cron = on_["schedule"][0]["cron"]
+    assert cron == "13,43 * * * *" and "workflow_dispatch" in on_, on_
+    assert wf["permissions"] == {"contents": "write", "actions": "write"}
+    steps = wf["jobs"]["check"]["steps"]
+    assert not any("ffmpeg" in str(x) for x in steps)
+    chk = next(x for x in steps if x.get("id") == "check")
+    assert chk["run"] == "python -m autopilot.triggers check" and "secrets.COINGECKO_API_KEY" in chk["env"]["COINGECKO_API_KEY"]
+    assert "data/triggers.json" in next(x for x in steps if x.get("id") == "save")["run"]
+    disp = next(x for x in steps if x.get("name") == "Dispatch the triggered edition")
+    assert "gh workflow run autopilot.yml" in disp["run"] and "session=triggered" in disp["run"]
+    assert 'trigger="$DUE"' in disp["run"] and "scheduled=true" in disp["run"] and "outputs.due" in disp["if"]
+    ap = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
+    inputs = ap.get("on", ap.get(True))["workflow_dispatch"]["inputs"]
+    assert "triggered" in inputs["session"]["options"] and inputs["trigger"]["type"] == "string"
+    job = ap["jobs"]["make-and-upload"]
+    assert "inputs.session == 'triggered' && 'triggered'" in job["concurrency"]["group"]
+    step = next(x for x in job["steps"] if x.get("name") == "Make and publish")
+    assert "--trigger=" in step["env"]["TRIGGER"] and '${TRIGGER:+"$TRIGGER"}' in step["run"]
+    assert "secrets.COINGECKO_API_KEY" in step["env"]["COINGECKO_API_KEY"]
+    print("OK trigger poll: check records + dispatches only when enabled (once), triggers.yml 30-min cron + light "
+          "install + secret + state commit + dispatch, autopilot.yml triggered choice/group/--trigger")
 
 
 if __name__ == "__main__":

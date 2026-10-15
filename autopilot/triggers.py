@@ -43,9 +43,18 @@ Limits (state in data/triggers.json, written only by the poll job, `python -m au
     due_now(state, now, cfg) -> trigger | None  the pending trigger whose due time has come (within the window)
     mark_dispatched(state, id, now)
 Spacing and the cap count published `kind: triggered` history records (simulated ones never count).
+
+    check(cfg, root, now, log, fetch) -> {"fired", "recorded", "due"}   one poll (the 30-minute job): fetch Coinbase
+                                     prices, crypto news and the CoinGecko overview, evaluate, record, and with
+                                     triggers.enabled true mark the due trigger dispatched ("due" = its id; the
+                                     workflow dispatches the `triggered` edition); with it false only logs
+
+    python -m autopilot.triggers check     # the poll job (writes data/triggers.json + $GITHUB_OUTPUT due=<id>)
 """
 import json
+import os
 import re
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -439,3 +448,60 @@ def load(ref: str, root: Path | None = None, now: datetime | None = None) -> dic
             raise ValueError(f"the fixture {path.name} fires no trigger")
         return fired[0]
     raise ValueError(f"{path.name} is neither a trigger nor market data")
+
+
+# ─── the poll (python -m autopilot.triggers check) ─────────────────────────
+
+def fetch(cfg: dict, log=print) -> tuple[dict, dict | None]:
+    """Live data for one poll: Coinbase prices, crypto headlines, the CoinGecko overview (skipped when it fails)."""
+    from autopilot import sources
+    feeds = {k: v for k, v in sources.DEFAULT_FEEDS.items() if k in ("crypto", "regulation")}
+    hours = int((cfg.get("market") or {}).get("news_hours", 30))
+    data = {"crypto": sources.fetch_crypto(log=log), "news": sources.fetch_news(feeds, hours=hours, log=log)}
+    for n in data["news"]:
+        n.setdefault("category", "crypto")
+    return data, sources.fetch_market_overview(log=log)
+
+
+def check(cfg: dict, root: Path, now: datetime | None = None, log=print, fetch=fetch) -> dict:
+    from autopilot.history import History
+    now = _now(now)
+    tc = cfg.get("triggers") or {}
+    data, overview = fetch(cfg, log=log)
+    history = History(Path(root) / "data" / "history.json")
+    fired = evaluate(data, overview, now=now, cfg=cfg, used=history.used_headlines(), log=log)
+    if not fired:
+        log("No trigger fired.")
+    state = load_state(Path(root) / STATE)
+    new = record(state, fired, history, now=now, cfg=cfg, log=log)
+    due = due_now(state, now, cfg)
+    out = {"fired": [t["id"] for t in fired], "recorded": new["id"] if new else "", "due": ""}
+    if due and tc.get("enabled", False):
+        mark_dispatched(state, due["id"], now)
+        out["due"] = due["id"]
+        log(f"Trigger {due['id']} is due: dispatching the triggered edition.")
+    elif due:
+        log(f"Trigger {due['id']} is due, but triggers.enabled is false: not dispatched (dark).")
+    save_state(state, Path(root) / STATE)
+    return out
+
+
+def _main(argv=None) -> int:
+    import argparse
+    import yaml
+    p = argparse.ArgumentParser(prog="python -m autopilot.triggers", description="The trigger poll.")
+    p.add_argument("what", choices=["check"])
+    p.parse_args(argv)
+    root = Path(__file__).resolve().parents[1]
+    cfg = yaml.safe_load((root / "config.yaml").read_text(encoding="utf-8"))
+    res = check(cfg, root, log=lambda m: print(m, flush=True))
+    print(f"Decision: fired {res['fired'] or 'none'}, recorded {res['recorded'] or 'none'}, dispatch {res['due'] or 'none'}")
+    gh = os.environ.get("GITHUB_OUTPUT")
+    if gh:
+        with open(gh, "a", encoding="utf-8") as f:
+            f.write(f"due={res['due']}\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_main())
