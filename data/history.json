@@ -1100,6 +1100,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-15T21:03:04+00:00",
+      "brief_date": "2026-10-15",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BITCOIN BRIEFLY SLIPS UNDER $80K",
+      "fb_post_id": "462331040302049_122253100874610202",
+      "headlines": [
+        "Bitcoin slips under $80K after US PPI gains most in four years"
+      ],
+      "topic": "rates",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
