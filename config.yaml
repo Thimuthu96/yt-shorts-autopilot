@@ -110,10 +110,18 @@ sessions:
     short: Evergreen
     kind: evergreen
     platforms: [youtube, facebook]
+  # Triggered video (kind: triggered, CAP-4): "why crypto just moved", 16:9 on YouTube only, made for one trigger
+  # (`--trigger <id|fixture>`; autopilot/triggers.py). No start_utc: a timed run goes by the trigger's due time.
+  # Dark until `triggers.enabled: true` (timed runs skip; manual runs make it).
+  triggered:
+    label: Why Crypto Moved
+    short: Triggered
+    kind: triggered
+    platforms: [youtube]
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
 # (automatic runs only; a manual run can still choose any edition). News posts run every day;
 # the lesson runs on its own `days` (Thursday).
-weekend_sessions: [london, news_morning, news_midday, news_evening, lesson]
+weekend_sessions: [london, news_morning, news_midday, news_evening, lesson, triggered]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180
@@ -175,6 +183,15 @@ basics:
   category_id: "27"           # YouTube Education
   # the one spoken subscribe ask, added at the end of the first explained point (never in the opening)
   subscribe_ask: "If this helped, subscribe for the next Crypto Basics explainer."
+
+# ─── Triggers (the trigger engine + the `triggered` edition, CAP-4) ─────────
+# Dark: while enabled is false, timed (--scheduled) triggered runs log why and stop; a manual run with a trigger
+# still makes it. Epic 5 (5.7) switches it on.
+triggers:
+  enabled: false
+  move_pct: 5                 # rule 1: BTC or ETH moves ±5% or more in 24 h
+  publish_window_hours: 3     # a timed run more than this past the trigger's due time is skipped
+  max_seconds: 250            # narration limit; re-recorded faster when over
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
 # Dark: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot

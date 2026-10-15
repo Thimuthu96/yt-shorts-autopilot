@@ -282,6 +282,7 @@ def main():
     test_basics(cfg)
     test_basics_ready(cfg)
     test_evergreen(cfg)
+    test_triggered(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -4492,6 +4493,112 @@ def test_evergreen(cfg):
     print("OK evergreen: --session evergreen --slot recap → ready Basics episode (no LLM, recorded under the slot, "
           "material), once per slot/day, empty stock → lesson path under the slot (lessons on) else nothing, other "
           "edition in the slot → left alone, bad slot / no slot → exit 1, dark timed skip, workflow option + slot")
+
+
+# ─── triggered videos (epic-volatility-videos) ─────────────────────────────
+
+TRIGGER_NOW = datetime(2026, 10, 15, 9, 30, tzinfo=timezone.utc)
+
+
+def _coin(name: str, price: float, ch24: float, ch7: float = 0.0, now: datetime = TRIGGER_NOW) -> dict:
+    """168 hourly closes ending at `price` with a 24 h change of `ch24` % and a 7 d change of `ch7` %."""
+    day_ago, week_ago = price / (1 + ch24 / 100), price / (1 + ch7 / 100) if ch7 else price / (1 + ch24 / 100)
+    s = [week_ago + (day_ago - week_ago) * i / 143 for i in range(144)]
+    s += [day_ago + (price - day_ago) * i / 24 for i in range(1, 25)]
+    s[-25] = day_ago
+    return {"name": name, "price": price, "change_24h": ch24, "change_7d": (price / s[0] - 1) * 100,
+            "series": s, "series_times": [(now - timedelta(hours=167 - i)).isoformat() for i in range(168)],
+            "high_24h": max(s[-24:]), "low_24h": min(s[-24:])}
+
+
+def trigger_data(btc: float = -7.2, eth: float = -4.5, sol: float = -9.4, xrp: float = -4.0, news=None,
+                 now: datetime = TRIGGER_NOW) -> dict:
+    """Sources-style market data for the trigger engine: Coinbase coins + crypto headlines."""
+    t = (now - timedelta(hours=2)).isoformat()
+    if news is None:
+        news = [{"category": "crypto", "source": "CoinDesk", "title": "Bitcoin slides as spot ETF outflows hit a record",
+                 "summary": "Bitcoin fell as spot bitcoin ETFs saw record outflows.", "published": t},
+                {"category": "crypto", "source": "Cointelegraph", "title": "Bitcoin ETF outflows deepen crypto sell-off",
+                 "summary": "", "published": t},
+                {"category": "crypto", "source": "The Block", "title": "Ether and Solana follow bitcoin lower",
+                 "summary": "", "published": t}]
+    return {"now": now.isoformat(), "crypto": {"BTC": _coin("Bitcoin", 62400, btc), "ETH": _coin("Ethereum", 2450, eth),
+                                               "SOL": _coin("Solana", 142, sol), "XRP": _coin("XRP", 0.53, xrp)},
+            "news": news}
+
+
+def _sine_voice(spoken: list):
+    def fake_voice(scenes, name, rate, workdir, log=print, fallback=None, pauses=False):
+        spoken.append([dict(s_) for s_ in scenes])
+        out = []
+        for i, sc in enumerate(scenes):
+            words = sc["text"].split()
+            wav = Path(workdir) / f"voice_{i:02d}.wav"
+            dur = 0.05 * len(words) + 0.3
+            run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"sine=frequency={300 + 25 * i}:duration={dur:.3f}",
+                 "-ar", "44100", "-ac", "1", wav])
+            out.append({"audio": wav, "duration": probe_duration(wav), "voice": name,
+                        "words": [(j * 0.05, (j + 0.9) * 0.05, w) for j, w in enumerate(words)]})
+        return out
+    return fake_voice
+
+
+def test_triggered(cfg):
+    """Triggered edition scaffold (epic-volatility-videos entry 1): BTC -7% fires rule 1 with its cause and the
+    coins it moved; BTC -3% fires nothing; `--session triggered --trigger <fixture> --no-upload` renders a 16:9
+    video (mocked LLM + voice); a timed run while triggers.enabled is false logs and exits 0 (no LLM call)."""
+    import main as app
+    from autopilot import triggered, triggers, voice
+
+    fired = triggers.evaluate(trigger_data(btc=-7.0), now=TRIGGER_NOW, log=lambda m: None)
+    assert len(fired) == 1 and fired[0]["rule"] == 1 and fired[0]["lead"] == "BTC", fired
+    t = fired[0]
+    assert t["cause"]["title"].startswith("Bitcoin") and t["coins"][0] == "BTC" and 1 <= len(t["coins"]) <= 3, t
+    assert round(t["moves"]["BTC"]["change_24h"], 1) == -7.0 and t["id"] == "20261015-0930-r1-btc", t
+    assert not triggers.evaluate(trigger_data(btc=-3.0, eth=-2.0), now=TRIGGER_NOW, log=lambda m: None)
+
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert live["triggers"]["enabled"] is False
+    assert live["sessions"]["triggered"]["kind"] == "triggered" and live["sessions"]["triggered"]["platforms"] == ["youtube"]
+    assert not live["sessions"]["triggered"].get("start_utc")
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "config.yaml").write_text(yaml.safe_dump(live, allow_unicode=True), encoding="utf-8")
+    fixture = tmp / "btc_drop.json"
+    fixture.write_text(json.dumps(trigger_data(btc=-7.2)), encoding="utf-8")
+
+    prompts, spoken, logs = [], [], []
+
+    def fake_llm(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        return {"scenes": [
+            {"id": "move", "text": "Bitcoin just fell about seven percent in a day. Here is what actually happened."},
+            {"id": "cause", "text": "Spot bitcoin ETFs saw record outflows, and the selling spread across crypto."},
+            {"id": "recap", "text": "Bitcoin dropped on ETF outflows. This is market data, not financial advice."}]}
+
+    saved = (app.ROOT, app.log, triggered.generate_json, voice.synthesize)
+    app.ROOT, app.log = tmp, logs.append
+    triggered.generate_json, voice.synthesize = fake_llm, _sine_voice(spoken)
+    try:
+        assert app.main(["--session", "triggered", "--trigger", str(fixture), "--scheduled"]) == 0, logs
+        assert any("triggers.enabled is false" in m for m in logs) and not prompts, logs
+        assert app.main(["--session", "triggered"]) == 1 and any("needs --trigger" in m for m in logs), logs
+        assert app.main(["--session", "triggered", "--trigger", str(fixture), "--no-upload"]) == 0, logs
+        assert len(prompts) == 1 and "Bitcoin slides as spot ETF outflows" in prompts[0], prompts
+        video = next((tmp / "output").glob("*/triggered_16x9.mp4"))
+        assert _probe_size(video) == (1920, 1080), video
+        assert not (tmp / "data" / "history.json").exists()  # made only
+    finally:
+        app.ROOT, app.log, triggered.generate_json, voice.synthesize = saved
+    # the move chart draws in both shapes
+    from PIL import Image
+    from autopilot import lesson_slides
+    for layout in (lesson_slides.LANDSCAPE, lesson_slides.PORTRAIT):
+        img = Image.new("RGB", (layout.w, layout.h))
+        info = triggered.draw_move_chart(img, layout.content_box, t["moves"]["BTC"]["series"][-25:], layout, (255, 212, 0))
+        assert layout.content_box[0] <= info["last"][0] <= layout.content_box[2], info
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK triggered: rule 1 at BTC -7% (cause + coins), nothing at -3%, fixture → 16:9 render (no upload), "
+          "dark timed run skips, move chart in both shapes")
 
 
 if __name__ == "__main__":

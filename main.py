@@ -22,6 +22,8 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
                                                       # once in today's recap slot (timed runs: evergreen.enabled)
     python main.py --session basics --prepare next   # write the next ready package (evergreen stock, for a PR)
     python main.py --session basics --stock          # how many ready, unpublished Basics episodes there are
+    python main.py --session triggered --trigger <id|fixture.json> --no-upload   # "why crypto just moved" (16:9,
+                                                      # YouTube only; timed runs: off while triggers.enabled is false)
 
 Manual runs always make and publish and don't stop the timed run of that edition.
 """
@@ -36,7 +38,8 @@ from pathlib import Path
 import yaml
 
 from autopilot import (basics, facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
-                       lessons, material, news_post, render, reveal, script, slides, sources, thumbnail, voice)
+                       lessons, material, news_post, render, reveal, script, slides, sources, thumbnail, triggered,
+                       triggers, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
@@ -71,6 +74,7 @@ LESSON_PUSH_IN = 0.012  # push-in growth per scene: small enough that the slide 
 LESSON_PATH_PLAYLIST = "Trading Lessons · The Path"  # cfg lessons.path_playlist
 LESSON_TRACK_PLAYLIST = "Track {n} · {name}"  # cfg lessons.track_playlist
 BASICS_MAX_SECONDS = 390  # Crypto Basics narration limit (cfg basics.max_seconds)
+TRIGGERED_MAX_SECONDS = 250  # triggered narration limit (cfg triggers.max_seconds)
 WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")  # a session's `days`, datetime.weekday() order
 
 
@@ -731,6 +735,49 @@ def publish_basics(made: dict, pending: list[str], cfg: dict) -> tuple[dict, lis
     return entry, failed
 
 
+def make_triggered(cfg: dict, history: History, trigger: dict, session_key: str, date: str) -> dict:
+    """One triggered video (kind: triggered) from a trigger (autopilot/triggers.py): narration of the trigger's
+    fetched data (triggered.write_script), the voice, a 16:9 render (YouTube only) and its package (written to the
+    workdir; nothing is uploaded). Returns {"entry", "videos": {"16x9"}, "seconds", "workdir", "trigger", "scenes"}."""
+    tc = cfg.get("triggers") or {}
+    log(f"Trigger: {trigger['id']} · rule {trigger['rule']} ({trigger.get('rule_name', '')}) · "
+        f"{', '.join(trigger.get('coins') or [])}" + (f" · cause: {trigger['cause']['title']}" if trigger.get("cause") else ""))
+    workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    workdir.mkdir(parents=True, exist_ok=True)
+    plan = triggered.scene_plan(trigger)
+    pkg = triggered.write_script(cfg, trigger, plan, log=log)
+    (workdir / "package.json").write_text(json.dumps(
+        {"trigger": trigger["id"], "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]]},
+        indent=2, ensure_ascii=False))
+    (workdir / "trigger.json").write_text(json.dumps(trigger, indent=1, ensure_ascii=False))
+    v = cfg["voice"]
+    audio, total = narrate(v, pkg["scenes"], tc.get("max_seconds", TRIGGERED_MAX_SECONDS), workdir, pauses=True,
+                           what="Triggered narration", log=log)
+    music_files = sorted((ROOT / "music").glob("*.mp3"))
+    music = random.choice(music_files) if music_files else None
+    layout = lesson_slides.LANDSCAPE  # YouTube only: 16:9
+    shape_dir = workdir / layout.name
+    pics = triggered.render_slides(cfg, trigger, plan, layout, shape_dir)
+    out = workdir / f"triggered_{layout.name}.mp4"
+    render.build_video(audio, pics, lesson_video_cfg(cfg, layout), shape_dir, out, music=music)
+    log(f"Rendered {out}")
+    entry = {
+        "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "brief_date": date,
+        "session": session_key,
+        "kind": "triggered",
+        "trigger_id": trigger["id"],
+        "rule": trigger["rule"],
+        "coins": list(trigger.get("coins") or []),
+        "video_id": None,
+        "seconds": round(total, 1),
+        "voice": audio[0]["voice"] if audio else v["name"],
+        "workdir": str(workdir.relative_to(ROOT)),
+    }
+    return {"entry": entry, "videos": {layout.name: out}, "seconds": round(total, 1), "workdir": workdir,
+            "trigger": trigger, "scenes": pkg["scenes"]}
+
+
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
     """Facebook news image post: one story → headline + caption → background → card → /photos."""
     session = cfg.get("sessions", {}).get(session_key, {})
@@ -798,7 +845,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-upload", action="store_true", help="make it only, publish nowhere")
     p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
     p.add_argument("--session", default="auto",
-                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | basics | "
+                   help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | basics | triggered | "
                         "auto (market edition by UTC time)")
     p.add_argument("--platforms", default="all",
                    help="all | youtube | facebook | youtube,facebook (limited to the edition's own platforms)")
@@ -815,6 +862,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="top-up (session lesson only): fill today's slot of this edition (a config.yaml session) "
                         "with the next unpublished episode, once per slot; the lesson's days and time window "
                         "don't apply")
+    p.add_argument("--trigger", default="", metavar="ID|PATH",
+                   help="triggered edition (with --session triggered): the trigger to answer (a fixture path)")
     p.add_argument("--lesson-sample", action="store_true",
                    help="make the sample trading lesson on fixture candles (never uploaded; use with --no-upload)")
     args = p.parse_args(argv)
@@ -905,6 +954,30 @@ def main(argv: list[str] | None = None) -> int:
         log("basics.enabled is false in config.yaml (Crypto Basics is dark), so the timed run is skipped. "
             "A manual run (Run workflow, no `scheduled`) still makes and publishes it.")
         return 0
+    trigger = None
+    if kind == "triggered":
+        if args.scheduled and not (cfg.get("triggers") or {}).get("enabled", False):
+            log("triggers.enabled is false in config.yaml (triggered videos are dark), so the timed run is skipped. "
+                "A manual run (Run workflow with `trigger`, no `scheduled`) still makes it.")
+            return 0
+        if not (args.trigger or "").strip():
+            log("The triggered edition needs --trigger <trigger id|fixture path>.")
+            return 1
+        try:
+            trigger = triggers.load(args.trigger.strip(), ROOT)
+        except Exception as e:
+            log(f"Trigger {args.trigger}: {e}")
+            return 1
+        if args.scheduled:  # a timed triggered run goes by the trigger's due time, not start_utc
+            late = round((now - datetime.fromisoformat(trigger["due_utc"])).total_seconds() / 60)
+            window = int(float((cfg.get("triggers") or {}).get("publish_window_hours", 3)) * 60)
+            log(f"Timed run for trigger {trigger['id']} (due {trigger['due_utc']}, started {late:+d} min)")
+            if late < -30:
+                log(f"Trigger {trigger['id']} is not due yet (due {trigger['due_utc']}); skipped.")
+                return 0
+            if late > window:
+                log(f"Trigger {trigger['id']} is more than {window} min past its due time; skipped.")
+                return 0
     if args.scheduled and not topup and start:
         late = minutes_late(now, start)
         log(f"Timed run for the {label} edition (due {start} UTC, started {late:+d} min)")
@@ -973,6 +1046,11 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             entry, failed = (publish_basics if what == "basics" else publish_lesson)(made, pending, cfg)
             entry["evergreen"] = True
+        elif kind == "triggered":
+            if pending:
+                log("Triggered publishing comes with its packaging (epic-volatility-videos entry 7); made only.")
+            made = make_triggered(cfg, history, trigger, session_key, today)
+            entry, failed = made["entry"], []
         elif kind == "basics":
             # re-making for a platform it missed: the history the first run saw (same A/B voice)
             made = make_basics(cfg, history.excluding_slot(today, session_key) if remake else history,
@@ -986,7 +1064,8 @@ def main(argv: list[str] | None = None) -> int:
                               args, session_key)
             entry, failed = publish(made, pending, cfg)
     except Exception as e:
-        log(f"{dict(post='Post', lesson='Lesson', basics='Basics', evergreen='Evergreen').get(kind, 'Brief')} "
+        what = dict(post="Post", lesson="Lesson", basics="Basics", evergreen="Evergreen", triggered="Triggered")
+        log(f"{what.get(kind, 'Brief')} "
             f"failed: {e}")
         return 1
     if any(entry.get(k) for k in ID_KEYS):
