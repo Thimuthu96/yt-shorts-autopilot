@@ -1081,6 +1081,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-15T16:09:03+00:00",
+      "brief_date": "2026-10-15",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "CRYPTO DOWN $1B WIPED OUT",
+      "fb_post_id": "462331040302049_122253079880610202",
+      "headlines": [
+        "Why Is Crypto Down Today? Nearly $1 Billion in Leveraged Positions Just Got Wiped Out."
+      ],
+      "topic": "crypto",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
