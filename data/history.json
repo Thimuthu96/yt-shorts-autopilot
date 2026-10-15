@@ -950,6 +950,30 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-15T06:20:16+00:00",
+      "brief_date": "2026-10-15",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Neutral Range Near $4,134 | XAU/USD Oct 15",
+      "video_id": "_CAC0FIOdgs",
+      "seconds": 41.3,
+      "headlines": [
+        "October Fed rate hike odds jump to 33% after inflation report"
+      ],
+      "outlook": {
+        "price": 4134.1,
+        "daily_bias": "neutral",
+        "time": "2026-10-15T06:16:28+00:00"
+      },
+      "fb_reel_id": "897263856686798",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
