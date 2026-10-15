@@ -19,9 +19,9 @@ on:
   workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
     inputs:
       session:
-        description: "Edition to make (news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`, triggered = why crypto moved for `trigger`, recap = Saturday recap)"
+        description: "Edition to make (news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`, triggered = why crypto moved for `trigger`, recap = Saturday recap, short_a / short_b = standalone Short)"
         type: choice
-        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening, lesson, basics, evergreen, triggered, recap]
+        options: [auto, asia, london, newyork, gold, news_morning, news_midday, news_evening, lesson, basics, evergreen, triggered, recap, short_a, short_b]
         default: auto
       platforms:
         description: "Where to publish (limited to the edition's own platforms)"

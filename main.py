@@ -24,6 +24,8 @@ Plus Facebook-only news image posts (kind: post): story → headline + caption �
     python main.py --session basics --stock          # how many ready, unpublished Basics episodes there are
     python main.py --session recap    # Saturday recap: the week's biggest moves and why (16:9, YouTube only; skipped
                                       # when a triggered video published this ISO week; timed runs: recap.enabled)
+    python main.py --session short_a  # standalone Short (kind: short) from the Shorts material (data/material/);
+                                      # YouTube Short + Facebook Reel (timed runs: off while shorts.enabled is false)
     python main.py --session triggered --trigger <id|fixture.json> --no-upload   # "why crypto just moved" (16:9,
                                                       # YouTube only; timed runs: off while triggers.enabled is false)
 
@@ -40,8 +42,8 @@ from pathlib import Path
 import yaml
 
 from autopilot import (basics, facebook, focus, gold, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
-                       lessons, material, news_post, recap, render, reveal, script, slides, sources, thumbnail,
-                       triggered, triggers, voice)
+                       lessons, material, news_post, recap, render, reveal, script, shorts, slides, sources,
+                       thumbnail, triggered, triggers, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot.history import ID_KEYS, PLATFORM_IDS, History
 
@@ -882,6 +884,44 @@ def make_recap(cfg: dict, history: History, session_key: str, date: str) -> dict
     return made
 
 
+def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict | None:
+    """One standalone Short (kind: short; autopilot/shorts.py) from the Shorts material in data/material/: the
+    picked segment → a new hook and 30-40 s script (Gemini + shorts.check_script, 3 attempts), the A/B voice with
+    pauses, 9:16 slides (hook card = frame 0, the segment's diagram with step reveal), render, metadata. None =
+    nothing to make (logged). Returns made for main.publish."""
+    picked = shorts.pick_concept(shorts.load_materials(ROOT, log=log), history)
+    if picked is None:
+        log("Shorts: no Basics or Lesson material with an unused segment; nothing to publish in this slot.")
+        return None
+    m, seg = picked
+    log(f"Short: {shorts.key(m)} · segment {seg['id']} ({seg['term']})")
+    workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    workdir.mkdir(parents=True, exist_ok=True)
+    pkg = shorts.write_concept(cfg, m, seg, log=log)
+    (workdir / "package.json").write_text(json.dumps({"material": shorts.key(m), "segment": seg["id"], **pkg},
+                                                     indent=2, ensure_ascii=False))
+    v = ab_voice(cfg["voice"], history, session_key)
+    log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
+    audio, total = narrate(v, pkg["scenes"], cfg["video"]["max_seconds"], workdir, pauses=True,
+                           what="Short narration", log=log)
+    pics, thumb = shorts.render_slides(cfg, m, seg, pkg, workdir)
+    reveal.time_steps(pics, pkg["scenes"], audio, log=log)
+    music_files = sorted((ROOT / "music").glob("*.mp3"))
+    out = workdir / "short.mp4"
+    render.build_video(audio, pics, cfg, workdir, out, music=random.choice(music_files) if music_files else None)
+    log(f"Rendered {out}")
+    meta = shorts.metadata(cfg, m, seg, pkg)
+    (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
+    fb_caption = shorts.reel_caption(meta, cfg)
+    (workdir / "caption_fb.txt").write_text(fb_caption, encoding="utf-8")
+    entry = {"date": datetime.now(timezone.utc).isoformat(timespec="seconds"), "brief_date": date,
+             "session": session_key, "kind": "short", "short_kind": "concept", "material": shorts.key(m),
+             "segment": seg["id"], "source_video": m.get("youtube_id"), "hook": pkg["hook"], "title": meta["title"],
+             "video_id": None, "seconds": round(total, 1), "voice": audio[0]["voice"] if audio else v["name"],
+             "workdir": str(workdir.relative_to(ROOT))}
+    return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption}
+
+
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
     """Facebook news image post: one story → headline + caption → background → card → /photos."""
     session = cfg.get("sessions", {}).get(session_key, {})
@@ -950,6 +990,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
     p.add_argument("--session", default="auto",
                    help="asia | london | newyork | gold | news_morning | news_midday | news_evening | lesson | basics | triggered | recap | "
+                        "short_a | short_b | "
                         "auto (market edition by UTC time)")
     p.add_argument("--platforms", default="all",
                    help="all | youtube | facebook | youtube,facebook (limited to the edition's own platforms)")
@@ -1082,6 +1123,10 @@ def main(argv: list[str] | None = None) -> int:
             if late > window:
                 log(f"Trigger {trigger['id']} is more than {window} min past its due time; skipped.")
                 return 0
+    if kind == "short" and args.scheduled and not (cfg.get("shorts") or {}).get("enabled", False):
+        log("shorts.enabled is false in config.yaml (standalone Shorts are dark), so the timed run is skipped. "
+            "A manual run (Run workflow, no `scheduled`) still makes and publishes one.")
+        return 0
     if kind == "recap" and args.scheduled and not (cfg.get("recap") or {}).get("enabled", False):
         log("recap.enabled is false in config.yaml (the Saturday recap is dark), so the timed run is skipped. "
             "A manual run (Run workflow, no `scheduled`) still makes it.")
@@ -1167,6 +1212,12 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             made = make_recap(cfg, history, session_key, today)
             entry, failed = publish_triggered(made, [x for x in pending if x == "youtube"], cfg, "recap", "recap")
+        elif kind == "short":
+            made = make_short(cfg, history.excluding_slot(today, session_key) if remake else history,
+                              session_key, today)
+            if made is None:
+                return 0
+            entry, failed = publish(made, pending, cfg)
         elif kind == "basics":
             # re-making for a platform it missed: the history the first run saw (same A/B voice)
             made = make_basics(cfg, history.excluding_slot(today, session_key) if remake else history,
@@ -1181,7 +1232,7 @@ def main(argv: list[str] | None = None) -> int:
             entry, failed = publish(made, pending, cfg)
     except Exception as e:
         what = dict(post="Post", lesson="Lesson", basics="Basics", evergreen="Evergreen", triggered="Triggered",
-                    recap="Recap")
+                    recap="Recap", short="Short")
         log(f"{what.get(kind, 'Brief')} "
             f"failed: {e}")
         return 1

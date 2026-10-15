@@ -288,6 +288,7 @@ def main():
     test_trigger_poll(cfg)
     test_triggered_packaging(cfg)
     test_recap(cfg)
+    test_short_concept(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5063,6 +5064,147 @@ def test_recap(cfg):
     print("OK recap: skipped in a week with a triggered video (logged), quiet week → 16:9 recap of the 3 biggest "
           "7-day moves (fixture numbers, causes), fixed title + disclosure + CoinGecko credit once, mini-board "
           "thumbnail, YouTube only, dark timed skip, workflow option")
+
+
+# ─── standalone Shorts (epic-standalone-shorts) ─────────────────────────────
+
+SHORT_NOW = datetime(2026, 10, 15, 13, 5, tzinfo=timezone.utc)  # Thursday, Short A's slot
+SHORT_VOCAB = ("ledger", "network", "block", "wallet", "node", "miner", "token", "chain", "reward", "supply", "holder",
+               "fund", "share", "exchange", "custodian", "record", "fee", "signal", "layer", "bridge", "vault", "key",
+               "address", "balance", "transfer", "proof", "stake", "validator", "pool", "order", "trade", "volume",
+               "spread", "candle", "trend", "range", "level", "swing", "zone", "pattern", "breakout", "retest",
+               "momentum", "session", "liquidity", "flow", "chart", "move", "story", "idea", "rule", "step", "part")
+
+
+def _short_answer(n: int, prompt: str, first: str | None = None) -> dict:
+    """A mocked Short script (30 words a scene, distinct per call n) whose hook names the prompt's term."""
+    import re as _re
+    rnd = random.Random(n)
+    term = (_re.search(r'"term": "([^"]+)"', prompt) or _re.search(r"HOOK: (.+)", prompt))
+    term = term.group(1) if term else "this idea"
+
+    def text(k):
+        return " ".join(rnd.choice(SHORT_VOCAB) for _ in range(k)).capitalize() + "."
+    hook = f"Why does {term.lower()} matter?"[:60].rstrip()
+    if not hook.endswith("?"):
+        hook = hook[:59].rstrip() + "?"
+    return {"hook": hook, "card": "WHY IT MATTERS?",
+            "scenes": [{"id": "hook", "text": first or f"Why does {term.lower()} matter? " + text(22)},
+                       {"id": "explain", "text": text(15) + " " + text(15)},
+                       {"id": "payoff", "text": text(14) + " " + text(14)}]}
+
+
+def _basics_material(cfg, vid: str = "Y1", published: str = "2026-10-14T15:05:00+00:00", topic_id: str = "") -> dict:
+    from autopilot import basics, material
+    topic = dict(basics.sample_topic(), thumbnail="BITCOIN ETF?", approved=True)
+    if topic_id:
+        topic["id"] = topic_id
+    scenes = [{"id": k, "text": v} for k, v in _sample_narration().items()]
+    return material.build_basics(topic, scenes, {"video_id": vid, "fb_video_id": None, "date": published}, cfg)
+
+
+class _ShortRun:
+    """A temporary ROOT with the live config (+ `update`) and `materials` in data/material/; Gemini, the voice,
+    YouTube and the Facebook Reel mocked. `answer(n, prompt)` gives the n-th LLM answer (default _short_answer)."""
+
+    def __init__(self, materials, answer=None, now=SHORT_NOW, update=None, history=None):
+        from autopilot import material
+        self.tmp = Path(tempfile.mkdtemp())
+        live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+        self.cfg = json.loads(json.dumps(live))
+        for k, v in (update or {}).items():
+            self.cfg.setdefault(k, {}).update(v)
+        (self.tmp / "config.yaml").write_text(yaml.safe_dump(self.cfg, allow_unicode=True), encoding="utf-8")
+        for m in materials:
+            material.write(m, self.tmp)
+        if history:
+            (self.tmp / "data").mkdir(parents=True, exist_ok=True)
+            (self.tmp / "data" / "history.json").write_text(json.dumps({"videos": history}))
+        self.now, self.answer = now, answer or _short_answer
+        self.prompts, self.logs, self.yt, self.fb, self.spoken = [], [], [], [], []
+
+    def __enter__(self):
+        import main as app
+        from autopilot import shorts, voice, youtube
+        self.app = app
+        run_ = self
+
+        class FixedNow(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return run_.now.astimezone(tz) if tz else run_.now.replace(tzinfo=None)
+
+        def fake_llm(prompt, models, temperature=0.9):
+            self.prompts.append(prompt)
+            return self.answer(len(self.prompts), prompt)
+
+        def fake_upload(video, meta, cfg_, log=print):
+            self.yt.append({"video": Path(video), "meta": dict(meta)})
+            return f"S{len(self.yt) + len(self.fb) * 0}"
+
+        def fake_reel(video, caption, cfg_, cover=None, log=print):
+            self.fb.append({"video": Path(video), "caption": caption, "cover": cover})
+            return f"FR{len(self.fb)}"
+        self.saved = (app.ROOT, app.log, app.datetime, shorts.generate_json, voice.synthesize, youtube.upload,
+                      youtube.set_thumbnail, facebook.publish_reel, facebook.disabled_reason)
+        app.ROOT, app.log, app.datetime = self.tmp, self.logs.append, FixedNow
+        shorts.generate_json, voice.synthesize = fake_llm, _sine_voice(self.spoken)
+        youtube.upload, youtube.set_thumbnail = fake_upload, (lambda *a, **k: True)
+        facebook.publish_reel, facebook.disabled_reason = fake_reel, (lambda cfg_: "")
+        return self
+
+    def run(self, *argv) -> int:
+        return self.app.main(list(argv))
+
+    def history(self) -> list[dict]:
+        p = self.tmp / "data" / "history.json"
+        return json.loads(p.read_text())["videos"] if p.exists() else []
+
+    def __exit__(self, *exc):
+        from autopilot import shorts, voice, youtube
+        (self.app.ROOT, self.app.log, self.app.datetime, shorts.generate_json, voice.synthesize, youtube.upload,
+         youtube.set_thumbnail, facebook.publish_reel, facebook.disabled_reason) = self.saved
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        return False
+
+
+def test_short_concept(cfg):
+    """Concept Short (epic-standalone-shorts entry 1): from a fixture Basics material file with a mocked LLM, a
+    manual short_a run renders a 9:16 Short (the segment's diagram stepped), publishes it as a YouTube Short + a
+    Facebook Reel through main.publish and records kind: short with its material, segment and A/B voice; a draft
+    whose first sentence asks viewers to subscribe is discarded; a timed run while shorts.enabled is false logs
+    and exits 0; autopilot.yml offers short_a and short_b."""
+    from autopilot import shorts
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert live["shorts"]["enabled"] is False
+    assert live["sessions"]["short_a"]["start_utc"] == "13:00" and live["sessions"]["short_b"]["start_utc"] == "23:00"
+    assert all(live["sessions"][k]["kind"] == "short" for k in ("short_a", "short_b"))
+    assert shorts.opening_problems("Subscribe for more! Here is what an ETF is.")
+    assert shorts.opening_problems("Before we start, hit the bell. A fund holds assets.")
+    assert not shorts.opening_problems("What is an ETF? It is a fund. Subscribe later.")
+    m = _basics_material(cfg)
+
+    def answer(n, prompt):
+        return _short_answer(n, prompt, first="Subscribe for more, but first: what is a fund?" if n == 1 else None)
+    with _ShortRun([m], answer=answer) as r:
+        assert r.run("--session", "short_a", "--scheduled") == 0
+        assert any("shorts.enabled is false" in x for x in r.logs) and not r.prompts
+        assert r.run("--session", "short_a") == 0, r.logs[-5:]
+        assert any("Discarding Short draft" in x and "subscribe ask in the opening" in x for x in r.logs), r.logs
+        assert len(r.prompts) == 2 and "Exchange-traded fund" in r.prompts[0]
+        assert len(r.yt) == 1 and len(r.fb) == 1 and _probe_size(r.yt[0]["video"]) == (1080, 1920)
+        assert any(x.startswith("Step reveal explain") for x in r.logs), r.logs
+        e = r.history()[-1]
+        assert e["kind"] == "short" and e["session"] == "short_a" and e["material"] == f"basics-{m['source']['id']}"
+        assert e["segment"] == "point_1" and e["source_video"] == "Y1" and e["video_id"] == "S1"
+        assert e["fb_reel_id"] == "FR1" and e["voice"] in (live["voice"]["name"], live["voice"]["alternate"]), e
+        assert r.spoken and r.spoken[0][0]["id"] == "hook"
+    ap = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
+    opts = ap.get("on", ap.get(True))["workflow_dispatch"]["inputs"]["session"]["options"]
+    assert opts[-3:] == ["recap", "short_a", "short_b"], opts
+    print("OK short concept: Basics material → own hook + script (subscribe-first draft discarded), 9:16 render with "
+          "the stepped diagram, YouTube Short + Reel via main.publish, history kind short + material/segment/voice, "
+          "dark timed skip, workflow options")
 
 
 if __name__ == "__main__":

@@ -128,10 +128,25 @@ sessions:
     kind: recap
     days: [sat]
     platforms: [youtube]
+  # Standalone Shorts (kind: short, CAP-2): an original 30-40 s vertical Short written from one segment of a long
+  # video's Shorts material (data/material/), YouTube Short + Facebook Reel. Dark until `shorts.enabled: true`
+  # (timed runs skip; manual runs make + publish). Epic 5 times the two slots.
+  short_a:
+    label: Short A
+    short: Short A
+    start_utc: "13:00"
+    kind: short
+    platforms: [youtube, facebook]
+  short_b:
+    label: Short B
+    short: Short B
+    start_utc: "23:00"
+    kind: short
+    platforms: [youtube, facebook]
 # Forex is closed at weekends, so only these editions run on Saturday and Sunday
 # (automatic runs only; a manual run can still choose any edition). News posts run every day;
 # the lesson runs on its own `days` (Thursday).
-weekend_sessions: [london, news_morning, news_midday, news_evening, lesson, triggered, recap]
+weekend_sessions: [london, news_morning, news_midday, news_evening, lesson, triggered, recap, short_a, short_b]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
 max_late_minutes: 180
@@ -224,6 +239,13 @@ recap:
   category_id: "25"           # YouTube News & Politics
   # the one spoken subscribe ask, added at the end of the first move (the first payoff)
   subscribe_ask: "If this recap helps, subscribe for next week's."
+
+# ─── Standalone Shorts (the `short_a` / `short_b` editions, CAP-2) ──────────
+# Dark: while enabled is false, timed (--scheduled) Short runs log why and stop; a manual run still makes one.
+shorts:
+  enabled: false
+  min_words: 70               # script length → roughly 30-40 seconds
+  max_words: 105
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
 # Dark: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
