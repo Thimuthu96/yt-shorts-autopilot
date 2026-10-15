@@ -17,7 +17,10 @@ and script, written from one segment of a long video's Shorts material (autopilo
                                          characters, rules.title_problems); the hook card (frame 0) carries 1-4 words
     package(cfg, pkg, ctx, log)          a hook breaking a title rule is rewritten once by Gemini, else
                                          RuntimeError ("Short packaging"); a bad card falls back to the term / hook
-    metadata(cfg, m, seg, pkg)           title = hook (no hashtag); description = hook, payoff, source, the
+    source_link(m) / studio_task(...)    the related video: https://youtu.be/<source youtube_id> on the description's
+                                         and Reel caption's first line; the Data API has no related-video field, so
+                                         after an upload one line asks the owner to set it in Studio
+    metadata(cfg, m, seg, pkg)           title = hook (no hashtag); description = link, hook, payoff, source, the
                                          disclosure line once, hashtags (#Shorts last); reel_caption(meta, cfg):
                                          the same metadata without #Shorts
 """
@@ -382,6 +385,19 @@ def hashtags(m: dict, seg: dict | None = None) -> list[str]:
     return tags[:4] + ["#Shorts"]
 
 
+def source_link(m: dict) -> str:
+    return f"https://youtu.be/{m['youtube_id']}" if m.get("youtube_id") else ""
+
+
+def studio_task(short_id: str | None, m: dict) -> str:
+    """The owner's one-line Studio task (YouTube Data API v3 has no related-video field), '' when not needed."""
+    link = source_link(m)
+    if not (short_id and link):
+        return ""
+    return (f"Studio task: set the related video of https://youtube.com/shorts/{short_id} to {link} "
+            "(YouTube Studio → Content → the Short → Related video; the API can't set it)")
+
+
 HASHTAG = re.compile(r"(?<![\w&])#\w+")
 
 
@@ -396,7 +412,9 @@ def metadata(cfg: dict, m: dict, seg: dict | None, pkg: dict, extra: list[str] |
     payoff = " ".join(s["text"] for s in pkg["scenes"] if s["id"] == pkg["scenes"][-1]["id"])
     body = rules.without_disclosure(_no_tags(payoff), line)
     tags = hashtags(m, seg)
-    parts = [_no_tags(pkg["hook"]), body, *(extra or []), f"From the full video: {m['source']['title']}",
+    link = source_link(m)
+    parts = [f"▶ Full video: {link}" if link else "", _no_tags(pkg["hook"]), body, *(extra or []),
+             f"From the full video: {m['source']['title']}",
              "⚠️ " + line, " ".join(tags)]
     return {"title": _no_tags(pkg["hook"])[:MAX_TITLE], "description": "\n\n".join(p for p in parts if p),
             "tags": [t.lstrip("#") for t in tags if t != "#Shorts"] + ([seg["term"]] if seg else []),

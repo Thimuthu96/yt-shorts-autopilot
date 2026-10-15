@@ -919,7 +919,7 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
              "segment": seg["id"], "source_video": m.get("youtube_id"), "hook": pkg["hook"], "title": meta["title"],
              "video_id": None, "seconds": round(total, 1), "voice": audio[0]["voice"] if audio else v["name"],
              "workdir": str(workdir.relative_to(ROOT))}
-    return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption}
+    return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption, "material": m}
 
 
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
@@ -1218,6 +1218,9 @@ def main(argv: list[str] | None = None) -> int:
             if made is None:
                 return 0
             entry, failed = publish(made, pending, cfg)
+            task = shorts.studio_task(entry.get("video_id"), made["material"])
+            if task:
+                log(task)
         elif kind == "basics":
             # re-making for a platform it missed: the history the first run saw (same A/B voice)
             made = make_basics(cfg, history.excluding_slot(today, session_key) if remake else history,

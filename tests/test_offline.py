@@ -290,6 +290,7 @@ def main():
     test_recap(cfg)
     test_short_concept(cfg)
     test_short_packaging(cfg)
+    test_short_related(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5248,6 +5249,23 @@ def test_short_packaging(cfg):
         assert any("Short packaging" in x for x in r.logs) and not r.yt and not r.fb and not r.history()
     print("OK short packaging: long title rewritten once, dated title stops the Short, hashtags + disclosure once "
           "in the description and Reel caption (no #Shorts there), frame 0 = hook card")
+
+
+def test_short_related(cfg):
+    """Related-video link (entry 3): a Short made from material with video id X has https://youtu.be/X on its
+    description's first line and in its Reel caption; after the upload one line logs the owner's Studio task
+    (the API has no related-video field); the history entry gains nothing for it."""
+    m = _basics_material(cfg, vid="Xvid123")
+    with _ShortRun([m]) as r:
+        assert r.run("--session", "short_b") == 0, r.logs[-5:]
+        d = r.yt[0]["meta"]["description"]
+        assert d.splitlines()[0] == "▶ Full video: https://youtu.be/Xvid123", d
+        assert "https://youtu.be/Xvid123" in r.fb[0]["caption"].splitlines()[0]
+        assert any(x.startswith("Studio task: set the related video of https://youtube.com/shorts/S1 to "
+                                "https://youtu.be/Xvid123") for x in r.logs), r.logs[-4:]
+        e = r.history()[-1]
+        assert e["source_video"] == "Xvid123" and not any("related" in k for k in e), e
+    print("OK short related: youtu.be/<source> first line of the description + Reel caption, Studio task logged")
 
 
 if __name__ == "__main__":
