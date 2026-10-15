@@ -283,6 +283,7 @@ def main():
     test_basics_ready(cfg)
     test_evergreen(cfg)
     test_triggered(cfg)
+    test_trigger_rules(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -4599,6 +4600,83 @@ def test_triggered(cfg):
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK triggered: rule 1 at BTC -7% (cause + coins), nothing at -3%, fixture → 16:9 render (no upload), "
           "dark timed run skips, move chart in both shapes")
+
+
+
+def trigger_overview(cap: float = 1.0, coins=None) -> dict:
+    """A CoinGecko overview (sources.parse_overview's shape): the total cap's 24 h change + top-50 coins."""
+    coins = coins if coins is not None else [("BTC", "Bitcoin", 62400, -2.0), ("ETH", "Ethereum", 2450, -1.5),
+                                             ("PEPE", "Pepe", 0.00001, 20.0), ("SUI", "Sui", 3.1, 15.0),
+                                             ("USDT", "Tether", 1.0, 0.0)]
+    return {"source": "CoinGecko", "credit": "Data provided by CoinGecko", "fetched_utc": TRIGGER_NOW.isoformat(),
+            "as_of_utc": TRIGGER_NOW.isoformat(), "total_cap_usd": 2.3e12, "total_cap_change_24h": cap,
+            "coins": [{"id": n.lower(), "symbol": sym, "name": n, "rank": i + 1, "price": p, "market_cap": 1e9,
+                       "change_24h": ch, "change_7d": ch * 1.2, "sparkline": [p / (1 + ch / 100), p], "last_updated": ""}
+                      for i, (sym, n, p, ch) in enumerate(coins)]}
+
+
+def test_trigger_rules(cfg):
+    """All four trigger rules and the coin gate (epic-volatility-videos entry 3): each rule fires at its threshold
+    and not just below; a +20% coin with no matching story fires nothing; an ETF-approval headline fires rule 4
+    with that cause; no trigger leads with a coin that failed the gate; every trigger carries 1-3 coins."""
+    from autopilot import focus, triggers
+    quiet = lambda m: None  # noqa: E731
+    calm = dict(btc=-1.0, eth=-1.0, sol=-1.0, xrp=-1.0)
+    t0 = (TRIGGER_NOW - timedelta(hours=1)).isoformat()
+
+    def rules_of(data, ov=None):
+        got = triggers.evaluate(data, ov, now=TRIGGER_NOW, log=quiet)
+        for t in got:
+            assert 1 <= len(t["coins"]) <= 3 and t["coins"][0] == t["lead"] or t["lead"] == "CRYPTO", t
+        return got
+
+    # rule 1: ±5.0 fires, 4.9 doesn't (ETH too)
+    assert [t["rule"] for t in rules_of(trigger_data(**dict(calm, btc=5.0)))] == [1]
+    assert [t["lead"] for t in rules_of(trigger_data(**dict(calm, eth=-5.0)))] == ["ETH"]
+    assert not rules_of(trigger_data(**dict(calm, btc=4.9, eth=-4.9)))
+    # rule 2: total cap ±4.0 fires, 3.9 doesn't; topic-led (label Crypto, the focus story as cause)
+    got = rules_of(trigger_data(**calm), trigger_overview(cap=-4.0, coins=[]))
+    assert [t["rule"] for t in got] == [2] and got[0]["label"] == "Crypto" and got[0]["cause"], got
+    assert got[0]["market"]["total_cap_change_24h"] == -4.0 and "CoinGecko" in got[0]["data_sources"]
+    assert not rules_of(trigger_data(**calm), trigger_overview(cap=3.9, coins=[]))
+    # rule 3 + the coin gate: +20% PEPE with no story → nothing (logged); with a story → fires with that cause
+    logs = []
+    assert not triggers.evaluate(trigger_data(**calm), trigger_overview(coins=[("PEPE", "Pepe", 1e-5, 20.0)]),
+                                 now=TRIGGER_NOW, log=logs.append)
+    assert any("Coin gate: PEPE" in m for m in logs), logs
+    story = {"category": "crypto", "source": "CoinDesk", "title": "Pepe jumps as memecoin traders pile in",
+             "summary": "", "published": t0}
+    news = trigger_data()["news"][:1] + [story]
+    got = rules_of(trigger_data(**calm, news=news), trigger_overview(coins=[("PEPE", "Pepe", 1e-5, 20.0)]))
+    assert [t["rule"] for t in got] == [3] and got[0]["lead"] == "PEPE" and got[0]["cause"]["title"] == story["title"]
+    assert got[0]["moves"]["PEPE"]["source"] == "CoinGecko" and got[0]["moves"]["PEPE"]["change_24h"] == 20.0
+    # threshold: 15.0 fires (a SUI story), 14.9 doesn't
+    sui = dict(story, title="Sui rallies after network news")
+    assert [t["lead"] for t in rules_of(trigger_data(**calm, news=[sui]),
+                                        trigger_overview(coins=[("SUI", "Sui", 3.1, 15.0)]))] == ["SUI"]
+    assert not rules_of(trigger_data(**calm, news=[sui]), trigger_overview(coins=[("SUI", "Sui", 3.1, 14.9)]))
+    # no trigger leads with a gated-out coin: PEPE +20% without a story, SUI +16% with one → only SUI
+    got = rules_of(trigger_data(**calm, news=[sui]),
+                   trigger_overview(coins=[("PEPE", "Pepe", 1e-5, 20.0), ("SUI", "Sui", 3.1, 16.0)]))
+    assert [t["lead"] for t in got] == ["SUI"] and all("PEPE" not in t["coins"] for t in got), got
+    # rule 4: an ETF-approval headline (fresh) fires with that cause; old or not major → nothing
+    etf = dict(story, title="SEC approves first spot Solana ETF")
+    assert focus.major_story(etf) == "etf"
+    assert focus.major_story({"title": "Hackers drain $40 million from crypto exchange"}) == "hack"
+    assert focus.major_story({"title": "Ethereum's Fusaka upgrade goes live"}) == "upgrade"
+    assert focus.major_story({"title": "Senate passes stablecoin bill"}) == "regulation"
+    assert focus.major_story({"title": "Bitcoin slides as spot ETF outflows hit a record"}) is None
+    assert focus.major_story({"title": "SEC approves new stock exchange rules"}) is None  # no crypto named
+    got = rules_of(trigger_data(**calm, news=[etf]))
+    assert [t["rule"] for t in got] == [4] and got[0]["cause"]["title"] == etf["title"], got
+    assert got[0]["category"] == "etf" and got[0]["lead"] == "SOL", got
+    old = dict(etf, published=(TRIGGER_NOW - timedelta(hours=7)).isoformat())
+    assert not rules_of(trigger_data(**calm, news=[old]))
+    # several at once: rule order
+    got = rules_of(trigger_data(**dict(calm, btc=-6.0), news=[etf]), trigger_overview(cap=-4.5, coins=[]))
+    assert [t["rule"] for t in got] == [1, 2, 4], [t["rule"] for t in got]
+    print("OK trigger rules: 1-4 at their thresholds (not just below), coin gate (no story → no trigger, logged), "
+          "ETF approval → rule 4 with its cause, gated-out coin never leads, rule order")
 
 
 if __name__ == "__main__":

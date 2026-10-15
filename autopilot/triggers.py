@@ -13,8 +13,15 @@ A trigger (JSON, also the fixture format of `main.py --session triggered --trigg
      "market": {"total_cap_usd", "total_cap_change_24h", "source"} | None, CoinGecko's overview when fetched
      "data_sources": ["Coinbase", "CoinGecko"], "key": "r1:BTC:<cause>"}  key = the same cause, for dedupe
 
-    evaluate(data, overview=None, now=None, log) -> [trigger]  every rule that fires now (rule 1: BTC or ETH
-                                     moves ±5% or more in 24 h); data = sources-style {crypto, news}
+    evaluate(data, overview=None, now=None, cfg, used, log) -> [trigger]  every rule that fires now, in rule order:
+                                     1 BTC or ETH moves ±5% or more in 24 h (Coinbase)
+                                     2 the total crypto market cap moves ±4% or more in 24 h (CoinGecko overview)
+                                     3 a top-50 coin moves ±15% or more in 24 h AND a crypto headline names it (the
+                                       coin gate: without the story it never fires; the story is the cause)
+                                     4 a major crypto story (focus.major_story: ETF decision, regulation, hack, major
+                                       upgrade) published in the last `major_hours`
+                                     Every trigger carries its cause and the 1-3 coins it moved; data = sources-style
+                                     {crypto, news}
     load(ref, root) -> trigger       `ref` = a fixture path: a trigger JSON ({"trigger": …} or a trigger), or
                                      market data ({crypto, news, overview?}) whose first firing trigger is used
 """
@@ -25,9 +32,15 @@ from pathlib import Path
 
 from autopilot import focus
 
-RULE_NAMES = {1: "BTC or ETH ±5% in 24 h"}
+RULE_NAMES = {1: "BTC or ETH ±5% in 24 h", 2: "total market cap ±4% in 24 h",
+              3: "top-50 coin ±15% in 24 h with a matching story", 4: "major crypto story"}
 MAJOR_COINS = ("BTC", "ETH")  # rule 1
 MOVE_PCT = 5.0  # rule 1 threshold (cfg triggers.move_pct)
+CAP_PCT = 4.0  # rule 2 (cfg triggers.cap_pct)
+COIN_PCT = 15.0  # rule 3 (cfg triggers.coin_pct)
+TOP = 50  # rule 3: market-cap rank
+MAJOR_HOURS = 6  # rule 4: a major story newer than this (cfg triggers.major_hours)
+STABLE = {"USDT", "USDC", "DAI", "FDUSD", "USDE", "TUSD", "PYUSD", "USDS", "USD1", "BUSD"}
 MAX_COINS = 3
 MAX_HEADLINES = 5
 
@@ -104,6 +117,62 @@ def headlines(data: dict, coins: list[str], cause: dict | None) -> list[dict]:
     return out[:MAX_HEADLINES]
 
 
+def _overview_coins(overview: dict | None) -> dict:
+    """{SYMBOL: overview coin} for the top-50, stablecoins left out."""
+    out = {}
+    for c in (overview or {}).get("coins") or []:
+        sym = str(c.get("symbol") or "").upper()
+        if sym and sym not in STABLE and sym not in out and (c.get("rank") or TOP) <= TOP:
+            out[sym] = c
+    return out
+
+
+def _coin_rx(sym: str, name: str) -> re.Pattern:
+    """A headline names a coin by its name (any case) or its ticker (upper case, 3+ letters)."""
+    parts = [re.escape(name)] if len(name) >= 3 else []
+    rx_name = re.compile(r"\b(" + "|".join(parts) + r")\b", re.I) if parts else None
+    rx_sym = re.compile(r"\b" + re.escape(sym) + r"\b") if len(sym) >= 3 else None
+
+    class _Rx:
+        @staticmethod
+        def search(text):
+            return (rx_name and rx_name.search(text)) or (rx_sym and rx_sym.search(text))
+    return _Rx()
+
+
+def named_coins(title: str, data: dict, overview: dict | None) -> list[str]:
+    """The coins a headline names (focus keywords for the Coinbase coins, else name / ticker), in that order."""
+    out = [k for k, w in focus.tag({"title": title}).items() if w >= 1.0 and k in (data.get("crypto") or {})]
+    for sym, c in _overview_coins(overview).items():
+        if sym not in out and _coin_rx(sym, str(c.get("name") or "")).search(title or ""):
+            out.append(sym)
+    return out
+
+
+def coin_moves(data: dict, overview: dict | None, coins: list[str]) -> dict:
+    """Snapshot of each coin's fetched move: Coinbase when it has the coin, else the CoinGecko overview."""
+    out = snapshot(data, coins)
+    ov = _overview_coins(overview)
+    for sym in coins:
+        if sym not in out and sym in ov:
+            c = ov[sym]
+            out[sym] = {"name": c.get("name") or sym, "price": _round(c.get("price")),
+                        "change_24h": _round(c.get("change_24h")), "change_7d": _round(c.get("change_7d")),
+                        "series": [_round(x) for x in c.get("sparkline") or []], "series_times": [],
+                        "source": "CoinGecko"}
+    return out
+
+
+def _fresh(item: dict, now: datetime, hours: float) -> bool:
+    try:
+        t = datetime.fromisoformat(item.get("published") or "")
+    except ValueError:
+        return False
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    return 0 <= (now - t).total_seconds() / 3600 <= hours
+
+
 def _market(overview: dict | None) -> dict | None:
     if not overview:
         return None
@@ -116,6 +185,8 @@ def make_trigger(rule: int, lead: str, coins: list[str], cause: dict | None, dat
                  overview: dict | None = None, moves: dict | None = None, label: str | None = None) -> dict:
     moves = moves if moves is not None else snapshot(data, coins)
     sources = sorted({m.get("source", "Coinbase") for m in moves.values()} | ({"CoinGecko"} if overview else set()))
+    if lead not in moves and not label:
+        label = "Crypto"
     cause = _story_row(cause)
     return {"id": f"{now:%Y%m%d-%H%M}-r{rule}-{_slug(lead)}", "rule": rule, "rule_name": RULE_NAMES[rule],
             "fired_utc": _iso(now), "due_utc": _iso(now), "lead": lead,
@@ -126,9 +197,10 @@ def make_trigger(rule: int, lead: str, coins: list[str], cause: dict | None, dat
             "key": f"r{rule}:{lead}:{_slug((cause or {}).get('title') or 'no-story')}"}
 
 
+
 def evaluate(data: dict, overview: dict | None = None, now: datetime | None = None, cfg: dict | None = None,
              used: list[str] | None = None, log=print) -> list[dict]:
-    """Every trigger that fires on this data, strongest rule first (rule 1 only for now)."""
+    """Every trigger that fires on this data, in rule order (see the module doc)."""
     now = _now(now)
     tc = (cfg or {}).get("triggers") or {}
     pct = float(tc.get("move_pct", MOVE_PCT))
@@ -143,6 +215,50 @@ def evaluate(data: dict, overview: dict | None = None, now: datetime | None = No
         out.append(make_trigger(1, lead, coins[:MAX_COINS], cause, data, now, overview))
         log(f"Trigger rule 1: {lead} {crypto[lead]['change_24h']:+.2f}% in 24 h"
             + (f" · cause: {cause['title']}" if cause else " · no matching story"))
+
+    # rule 2: the whole market
+    cap = (overview or {}).get("total_cap_change_24h")
+    if cap is not None and abs(cap) >= float(tc.get("cap_pct", CAP_PCT)):
+        picked = focus.pick(dict(data), used_headlines=used)
+        coins = [c for c in picked.get("assets") or [] if c in crypto] or [c for c in MAJOR_COINS if c in crypto]
+        cause = picked.get("story")
+        out.append(make_trigger(2, "CRYPTO", coins[:MAX_COINS], cause, data, now, overview,
+                                moves=coin_moves(data, overview, coins[:MAX_COINS]), label="Crypto"))
+        log(f"Trigger rule 2: total market cap {cap:+.2f}% in 24 h" + (f" · cause: {cause['title']}" if cause else ""))
+
+    # rule 3: a top-50 coin's big move, only with a crypto headline naming it (the coin gate)
+    pct3 = float(tc.get("coin_pct", COIN_PCT))
+    news = [n for n in data.get("news") or [] if (n.get("title") or "").strip()]
+    news.sort(key=lambda n: n.get("published") or "", reverse=True)
+    for sym, c in sorted(_overview_coins(overview).items(), key=lambda kv: -abs(kv[1].get("change_24h") or 0)):
+        if abs(c.get("change_24h") or 0) < pct3:
+            continue
+        rx = _coin_rx(sym, str(c.get("name") or ""))
+        story = next((n for n in news if rx.search(n["title"])
+                      and (n.get("category") == "crypto" or focus.CRYPTO_NAMED.search(n["title"]))), None)
+        if story is None:
+            log(f"Coin gate: {sym} {c['change_24h']:+.2f}% in 24 h but no crypto headline names it; no trigger")
+            continue
+        coins = [sym] + [x for x in named_coins(story["title"], data, overview) if x != sym]
+        moves = coin_moves(data, overview, coins[:MAX_COINS])
+        out.append(make_trigger(3, sym, coins[:MAX_COINS], story, data, now, overview, moves=moves))
+        log(f"Trigger rule 3: {sym} {c['change_24h']:+.2f}% in 24 h · cause: {story['title']}")
+        break  # one coin story per poll: the biggest gated move
+
+    # rule 4: a major crypto story
+    hours = float(tc.get("major_hours", MAJOR_HOURS))
+    for n in news:
+        cat = focus.major_story(n)
+        if not cat or not _fresh(n, now, hours) or n["title"].lower() in {h.lower() for h in used or []}:
+            continue
+        coins = named_coins(n["title"], data, overview) or [c for c in MAJOR_COINS if c in crypto][:1] or ["BTC"]
+        moves = coin_moves(data, overview, coins[:MAX_COINS])
+        lead = coins[0]
+        t = make_trigger(4, lead, coins[:MAX_COINS], n, data, now, overview, moves=moves)
+        t["category"] = cat
+        out.append(t)
+        log(f"Trigger rule 4: major story ({focus.MAJOR_LABELS[cat]}) · {n['title']}")
+        break  # the newest major story
     return out
 
 

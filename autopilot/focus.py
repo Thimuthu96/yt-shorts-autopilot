@@ -180,3 +180,32 @@ def pick(data: dict, last_lead: str | None = None, used_headlines: list[str] | N
     }
     data["focus"] = focus
     return focus
+
+
+# ─── major crypto stories (trigger rule 4; deterministic, no LLM) ──────────
+# A story is "major" when its headline names crypto and matches one category's subject AND action words.
+CRYPTO_NAMED = re.compile(r"\bcrypto\w*|\bbitcoin\b|\bbtc\b|\bether(eum)?\b|\bsolana\b|\bxrp\b|\bstablecoins?\b|"
+                          r"\bdigital assets?\b|\bblockchain\b|\bdefi\b|\btokens?\b|\baltcoins?\b", re.I)
+MAJOR = {
+    "etf": (r"\betfs?\b", r"\b(approv\w*|reject\w*|den(y|ies|ied)|decision|greenlights?|clears?|cleared)\b"),
+    "regulation": (r"\b(sec|cftc|congress|senate|treasury|regulators?|lawmakers|white house|mica|ban)\b",
+                   r"\b(pass(es|ed)?|signs?|signed|bans?|banned|enact\w*|su(es|ed)|charg(es|ed)|outlaws?|"
+                   r"approv\w*)\b"),
+    "hack": (r"\b(hack(ed|s|ers)?|exploit(ed|s)?|heist|breach(ed)?)\b", r"\b(hack(ed|s)?|exploit(ed|s)?|heist|"
+                                                                      r"breach(ed)?|drain(ed|s)?|stolen|steal\w*)\b"),
+    "upgrade": (r"\b(upgrade|hard fork|mainnet)\b", r"\b(goes live|went live|is live|activat\w*|launch\w*|complet\w*)\b"),
+}
+_MAJOR = {k: (re.compile(a, re.I), re.compile(b, re.I)) for k, (a, b) in MAJOR.items()}
+MAJOR_LABELS = {"etf": "ETF decision", "regulation": "regulation", "hack": "hack", "upgrade": "upgrade"}
+
+
+def major_story(item: dict) -> str | None:
+    """The category ("etf" | "regulation" | "hack" | "upgrade") of a major crypto story, judged on its headline
+    only (crypto named, then a category's subject and action words), else None."""
+    title = item.get("title") or ""
+    if not CRYPTO_NAMED.search(title):
+        return None
+    for k, (subject, action) in _MAJOR.items():
+        if subject.search(title) and action.search(title):
+            return k
+    return None
