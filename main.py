@@ -737,20 +737,22 @@ def publish_basics(made: dict, pending: list[str], cfg: dict) -> tuple[dict, lis
 
 def make_triggered(cfg: dict, history: History, trigger: dict, session_key: str, date: str) -> dict:
     """One triggered video (kind: triggered) from a trigger (autopilot/triggers.py): narration of the trigger's
-    fetched data (triggered.write_script), the voice, a 16:9 render (YouTube only) and its package (written to the
-    workdir; nothing is uploaded). Returns {"entry", "videos": {"16x9"}, "seconds", "workdir", "trigger", "scenes"}."""
+    fetched data (triggered.write_script: 3-4 minutes, the subscribe ask after the cause, narration rules and the
+    fact-check, whose failure stops it), the A/B voice with pauses, a 16:9 render with the coins diagram revealed
+    step by step (YouTube only) and its package (written to the workdir; nothing is uploaded). Returns {"entry", "videos": {"16x9"}, "seconds", "workdir", "trigger", "scenes"}."""
     tc = cfg.get("triggers") or {}
     log(f"Trigger: {trigger['id']} · rule {trigger['rule']} ({trigger.get('rule_name', '')}) · "
         f"{', '.join(trigger.get('coins') or [])}" + (f" · cause: {trigger['cause']['title']}" if trigger.get("cause") else ""))
     workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
     plan = triggered.scene_plan(trigger)
-    pkg = triggered.write_script(cfg, trigger, plan, log=log)
+    pkg = triggered.write_script(cfg, trigger, plan, log=log)  # narration rules + fact-check: a failure stops it
     (workdir / "package.json").write_text(json.dumps(
-        {"trigger": trigger["id"], "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]]},
-        indent=2, ensure_ascii=False))
+        {"trigger": trigger["id"], "scenes": [{"id": s["id"], "text": s["text"]} for s in pkg["scenes"]],
+         "fact_check": pkg.get("fact_check")}, indent=2, ensure_ascii=False))
     (workdir / "trigger.json").write_text(json.dumps(trigger, indent=1, ensure_ascii=False))
-    v = cfg["voice"]
+    v = ab_voice(cfg["voice"], history, session_key)
+    log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
     audio, total = narrate(v, pkg["scenes"], tc.get("max_seconds", TRIGGERED_MAX_SECONDS), workdir, pauses=True,
                            what="Triggered narration", log=log)
     music_files = sorted((ROOT / "music").glob("*.mp3"))
@@ -758,6 +760,7 @@ def make_triggered(cfg: dict, history: History, trigger: dict, session_key: str,
     layout = lesson_slides.LANDSCAPE  # YouTube only: 16:9
     shape_dir = workdir / layout.name
     pics = triggered.render_slides(cfg, trigger, plan, layout, shape_dir)
+    reveal.time_steps(pics, pkg["scenes"], audio, log=log)  # the diagram's parts fade in as they are named
     out = workdir / f"triggered_{layout.name}.mp4"
     render.build_video(audio, pics, lesson_video_cfg(cfg, layout), shape_dir, out, music=music)
     log(f"Rendered {out}")

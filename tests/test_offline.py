@@ -4546,63 +4546,110 @@ def _sine_voice(spoken: list):
     return fake_voice
 
 
+TRIGGERED_TEXT = {
+    "move": "Bitcoin fell 7.2% in the last 24 hours. Here is what actually happened behind the drop.",
+    "cause": "Spot bitcoin ETFs saw record outflows. When those funds sell, the selling reaches the market quickly.",
+    "coins": "It started with the headline about fund outflows. Then Bitcoin moved first. Solana fell further, "
+             "and Ethereum followed the same way.",
+    "context": "Over the past week the move adds to a slide that was already under way across the large coins.",
+    "watch": "The next thing to watch is whether the fund outflows continue in the coming sessions.",
+    "recap": "Bitcoin dropped on record ETF outflows and the large coins followed. This is market data, not "
+             "financial advice."}
+
+
 def test_triggered(cfg):
-    """Triggered edition scaffold (epic-volatility-videos entry 1): BTC -7% fires rule 1 with its cause and the
-    coins it moved; BTC -3% fires nothing; `--session triggered --trigger <fixture> --no-upload` renders a 16:9
-    video (mocked LLM + voice); a timed run while triggers.enabled is false logs and exits 0 (no LLM call)."""
+    """The triggered video (epic-volatility-videos entries 1 + 6): BTC -7% fires rule 1 with its cause and the coins
+    it moved; BTC -3% fires nothing; `--session triggered --trigger <fixture> --no-upload` renders a 16:9 video (mocked
+    LLM, fact-check and voice) from the fixed scene plan (move → cause → coins diagram → context → watch → recap) with
+    the subscribe ask once after the cause, the coins diagram revealed as named; a writer that states a price target
+    three times stops the edition (exit 1); an unknown number stops it at the fact-check; a timed run while
+    triggers.enabled is false logs and exits 0 (no LLM call); the move chart draws in both shapes."""
     import main as app
-    from autopilot import triggered, triggers, voice
+    from autopilot import reveal, triggered, triggers, voice
 
     fired = triggers.evaluate(trigger_data(btc=-7.0), now=TRIGGER_NOW, log=lambda m: None)
-    assert len(fired) == 1 and fired[0]["rule"] == 1 and fired[0]["lead"] == "BTC", fired
+    assert len(fired) == 1 and fired[0]["rule"] == 1 and fired[0]["lead"] == "BTC", [f["lead"] for f in fired]
     t = fired[0]
-    assert t["cause"]["title"].startswith("Bitcoin") and t["coins"][0] == "BTC" and 1 <= len(t["coins"]) <= 3, t
-    assert round(t["moves"]["BTC"]["change_24h"], 1) == -7.0 and t["id"] == "20261015-0930-r1-btc", t
+    assert t["cause"]["title"].startswith("Bitcoin") and t["coins"][0] == "BTC" and 1 <= len(t["coins"]) <= 3, t["coins"]
+    assert round(t["moves"]["BTC"]["change_24h"], 1) == -7.0 and t["id"] == "20261015-0930-r1-btc", t["id"]
     assert not triggers.evaluate(trigger_data(btc=-3.0, eth=-2.0), now=TRIGGER_NOW, log=lambda m: None)
+    plan = triggered.scene_plan(t)
+    assert [p_["id"] for p_ in plan] == ["move", "cause", "coins", "context", "watch", "recap"]
+    assert '"headline", "Bitcoin", "Solana", "Ethereum"' in plan[2]["covers"], plan[2]["covers"]
+    assert triggered.unknown_numbers("Bitcoin fell 7% to 62,400 over 24 hours", triggered.facts(t)) == []
+    assert triggered.unknown_numbers("Bitcoin fell 12% to 58,000", triggered.facts(t)) == ["12", "58,000"]
 
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    assert live["triggers"]["enabled"] is False
+    assert live["triggers"]["enabled"] is False and (live["triggers"]["min_words"], live["triggers"]["max_words"]) == (420, 600)
     assert live["sessions"]["triggered"]["kind"] == "triggered" and live["sessions"]["triggered"]["platforms"] == ["youtube"]
     assert not live["sessions"]["triggered"].get("start_utc")
     tmp = Path(tempfile.mkdtemp())
-    (tmp / "config.yaml").write_text(yaml.safe_dump(live, allow_unicode=True), encoding="utf-8")
+    c = json.loads(json.dumps(live))
+    c["triggers"].update(min_words=60, max_words=400)
+    (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
     fixture = tmp / "btc_drop.json"
     fixture.write_text(json.dumps(trigger_data(btc=-7.2)), encoding="utf-8")
 
-    prompts, spoken, logs = [], [], []
+    prompts, spoken, logs, checks, timed = [], [], [], [], []
+    text = [dict(TRIGGERED_TEXT)]
 
     def fake_llm(prompt, models, temperature=0.9):
         prompts.append(prompt)
-        return {"scenes": [
-            {"id": "move", "text": "Bitcoin just fell about seven percent in a day. Here is what actually happened."},
-            {"id": "cause", "text": "Spot bitcoin ETFs saw record outflows, and the selling spread across crypto."},
-            {"id": "recap", "text": "Bitcoin dropped on ETF outflows. This is market data, not financial advice."}]}
+        return {"scenes": [{"id": k, "text": v} for k, v in text[0].items()]}
 
-    saved = (app.ROOT, app.log, triggered.generate_json, voice.synthesize)
+    def fake_fact_check(cfg_, facts, pkg, extra_rules=""):
+        checks.append(facts)
+        return "ok", pkg, []
+    time_steps = reveal.time_steps
+
+    def spy(pics, scenes, audio, log=lambda m: None):
+        timed.append(time_steps(pics, scenes, audio, log=log))
+        return timed[-1]
+
+    saved = (app.ROOT, app.log, triggered.generate_json, triggered.fact_check, voice.synthesize, reveal.time_steps)
     app.ROOT, app.log = tmp, logs.append
-    triggered.generate_json, voice.synthesize = fake_llm, _sine_voice(spoken)
+    triggered.generate_json, triggered.fact_check, voice.synthesize = fake_llm, fake_fact_check, _sine_voice(spoken)
+    reveal.time_steps = spy
     try:
         assert app.main(["--session", "triggered", "--trigger", str(fixture), "--scheduled"]) == 0, logs
         assert any("triggers.enabled is false" in m for m in logs) and not prompts, logs
         assert app.main(["--session", "triggered"]) == 1 and any("needs --trigger" in m for m in logs), logs
         assert app.main(["--session", "triggered", "--trigger", str(fixture), "--no-upload"]) == 0, logs
-        assert len(prompts) == 1 and "Bitcoin slides as spot ETF outflows" in prompts[0], prompts
-        video = next((tmp / "output").glob("*/triggered_16x9.mp4"))
-        assert _probe_size(video) == (1920, 1080), video
+        assert len(prompts) == 1 and "Bitcoin slides as spot ETF outflows" in prompts[0] and "60-400 word" in prompts[0]
+        assert len(checks) == 1 and checks[0]["moves"]["BTC"]["change_24h"] == -7.2, checks
+        work = next((tmp / "output").glob("*/triggered_16x9.mp4")).parent
+        assert _probe_size(work / "triggered_16x9.mp4") == (1920, 1080)
+        said = {s_["id"]: s_["text"] for s_ in json.loads((work / "package.json").read_text())["scenes"]}
+        ask = triggered.subscribe_ask(live)
+        assert said["cause"].endswith(ask) and sum(v.count("subscribe") for v in said.values()) == 1, said
+        assert list(said)[1] == "cause" and spoken[-1][0]["id"] == "move"  # the ask comes after the first payoff
+        steps = [m for m in logs if m.startswith("Step reveal")]
+        assert steps and steps[0].startswith("Step reveal coins") and not any("(fallback)" in m for m in steps), steps
         assert not (tmp / "data" / "history.json").exists()  # made only
+        # a writer stating a price target three times: the edition stops, nothing made
+        text[0] = dict(TRIGGERED_TEXT, watch="Bitcoin could reach $70,000 if the selling stops.")
+        prompts.clear()
+        assert app.main(["--session", "triggered", "--trigger", str(fixture), "--no-upload"]) == 1, logs
+        assert len(prompts) == 3 and any("price target" in m for m in logs) and any("Triggered failed" in m for m in logs)
+        # an unknown number stops it at the fact-check (no retry)
+        text[0] = dict(TRIGGERED_TEXT, context="Over the past week the slide reached 12% across the large coins.")
+        prompts.clear()
+        assert app.main(["--session", "triggered", "--trigger", str(fixture), "--no-upload"]) == 1, logs
+        assert len(prompts) == 1 and any("numbers not in the fetched data: 12" in m for m in logs), logs
     finally:
-        app.ROOT, app.log, triggered.generate_json, voice.synthesize = saved
-    # the move chart draws in both shapes
+        app.ROOT, app.log, triggered.generate_json, triggered.fact_check, voice.synthesize, reveal.time_steps = saved
+    # the move chart draws in both shapes (epic 4's market Short reuses it)
     from PIL import Image
     from autopilot import lesson_slides
     for layout in (lesson_slides.LANDSCAPE, lesson_slides.PORTRAIT):
         img = Image.new("RGB", (layout.w, layout.h))
         info = triggered.draw_move_chart(img, layout.content_box, t["moves"]["BTC"]["series"][-25:], layout, (255, 212, 0))
         assert layout.content_box[0] <= info["last"][0] <= layout.content_box[2], info
+        triggered.render_slides(live, t, plan, layout, tmp / f"shape_{layout.name}")
     shutil.rmtree(tmp, ignore_errors=True)
-    print("OK triggered: rule 1 at BTC -7% (cause + coins), nothing at -3%, fixture → 16:9 render (no upload), "
-          "dark timed run skips, move chart in both shapes")
-
+    print("OK triggered: rule 1 at BTC -7% (cause + coins), nothing at -3%, fixture → 16:9 render (6 scenes, ask "
+          "after the cause, coins diagram revealed as named, fact-checked), price target ×3 / unknown number stop, "
+          "dark timed run skips, move chart + slides in both shapes")
 
 
 def trigger_overview(cap: float = 1.0, coins=None) -> dict:

@@ -197,6 +197,10 @@ triggers:
   spacing_hours: 48           # … at least 48 h apart; fired 03:00-11:00 UTC → due 12:00
   publish_window_hours: 3     # not published within 3 h of its due time → dropped; a later timed run skips
   max_seconds: 250            # narration limit; re-recorded faster when over
+  min_words: 420              # narration length → roughly 3-4 minutes
+  max_words: 600
+  # the one spoken subscribe ask, added at the end of the cause scene (the first payoff; never in the opening)
+  subscribe_ask: "If this was useful, subscribe for the next market explainer."
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
 # Dark: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
