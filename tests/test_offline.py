@@ -298,6 +298,7 @@ def main():
     test_slate_timetable(cfg)
     test_slate_budget(cfg)
     test_slate_floor(cfg)
+    test_slate_facebook(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -1332,7 +1333,7 @@ def test_facebook_video(cfg):
 
 # ─── news image posts ──────────────────────────────────────────────────────
 
-NOW = datetime(2026, 10, 8, 3, 5, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 8, 12, 5, tzinfo=timezone.utc)  # 5 min after news_morning (12:00 UTC)
 
 
 def news_data() -> dict:
@@ -5763,6 +5764,77 @@ def test_slate_floor(cfg):
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK slate floor (skipped recap → Saturday top-up, Saturday used → Sunday topup_sun, 3 long → no top-up, "
           "ISO week only, a fifth long upload refused with a log line)")
+
+
+def test_slate_facebook(cfg):
+    """Slate 5.4: Facebook follows the content, not the slot. Every session's platforms come from its kind (Shorts →
+    Reel, Basics / Lessons → 9:16 video, triggered / recap → YouTube only, news posts → Facebook only; config can't
+    widen them); through main (publishers mocked): a top-up Lesson in the Saturday recap slot publishes a 9:16
+    Facebook video, a recap publishes nothing to Facebook, each Short calls publish_reel, Basics a 9:16 video."""
+    import main as app
+    from autopilot import youtube
+
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    want = {"short": ["youtube", "facebook"], "basics": ["youtube", "facebook"], "lesson": ["youtube", "facebook"],
+            "evergreen": ["youtube", "facebook"], "floor": ["youtube", "facebook"], "triggered": ["youtube"],
+            "recap": ["youtube"], "post": ["facebook"]}
+    for k, s_ in live["sessions"].items():
+        assert app.session_platforms(s_) == want[s_["kind"]], (k, s_)
+    assert app.session_platforms({"kind": "recap", "platforms": ["youtube", "facebook"]}) == ["youtube"]
+    assert app.session_platforms({"kind": "post", "platforms": ["youtube", "facebook"]}) == ["facebook"]
+
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "config.yaml").write_text(yaml.safe_dump(live, sort_keys=False), encoding="utf-8")
+    video, thumb = ROOT / "output" / "test" / "short.mp4", ROOT / "output" / "test" / "thumbnail.jpg"
+    calls, ids = [], iter(range(1, 1000))
+    meta = {"title": "t", "description": "d", "tags": [], "category_id": "27"}
+
+    def made(kind, session, n=[0]):  # noqa: B006  (a run counter)
+        n[0] += 1
+        wd = tmp / "output" / f"run{n[0]}"
+        wd.mkdir(parents=True, exist_ok=True)
+        entry = {"date": "2026-10-17T15:05:00+00:00", "brief_date": "2026-10-17", "session": session, "kind": kind,
+                 "video_id": None, "workdir": str(wd.relative_to(tmp))}
+        return {"entry": entry, "video": video, "videos": {"16x9": video, "9x16": video}, "thumbnail": thumb,
+                "meta": meta, "fb_caption": "c", "material": {}, "track": 1, "recap": {}, "scenes": []}
+    fakes = {
+        (youtube, "upload"): lambda *a, **k: calls.append("yt_short") or f"Y{next(ids)}",
+        (youtube, "set_thumbnail"): lambda *a, **k: True,
+        (youtube, "upload_lesson"): lambda *a, **k: calls.append("yt_16x9") or {"video_id": f"L{next(ids)}"},
+        (facebook, "publish_reel"): lambda *a, **k: calls.append("fb_reel") or f"R{next(ids)}",
+        (facebook, "publish_video"): lambda *a, **k: calls.append("fb_9x16") or f"F{next(ids)}",
+        (facebook, "publish_photo"): lambda *a, **k: calls.append("fb_photo") or f"P{next(ids)}",
+        (app, "platform_off"): lambda plat, cfg_: "",
+        (app, "make_short"): lambda cfg_, h, key, date: made("short", key),
+        (app, "make_basics"): lambda cfg_, h, key, date, **k: made("basics", key),
+        (app, "make_recap"): lambda cfg_, h, key, date: made("recap", key),
+        (app, "make_evergreen"): lambda cfg_, h, date, slot, pending, nu, force: (made("lesson", slot), pending,
+                                                                                  "lesson"),
+        (app, "save_material"): lambda *a, **k: None,
+    }
+    saved = {key: getattr(*key) for key in fakes}
+    for (mod, name), f in fakes.items():
+        setattr(mod, name, f)
+    sat = datetime(2026, 10, 17, 15, 4, tzinfo=timezone.utc)
+    try:
+        for argv, expect in ((["--session", "evergreen", "--slot", "recap"], ["yt_16x9", "fb_9x16"]),
+                             (["--session", "recap"], ["yt_16x9"]),
+                             (["--session", "short_a"], ["yt_short", "fb_reel"]),
+                             (["--session", "short_b"], ["yt_short", "fb_reel"]),
+                             (["--session", "basics"], ["yt_16x9", "fb_9x16"])):
+            calls.clear()
+            rc, logs = _main_logs(app, argv, sat, tmp)
+            assert rc == 0 and calls == expect, (argv, calls, logs)
+        hist = json.loads((tmp / "data" / "history.json").read_text())["videos"]
+        topup = hist[0]
+        assert topup["session"] == "recap" and topup["kind"] == "lesson" and topup["fb_video_id"] and topup["evergreen"]
+        assert not hist[1].get("fb_reel_id") and not hist[1].get("fb_video_id"), hist[1]  # the recap: YouTube only
+    finally:
+        for (mod, name), f in saved.items():
+            setattr(mod, name, f)
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK slate Facebook (platforms by content kind, top-up Lesson in the recap slot → FB 9:16 video, recap "
+          "YouTube only, Shorts → publish_reel, Basics → FB 9:16 video)")
 
 
 if __name__ == "__main__":

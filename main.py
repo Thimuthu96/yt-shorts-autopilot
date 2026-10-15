@@ -1015,12 +1015,20 @@ def make_post(cfg: dict, history: History, args, session_key: str, platforms: li
     return entry, failed
 
 
+# Where each kind of content may go (crypto-pivot 5.4, CAP-9): Facebook follows the content, not the slot. Shorts →
+# YouTube Short + Facebook Reel (publish); Basics and Lessons (also as evergreen top-ups in another slot) → YouTube
+# 16:9 + a Facebook 9:16 video (publish_basics / publish_lesson); triggered and recap videos → YouTube only; news
+# posts → Facebook only. A session's `platforms` can narrow this, never widen it.
+CONTENT_PLATFORMS = {"short": ["youtube", "facebook"], "basics": ["youtube", "facebook"],
+                     "lesson": ["youtube", "facebook"], "evergreen": ["youtube", "facebook"],
+                     "floor": ["youtube", "facebook"], "triggered": ["youtube"], "recap": ["youtube"],
+                     "post": ["facebook"]}
+
+
 def session_platforms(session: dict) -> list[str]:
-    default = ["facebook"] if session.get("kind") == "post" else list(PLATFORMS)
-    out = [str(p).strip().lower() for p in (session.get("platforms") or default)]
-    if session.get("kind") == "post":
-        out = [p for p in out if p != "youtube"]
-    return [p for p in out if p in PLATFORMS]
+    allowed = CONTENT_PLATFORMS.get(session.get("kind", "short"), list(PLATFORMS))
+    out = [str(p).strip().lower() for p in (session.get("platforms") or allowed)]
+    return [p for p in out if p in PLATFORMS and p in allowed]
 
 
 def platform_off(platform: str, cfg: dict) -> str:
