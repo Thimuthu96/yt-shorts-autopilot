@@ -908,6 +908,27 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-15T00:34:30+00:00",
+      "brief_date": "2026-10-15",
+      "session": "asia",
+      "kind": "market",
+      "title": "Bitcoin Price Today: Down 2% as Dollar Surges | Asia Open, Oct 15",
+      "video_id": "bYzMKWq0dVE",
+      "seconds": 38.9,
+      "headlines": [
+        "Surging dollar forces Bitcoin sell-off as rate hike odds double",
+        "Bitcoin price falls toward $81,500 after September CPI report"
+      ],
+      "lead": "BTC",
+      "fb_reel_id": "2037188720331898",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
