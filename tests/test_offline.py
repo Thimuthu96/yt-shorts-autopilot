@@ -292,6 +292,7 @@ def main():
     test_short_packaging(cfg)
     test_short_related(cfg)
     test_short_market(cfg)
+    test_short_originality(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -5336,6 +5337,49 @@ def test_short_market(cfg):
         assert any("triggered-t3 is 4 days old" in x and "refused" in x for x in r.logs), r.logs
     print("OK short market: own hook per candidate (2 max, third refused), numbers from the material only, move "
           "chart + stepped cause diagram, CoinGecko credit once only when sourced, 4-day-old source refused")
+
+
+def test_short_originality(cfg):
+    """Originality guard (entry 5): every Short records a script fingerprint; a mocked script identical to an
+    earlier Short's is rewritten once (and the rewrite used); one that stays identical moves the run to another
+    segment; a used segment is skipped; two Shorts from one episode differ in segment, hook and script."""
+    from autopilot import shorts
+    a = _short_answer(5, '"term": "Exchange-traded fund"')
+    fp = shorts.fingerprint(shorts.script_text(a))
+    assert shorts.similarity(fp, shorts.fingerprint(shorts.script_text(a))) == 1.0
+    b = _short_answer(6, '"term": "Exchange-traded fund"')
+    assert shorts.similarity(fp, shorts.fingerprint(shorts.script_text(b))) < shorts.MAX_SIMILARITY
+    m = _basics_material(cfg)
+    k = f"basics-{m['source']['id']}"
+    old = [{"kind": "short", "session": "short_b", "brief_date": "2026-10-14", "material": "basics-older",
+            "segment": "point_9", "hook": "What is an old idea?", "fingerprint": fp, "video_id": "OLD"}]
+
+    def copy_once(n, prompt):  # the first draft repeats the earlier Short; the rewrite is new
+        return dict(a) if n == 1 else _short_answer(n, prompt)
+    with _ShortRun([m], answer=copy_once, history=old) as r:
+        assert r.run("--session", "short_a") == 0, r.logs[-5:]
+        assert any("too close to an earlier Short" in x and "rewriting once" in x for x in r.logs), r.logs
+        assert "100% like an earlier Short" in r.prompts[1]
+        e = r.history()[-1]
+        assert e["segment"] == "point_1" and e["fingerprint"] != fp and len(e["fingerprint"]) == shorts.FP_SLOTS
+
+    def stuck(n, prompt):  # point_1 always repeats the earlier Short → the guard moves to another segment
+        return dict(a) if "Exchange-traded fund" in prompt else _short_answer(n, prompt)
+    with _ShortRun([m], answer=stuck, history=old) as r:
+        assert r.run("--session", "short_a") == 0, r.logs[-5:]
+        assert any(f"Originality guard: {k} · point_1" in x and "moving to another segment" in x for x in r.logs)
+        assert r.history()[-1]["segment"] == "point_2", r.history()[-1]
+
+    used = old + [{"kind": "short", "session": "short_a", "brief_date": "2026-10-14", "material": k,
+                   "segment": "point_1", "hook": "Why does an ETF matter?", "video_id": "U1"}]
+    with _ShortRun([m], history=used) as r:
+        assert r.run("--session", "short_a") == 0 and r.run("--session", "short_b") == 0, r.logs[-5:]
+        e1, e2 = r.history()[-2:]
+        assert (e1["segment"], e2["segment"]) == ("point_2", "point_3"), (e1["segment"], e2["segment"])
+        assert e1["hook"] != e2["hook"] and shorts.similarity(e1["fingerprint"], e2["fingerprint"]) < 0.5
+        assert not any("Exchange-traded fund" in p_ for p_ in r.prompts)
+    print("OK short originality: fingerprint recorded, identical script rewritten once, a stuck segment passed "
+          "over, used segments skipped, two Shorts of one episode differ in hook and script")
 
 
 if __name__ == "__main__":

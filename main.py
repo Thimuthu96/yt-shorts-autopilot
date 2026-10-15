@@ -891,21 +891,26 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     (Gemini + shorts.check_script, 3 attempts; packaging rules), the A/B voice with pauses, 9:16 slides (hook card
     = frame 0), render, metadata. None = nothing to make (logged). Returns made for main.publish."""
     now = datetime.now(timezone.utc)
-    picked = shorts.pick(shorts.load_materials(ROOT, log=log), history, now, log=log)
-    if picked is None:
-        log("Shorts: no market hook or Basics / Lesson segment left unused; nothing to publish in this slot.")
-        return None
-    what, m, which = picked
+    materials = shorts.load_materials(ROOT, log=log)
+    earlier, hooks, skip = shorts.fingerprints(history), shorts.used_hooks(history), set()
+    while True:  # originality guard: a segment whose script stays too close to an earlier Short's is passed over
+        picked = shorts.pick(materials, history, now, log=log, skip=skip)
+        if picked is None:
+            log("Shorts: no market hook or Basics / Lesson segment left unused; nothing to publish in this slot.")
+            return None
+        what, m, which = picked
+        seg, segment = (None, shorts.hook_id(which)) if what == "market" else (which, which["id"])
+        log(f"Short ({what}): {shorts.key(m)} · {segment} ("
+            + (m["market"]["hooks"][which] if what == "market" else seg["term"]) + ")")
+        try:
+            pkg = (shorts.write_market(cfg, m, which, log=log, earlier=earlier, hooks=hooks) if what == "market"
+                   else shorts.write_concept(cfg, m, seg, log=log, earlier=earlier, hooks=hooks))
+            break
+        except shorts.TooClose as e:
+            log(f"Originality guard: {shorts.key(m)} · {segment}: {e}; moving to another segment")
+            skip.add((shorts.key(m), segment))
     workdir = ROOT / "output" / now.strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
-    if what == "market":
-        seg, segment = None, shorts.hook_id(which)
-        log(f"Short (market): {shorts.key(m)} · {segment} ({m['market']['hooks'][which]})")
-        pkg = shorts.write_market(cfg, m, which, log=log)
-    else:
-        seg, segment = which, which["id"]
-        log(f"Short (concept): {shorts.key(m)} · segment {segment} ({seg['term']})")
-        pkg = shorts.write_concept(cfg, m, seg, log=log)
     (workdir / "package.json").write_text(json.dumps({"material": shorts.key(m), "segment": segment, **pkg},
                                                      indent=2, ensure_ascii=False))
     v = ab_voice(cfg["voice"], history, session_key)
@@ -927,7 +932,8 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     (workdir / "caption_fb.txt").write_text(fb_caption, encoding="utf-8")
     entry = {"date": now.isoformat(timespec="seconds"), "brief_date": date, "session": session_key, "kind": "short",
              "short_kind": what, "material": shorts.key(m), "segment": segment, "source_video": m.get("youtube_id"),
-             "hook": pkg["hook"], "title": meta["title"], "video_id": None, "seconds": round(total, 1),
+             "hook": pkg["hook"], "fingerprint": pkg["fingerprint"], "title": meta["title"], "video_id": None,
+             "seconds": round(total, 1),
              "voice": audio[0]["voice"] if audio else v["name"], "workdir": str(workdir.relative_to(ROOT))}
     return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption, "material": m}
 

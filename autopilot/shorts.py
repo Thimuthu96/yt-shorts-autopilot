@@ -15,6 +15,10 @@ and script, written from one segment of a long video's Shorts material (autopilo
                                          fetched numbers + causes only (triggered.unknown_numbers); 3 attempts
     render_market_slides(...)            hook card → the move chart (triggered.draw_move_chart), the cause → coins
                                          flow diagram with step reveal, the key numbers
+    fingerprint(text) / similarity(a, b) the originality guard: a MinHash of the script's word 3-grams (stored
+                                         in the Short's history entry); a script whose similarity to any earlier
+                                         Short's reaches MAX_SIMILARITY is rewritten once, then TooClose (the run
+                                         moves to another segment / hook); a hook an earlier Short used is rejected
     opening_problems(text)               a subscribe ask in the first sentence → [reason] (narration-rules.md)
     check_script(cfg, pkg, known)        deterministic problems: every scene narrated, word bounds, narration
                                          rules, no subscribe ask in the opening, spoken numbers in the facts
@@ -32,6 +36,7 @@ and script, written from one segment of a long video's Shorts material (autopilo
                                          disclosure line once, hashtags (#Shorts last); reel_caption(meta, cfg):
                                          the same metadata without #Shorts
 """
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -60,6 +65,12 @@ SUBSCRIBE_OPEN = re.compile(r"\bsubscri[bp]\w*|\bhit the (?:bell|like)\b|\blike 
                             r"\bfollow (?:us|the channel|for more)\b|\bturn on (?:the )?notifications?\b", re.I)
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 DIAGRAM_GAP = 44
+MAX_SIMILARITY = 0.5  # cfg shorts.max_similarity: share of equal MinHash slots (≈ word 3-gram Jaccard overlap)
+FP_SLOTS = 32
+
+
+class TooClose(RuntimeError):
+    """A script stayed too close to an earlier Short's after one rewrite: try another segment / hook."""
 
 
 def _clean(text) -> str:
@@ -103,9 +114,42 @@ def used_segments(history) -> set[tuple[str, str]]:
     return {(v.get("material"), v.get("segment")) for v in _shorts(history) if v.get("material")}
 
 
-def pick_concept(materials: list[dict], history) -> tuple[dict, dict] | None:
+def used_hooks(history) -> set[str]:
+    return {_clean(v.get("hook")).lower() for v in _shorts(history) if v.get("hook")}
+
+
+def fingerprints(history) -> list[list[str]]:
+    return [v["fingerprint"] for v in _shorts(history) if v.get("fingerprint")]
+
+
+def _shingles(text: str) -> set[str]:
+    words = re.findall(r"[a-z0-9]+", (text or "").lower())
+    return {" ".join(words[i:i + 3]) for i in range(max(1, len(words) - 2))} if words else set()
+
+
+def fingerprint(text: str) -> list[str]:
+    """MinHash (FP_SLOTS slots, 8 hex digits each) of the text's word 3-grams; similar texts share slots."""
+    sh = _shingles(text) or {""}
+    return [min(hashlib.blake2b(f"{k}:{g}".encode(), digest_size=4).hexdigest() for g in sh)
+            for k in range(FP_SLOTS)]
+
+
+def similarity(a: list[str], b: list[str]) -> float:
+    n = min(len(a or []), len(b or []))
+    return sum(x == y for x, y in zip(a[:n], b[:n])) / n if n else 0.0
+
+
+def script_text(pkg: dict) -> str:
+    return " ".join(s.get("text") or "" for s in pkg["scenes"])
+
+
+def _limit(cfg: dict) -> float:
+    return float((cfg.get("shorts") or {}).get("max_similarity", MAX_SIMILARITY))
+
+
+def pick_concept(materials: list[dict], history, skip: set | None = None) -> tuple[dict, dict] | None:
     """The oldest Basics / Lesson material's first unused segment (concept segments before the overview)."""
-    used = used_segments(history)
+    used = used_segments(history) | set(skip or ())
     for m in sorted((m for m in materials if m["source"]["kind"] in CONCEPT_SOURCES), key=_published):
         segs = sorted(m["segments"], key=lambda s: s.get("kind") != "concept")
         for s in segs:
@@ -126,10 +170,12 @@ def hook_id(idx: int) -> str:
     return f"hook_{idx}"
 
 
-def pick_market(materials: list[dict], history, now: datetime, log=_log) -> tuple[dict, int] | None:
+def pick_market(materials: list[dict], history, now: datetime, log=_log,
+                skip: set | None = None) -> tuple[dict, int] | None:
     """The oldest market material still under MARKET_MAX_DAYS old with fewer than MAX_PER_MARKET Shorts and an
-    unused hook candidate → (material, hook index); a source over the age limit or used up is logged."""
-    used = used_segments(history)
+    unused hook candidate (by index, and its text unused by any Short) → (material, hook index); a source over the
+    age limit or used up is logged."""
+    used, hooks = used_segments(history) | set(skip or ()), used_hooks(history)
     count = {}
     for v in _shorts(history):
         count[v.get("material")] = count.get(v.get("material"), 0) + 1
@@ -143,19 +189,20 @@ def pick_market(materials: list[dict], history, now: datetime, log=_log) -> tupl
         if count.get(k, 0) >= MAX_PER_MARKET:
             log(f"Shorts: {k} already has {MAX_PER_MARKET} market Shorts; refused")
             continue
-        free = [i for i in range(len(m["market"]["hooks"])) if (k, hook_id(i)) not in used]
+        free = [i for i, h in enumerate(m["market"]["hooks"])
+                if (k, hook_id(i)) not in used and _clean(h).lower() not in hooks]
         if free:
             return m, free[0]
     return None
 
 
-def pick(materials: list[dict], history, now: datetime, log=_log):
+def pick(materials: list[dict], history, now: datetime, log=_log, skip: set | None = None):
     """("market", material, hook index) when a market Short is due, else ("concept", material, segment), else
-    None."""
-    got = pick_market(materials, history, now, log)
+    None. `skip`: (material key, segment / hook id) pairs this run already gave up on (TooClose)."""
+    got = pick_market(materials, history, now, log, skip)
     if got:
         return ("market", *got)
-    got = pick_concept(materials, history)
+    got = pick_concept(materials, history, skip)
     return ("concept", *got) if got else None
 
 
@@ -321,40 +368,69 @@ Return JSON: {{"card": "...", "scenes": [{{"id": "hook", "text": "..."}}, {{"id"
 {{"id": "payoff", "text": "..."}}]}}"""
 
 
-def write_market(cfg: dict, m: dict, idx: int, log=_log) -> dict:
-    """{hook (= hook candidate idx), card, scenes} for a market Short; numbers only from the material."""
-    from autopilot.triggered import unknown_numbers
-    problems: list[str] = []
-    known = market_facts(m)
-    for attempt in range(1, 4):
-        log(f"Writing the market Short script ({key(m)} · {hook_id(idx)}, attempt {attempt}/3)...")
-        pkg = _parse(generate_json(_market_prompt(cfg, m, idx, problems), _models(cfg), temperature=0.8))
-        pkg["hook"] = _clean(m["market"]["hooks"][idx])
-        problems = check_script(cfg, pkg, known, unknown=unknown_numbers)
-        if not problems:
-            log(f"Short script: {_words(pkg['scenes'])} words · hook: {pkg['hook']}")
-            return package(cfg, pkg, "", log)
-        log(f"Discarding Short draft: {'; '.join(problems)}")
-    raise RuntimeError(f"Could not write a valid market Short in 3 attempts: {'; '.join(problems)}")
+def _original(cfg: dict, pkg: dict, earlier: list, hooks: set, rewritten: bool, log=_log) -> list[str]:
+    """The originality guard on a passing draft: [] = original (its fingerprint set on pkg); a re-used hook is a
+    problem; a script too close to an earlier Short's is one problem (the one rewrite), then TooClose."""
+    if _clean(pkg["hook"]).lower() in hooks:
+        return [f"hook {pkg['hook']!r} was used by an earlier Short; write a different one"]
+    fp = fingerprint(script_text(pkg))
+    close = max((similarity(fp, e) for e in earlier), default=0.0)
+    if close >= _limit(cfg):
+        if rewritten:
+            raise TooClose(f"script still {close:.0%} like an earlier Short's after one rewrite")
+        log(f"Short script too close to an earlier Short's ({close:.0%} overlap); rewriting once")
+        return [f"the script is {close:.0%} like an earlier Short's; use different wording and a different angle"]
+    pkg["fingerprint"] = fp
+    return []
 
 
-def write_concept(cfg: dict, m: dict, seg: dict, log=_log) -> dict:
-    """{hook, card, scenes} for a concept Short of `seg`; a draft with any check_script problem is discarded
-    (its problems are sent back); RuntimeError after 3 attempts."""
+def _write(cfg: dict, what: str, prompt, known: dict, unknown, fix_hook, earlier: list, hooks: set, log) -> dict:
+    """3 attempts at a draft passing check_script, plus one originality rewrite."""
     problems: list[str] = []
-    known = concept_facts(m, seg)
-    for attempt in range(1, 4):
-        log(f"Writing the Short script ({key(m)} · {seg['id']}, attempt {attempt}/3)...")
-        pkg = _parse(generate_json(_concept_prompt(cfg, m, seg, problems), _models(cfg), temperature=0.8))
-        problems = check_script(cfg, pkg, known)
+    attempt, failed, rewritten = 0, 0, False
+    while failed < 3:
+        attempt += 1
+        log(f"Writing the Short script ({what}, attempt {attempt})...")
+        pkg = _parse(generate_json(prompt(problems), _models(cfg), temperature=0.8))
+        fix_hook(pkg)
+        problems = check_script(cfg, pkg, known, unknown=unknown)
         if not problems:
-            for s in pkg["scenes"]:
-                if s["id"] == "explain":
-                    s["term"] = seg["term"]
-            log(f"Short script: {_words(pkg['scenes'])} words · hook: {pkg['hook']}")
-            return package(cfg, pkg, seg["term"], log)
+            problems = _original(cfg, pkg, earlier, hooks, rewritten, log)
+            if not problems:
+                log(f"Short script: {_words(pkg['scenes'])} words · hook: {pkg['hook']}")
+                return pkg
+            if problems[0].startswith("the script is"):
+                rewritten = True
+                continue
+        failed += 1
         log(f"Discarding Short draft: {'; '.join(problems)}")
     raise RuntimeError(f"Could not write a valid Short in 3 attempts: {'; '.join(problems)}")
+
+
+def write_market(cfg: dict, m: dict, idx: int, log=_log, earlier: list | None = None,
+                 hooks: set | None = None) -> dict:
+    """{hook (= hook candidate idx), card, scenes, fingerprint} for a market Short; numbers only from the
+    material; `earlier` = earlier Shorts' fingerprints, `hooks` = their hooks (originality guard)."""
+    from autopilot.triggered import unknown_numbers
+
+    def fix(pkg):
+        pkg["hook"] = _clean(m["market"]["hooks"][idx])
+    pkg = _write(cfg, f"{key(m)} · {hook_id(idx)}", lambda p: _market_prompt(cfg, m, idx, p), market_facts(m),
+                 unknown_numbers, fix, earlier or [], set(), log)
+    return package(cfg, pkg, "", log)
+
+
+def write_concept(cfg: dict, m: dict, seg: dict, log=_log, earlier: list | None = None,
+                  hooks: set | None = None) -> dict:
+    """{hook, card, scenes, fingerprint} for a concept Short of `seg`; a draft with any check_script problem or a
+    re-used hook is discarded (its problems are sent back), RuntimeError after 3; a script too close to an
+    earlier Short's is rewritten once, then TooClose."""
+    pkg = _write(cfg, f"{key(m)} · {seg['id']}", lambda p: _concept_prompt(cfg, m, seg, p), concept_facts(m, seg),
+                 _concept_unknown, lambda pkg: None, earlier or [], hooks or set(), log)
+    for s in pkg["scenes"]:
+        if s["id"] == "explain":
+            s["term"] = seg["term"]
+    return package(cfg, pkg, seg["term"], log)
 
 
 # ─── slides (9:16) ─────────────────────────────────────────────────────────
