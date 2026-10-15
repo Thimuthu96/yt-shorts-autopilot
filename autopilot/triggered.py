@@ -17,6 +17,17 @@ Dark until `triggers.enabled` (timed runs skip; manual runs make it).
                                          diagram scene adds base + steps for reveal.time_steps
     draw_move_chart(img, box, series, layout, accent, label)  the drawn line chart of a move (both shapes; epic 4's
                                          market Short reuses it)
+
+Packaging (packaging.md, Triggered row):
+    title_for(trigger)                   the move plus its cause, from fetched numbers: "Why Bitcoin Just Dropped 7%
+                                         (What Actually Happened)"; a move under 1% (a major story) → "What the ETF
+                                         Decision Means for Bitcoin (What Actually Happened)"
+    thumbnail_words(trigger)             1-3 words: "WHY -7%?"
+    packaging_problems(title, words)     rules.title_problems, ≤ 100 chars, rules.thumbnail_text_problems (1-3 words)
+    render_thumbnail(cfg, trigger, path) 1280x720: the words, a drawn coin badge, an arrow and the % move
+    metadata(cfg, trigger)               title, description (what moved, the cause, the coins, the headlines, data
+                                         credits: "Data provided by CoinGecko" once when its data is used, the
+                                         disclosure line once, hashtags), tags, category
 """
 import copy
 import json
@@ -467,3 +478,167 @@ def render_slides(cfg: dict, trigger: dict, plan: list[dict], layout: Layout, wo
                 lambda show, v=v: slide_diagram(ctx, v, show=show), diagrams.steps(v["diagram"]), workdir, stem)
         out.append(slide)
     return out
+
+
+# ─── packaging (packaging.md, Triggered row) ───────────────────────────────
+
+MAX_TITLE = 100
+THUMB_WORDS = 3
+THUMB_SIZE = (1280, 720)
+MAX_DESCRIPTION = 4900
+HASHTAGS = ["#Crypto", "#CryptoNews"]
+COIN_HASHTAGS = {"BTC": "#Bitcoin", "ETH": "#Ethereum", "SOL": "#Solana", "XRP": "#XRP"}
+
+
+def _move_words(move: float) -> str:
+    a = abs(move)
+    return f"{round(a)}" if a >= 1 else f"{a:.1f}"
+
+
+def title_for(trigger: dict) -> str:
+    move = lead_move(trigger)
+    name = _clean(trigger.get("label")) or "Crypto"
+    if abs(move) < 1 and trigger.get("category") in focus.MAJOR_LABELS:
+        label = {"etf": "ETF Decision", "regulation": "New Crypto Rules", "hack": "Hack",
+                 "upgrade": "Upgrade"}[trigger["category"]]
+        return f"What the {label} Means for {name} (What Actually Happened)"
+    verb = "Dropped" if move < 0 else "Jumped"
+    return f"Why {name} Just {verb} {_move_words(move)}% (What Actually Happened)"
+
+
+def thumbnail_words(trigger: dict) -> str:
+    move = lead_move(trigger)
+    return f"WHY {'-' if move < 0 else '+'}{_move_words(move)}%?"
+
+
+def packaging_problems(title: str, words: str) -> list[str]:
+    title = _clean(title)
+    out = [f"title {r}" for r in rules.title_problems(title)] if title else ["title: missing"]
+    if len(title) > MAX_TITLE:
+        out.append(f"title is {len(title)} characters (at most {MAX_TITLE})")
+    out += [r if r.startswith("thumbnail") else f"thumbnail {r}"
+            for r in rules.thumbnail_text_problems(_clean(words), max_words=THUMB_WORDS)]
+    return out
+
+
+def check_packaging(trigger: dict) -> tuple[str, str]:
+    """(title, thumbnail words), or ValueError naming every packaging rule they break."""
+    title, words = title_for(trigger), thumbnail_words(trigger)
+    problems = packaging_problems(title, words)
+    if problems:
+        raise ValueError(f"Triggered packaging ({trigger.get('id')}): {'; '.join(problems)}")
+    return title, words
+
+
+def render_thumbnail(cfg: dict, trigger: dict, path: Path) -> Path:
+    """1280x720: brand + MARKET MOVE chip, the 1-3 words large on the left; on the right a drawn coin badge (the
+    chart coin, else BTC), a big up / down arrow and the % move (green / red)."""
+    from autopilot.thumbnail import GRID, _fit, _mini_logo
+    _, words = check_packaging(trigger)
+    W, H = THUMB_SIZE
+    accent = _hex(cfg["video"].get("accent", "FFD400"))
+    img = Image.new("RGB", (W, H), BG)
+    d = ImageDraw.Draw(img)
+    for x in range(0, W, 64):
+        d.rectangle([x, 0, x + 1, H], fill=GRID)
+    for y in range(0, H, 64):
+        d.rectangle([0, y, W, y + 1], fill=GRID)
+    move = lead_move(trigger)
+    colour = UP if move >= 0 else DOWN
+    _mini_logo(img, 44, 30, 64, accent, [UP, DOWN, UP])
+    d.text((120, 62), cfg["channel"].get("display_name", "CryptoFX Daily"), font=_font(34, True), fill=FG, anchor="lm")
+    fc = _font(28, True)
+    cw = d.textlength(CHIP, font=fc)
+    d.rounded_rectangle([W - 48 - cw - 44, 36, W - 48, 88], radius=26, fill=accent)
+    d.text((W - 48 - cw - 22, 62), CHIP, font=fc, fill=BG, anchor="lm")
+    # the words, left column, one a line, as large as they fit; the % word in the move's colour
+    parts = words.split()
+    col_x, col_w, top, bottom = 56, 600, 130, H - 50
+    size = 220
+    while size > 48:
+        f = _title_font(size)
+        if max(d.textlength(w, font=f) for w in parts) <= col_w and len(parts) * size * 1.02 <= bottom - top:
+            break
+        size -= 6
+    y = top + (bottom - top - len(parts) * round(size * 1.02)) // 2
+    for i, w in enumerate(parts):
+        d.text((col_x, y), w, font=f, fill=colour if "%" in w else FG)
+        y += round(size * 1.02)
+    # right: coin badge + arrow
+    coin = chart_coin(trigger) or "BTC"
+    cx, cy, bs = 900, 330, 300
+    fi = _fit(coin, lambda s_: _title_font(s_), round(bs * 0.7), round(bs * 0.36), 40)
+    diagrams._paint(d, diagrams._badge(cx, cy, bs, coin, fi, accent))
+    ax, ay = 1150, 330
+    if move < 0:
+        d.rectangle([ax - 22, ay - 150, ax + 22, ay + 40], fill=colour)
+        d.polygon([(ax - 70, ay + 30), (ax + 70, ay + 30), (ax, ay + 140)], fill=colour)
+    else:
+        d.rectangle([ax - 22, ay - 40, ax + 22, ay + 150], fill=colour)
+        d.polygon([(ax - 70, ay - 30), (ax + 70, ay - 30), (ax, ay - 140)], fill=colour)
+    pct = f"{'-' if move < 0 else '+'}{abs(move):.1f}%"
+    d.text((cx + 120, 600), pct, font=_fit(pct, lambda s_: _title_font(s_), 520, 130, 48), fill=colour, anchor="mm")
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(path, "JPEG", quality=92)
+    return path
+
+
+def credits(trigger: dict) -> list[str]:
+    """The data credit lines: Coinbase prices, and "Data provided by CoinGecko" when its data is used."""
+    from autopilot.sources import CG_CREDIT
+    src = set(trigger.get("data_sources") or [])
+    out = ["Price data: Coinbase"] if "Coinbase" in src else []
+    if "CoinGecko" in src:
+        out.append(CG_CREDIT)
+    return out
+
+
+def hashtags(trigger: dict) -> list[str]:
+    return (HASHTAGS + [COIN_HASHTAGS[c] for c in trigger.get("coins") or [] if c in COIN_HASHTAGS])[:5]
+
+
+def _tags(trigger: dict, title: str) -> list[str]:
+    seeds = [re.sub(r"\s*\(.*?\)\s*", " ", title).strip().lower(), "crypto news", "why is crypto down"
+             if lead_move(trigger) < 0 else "why is crypto up", "crypto market"]
+    seeds += [_clean(((trigger.get("moves") or {}).get(c) or {}).get("name")).lower() for c in trigger.get("coins") or []]
+    tags, total = [], 0
+    for t in seeds:
+        t = re.sub(r"[<>,]", "", t).strip()
+        cost = len(t) + (2 if " " in t else 0) + 1
+        if t and t not in tags and total + cost <= 480:
+            tags.append(t)
+            total += cost
+    return tags
+
+
+def metadata(cfg: dict, trigger: dict) -> dict:
+    """{title, description, tags, category_id} (packaging_problems → ValueError). Description: what moved → the
+    cause → the coins → the headlines → data credits (the CoinGecko credit once when used) → the disclosure line
+    exactly once → hashtags (the body is cut, never that tail)."""
+    title, _ = check_packaging(trigger)
+    line = rules.disclosure(cfg, "triggers")
+    moves = trigger.get("moves") or {}
+    move = lead_move(trigger)
+    what = f"{_clean(trigger.get('label'))} moved {_pct(move)} in 24 hours."
+    cause = trigger.get("cause")
+    parts = [what]
+    if cause:
+        parts.append(f"What happened: {_clean(cause['title'])}" + (f" ({_clean(cause.get('source'))})"
+                                                                     if cause.get("source") else ""))
+    coins = [f"• {_clean(moves[c]['name'])}: {_pct(moves[c]['change_24h'])} (24 h)" for c in trigger.get("coins") or []
+             if c in moves and moves[c].get("change_24h") is not None]
+    if coins:
+        parts.append("The coins it moved:\n" + "\n".join(coins))
+    heads = [f"• {_clean(h['title'])}" + (f" ({_clean(h.get('source'))})" if h.get("source") else "")
+             for h in trigger.get("headlines") or []]
+    if heads:
+        parts.append("Headlines:\n" + "\n".join(heads))
+    body = "\n\n".join(rules.without_disclosure(p, line) for p in parts)
+    tail = "\n\n".join(["\n".join(credits(trigger)), "⚠️ " + line, " ".join(hashtags(trigger))])
+    room = MAX_DESCRIPTION - len(tail) - 2
+    if len(body) > room:
+        body = body[:room].rsplit("\n", 1)[0]
+    return {"title": title, "description": body.rstrip() + "\n\n" + tail, "tags": _tags(trigger, title),
+            "category_id": str((cfg.get("triggers") or {}).get("category_id") or CATEGORY),
+            "thumbnail_text": thumbnail_words(trigger)}

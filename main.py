@@ -743,6 +743,11 @@ def make_triggered(cfg: dict, history: History, trigger: dict, session_key: str,
     tc = cfg.get("triggers") or {}
     log(f"Trigger: {trigger['id']} · rule {trigger['rule']} ({trigger.get('rule_name', '')}) · "
         f"{', '.join(trigger.get('coins') or [])}" + (f" · cause: {trigger['cause']['title']}" if trigger.get("cause") else ""))
+    try:  # the title / thumbnail rules stop it before anything is made
+        title, words = triggered.check_packaging(trigger)
+    except ValueError as e:
+        raise RuntimeError(str(e)) from None
+    log(f"Triggered title: {title} · thumbnail: {words}")
     workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
     plan = triggered.scene_plan(trigger)
@@ -764,12 +769,16 @@ def make_triggered(cfg: dict, history: History, trigger: dict, session_key: str,
     out = workdir / f"triggered_{layout.name}.mp4"
     render.build_video(audio, pics, lesson_video_cfg(cfg, layout), shape_dir, out, music=music)
     log(f"Rendered {out}")
+    thumb = triggered.render_thumbnail(cfg, trigger, workdir / "thumbnail.jpg")
+    meta = triggered.metadata(cfg, trigger)
+    (workdir / "metadata.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
     entry = {
         "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "brief_date": date,
         "session": session_key,
         "kind": "triggered",
         "trigger_id": trigger["id"],
+        "title": meta["title"],
         "rule": trigger["rule"],
         "coins": list(trigger.get("coins") or []),
         "video_id": None,
@@ -777,8 +786,34 @@ def make_triggered(cfg: dict, history: History, trigger: dict, session_key: str,
         "voice": audio[0]["voice"] if audio else v["name"],
         "workdir": str(workdir.relative_to(ROOT)),
     }
-    return {"entry": entry, "videos": {layout.name: out}, "seconds": round(total, 1), "workdir": workdir,
-            "trigger": trigger, "scenes": pkg["scenes"]}
+    return {"entry": entry, "videos": {layout.name: out}, "thumbnail": thumb, "meta": meta, "seconds": round(total, 1),
+            "workdir": workdir, "trigger": trigger, "scenes": pkg["scenes"]}
+
+
+def publish_triggered(made: dict, pending: list[str], cfg: dict) -> tuple[dict, list[str]]:
+    """Publish a made triggered video to YouTube only (16:9 through youtube.upload_lesson: no playlists, private
+    then public after triggers.review_window_hours; its thumbnail). Facebook never gets it.
+    Returns (entry with the id it got, failed platforms)."""
+    entry, failed = made["entry"], []
+    tc = cfg.get("triggers") or {}
+    if "youtube" in pending:
+        meta = made["meta"]
+        try:
+            from autopilot import youtube
+            res = youtube.upload_lesson(made["videos"]["16x9"], {k: meta[k] for k in ("title", "description", "tags",
+                                                                                      "category_id")},
+                                        made["thumbnail"], None, None, review_hours=tc.get("review_window_hours", 0),
+                                        notify=cfg["upload"].get("notify_subscribers", True), log=log,
+                                        playlists=False)
+            entry["video_id"] = res["video_id"]
+            if res.get("publish_at"):
+                entry["publish_at"] = res["publish_at"]
+            for err in res.get("errors") or []:
+                log(f"YouTube triggered video uploaded, but: {err}")
+        except Exception as e:
+            log(f"YouTube triggered upload failed: {e}")
+            failed.append("youtube")
+    return entry, failed
 
 
 def make_post(cfg: dict, history: History, args, session_key: str, platforms: list[str]) -> tuple[dict, list[str]]:
@@ -1012,7 +1047,7 @@ def main(argv: list[str] | None = None) -> int:
             log(f"Today's {slot_key} slot already published a {', '.join(other)} upload; no "
                 f"{'lesson' if kind == 'lesson' else 'evergreen'} top-up.")
             return 0
-    if (args.scheduled or topup) and not args.force and not args.no_upload:
+    if (args.scheduled or topup) and not args.force and not args.no_upload and kind != "triggered":
         done = [x for x in pending if history.published_on(today, slot_key, x)]
         if done:
             log((f"Today's {slot_key} slot ({today}) is" if topup else f"The {label} edition for {today} is")
@@ -1050,10 +1085,12 @@ def main(argv: list[str] | None = None) -> int:
             entry, failed = (publish_basics if what == "basics" else publish_lesson)(made, pending, cfg)
             entry["evergreen"] = True
         elif kind == "triggered":
-            if pending:
-                log("Triggered publishing comes with its packaging (epic-volatility-videos entry 7); made only.")
+            done = [v for v in history.uploaded() if v.get("trigger_id") == trigger["id"] and v.get("video_id")]
+            if done and pending and not args.force:
+                log(f"Trigger {trigger['id']} is already published (video {done[0]['video_id']}); nothing to do.")
+                return 0
             made = make_triggered(cfg, history, trigger, session_key, today)
-            entry, failed = made["entry"], []
+            entry, failed = publish_triggered(made, [x for x in pending if x == "youtube"], cfg)
         elif kind == "basics":
             # re-making for a platform it missed: the history the first run saw (same A/B voice)
             made = make_basics(cfg, history.excluding_slot(today, session_key) if remake else history,

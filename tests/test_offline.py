@@ -286,6 +286,7 @@ def main():
     test_trigger_rules(cfg)
     test_trigger_limits(cfg)
     test_trigger_poll(cfg)
+    test_triggered_packaging(cfg)
 
 
 def check_opening(video: Path, work: Path, hold: float = render.COVER_HOLD) -> None:
@@ -4849,6 +4850,85 @@ def test_trigger_poll(cfg):
     assert "secrets.COINGECKO_API_KEY" in step["env"]["COINGECKO_API_KEY"]
     print("OK trigger poll: check records + dispatches only when enabled (once), triggers.yml 30-min cron + light "
           "install + secret + state commit + dispatch, autopilot.yml triggered choice/group/--trigger")
+
+
+
+def test_triggered_packaging(cfg):
+    """Triggered packaging (epic-volatility-videos entry 7): a BTC -7.2% trigger → "Why Bitcoin Just Dropped 7% (What
+    Actually Happened)" (the % from the data), thumbnail text of 1-3 words on a 1280x720 thumbnail, a description with
+    the disclosure and "Data provided by CoinGecko" once each; a title with a date stops the edition before anything
+    is made; a manual run publishes to YouTube only (mocked) and records kind: triggered with its trigger_id; a second
+    run for the same trigger publishes nothing."""
+    import main as app
+    from autopilot import reveal, triggered, triggers, voice, youtube
+    from autopilot.sources import CG_CREDIT
+    t = triggers.evaluate(trigger_data(btc=-7.2), trigger_overview(cap=-3.0), now=TRIGGER_NOW, log=lambda m: None)[0]
+    title = triggered.title_for(t)
+    assert title == "Why Bitcoin Just Dropped 7% (What Actually Happened)" and not rules.title_problems(title), title
+    words = triggered.thumbnail_words(t)
+    assert words == "WHY -7%?" and 1 <= len(words.split()) <= 3 and not rules.thumbnail_text_problems(words), words
+    up = dict(t, moves={"BTC": dict(t["moves"]["BTC"], change_24h=5.6)})
+    assert triggered.title_for(up) == "Why Bitcoin Just Jumped 6% (What Actually Happened)"
+    rule4 = dict(t, category="etf", moves={"BTC": dict(t["moves"]["BTC"], change_24h=0.4)})
+    assert triggered.title_for(rule4) == "What the ETF Decision Means for Bitcoin (What Actually Happened)"
+    assert triggered.packaging_problems("Why Bitcoin Dropped 7% on October 14", words)
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    meta = triggered.metadata(live, t)
+    line = rules.disclosure(live, "triggers")
+    assert meta["title"] == title and meta["description"].count(line) == 1, meta["description"]
+    assert meta["description"].count(CG_CREDIT) == 1 and "Bitcoin slides as spot ETF outflows" in meta["description"]
+    assert CG_CREDIT not in triggered.metadata(live, dict(t, data_sources=["Coinbase"]))["description"]
+    tmp = Path(tempfile.mkdtemp())
+    from PIL import Image
+    with Image.open(triggered.render_thumbnail(live, t, tmp / "thumb.jpg")) as im:
+        assert im.size == (1280, 720)
+
+    c = json.loads(json.dumps(live))
+    c["triggers"].update(min_words=60, max_words=400)
+    (tmp / "config.yaml").write_text(yaml.safe_dump(c, allow_unicode=True), encoding="utf-8")
+    fixture = tmp / "trigger.json"
+    fixture.write_text(json.dumps({"trigger": t}), encoding="utf-8")
+    prompts, logs, yt = [], [], []
+
+    def fake_llm(prompt, models, temperature=0.9):
+        prompts.append(prompt)
+        return {"scenes": [{"id": k, "text": v} for k, v in TRIGGERED_TEXT.items()]}
+
+    def fake_upload_lesson(video, meta_, thumbnail, track_playlist, path_playlist, review_hours=24, notify=True,
+                           log=print, playlist_privacy="public", playlists=True):
+        yt.append({"video": Path(video), "meta": dict(meta_), "review": review_hours, "playlists": playlists})
+        return {"video_id": f"T{len(yt)}", "publish_at": "2026-10-15T12:00:00.000Z", "errors": []}
+
+    def boom(*a, **k):
+        raise AssertionError("a triggered video goes to YouTube only, as a 16:9 upload")
+    saved = (app.ROOT, app.log, triggered.generate_json, triggered.fact_check, voice.synthesize, youtube.upload_lesson,
+             youtube.upload, facebook.publish_video, facebook.publish_reel, triggered.title_for)
+    app.ROOT, app.log = tmp, logs.append
+    triggered.generate_json, triggered.fact_check = fake_llm, (lambda cfg_, f, pkg, extra_rules="": ("ok", pkg, []))
+    voice.synthesize, youtube.upload_lesson = _sine_voice([]), fake_upload_lesson
+    youtube.upload = facebook.publish_video = facebook.publish_reel = boom
+    try:
+        # a dated title stops it before anything is made
+        triggered.title_for = lambda trig: "Why Bitcoin Dropped 7% on October 14 (What Actually Happened)"
+        assert app.main(["--session", "triggered", "--trigger", str(fixture)]) == 1, logs
+        assert not prompts and any("Triggered packaging" in m and "date" in m for m in logs), logs
+        triggered.title_for = saved[-1]
+        assert app.main(["--session", "triggered", "--trigger", str(fixture)]) == 0, logs
+        assert len(yt) == 1 and yt[0]["video"].name == "triggered_16x9.mp4" and yt[0]["playlists"] is False
+        assert yt[0]["meta"]["title"] == title and yt[0]["review"] == live["triggers"]["review_window_hours"]
+        h = json.loads((tmp / "data" / "history.json").read_text())["videos"]
+        assert len(h) == 1 and h[0]["kind"] == "triggered" and h[0]["trigger_id"] == t["id"], h
+        assert h[0]["video_id"] == "T1" and h[0]["platforms"] == ["youtube"] and h[0]["title"] == title, h
+        assert h[0]["session"] == "triggered" and h[0]["trigger"] == "manual", h
+        assert app.main(["--session", "triggered", "--trigger", str(fixture)]) == 0 and len(yt) == 1, logs
+        assert any("already published" in m for m in logs), logs
+    finally:
+        (app.ROOT, app.log, triggered.generate_json, triggered.fact_check, voice.synthesize, youtube.upload_lesson,
+         youtube.upload, facebook.publish_video, facebook.publish_reel, triggered.title_for) = saved
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("OK triggered packaging: move + cause title from the data, 1-3 thumbnail words + 1280x720 thumbnail, "
+          "disclosure + CoinGecko credit once, dated title stops, YouTube-only publish + kind triggered record, "
+          "no second publish")
 
 
 if __name__ == "__main__":

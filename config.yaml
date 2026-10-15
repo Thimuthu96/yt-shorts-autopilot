@@ -201,6 +201,8 @@ triggers:
   max_words: 600
   # the one spoken subscribe ask, added at the end of the cause scene (the first payoff; never in the opening)
   subscribe_ask: "If this was useful, subscribe for the next market explainer."
+  review_window_hours: 2      # private on upload, public 2 h later (inside the ~3 h publish window); 0 = public at once
+  category_id: "25"           # YouTube News & Politics
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
 # Dark: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
