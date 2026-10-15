@@ -929,6 +929,27 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-15T05:47:20+00:00",
+      "brief_date": "2026-10-15",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Price Today: Down 5.6% as Liquidations Hit $1B | Oct 15",
+      "video_id": "L101qL-yyTs",
+      "seconds": 37.3,
+      "headlines": [
+        "Nearly $1 billion in crypto bets liquidated as bitcoin, ether and XRP slide",
+        "Bitcoin wilts as Fed rate uncertainty weighs. Kospi plunges 8%"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "2499253493917142",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
