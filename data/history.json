@@ -1175,6 +1175,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-16T12:03:31+00:00",
+      "brief_date": "2026-10-16",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "CFTC PREPARES NEW CRYPTO RULES",
+      "fb_post_id": "462331040302049_122253163424610202",
+      "headlines": [
+        "CFTC Chairman Michael Selig Says New Crypto Rules Are Coming Soon. Here's What Crypto Investors Need to Know."
+      ],
+      "topic": "regulation",
+      "source": "The Motley Fool",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
