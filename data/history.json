@@ -1194,6 +1194,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-16T13:02:04+00:00",
+      "brief_date": "2026-10-16",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "point_3",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "How should a swing point be labeled on a crypto chart?",
+      "fingerprint": [
+        "0000203c",
+        "0242fbc0",
+        "05a8e465",
+        "0028e941",
+        "00ecf869",
+        "014e9cea",
+        "022b6172",
+        "00353338",
+        "04f3ca3b",
+        "05193874",
+        "0445b47e",
+        "00eca5ea",
+        "01e7d7cb",
+        "031df0cb",
+        "03d04be5",
+        "03667e4e",
+        "01f1a67d",
+        "00e3bc96",
+        "04ab7337",
+        "0176332c",
+        "01aac3fb",
+        "01755ca3",
+        "00945c06",
+        "01847ad0",
+        "0420de87",
+        "039e40e0",
+        "01106585",
+        "0263c0ef",
+        "01eb2572",
+        "0087b653",
+        "032229e6",
+        "0be19221"
+      ],
+      "title": "How should a swing point be labeled on a crypto chart?",
+      "video_id": "lyZu_C01hh0",
+      "seconds": 30.8,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1670964024697587",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
