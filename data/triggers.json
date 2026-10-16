@@ -1107,9 +1107,10 @@
     "Coinbase"
    ],
    "key": "r2:CRYPTO:bitcoin-and-ethereum-prices-today-thursd",
-   "status": "pending",
+   "status": "dispatched",
    "held_from": "2026-10-15T14:11:06+00:00",
-   "reason": "held: today already has 4 YouTube uploads (at most 3 a day)"
+   "reason": "held: today already has 4 YouTube uploads (at most 3 a day)",
+   "dispatched_utc": "2026-10-16T00:25:30+00:00"
   },
   {
    "id": "20261015-1411-r4-btc",
