@@ -1269,6 +1269,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-16T21:03:15+00:00",
+      "brief_date": "2026-10-16",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "CFTC WEIGHS NEW RETAIL CRYPTO LEVERAGE RULES",
+      "fb_post_id": "462331040302049_122253198920610202",
+      "headlines": [
+        "CFTC seeks comment on framework to bring leveraged retail crypto transactions onto regulated exchanges"
+      ],
+      "topic": "regulation",
+      "source": "JD Supra",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
