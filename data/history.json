@@ -1119,6 +1119,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-16T01:19:24+00:00",
+      "brief_date": "2026-10-16",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "point_2",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "What is market structure?",
+      "fingerprint": [
+        "034598e0",
+        "03d075cc",
+        "03c023e2",
+        "08de64b4",
+        "05729179",
+        "01e01d88",
+        "059df25e",
+        "06859661",
+        "012b7064",
+        "0546f0c5",
+        "0012aec4",
+        "007e6928",
+        "0143f1be",
+        "01d24d54",
+        "04dedbb6",
+        "02175396",
+        "01f55792",
+        "0051a7f1",
+        "084d402c",
+        "066b2ff1",
+        "00f6d41b",
+        "01755ca3",
+        "0016e9a4",
+        "007ec6d8",
+        "00a0f595",
+        "06e25f9f",
+        "06f54586",
+        "098e0aec",
+        "000c02a3",
+        "00e16eb2",
+        "09114d0f",
+        "01529428"
+      ],
+      "title": "What is market structure?",
+      "video_id": "zpLIrfmY8ZM",
+      "seconds": 30.6,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1112917384525229",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
