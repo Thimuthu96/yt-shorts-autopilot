@@ -2339,8 +2339,9 @@
    ],
    "key": "r4:BTC:scammer-gets-scammed-in-ledger-spy-chip-",
    "category": "hack",
-   "status": "dispatched",
-   "dispatched_utc": "2026-10-16T14:52:13+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-10-16T14:52:13+00:00",
+   "reason": "not published within 3 h of its due time"
   }
  ]
 }
