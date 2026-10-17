@@ -2750,8 +2750,9 @@
    ],
    "key": "r4:BTC:openai-models-hacked-a-crypto-wallet-and",
    "category": "hack",
-   "status": "dispatched",
-   "dispatched_utc": "2026-10-16T22:06:25+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-10-16T22:06:25+00:00",
+   "reason": "not published within 3 h of its due time"
   }
  ]
 }
