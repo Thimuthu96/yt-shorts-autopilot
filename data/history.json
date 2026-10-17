@@ -1363,6 +1363,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-17T13:01:57+00:00",
+      "brief_date": "2026-10-17",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "concept_swing_point",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "What is a swing point?",
+      "fingerprint": [
+        "009ac287",
+        "007aa823",
+        "00eb55e5",
+        "09c27b45",
+        "04874222",
+        "01dc1263",
+        "04247577",
+        "00880d9e",
+        "03429bc9",
+        "0218b1df",
+        "00c4de6d",
+        "0380bdf1",
+        "009a36cc",
+        "025fb95e",
+        "02321638",
+        "0125aa1c",
+        "026b3839",
+        "0635ef9e",
+        "00b01c89",
+        "02316fae",
+        "0e8c9ec9",
+        "0067456b",
+        "01fce79e",
+        "03ae7d05",
+        "00a0f595",
+        "021224a0",
+        "0536ad5b",
+        "00015d56",
+        "01e09088",
+        "00736b66",
+        "0be37821",
+        "0123c070"
+      ],
+      "title": "What is a swing point?",
+      "video_id": "DuvjJGODuAc",
+      "seconds": 30.2,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "3788095324666425",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
