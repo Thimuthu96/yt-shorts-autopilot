@@ -1344,6 +1344,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-17T12:02:30+00:00",
+      "brief_date": "2026-10-17",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN HOLDS ABOVE $81,000",
+      "fb_post_id": "462331040302049_122253427250610202",
+      "headlines": [
+        "Bitcoin price holds above $81,000 as ETF outflows weigh on sentiment"
+      ],
+      "topic": "crypto",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
