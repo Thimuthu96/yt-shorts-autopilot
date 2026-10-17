@@ -1419,6 +1419,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-17T16:02:35+00:00",
+      "brief_date": "2026-10-17",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "DEUTSCHE BANK TO CUSTODY BTC AND ETH",
+      "fb_post_id": "462331040302049_122253440642610202",
+      "headlines": [
+        "Deutsche Bank Is Weeks From Holding Bitcoin and Ethereum for Clients. Could Other Big Banks Follow?"
+      ],
+      "topic": "crypto",
+      "source": "24/7 Wall St.",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
