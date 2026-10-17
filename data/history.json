@@ -1288,6 +1288,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-17T01:18:15+00:00",
+      "brief_date": "2026-10-17",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "point_4",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "What is crypto market structure?",
+      "fingerprint": [
+        "01d9bda0",
+        "063a9618",
+        "0060bbdc",
+        "00307a75",
+        "01f4a178",
+        "00300f6f",
+        "026313ba",
+        "053af194",
+        "044478fc",
+        "033541b1",
+        "0111a0c9",
+        "01405f10",
+        "06052f64",
+        "0148c50b",
+        "00522a17",
+        "00b1d0df",
+        "01a6f06a",
+        "00e3bc96",
+        "03f1b841",
+        "06cae71b",
+        "00984441",
+        "06fc46bf",
+        "00945c06",
+        "06f4a0f5",
+        "00a0f595",
+        "03a3cd03",
+        "03f1ac17",
+        "005cbcc5",
+        "05150942",
+        "00f2b56a",
+        "08942cab",
+        "05b2aed7"
+      ],
+      "title": "What is crypto market structure?",
+      "video_id": "xY3QTxsUJyE",
+      "seconds": 29.6,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2495646000924343",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
