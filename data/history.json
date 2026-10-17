@@ -1438,6 +1438,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-17T21:04:32+00:00",
+      "brief_date": "2026-10-17",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "SOLANA STABLECOIN BASE REACHES $15.96 BILLION",
+      "fb_post_id": "462331040302049_122253457262610202",
+      "headlines": [
+        "Solana price prediction: stablecoin base at $15.96bn"
+      ],
+      "topic": "regulation",
+      "source": "CryptoTicker",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
