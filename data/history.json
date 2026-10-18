@@ -1553,6 +1553,39 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-18T15:14:57+00:00",
+      "brief_date": "2026-10-18",
+      "session": "topup_sun",
+      "kind": "lesson",
+      "episode": "trendline-breaks",
+      "track": 1,
+      "title": "What Is a Trendline Break and Retest? (Crypto Chart Example)",
+      "video_id": "l_7_G-Wm5MI",
+      "fb_video_id": "1135404405683155",
+      "seconds": 292.0,
+      "examples": [
+        {
+          "asset": "BTC/USD",
+          "timeframe": "1H",
+          "start": "2026-10-14T08:00:00+00:00",
+          "end": "2026-10-18T12:00:00+00:00"
+        },
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-10-12T07:00:00+00:00",
+          "end": "2026-10-14T05:00:00+00:00"
+        }
+      ],
+      "evergreen": true,
+      "trigger": "topup",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
