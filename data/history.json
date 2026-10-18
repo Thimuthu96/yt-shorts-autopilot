@@ -1497,6 +1497,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-18T13:02:09+00:00",
+      "brief_date": "2026-10-18",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261017-2327-r4-btc",
+      "segment": "hook_0",
+      "source_video": "PepzcQhZJh4",
+      "hook": "Why did Bitcoin just drop 0.4%?",
+      "fingerprint": [
+        "00278364",
+        "03a4d70e",
+        "0113147f",
+        "02f41ba1",
+        "002ab548",
+        "0055cf48",
+        "03500167",
+        "014864f9",
+        "00090b5d",
+        "08c9f696",
+        "0460b826",
+        "01512f81",
+        "01248d72",
+        "08d75262",
+        "00fbc896",
+        "0261024c",
+        "00386a35",
+        "07469c4e",
+        "027fbd1d",
+        "01b14544",
+        "0f4e3a4f",
+        "03de8c35",
+        "01eaf301",
+        "0375dfe6",
+        "0323d71f",
+        "0bf15d28",
+        "03ea4374",
+        "02f04c25",
+        "06c75031",
+        "00fa46c0",
+        "00f1b8f2",
+        "01795fbb"
+      ],
+      "title": "Why did Bitcoin just drop 0.4%?",
+      "video_id": "n4XaPH7Akqs",
+      "seconds": 38.5,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2465111803894593",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
