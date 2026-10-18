@@ -1624,6 +1624,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-18T23:01:57+00:00",
+      "brief_date": "2026-10-18",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261017-2327-r4-btc",
+      "segment": "hook_1",
+      "source_video": "PepzcQhZJh4",
+      "hook": "What really moved Bitcoin?",
+      "fingerprint": [
+        "00a77db8",
+        "02ced825",
+        "01c9f04d",
+        "02f41ba1",
+        "057a4352",
+        "02d11d41",
+        "0169a7da",
+        "023ada2f",
+        "00ade6d1",
+        "00308637",
+        "0460b826",
+        "00be8f89",
+        "004de9f9",
+        "005a4bd4",
+        "00e7b07e",
+        "00e6b3b9",
+        "04b2d33a",
+        "01e04c80",
+        "00d5ede2",
+        "043d768f",
+        "00ab2f92",
+        "0084c752",
+        "0271499e",
+        "01b0f78b",
+        "00053efc",
+        "0021ab2d",
+        "00844f5f",
+        "020126d6",
+        "01639721",
+        "02df1269",
+        "07f46e3b",
+        "0314b888"
+      ],
+      "title": "What really moved Bitcoin?",
+      "video_id": "wP4mxd1BQ7Y",
+      "seconds": 35.9,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1148497274516698",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
