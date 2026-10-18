@@ -1478,6 +1478,25 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-10-18T12:03:34+00:00",
+      "brief_date": "2026-10-18",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "MARKET CAUTION HITS BITCOIN",
+      "fb_post_id": "462331040302049_122253571088610202",
+      "headlines": [
+        "Crypto Analysis: Market Caution Extends Even to Bitcoin"
+      ],
+      "topic": "crypto",
+      "source": "FOREX.com",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
