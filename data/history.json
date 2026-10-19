@@ -1680,6 +1680,62 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-19T01:13:54+00:00",
+      "brief_date": "2026-10-19",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "concept_market_structure",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "How do swing highs and lows build structure?",
+      "fingerprint": [
+        "01d9bda0",
+        "091dab7e",
+        "04f5aaf7",
+        "01d5b921",
+        "01f4a178",
+        "00300f6f",
+        "003f6add",
+        "067cbf16",
+        "044478fc",
+        "090a482b",
+        "0655b8b0",
+        "04c13d24",
+        "0189d221",
+        "00ac061f",
+        "000335e6",
+        "03a3836e",
+        "00467f55",
+        "00e3bc96",
+        "04ab7337",
+        "03369aa5",
+        "03d10bcc",
+        "0b64dee8",
+        "0028d990",
+        "08d13a62",
+        "012de6d2",
+        "00d0ced4",
+        "0803f003",
+        "013013ef",
+        "03ec8637",
+        "00f2b56a",
+        "0f66e4aa",
+        "016086c6"
+      ],
+      "title": "How do swing highs and lows build structure?",
+      "video_id": "y5kYnalT-2c",
+      "seconds": 33.8,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1467100691999453",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
