@@ -1830,6 +1830,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-19T21:07:46+00:00",
+      "brief_date": "2026-10-19",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "REVOLUT SECURES GIBRALTAR CRYPTO LICENSE",
+      "fb_post_id": "462331040302049_122253861302610202",
+      "headlines": [
+        "Revolut secures Gibraltar crypto license to support global expansion"
+      ],
+      "topic": "regulation",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
