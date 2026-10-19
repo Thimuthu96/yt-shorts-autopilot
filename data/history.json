@@ -1811,6 +1811,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-19T16:04:46+00:00",
+      "brief_date": "2026-10-19",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "JPM COIN ON ETHEREUM",
+      "fb_post_id": "462331040302049_122253842828610202",
+      "headlines": [
+        "JPMorgan's JPM Coin, representing dollar deposits, is coming to Ethereum"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
