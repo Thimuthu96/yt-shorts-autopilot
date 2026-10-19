@@ -1736,6 +1736,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-19T12:02:25+00:00",
+      "brief_date": "2026-10-19",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN BOUNCES ABOVE $82,000 AS STOCKS REBOUND",
+      "fb_post_id": "462331040302049_122253828026610202",
+      "headlines": [
+        "Stocks rebound into key tech earnings: Three things to know in Bitcoin this week"
+      ],
+      "topic": "crypto",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
