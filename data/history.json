@@ -1755,6 +1755,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-19T13:01:59+00:00",
+      "brief_date": "2026-10-19",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "overview",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "How do swing highs and lows work?",
+      "fingerprint": [
+        "00ba0bde",
+        "00b61c32",
+        "05a8e465",
+        "069b05be",
+        "00ecf869",
+        "028e60b1",
+        "026313ba",
+        "032eb05a",
+        "04f3ca3b",
+        "011df7e9",
+        "0111a0c9",
+        "01c86b33",
+        "0143f1be",
+        "01dd3047",
+        "09095261",
+        "02277e08",
+        "0048ce29",
+        "0051a7f1",
+        "00183076",
+        "0091c156",
+        "0450321a",
+        "00d74d88",
+        "06ed8659",
+        "0130454c",
+        "012de6d2",
+        "04234ef5",
+        "033a5ae3",
+        "06f432dc",
+        "064f6881",
+        "04e6138c",
+        "04b7e53b",
+        "0031584b"
+      ],
+      "title": "How do swing highs and lows work?",
+      "video_id": "YNcVeti-Ekk",
+      "seconds": 34.2,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "2499003087293137",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
