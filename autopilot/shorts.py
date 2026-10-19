@@ -7,7 +7,8 @@ and script, written from one segment of a long video's Shorts material (autopilo
     used_segments(history)               {(material key, segment id)} already used by published Shorts
     pick_concept(materials, history)     (material, segment) of the oldest Basics / Lesson material with an
                                          unused segment, else None
-    pick_market(materials, history, now, log)  (material, hook index) of a triggered / recap material under
+    pick_market(materials, history, now, log, kinds)  (material, hook index) of a triggered / recap material (`kinds`;
+                                         pulse only when passed) under
                                          MARKET_MAX_DAYS old with an unused hook candidate and fewer than
                                          MAX_PER_MARKET Shorts, else None (an old or used-up source is logged)
     pick(materials, history, now, log)   the daily mix for short_a / short_b: a market Short when one is due
@@ -182,15 +183,16 @@ def hook_id(idx: int) -> str:
 
 
 def pick_market(materials: list[dict], history, now: datetime, log=_log,
-                skip: set | None = None) -> tuple[dict, int] | None:
-    """The oldest market material still under MARKET_MAX_DAYS old with fewer than MAX_PER_MARKET Shorts and an
-    unused hook candidate (by index, and its text unused by any Short) → (material, hook index); a source over the
-    age limit or used up is logged."""
+                skip: set | None = None, kinds: tuple = material.VIDEO_MARKET_SOURCES) -> tuple[dict, int] | None:
+    """The oldest market material of a source kind in `kinds` (default: triggered / recap, the current mix; pulse
+    material only when asked for, `kinds=("pulse",)`) still under MARKET_MAX_DAYS old with fewer than MAX_PER_MARKET
+    Shorts and an unused hook candidate (by index, and its text unused by any Short) → (material, hook index); a
+    source over the age limit or used up is logged."""
     used, hooks = used_segments(history) | set(skip or ()), used_hooks(history)
     count = {}
     for v in _shorts(history):
         count[v.get("material")] = count.get(v.get("material"), 0) + 1
-    for m in sorted((m for m in materials if m["source"]["kind"] in material.MARKET_SOURCES), key=_published):
+    for m in sorted((m for m in materials if m["source"]["kind"] in kinds), key=_published):
         k, at = key(m), _when(m.get("published_at"))
         if at is not None and at > now:  # scheduled (publishAt) and not public yet
             continue

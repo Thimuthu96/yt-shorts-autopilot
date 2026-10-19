@@ -283,6 +283,7 @@ def main():
     test_short_originality(cfg)
     test_short_lesson(cfg)
     test_short_mix(cfg)
+    test_pulse_material(cfg)
     test_slate_timetable(cfg)
     test_slate_budget(cfg)
     test_slate_floor(cfg)
@@ -5380,6 +5381,171 @@ def test_short_mix(cfg):
         app.render.build_video = saved
     print("OK short mix: simulated week → 4 market + 10 evergreen Shorts with 2 market videos (old one refused), "
           "14 evergreen with none, no segment repeated, once per slot, empty stock → skip + low-stock warning")
+
+
+def test_pulse_material(cfg):
+    """Pulse material (epic-shorts-reach entry 6.1): built from the day's fetched data alone (no LLM). ETH −5% with
+    an ETH story → valid pulse material led by ETH (numbers + series as fetched, ≥ 2 hooks, data source + CoinGecko
+    credit); a 0.8% day with no story → nothing ("quiet market"); a +20% top-50 coin without a headline naming it
+    never leads (coin gate log line); with one it leads on CoinGecko numbers with that story as its cause; BTC −3%
+    with no story → material without a cause; no prices and no overview → "no price data"; fewer than 2 surviving
+    hooks → no material, the validator's reasons; shorts.pick_market never serves pulse by default, only with
+    kinds=("pulse",); make() with a stub fetch writes data/material/pulse-<date>-<slot>.json that loads."""
+    from autopilot import material, pulse, rules, shorts, triggers
+    from autopilot.sources import CG_CREDIT
+    calm = dict(btc=-1.0, eth=-1.0, sol=-1.0, xrp=-1.0)
+    t0 = (TRIGGER_NOW - timedelta(hours=1)).isoformat()
+    eth_story = {"category": "crypto", "source": "CoinDesk", "title": "Ethereum slides as staking withdrawals jump",
+                 "summary": "Ether fell as staking withdrawals rose.", "published": t0}
+    neutral = {"category": "crypto", "source": "CoinDesk", "title": "Crypto exchange adds new trading pairs",
+               "summary": "", "published": t0}
+
+    def build(data, ov=None, logs=None, **kw):
+        return pulse.build(data, ov, TRIGGER_NOW, "short_a", cfg, log=(logs.append if logs is not None else lambda m: None),
+                           **kw)
+
+    # ETH −5% with an ETH story: lead ETH, numbers + series exactly as fetched, hooks, data source + credit
+    data = trigger_data(**dict(calm, btc=-1.0, eth=-5.0), news=[eth_story])
+    series = [2580.0 - 2.5 * i for i in range(49)] + [2450.0]
+    data["crypto"]["ETH"]["series"] = list(series)
+    ov = trigger_overview(cap=-2.0, coins=[("BTC", "Bitcoin", 62400, -1.0), ("ETH", "Ethereum", 2450, -5.0)])
+    m, why = build(data, ov)
+    assert m is not None and material.validate(m) == [], (why, m and material.validate(m))
+    mk = m["market"]
+    assert m["source"]["kind"] == "pulse" and m["source"]["id"] == "2026-10-15-short_a" and m["segments"] == []
+    assert m["youtube_id"] is None and m["facebook_id"] is None and m["published_at"] == TRIGGER_NOW.isoformat()
+    assert mk["lead"] == "ETH" and list(mk["numbers"])[0] == "ETH", mk["numbers"]
+    eth = data["crypto"]["ETH"]
+    assert mk["numbers"]["ETH"] == {"name": "Ethereum", "price": eth["price"], "change_24h": -5.0,
+                                    "change_7d": triggers._round(eth["change_7d"]), "source": "Coinbase"}, mk["numbers"]
+    assert mk["series"]["ETH"] == series and mk["numbers"]["BTC"]["change_24h"] == -1.0
+    assert mk["cause_headline"] == eth_story["title"] and mk["causes"]["ETH"] == eth_story["title"]
+    assert all(v is None for s_, v in mk["causes"].items() if s_ != "ETH")
+    assert mk["headlines"][0]["title"] == eth_story["title"]
+    assert set(mk["data_source"]) == {"Coinbase", "CoinGecko"} and mk["credit"] == CG_CREDIT
+    assert mk["total_cap_change_24h"] == -2.0
+    hooks = mk["hooks"]
+    assert len(set(h.lower() for h in hooks)) == len(hooks) >= 2, hooks
+    assert hooks[:2] == ["Why did Ethereum just fall 5%?", "Why is Ethereum down 5%?"], hooks
+    for text in hooks + [m["source"]["title"]]:
+        assert len(text) <= 60 and not rules.title_problems(text) and not rules.narration_problems(text), text
+    assert "ETH" in why and eth_story["title"] in why
+    # the market Short's helpers read it like a triggered material (24 h period)
+    assert shorts.lead_coin(m) == "ETH" and shorts._change(m, "ETH") == -5.0
+    assert "in the last 24 hours" in shorts._market_prompt(cfg, m, 0, [])
+    assert shorts.market_facts(m)["cause_headline"] == eth_story["title"]
+    # Coinbase only (no overview): no CoinGecko, no credit
+    m2, _ = build(data)
+    assert m2["market"]["data_source"] == ["Coinbase"] and m2["market"]["credit"] == ""
+    # related long video id kept; validator: pulse needs no platform id, but its lead + a series of ≥ 2 points
+    assert build(data, related="LV1")[0]["youtube_id"] == "LV1"
+    bad = json.loads(json.dumps(m))
+    bad["market"]["lead"] = "DOGE"
+    assert material.validate(bad) == ["pulse: lead 'DOGE' must be one of the numbers"], material.validate(bad)
+    bad["market"]["lead"], bad["market"]["series"]["ETH"] = "ETH", [2450.0]
+    assert material.validate(bad) == ["pulse: lead ETH needs a series of at least 2 points"], material.validate(bad)
+    tri = _market_material()
+    assert material.validate(dict(tri, youtube_id=None)) == ["no platform id (youtube_id or facebook_id)"]
+
+    # quiet market: |lead| 0.8% and no story → nothing, reason starts "quiet market"
+    logs = []
+    m, why = build(trigger_data(btc=-0.8, eth=0.5, sol=0.3, xrp=-0.2, news=[]), logs=logs)
+    assert m is None and why.startswith("quiet market"), why
+    assert any("Pulse: no material (quiet market" in x for x in logs), logs
+    assert pulse.QUIET_MOVE_PCT == 1.5 and cfg["pulse"]["quiet_move_pct"] == 1.5
+    m, why = pulse.build(trigger_data(btc=-0.8, eth=0.5, sol=0.3, xrp=-0.2, news=[]), None, TRIGGER_NOW, "short_a",
+                         {"pulse": {"quiet_move_pct": 0.5}}, log=lambda x: None)
+    assert m is not None and m["market"]["lead"] == "BTC", why  # re-tunable threshold
+
+    # gated-out coin: PEPE +20% without a headline naming it never leads; BTC +2% leads; the gate logs it
+    logs = []
+    ov = trigger_overview(coins=[("BTC", "Bitcoin", 62400, 2.0), ("PEPE", "Pepe", 1e-5, 20.0)])
+    m, why = build(trigger_data(**dict(calm, btc=2.0), news=[neutral]), ov, logs=logs)
+    assert m is not None and m["market"]["lead"] == "BTC" and "PEPE" not in m["market"]["numbers"], why
+    assert any("Coin gate: PEPE" in x and "not a pulse lead" in x for x in logs), logs
+    # gated coin: PEPE +20% with a story naming it, bigger than BTC/ETH → it leads on CoinGecko numbers
+    story = {"category": "crypto", "source": "CoinDesk", "title": "Pepe jumps as memecoin traders pile in",
+             "summary": "", "published": t0}
+    ov = trigger_overview(coins=[("BTC", "Bitcoin", 62400, -3.0), ("PEPE", "Pepe", 1e-5, 20.0)])
+    m, why = build(trigger_data(**dict(calm, btc=-3.0), news=[neutral, story]), ov)
+    assert m is not None and m["market"]["lead"] == "PEPE", why
+    assert m["market"]["cause_headline"] == story["title"] and m["market"]["causes"]["PEPE"] == story["title"]
+    assert m["market"]["numbers"]["PEPE"]["source"] == "CoinGecko" and m["market"]["numbers"]["PEPE"]["change_24h"] == 20.0
+    assert m["market"]["series"]["PEPE"] == [triggers._round(1e-5 / 1.2), 1e-5]
+    assert "CoinGecko" in m["market"]["data_source"] and m["market"]["credit"] == CG_CREDIT
+    assert m["market"]["hooks"][0] == "Why did Pepe just rise 20%?", m["market"]["hooks"]
+    # a gated coin smaller than the BTC move does not lead
+    ov = trigger_overview(coins=[("BTC", "Bitcoin", 62400, -25.0), ("PEPE", "Pepe", 1e-5, 20.0)])
+    assert build(trigger_data(**dict(calm, btc=-25.0), news=[story]), ov)[0]["market"]["lead"] == "BTC"
+
+    # big move, no story: material with no cause
+    m, why = build(trigger_data(**dict(calm, btc=-3.0), news=[neutral]))
+    assert m is not None and m["market"]["lead"] == "BTC" and m["market"]["cause_headline"] is None, why
+    assert all(v is None for v in m["market"]["causes"].values()) and "no matching story" in why
+    assert m["market"]["hooks"][0] == "Why did Bitcoin just fall 3%?"
+
+    # no data: no Coinbase prices and no overview
+    logs = []
+    m, why = build({"crypto": {}, "news": [eth_story]}, None, logs=logs)
+    assert m is None and why == "no price data" and any("no price data" in x for x in logs), (why, logs)
+    # the overview alone is enough (Coinbase failed): BTC / ETH from CoinGecko
+    ov = trigger_overview(coins=[("BTC", "Bitcoin", 62400, -4.0), ("ETH", "Ethereum", 2450, -2.0)])
+    m, why = build({"crypto": {}, "news": []}, ov)
+    assert m is not None and m["market"]["lead"] == "BTC" and m["market"]["data_source"] == ["CoinGecko"], why
+
+    # invalid build: fewer than 2 hooks survive (a name too long for a 60-character hook) → nothing, the reasons
+    data = trigger_data(**dict(calm, btc=-3.0), news=[neutral])
+    data["crypto"]["BTC"]["name"] = "Bitcoin Extraordinarily Long Placeholder Token Name"
+    logs = []
+    m, why = build(data, logs=logs)
+    assert m is None and why.startswith("invalid pulse material") and "hook candidates" in why, why
+    assert any("Pulse: no material (invalid pulse material" in x for x in logs)
+    # a flat lead with a story: no "0.0%" hook, so fewer than 2 hooks → no material
+    m, why = build(trigger_data(btc=0.02, eth=0.01, sol=0.0, xrp=0.0,
+                                news=[dict(eth_story, title="Bitcoin holds steady as ETF flows stall")]))
+    assert m is None and why.startswith("invalid pulse material"), why
+
+    # shorts.pick_market: pulse never served by default (the current mix), only with kinds=("pulse",)
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        hist = History(tmp / "history.json")
+        pm, _ = pulse.build(trigger_data(**dict(calm, eth=-5.0), news=[eth_story]), None, SHORT_NOW - timedelta(days=2),
+                            "short_a", cfg, log=lambda x: None)  # older than tri: it would come first if served
+        assert datetime.fromisoformat(pm["published_at"]) < datetime.fromisoformat(tri["published_at"])
+        got = shorts.pick_market([pm, tri], hist, SHORT_NOW, log=lambda x: None)
+        assert got and got[0] is tri, got
+        assert shorts.pick_market([pm], hist, SHORT_NOW, log=lambda x: None) is None
+        assert shorts.pick([pm], hist, SHORT_NOW, log=lambda x: None) is None
+        got = shorts.pick_market([pm, tri], hist, SHORT_NOW, log=lambda x: None, kinds=("pulse",))
+        assert got == (pm, 0), got
+
+        # make() with a stub fetch: writes data/material/pulse-<date>-short_a.json, loads through load_materials
+        calls = []
+
+        def fetch(cfg_, log=print):
+            calls.append(1)
+            return trigger_data(**dict(calm, eth=-5.0), news=[eth_story]), trigger_overview(coins=[])
+        logs = []
+        path, why = pulse.make(cfg, tmp, "short_a", now=TRIGGER_NOW, log=logs.append, fetch=fetch, related="LV2")
+        assert path == tmp / "data" / "material" / "pulse-2026-10-15-short_a.json" and path.exists(), (path, why)
+        loaded = shorts.load_materials(tmp, log=logs.append)
+        assert [shorts.key(x) for x in loaded] == ["pulse-2026-10-15-short_a"], logs
+        assert loaded[0]["youtube_id"] == "LV2" and loaded[0]["market"]["lead"] == "ETH" and len(calls) == 1
+        # a second build for the same date + slot merges into the file
+        assert pulse.make(cfg, tmp, "short_a", now=TRIGGER_NOW + timedelta(minutes=5), log=logs.append,
+                          fetch=fetch)[0] == path
+        assert material.load(path)["youtube_id"] == "LV2" and material.load(path)["published_at"] == TRIGGER_NOW.isoformat()
+        # a quiet day writes nothing
+        path, why = pulse.make(cfg, tmp, "short_b", now=TRIGGER_NOW, log=logs.append,
+                               fetch=lambda c, log=print: (trigger_data(btc=0.4, eth=0.2, sol=0.1, xrp=0.1, news=[]), None))
+        assert path is None and why.startswith("quiet market")
+        assert not (tmp / "data" / "material" / "pulse-2026-10-15-short_b.json").exists()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    print("OK pulse material: ETH −5% + story → valid pulse material (numbers + series as fetched, ≥ 2 hooks, data "
+          "source + credit), quiet market → none, gated-out coin never leads (logged), gated coin leads on CoinGecko "
+          "numbers, no story → no cause, no data → none, < 2 hooks → none, pick_market excludes pulse by default, "
+          "make → data/material/pulse-<date>-<slot>.json")
 
 
 def _wf_map(text: str) -> tuple[dict, dict, dict]:

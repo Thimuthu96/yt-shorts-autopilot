@@ -130,7 +130,13 @@ shared by every video format:
                             moves (Coinbase + CoinGecko top 50) and their headline causes, 560-750 words, ask after
                             move_1, fact-checked; title "This Week in Crypto: What Moved and Why", mini-board thumbnail
   market Shorts material    triggered / recap publishes write data/material/<kind>-<id>.json with a `market` section
-                            (fetched numbers + source, data_source, credit, series, causes, ≥ 2 hooks; no segment minimum)
+                            (fetched numbers + source, data_source, credit, series, causes, ≥ 2 hooks; no segment minimum);
+                            pulse material (kind pulse, autopilot/pulse.py, epic-shorts-reach 6.1, no LLM) is built from
+                            the day's fetched data alone: Coinbase + crypto news + CoinGecko overview → lead = biggest
+                            |24 h| of BTC / ETH / the first coin through rule 3's coin gate → its cause + headlines →
+                            data/material/pulse-<date>-<slot>.json (no source video: youtube_id = a related long video or
+                            null; `lead` + `headlines` added); |lead| < pulse.quiet_move_pct (1.5) with no story → none
+                            ("quiet market"); shorts.pick_market serves only triggered / recap unless kinds=("pulse",)
   standalone Shorts (kind: short, short_a 13:00 / short_b 23:00 UTC, YT Short + FB Reel; switch: shorts.enabled, on since 5.7;
   autopilot/shorts.py + lesson_material.py; main.make_short → main.publish):
   → shorts.pick             daily mix: a market Short when a triggered / recap material < 3 days old (not future) has an
@@ -303,8 +309,9 @@ autopilot/basics.py      Crypto Basics: sample_topic, load_topics / validate_top
                          render_thumbnail (words + diagram or coin icon), chapters, metadata (YouTube + Facebook)
 autopilot/material.py    Shorts material format (documented in its docstring; epics 3/4 write / read it): source,
                          youtube_id / facebook_id, published_at, segments [{id, kind overview|concept, term,
-                         narration, diagram, facts, hooks ≤ 60 chars}] (≥ 5); build_basics, validate, save / load,
-                         merge, write, add (workflow CLI)
+                         narration, diagram, facts, hooks ≤ 60 chars}] (≥ 5); market material (triggered / recap /
+                         pulse: `market` section); build_basics, build_triggered / build_recap / build_pulse, validate,
+                         save / load, merge, write, add (workflow CLI)
 autopilot/diagrams.py    drawn concept diagrams (shared: Basics now, epics 3/4 later): spec flow / compare / timeline
                          + notes (boxes, arrows, drawn coin badges BTC/ETH brand colours else accent, timeline
                          segments; `say` = spoken aliases), validate, steps (reveal order = spec order),
@@ -316,7 +323,10 @@ basics/topics.yaml       Crypto Basics topic list (list order = queue): id, ques
                          thumbnail (1-3 words), summary, points (≥ 4) [{term, text, diagram}], approved; ships 4 builder
                          DRAFTS (approved: false) until the owner approves via PR (crypto-basics entry 4)
 autopilot/triggers.py    trigger engine: evaluate (rules 1-4, coin gate), limits + data/triggers.json state, load(id|fixture),
-                         check (the 30-minute poll, `python -m autopilot.triggers check`)
+                         check (the 30-minute poll, `python -m autopilot.triggers check`); coin_gate (rule 3's gate, shared)
+autopilot/pulse.py       market-pulse material from fetched data alone (no long video, no LLM): pick_lead, build (quiet
+                         market / no price data / invalid → none + reason), make (fetch + material.write
+                         data/material/pulse-<date>-<slot>.json; the pulse Short, 6.2, calls it)
 autopilot/triggered.py   triggered video: scene plan, narration + checks + fact-check, slides, draw_move_chart (16:9 + 9:16),
                          packaging (title_for, thumbnail_words, render_thumbnail, metadata)
 autopilot/recap.py       Saturday recap: fetch, week_has_triggered, build (biggest 7-day moves), narration, slides, board
@@ -331,7 +341,8 @@ tests/lessons/           sample curriculum + glossary + fixture candles
 tests/basics/            sample_topic.yaml: the Crypto Basics tracer topic (+ a diagram per point);
                          sample_narration.yaml: its narration naming every diagram part in order
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
-data/material/           Shorts material per published long video (<kind>-<id>.json), committed by the workflow
+data/material/           Shorts material per published long video (<kind>-<id>.json) + pulse-<date>-<slot>.json, committed
+                         by the workflow
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
 .github/workflows/autopilot.yml   9 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled, slot)
 ```

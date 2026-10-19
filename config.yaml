@@ -230,6 +230,13 @@ shorts:
   min_words: 70               # script length → roughly 30-40 seconds
   max_words: 105
 
+# ─── Market pulse material (autopilot/pulse.py, epic-shorts-reach 6.1) ──────
+# Built from the day's fetched data alone (Coinbase + crypto news + CoinGecko overview, no LLM). A day whose lead coin
+# moved less than quiet_move_pct in 24 h with no story behind it writes no material ("quiet market"). Re-tunable at the
+# 7-day check.
+pulse:
+  quiet_move_pct: 1.5         # |lead 24 h move| under this and no cause story → quiet market, no pulse material
+
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
 # Switch: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
 # still tops that slot up. On since the slate release (5.7) with the weekly floor.

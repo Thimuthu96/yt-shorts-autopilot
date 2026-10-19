@@ -738,7 +738,7 @@ def make_recap(cfg: dict, history: History, session_key: str, date: str) -> dict
     if problems:
         raise RuntimeError(f"Recap packaging: {'; '.join(problems)}")
     data, overview = recap.fetch(cfg, log=log)
-    week = recap.build(data, overview)
+    week = recap.build(data, overview, datetime.now(timezone.utc))  # the run's clock (tests fix it)
     log("Recap moves: " + ", ".join(f"{s} {week['moves'][s]['change_7d']:+.1f}%" for s in week["coins"]))
     workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
