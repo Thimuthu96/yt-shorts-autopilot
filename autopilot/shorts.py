@@ -5,15 +5,26 @@ and script, written from one segment of a long video's Shorts material (autopilo
     load_materials(root, log)            every valid data/material/*.json (invalid files logged and skipped)
     key(m)                               "<source kind>-<source id>" (what a Short's history entry names)
     used_segments(history)               {(material key, segment id)} already used by published Shorts
-    pick_concept(materials, history)     (material, segment) of the oldest Basics / Lesson material with an
-                                         unused segment, else None
+    topic(text) / segment_topics(seg) / segment_topic(seg)   the E6-3 topic: normalized text (lowercase; "(…)",
+                                         "crypto", "the", "a", "what is / are" and stop-words dropped; plurals singular;
+                                         aliases: swing high / low → "swing point", trend line → "trendline"); a
+                                         segment's candidates = its term + first hook, its recorded topic = the term's
+    recent_topics(materials, history, now)   topics of the concept Shorts of the last COOLDOWN_DAYS (an entry without
+                                         `topic`: its segment's term, else its title, else its hook; pulse / market
+                                         Shorts never block a concept)
+    pick_concept(materials, history, skip, now, log)   round-robin over the Basics / Lesson materials (the source whose
+                                         last Short is oldest first, never-used first, ties by publish time): its first
+                                         unused segment none of whose topics equals / contains / is contained in a
+                                         recent topic (hard 7-day cooldown, refusals logged); a source with
+                                         MAX_PER_SOURCE Shorts in 7 days is passed over unless no other source has an
+                                         eligible segment (cap relaxed, logged); else None
     pick_market(materials, history, now, log, kinds)  (material, hook index) of a triggered / recap material (`kinds`;
                                          pulse only when passed) under
                                          MARKET_MAX_DAYS old with an unused hook candidate and fewer than
                                          MAX_PER_MARKET Shorts, else None (an old or used-up source is logged)
     pick(materials, history, now, log)   the daily mix for short_a / short_b: a market Short when one is due
-                                         (about 4 a week from 2 market videos), else a concept Short from the oldest
-                                         Basics / Lesson material with an unused segment, else None (slot skipped)
+                                         (about 4 a week from 2 market videos), else a concept Short (pick_concept:
+                                         source rotation + topic cooldown), else None (slot skipped)
     latest_long(history, now)            the related video of a pulse Short: the newest counting basics / lesson /
                                          triggered / recap upload with a video id whose publish time (publish_at,
                                          else date) has passed → its id, else None (no link line)
@@ -23,7 +34,9 @@ and script, written from one segment of a long video's Shorts material (autopilo
                                          segment) (pick_concept), else None. Pulse Shorts reuse the market path:
                                          write_market (today's-data wording), render_market_slides, MARKET PULSE chip,
                                          "▶ Latest video" link line, no "From the full video" line
-    stock(materials, history)            unused concept segments left; under LOW_STOCK → a low-stock warning
+    stock(materials, history, now, also) eligible concept segments left (unused, no recent topic; segments sharing
+                                         a topic count once; `also` = this Short's (material key, segment id, topic)
+                                         counted as used); under LOW_STOCK → a low-stock warning
     write_market(cfg, m, idx, log)       the candidate is the hook; Gemini writes the scenes from the material's
                                          fetched numbers + causes only (triggered.unknown_numbers); 3 attempts
     render_market_slides(...)            hook card → the move chart (triggered.draw_move_chart), the cause → coins
@@ -73,7 +86,9 @@ SCENES = ("hook", "explain", "payoff")
 CONCEPT_SOURCES = ("basics", "lesson")
 MARKET_MAX_DAYS = 3  # a market Short goes up within 3 days of its source video
 MAX_PER_MARKET = 2  # up to 2 market Shorts per source, each from a distinct hook candidate
-LOW_STOCK = 7  # unused concept segments: under half a week of evergreen Shorts → a low-stock warning
+LOW_STOCK = 7  # eligible concept segments: under half a week of evergreen Shorts → a low-stock warning
+COOLDOWN_DAYS = 7  # E6-3: no concept topic repeats within 7 days (hard)
+MAX_PER_SOURCE = 2  # E6-3: at most 2 Shorts per Basics / Lesson material in 7 days (relaxed only when nothing else)
 CHIPS = {"basics": "CRYPTO BASICS", "lesson": "TRADING LESSON", "triggered": "WHY IT MOVED", "recap": "WEEKLY RECAP",
          "pulse": "MARKET PULSE"}
 DISCLAIMER = "Education only · Not financial advice"
@@ -163,22 +178,189 @@ def _limit(cfg: dict) -> float:
     return float((cfg.get("shorts") or {}).get("max_similarity", MAX_SIMILARITY))
 
 
-def stock(materials: list[dict], history) -> int:
-    """Unused segments of the Basics / Lesson material (what evergreen concept Shorts can still be made from)."""
-    used = used_segments(history)
-    return sum((key(m), s["id"]) not in used for m in materials if m["source"]["kind"] in CONCEPT_SOURCES
-               for s in m["segments"])
+# ─── concept rotation + topic cooldown (epic-shorts-reach E6-3) ─────────────
+
+TOPIC_STOP = frozenset((
+    "a an the what is are was were be been being how do does did why when where which who whom of in on at to for "
+    "from by with and or vs versus as into about it its this that these those you your can should could would will "
+    "just really actually crypto").split())
+KEEP_S = frozenset("news series species bias gas plus always perhaps canvas atlas basics analytics economics".split())
+TOPIC_ALIASES = ((re.compile(r"\bswing (?:high|low)(?: (?:swing )?(?:high|low))*\b"), "swing point"),
+                 (re.compile(r"\btrend line\b"), "trendline"))
 
 
-def pick_concept(materials: list[dict], history, skip: set | None = None) -> tuple[dict, dict] | None:
-    """The oldest Basics / Lesson material's first unused segment (concept segments before the overview)."""
-    used = used_segments(history) | set(skip or ())
-    for m in sorted((m for m in materials if m["source"]["kind"] in CONCEPT_SOURCES), key=_published):
-        segs = sorted(m["segments"], key=lambda s: s.get("kind") != "concept")
-        for s in segs:
-            if (key(m), s["id"]) not in used:
-                return m, s
+def _singular(w: str) -> str:
+    if len(w) <= 3 or w in KEEP_S or w.isdigit():
+        return w
+    if w.endswith("ies") and len(w) > 4:
+        return w[:-3] + "y"
+    if w.endswith(("sses", "xes", "zes", "ches", "shes")):  # losses → loss, taxes → tax, addresses → address
+        return w[:-2]
+    if w.endswith("s") and not w.endswith(("ss", "us", "is")):
+        return w[:-1]
+    return w
+
+
+def _collapse(words: list[str]) -> list[str]:
+    """Drop immediately repeated runs of 1-3 words ("swing point swing point" → "swing point")."""
+    changed = True
+    while changed:
+        changed = False
+        for n in (1, 2, 3):
+            for i in range(len(words) - 2 * n + 1):
+                if words[i:i + n] == words[i + n:i + 2 * n]:
+                    words = words[:i + n] + words[i + 2 * n:]
+                    changed = True
+                    break
+            if changed:
+                break
+    return words
+
+
+def topic(text) -> str:
+    """The normalized topic of a term / hook / title: lowercase, "(…)" dropped, words [a-z0-9]+ without stop-words
+    (incl. crypto, what, is, are, how, do), plurals singular, aliases, repeats collapsed. "" when nothing is left."""
+    t = re.sub(r"\([^)]*\)", " ", str(text or "").lower())
+    t = re.sub(r"['’]s\b|['’]", "", t)  # Bitcoin's → bitcoin, What's → what
+    words = [_singular(w) for w in re.findall(r"[a-z0-9]+", t) if w not in TOPIC_STOP]
+    joined = " ".join(words)
+    for pat, rep in TOPIC_ALIASES:
+        joined = pat.sub(rep, joined)
+    return " ".join(_collapse(joined.split()))
+
+
+def segment_topics(seg: dict) -> list[str]:
+    """A segment's candidate topics: its normalized term and its first hook (empty ones dropped, no duplicates)."""
+    out = []
+    for t in (topic(seg.get("term")), topic((seg.get("hooks") or [""])[0])):
+        if t and t not in out:
+            out.append(t)
+    return out
+
+
+def segment_topic(seg: dict) -> str:
+    """The topic a concept Short records: the normalized term, else its first hook's."""
+    return topic(seg.get("term")) or topic((seg.get("hooks") or [""])[0])
+
+
+def overlaps(a: str, b: str) -> bool:
+    """Equal, or one contains the other as whole words; an empty topic never overlaps."""
+    return bool(a and b) and (f" {a} " in f" {b} " or f" {b} " in f" {a} ")
+
+
+def _entry_at(v: dict) -> datetime | None:
+    return _when(v.get("date") or "") or _when(v.get("brief_date") or "")
+
+
+def _concept_shorts(history) -> list[dict]:
+    return [v for v in _shorts(history) if (v.get("short_kind") or "concept") == "concept"]
+
+
+def recent_topics(materials: list[dict], history, now: datetime) -> list[str]:
+    """Topics of the concept Shorts of the last COOLDOWN_DAYS before `now` (age: `date`, else `brief_date`). An entry
+    without `topic` gets its segment's term (material key + segment id in the loaded material), else its title, else
+    its hook. Pulse / market Shorts are left out: they never block a concept."""
+    segs = {(key(m), s["id"]): s for m in materials for s in m.get("segments") or []}
+    since, out = now - timedelta(days=COOLDOWN_DAYS), []
+    for v in _concept_shorts(history):
+        at = _entry_at(v)
+        if at is None or at <= since:
+            continue
+        seg = segs.get((v.get("material"), v.get("segment")))
+        t = (topic(v.get("topic")) or (topic(seg.get("term")) if seg else "") or topic(v.get("title"))
+             or topic(v.get("hook")))
+        if t and t not in out:
+            out.append(t)
+    return out
+
+
+def _clash(cands: list[str], recent: list[str]) -> tuple[str, str] | None:
+    for c in cands:
+        for r in recent:
+            if overlaps(c, r):
+                return c, r
     return None
+
+
+def _concept_materials(materials: list[dict]) -> list[dict]:
+    return [m for m in materials if m["source"]["kind"] in CONCEPT_SOURCES]
+
+
+def stock(materials: list[dict], history, now: datetime | None = None, also: tuple | None = None) -> int:
+    """Eligible segments of the Basics / Lesson material (unused, no topic overlapping a concept Short of the last
+    COOLDOWN_DAYS; segments sharing a topic count once): what evergreen concept Shorts can still be made from.
+    Counted greedily in pick order (materials by publish time, concept segments before the overview): a counted
+    segment's topic joins the recent topics. `also` = (material key, segment id, topic) of the Short being made,
+    counted as already used."""
+    now = now or datetime.now(timezone.utc)
+    used, recent = used_segments(history), recent_topics(materials, history, now)
+    if also:
+        used.add((also[0], also[1]))
+        if len(also) > 2 and also[2]:
+            recent.append(also[2])
+    n = 0
+    for m in sorted(_concept_materials(materials), key=_published):
+        for s in sorted(m["segments"], key=lambda s: s.get("kind") != "concept"):
+            if (key(m), s["id"]) in used or _clash(segment_topics(s), recent):
+                continue
+            n += 1
+            recent.append(segment_topic(s))
+    return n
+
+
+def _first_eligible(m: dict, used: set, recent: list[str], log) -> dict | None:
+    """The material's first unused segment (concept segments before the overview) with no recent topic; each
+    topic refusal is logged."""
+    for s in sorted(m["segments"], key=lambda s: s.get("kind") != "concept"):
+        if (key(m), s["id"]) in used:
+            continue
+        hit = _clash(segment_topics(s), recent)
+        if hit:
+            log(f'Shorts: {key(m)} · {s["id"]} refused: topic "{hit[0]}" overlaps "{hit[1]}", a concept Short of the '
+                f"last {COOLDOWN_DAYS} days")
+            continue
+        return s
+    return None
+
+
+def pick_concept(materials: list[dict], history, skip: set | None = None, now: datetime | None = None,
+                 log=_log) -> tuple[dict, dict] | None:
+    """Round-robin over the Basics / Lesson materials: the source whose last Short is oldest first (never-used
+    sources first; ties by the material's publish time, oldest first), its first eligible segment (unused, not in
+    `skip`, no topic overlapping a concept Short of the last COOLDOWN_DAYS). A source with MAX_PER_SOURCE Shorts in
+    the last COOLDOWN_DAYS is passed over (logged) unless no other source has an eligible segment (cap relaxed,
+    logged). None when nothing is eligible."""
+    now = now or datetime.now(timezone.utc)
+    used = used_segments(history) | set(skip or ())
+    recent = recent_topics(materials, history, now)
+    since = now - timedelta(days=COOLDOWN_DAYS)
+    last, count = {}, {}
+    for v in _shorts(history):
+        k, at = v.get("material"), _entry_at(v)
+        if not k or at is None:
+            continue
+        if k not in last or at > last[k]:
+            last[k] = at
+        if at > since:
+            count[k] = count.get(k, 0) + 1
+    floor = datetime.min.replace(tzinfo=timezone.utc)
+    order = sorted(_concept_materials(materials),
+                   key=lambda m: (key(m) in last, last.get(key(m), floor), _published(m)))
+    capped = None
+    for m in order:
+        s = _first_eligible(m, used, recent, log)
+        if s is None:
+            continue
+        n = count.get(key(m), 0)
+        if n >= MAX_PER_SOURCE:
+            log(f"Shorts: {key(m)} already has {n} Shorts in the last {COOLDOWN_DAYS} days (cap {MAX_PER_SOURCE}); "
+                "trying another source")
+            capped = capped or (m, s)
+            continue
+        return m, s
+    if capped:
+        log(f"Shorts: no other source has an eligible segment; the per-source cap is relaxed for {key(capped[0])}")
+    return capped
 
 
 def _when(text: str) -> datetime | None:
@@ -241,22 +423,23 @@ def latest_long(history, now: datetime) -> str | None:
 def pick_pulse(fresh: dict | None, materials: list[dict], history, now: datetime, log=_log,
                skip: set | None = None):
     """The pulse-first pick: ("pulse", fresh, hook index) when the material this run built (`fresh`; never an
-    earlier one) has an unused hook (pick_market with kinds=("pulse",)), else ("concept", material, segment) from
-    the oldest Basics / Lesson material, else None (slot skipped)."""
+    earlier one) has an unused hook (pick_market with kinds=("pulse",)), else ("concept", material, segment)
+    (pick_concept: source rotation + topic cooldown), else None (slot skipped)."""
     got = pick_market([fresh], history, now, log, skip, kinds=(material.PULSE,)) if fresh else None
     if got:
         return ("pulse", *got)
-    got = pick_concept(materials, history, skip)
+    got = pick_concept(materials, history, skip, now=now, log=log)
     return ("concept", *got) if got else None
 
 
 def pick(materials: list[dict], history, now: datetime, log=_log, skip: set | None = None):
-    """("market", material, hook index) when a market Short is due, else ("concept", material, segment), else
-    None. `skip`: (material key, segment / hook id) pairs this run already gave up on (TooClose)."""
+    """("market", material, hook index) when a market Short is due, else ("concept", material, segment)
+    (pick_concept: source rotation + topic cooldown), else None. `skip`: (material key, segment / hook id) pairs
+    this run already gave up on (TooClose)."""
     got = pick_market(materials, history, now, log, skip)
     if got:
         return ("market", *got)
-    got = pick_concept(materials, history, skip)
+    got = pick_concept(materials, history, skip, now=now, log=log)
     return ("concept", *got) if got else None
 
 

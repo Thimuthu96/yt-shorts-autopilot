@@ -826,9 +826,11 @@ def make_pulse(cfg: dict, history: History, session_key: str, now: datetime) -> 
 def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict | None:
     """One standalone Short (kind: short; autopilot/shorts.py) from the Shorts material in data/material/
     (shorts.pick: a market Short from a triggered / recap video under 3 days old with an unused hook candidate,
-    else a concept Short from the oldest Basics / Lesson material with an unused segment). A pulse-first session
-    (pulse_first: short_p; short_a once pulse.enabled) builds fresh pulse material first (make_pulse) and makes a
-    pulse Short from it through the market path (shorts.pick_pulse), else a concept Short, else the slot skips.
+    else a concept Short: shorts.pick_concept rotates over the Basics / Lesson materials (≤ 2 Shorts per source in
+    7 days unless nothing else is eligible) with a hard 7-day topic cooldown; the entry records the `topic`). A
+    pulse-first session (pulse_first: short_p; short_a once pulse.enabled) builds fresh pulse material first
+    (make_pulse) and makes a pulse Short from it through the market path (shorts.pick_pulse), else a concept
+    Short, else the slot skips.
     Then a new 30-40 s script (Gemini + shorts.check_script, 3 attempts; packaging rules), the A/B voice with
     pauses, 9:16 slides (hook card = frame 0), render, metadata. None = nothing to make (logged). Returns made
     for main.publish."""
@@ -850,16 +852,16 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
             log(f"Pulse: no pulse Short ({reason}); a concept Short takes the {session_key} slot.")
         if picked is None:
             if first and not fell_back:
-                log(f"Pulse: no pulse Short ({reason}) and no Basics / Lesson segment left unused; the "
+                log(f"Pulse: no pulse Short ({reason}) and no eligible Basics / Lesson segment; the "
                     f"{session_key} slot is skipped (nothing to publish in this slot).")
             elif first:
-                log(f"Shorts: no Basics / Lesson segment left unused; the {session_key} slot is skipped "
+                log(f"Shorts: no eligible Basics / Lesson segment; the {session_key} slot is skipped "
                     "(nothing to publish in this slot).")
             else:
-                log(f"Shorts: no market hook or Basics / Lesson segment left unused; the {session_key} slot is skipped "
+                log(f"Shorts: no market hook or eligible Basics / Lesson segment; the {session_key} slot is skipped "
                     "(nothing to publish in this slot).")
-            log("Shorts low-stock warning: 0 unused concept segments; publish Basics / Lesson episodes to refill "
-                "the Shorts material.")
+            log(f"Shorts low-stock warning: 0 eligible concept segments (unused, topic not a concept Short in the "
+                f"last {shorts.COOLDOWN_DAYS} days); publish Basics / Lesson episodes to refill the Shorts material.")
             return None
         what, m, which = picked
         market = what in ("market", "pulse")
@@ -873,10 +875,12 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
         except shorts.TooClose as e:
             log(f"Originality guard: {shorts.key(m)} · {segment}: {e}; moving to another segment")
             skip.add((shorts.key(m), segment))
-    left = shorts.stock(materials, history) - (what == "concept")
+    topic = shorts.topic(pkg["hook"]) if market else shorts.segment_topic(seg)
+    left = shorts.stock(materials, history, now, also=None if market else (shorts.key(m), segment, topic))
     if left < shorts.LOW_STOCK:
-        log(f"Shorts low-stock warning: {left} unused concept segment(s) left after this Short (under "
-            f"{shorts.LOW_STOCK}); publish Basics / Lesson episodes to refill the Shorts material.")
+        log(f"Shorts low-stock warning: {left} eligible concept segment(s) left after this Short (unused, topic not "
+            f"a concept Short in the last {shorts.COOLDOWN_DAYS} days; under {shorts.LOW_STOCK}); publish Basics / "
+            "Lesson episodes to refill the Shorts material.")
     workdir = ROOT / "output" / now.strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
     (workdir / "package.json").write_text(json.dumps({"material": shorts.key(m), "segment": segment, **pkg},
@@ -900,7 +904,8 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     (workdir / "caption_fb.txt").write_text(fb_caption, encoding="utf-8")
     entry = {"date": now.isoformat(timespec="seconds"), "brief_date": date, "session": session_key, "kind": "short",
              "short_kind": what, "material": shorts.key(m), "segment": segment, "source_video": m.get("youtube_id"),
-             "hook": pkg["hook"], "fingerprint": pkg["fingerprint"], "title": meta["title"], "video_id": None,
+             "hook": pkg["hook"], "topic": topic, "fingerprint": pkg["fingerprint"], "title": meta["title"],
+             "video_id": None,
              "seconds": round(total, 1),
              "voice": audio[0]["voice"] if audio else v["name"], "workdir": str(workdir.relative_to(ROOT))}
     if what == "pulse":  # the run's pulse material: the workflow's Save history step merges this copy after its reset

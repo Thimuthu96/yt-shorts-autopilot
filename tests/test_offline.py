@@ -283,6 +283,7 @@ def main():
     test_short_originality(cfg)
     test_short_lesson(cfg)
     test_short_mix(cfg)
+    test_short_rotation(cfg)
     test_pulse_material(cfg)
     test_short_pulse(cfg)
     test_slate_timetable(cfg)
@@ -5013,11 +5014,23 @@ def _short_answer(n: int, prompt: str, first: str | None = None) -> dict:
                        {"id": "payoff", "text": text(14) + " " + text(14)}]}
 
 
-def _basics_material(cfg, vid: str = "Y1", published: str = "2026-10-14T15:05:00+00:00", topic_id: str = "") -> dict:
+# distinct episode questions + point terms (no topic of one equals / contains another's: E6-3's topic cooldown)
+DISTINCT_TERMS = (("What Is a Bitcoin ETF? (Explained Simply)", ("Exchange-traded fund", "Spot fund shares", "Custodian",
+                                                                 "The trade-offs")),
+                  ("What Is a Stablecoin?", ("Dollar peg", "Reserve audit", "Redemption", "Depeg risk")),
+                  ("What Is Staking?", ("Validator", "Lockup period", "Slashing", "Yield source")))
+
+
+def _basics_material(cfg, vid: str = "Y1", published: str = "2026-10-14T15:05:00+00:00", topic_id: str = "",
+                     terms: tuple | None = None) -> dict:
+    """The sample topic's Basics material; `terms` = (question, point terms) renames the episode and its points."""
     from autopilot import basics, material
     topic = dict(basics.sample_topic(), thumbnail="BITCOIN ETF?", approved=True)
     if topic_id:
         topic["id"] = topic_id
+    if terms:
+        topic["question"] = terms[0]
+        topic["points"] = [dict(p_, term=t_) for p_, t_ in zip(topic["points"], terms[1])]
     scenes = [{"id": k, "text": v} for k, v in _sample_narration().items()]
     return material.build_basics(topic, scenes, {"video_id": vid, "fb_video_id": None, "date": published}, cfg)
 
@@ -5334,12 +5347,12 @@ def test_short_lesson(cfg):
 def test_short_mix(cfg):
     """Daily Shorts mix (entry 7): a simulated week of timed short_a / short_b runs (14 slots, shorts.enabled on)
     gives 4 market Shorts when 2 market videos are published that week (none from a 5-day-old one) and only
-    evergreen Shorts when there are none, with no segment repeated; a slot's second timed run stops under the
-    once-per-slot guard; with every segment used a slot logs the skip and the low-stock warning and publishes
-    nothing."""
+    evergreen Shorts when there are none, with no segment repeated and the concept Shorts rotating over the three
+    Basics episodes (E6-3); a slot's second timed run stops under the once-per-slot guard; with every segment used a
+    slot logs the skip and the low-stock warning and publishes nothing."""
     import main as app
     week0 = SHORT_NOW.replace(hour=10, minute=0)
-    basics_m = [_basics_material(cfg, vid=f"B{i}", topic_id=f"topic-{i}",
+    basics_m = [_basics_material(cfg, vid=f"B{i}", topic_id=f"topic-{i}", terms=DISTINCT_TERMS[i],
                                  published=(week0 - timedelta(days=20 - i)).isoformat()) for i in range(3)]
     market = [_market_material(tid="m1", vid="M1", published=week0),
               _market_material(tid="m2", vid="M2", published=week0 + timedelta(days=3),
@@ -5368,20 +5381,206 @@ def test_short_mix(cfg):
         assert {e["material"] for e in hist if e["short_kind"] == "market"} == {"triggered-m1", "triggered-m2"}
         assert len({(e["material"], e["segment"]) for e in hist}) == 14
         assert any("triggered-m0 is 5 days old" in x for x in logs)
-        assert [e["material"] for e in hist if e["short_kind"] == "concept"][:5] == ["basics-topic-0"] * 5
-        hist, _ = week(basics_m)
+        cycle = ["basics-topic-0", "basics-topic-1", "basics-topic-2"]
+        assert [e["material"] for e in hist if e["short_kind"] == "concept"][:6] == cycle * 2, hist
+        assert all(e.get("topic") for e in hist), hist
+        hist, logs = week(basics_m)
         assert [e["short_kind"] for e in hist] == ["concept"] * 14 and len({(e["material"], e["segment"]) for e in hist}) == 14
+        assert [e["material"] for e in hist] == (cycle * 5)[:14], [e["material"] for e in hist]
+        assert len({e["topic"] for e in hist}) == 14 and any("per-source cap is relaxed" in x for x in logs)
         used = [{"kind": "short", "session": "short_b", "brief_date": "2026-10-14", "material": "basics-topic-0",
                  "segment": s_["id"], "hook": f"Old hook {s_['id']}?", "video_id": f"U{s_['id']}"}
                 for s_ in basics_m[0]["segments"]]
         with _ShortRun([basics_m[0]], update={"shorts": {"enabled": True}}, history=used) as r:
             assert r.run("--session", "short_a", "--scheduled") == 0 and not r.yt and not r.prompts
             assert any("the short_a slot is skipped" in x for x in r.logs), r.logs[-4:]
-            assert any("low-stock warning: 0 unused" in x for x in r.logs) and len(r.history()) == len(used)
+            assert any("low-stock warning: 0 eligible" in x for x in r.logs) and len(r.history()) == len(used)
     finally:
         app.render.build_video = saved
     print("OK short mix: simulated week → 4 market + 10 evergreen Shorts with 2 market videos (old one refused), "
-          "14 evergreen with none, no segment repeated, once per slot, empty stock → skip + low-stock warning")
+          "14 evergreen with none, no segment repeated, concept Shorts rotate over the episodes, once per slot, "
+          "empty stock → skip + low-stock warning")
+
+
+class _Hist:
+    """A stand-in History over a list of entries (shorts reads only uploaded())."""
+
+    def __init__(self, videos):
+        self.videos = list(videos)
+
+    def uploaded(self):
+        return [v for v in self.videos if v.get("video_id")]
+
+
+def _fixture_lesson(eid: str) -> dict:
+    from autopilot import lesson_material, lessons
+    cur = lessons.load_curriculum(ROOT / "tests" / "lessons" / "curriculum.yaml")
+    glo = lessons.load_glossary(ROOT / "tests" / "lessons" / "glossary.yaml")
+    ep = next(e for e in cur if e["id"] == eid)
+    return lesson_material.build_lesson(ep, glo, {
+        "kind": "lesson", "episode": eid, "video_id": f"L-{eid}", "date": "2026-10-08T15:05:00+00:00",
+        "examples": [{"asset": "BTC", "timeframe": "4h", "start": "2026-10-01T00:00:00+00:00",
+                      "end": "2026-10-03T00:00:00+00:00"}]})
+
+
+# the 5 live standalone Shorts of 2026-10-15..17 (data/history.json), all from lesson-swing-structure, no `topic`
+LIVE_SWING_SHORTS = [
+    ("2026-10-15T09:09:12+00:00", "point_1", "What Are Swing Highs and Swing Lows?"),
+    ("2026-10-16T01:19:24+00:00", "point_2", "What is market structure?"),
+    ("2026-10-16T13:02:04+00:00", "point_3", "How should a swing point be labeled on a crypto chart?"),
+    ("2026-10-17T01:18:15+00:00", "point_4", "What is crypto market structure?"),
+    ("2026-10-17T13:01:57+00:00", "concept_swing_point", "What is a swing point?")]
+
+
+def test_short_rotation(cfg):
+    """Diverse concept picks (epic-shorts-reach E6-3): topic normalization (stop-words, "(…)", plurals, aliases);
+    two fresh sources alternate A, B, A, B; a source with 2 Shorts in 7 days is passed over for another source's
+    eligible segment and relaxed only when no other source has one (both logged); a candidate whose topic equals /
+    contains / is contained in a concept Short's of the last 7 days is refused (logged; the alias makes "Swing point"
+    = "Swing Highs and Swing Lows"); the same topic 8 days ago is allowed; pulse / market Shorts never block a concept;
+    a fixture mirror of the 5 live swing-structure Shorts (no `topic`) leaves no swing-point / market-structure
+    segment eligible and another source is picked; the low-stock count is eligible segments only; nothing eligible
+    → the slot skips with the low-stock warning (exit 0); a published concept / market Short records its `topic`."""
+    from autopilot import shorts
+    t = shorts.topic
+    assert t("What is crypto market structure?") == "market structure"
+    assert t("Market structure (HH / HL / LH / LL)") == "market structure"
+    assert t("What Are Swing Highs and Swing Lows?") == "swing point" == t("Swing point")
+    assert t("How do swing highs and lows build structure?") == "swing point build structure"
+    assert t("Trend lines") == "trendline" == t("What is a trendline?") and t("The trade-offs") == "trade off"
+    assert t("What is Bitcoin's halving?") == "bitcoin halving" == t("Bitcoin halving")
+    assert t("Ethereum vs Bitcoin: What’s the Difference?") == "ethereum bitcoin difference"
+    assert t("Stop losses") == t("Stop-loss") == "stop loss" and t("Wallet addresses") == "wallet address"
+    assert t("What is it?") == "" and not shorts.overlaps("", "market structure")
+    assert shorts.overlaps("market structure", "market structure") and shorts.overlaps("swing point labeled chart", "swing point")
+    assert not shorts.overlaps("market", "marketing plan") and not shorts.overlaps("break structure", "market structure")
+    now = SHORT_NOW
+    logs = []
+
+    def short(m, seg_id, at, **kw):
+        return dict({"kind": "short", "short_kind": "concept", "material": shorts.key(m), "segment": seg_id,
+                     "date": at.isoformat(), "video_id": f"V{seg_id}{at.isoformat()}"}, **kw)
+
+    def pick(materials, videos, at=now, skip=None):
+        logs.clear()
+        return shorts.pick_concept(materials, _Hist(videos), skip, now=at, log=logs.append)
+
+    # two fresh sources: A (older), B → A, B, A, B
+    a = _basics_material(cfg, vid="A1", topic_id="a", terms=DISTINCT_TERMS[1], published="2026-10-01T15:05:00+00:00")
+    b = _basics_material(cfg, vid="B1", topic_id="b", terms=DISTINCT_TERMS[2], published="2026-10-08T15:05:00+00:00")
+    hist, order = [], []
+    for i in range(4):
+        at = now + timedelta(hours=12 * i)
+        m, seg = pick([b, a], hist, at)
+        order.append(shorts.key(m))
+        hist.append(short(m, seg["id"], at, topic=shorts.segment_topic(seg)))
+    assert order == ["basics-a", "basics-b"] * 2, order
+    # cap: A (last Short older than B's) has 2 Shorts in 7 days → B
+    hist = [short(a, "point_1", now - timedelta(days=3)), short(a, "point_2", now - timedelta(days=2)),
+            short(b, "point_1", now - timedelta(days=1))]
+    m, seg = pick([a, b], hist)
+    assert shorts.key(m) == "basics-b" and seg["id"] == "point_2", (shorts.key(m), seg["id"])
+    assert any("basics-a already has 2 Shorts in the last 7 days" in x for x in logs), logs
+    # cap relaxes: B has nothing eligible → A, logged
+    hist_b = hist + [short(b, s_["id"], now - timedelta(days=4)) for s_ in b["segments"]]
+    m, seg = pick([a, b], hist_b)
+    assert shorts.key(m) == "basics-a" and seg["id"] == "point_3", (shorts.key(m), seg["id"])
+    assert any("per-source cap is relaxed for basics-a" in x for x in logs), logs
+    # topic contains: a past "What is market structure?" refuses top-down-reading's market-structure segments
+    td, sw, bos = _fixture_lesson("top-down-reading"), _fixture_lesson("swing-structure"), _fixture_lesson("bos-vs-choch")
+    past = {"kind": "short", "short_kind": "concept", "material": "lesson-old", "segment": "point_9",
+            "title": "What is market structure?", "hook": "What is market structure?", "video_id": "P1"}
+    hist = [dict(past, date=(now - timedelta(days=1)).isoformat()), short(td, "point_1", now - timedelta(days=9))]
+    m, seg = pick([td], hist)
+    assert seg["id"] == "concept_top_down_analysis", seg["id"]
+    assert any('lesson-top-down-reading · point_2 refused: topic "market structure" overlaps "market structure"' in x
+               for x in logs), logs
+    assert all(not shorts.overlaps(c, "market structure") for c in shorts.segment_topics(seg))
+    assert shorts.overlaps(t("What is crypto market structure?"), t(past["title"]))
+    # old topic: the same past Short 8 days ago → allowed
+    m, seg = pick([td], [dict(past, date=(now - timedelta(days=8)).isoformat()),
+                         short(td, "point_1", now - timedelta(days=9))])
+    assert seg["id"] == "point_2", seg["id"]
+    # age from brief_date when there is no date
+    m, seg = pick([td], [dict(past, brief_date=(now - timedelta(days=2)).strftime("%Y-%m-%d")),
+                         short(td, "point_1", now - timedelta(days=9))])
+    assert seg["id"] == "concept_top_down_analysis", seg["id"]
+    # a market / pulse Short with that title never blocks a concept
+    m, seg = pick([td], [dict(past, short_kind="market", date=(now - timedelta(days=1)).isoformat()),
+                         dict(past, short_kind="pulse", date=(now - timedelta(days=1)).isoformat()),
+                         short(td, "point_1", now - timedelta(days=9))])
+    assert seg["id"] == "point_2", seg["id"]
+    # alias: a past title "What Are Swing Highs and Swing Lows?" refuses the term "Swing point"
+    alias = dict(past, title="What Are Swing Highs and Swing Lows?", hook="What Are Swing Highs and Swing Lows?",
+                 date=(now - timedelta(days=1)).isoformat())
+    m, seg = pick([sw], [alias])
+    assert seg["id"] == "point_2", seg["id"]
+    assert any("lesson-swing-structure · point_1 refused: topic \"swing point\"" in x for x in logs), logs
+    # live mirror: the 5 live swing-structure Shorts (no topic) + a second lesson
+    live = [{"kind": "short", "short_kind": "concept", "material": "lesson-swing-structure", "segment": sid,
+             "date": d, "brief_date": d[:10], "hook": h, "title": h, "video_id": f"LIVE{n}"}
+            for n, (d, sid, h) in enumerate(LIVE_SWING_SHORTS)]
+    at = datetime(2026, 10, 19, 14, 0, tzinfo=timezone.utc)
+    assert shorts.recent_topics([sw, bos], _Hist(live), at) == ["swing point", "market structure",
+                                                                  "swing point labeled chart"]
+    picked, skip = [], set()
+    while True:
+        got = pick([sw, bos], live, at, skip)
+        if got is None:
+            break
+        picked.append(got)
+        skip.add((shorts.key(got[0]), got[1]["id"]))
+    assert picked and all(shorts.key(m_) == "lesson-bos-vs-choch" for m_, _ in picked), picked
+    assert all(not shorts.overlaps(c, r_) for _, s_ in picked for c in shorts.segment_topics(s_)
+               for r_ in ("swing point", "market structure"))
+    assert {s_["id"] for _, s_ in picked} == {s_["id"] for s_ in bos["segments"]} - {"concept_swing_point"}
+    # segments sharing a topic count once: bos-vs-choch's 5 eligible segments are 2 topics (break / change)
+    assert shorts.stock([sw, bos], _Hist(live), at) == 2
+    # after this Short (point_1, "break structure"): its own segment is used and the topic blocks the overview and
+    # concept_break_of_structure → 1 (point_2 + concept_change_of_character share "change character")
+    assert shorts.stock([sw, bos], _Hist(live), at, also=("lesson-bos-vs-choch", "point_1", "break structure")) == 1
+    # nothing eligible: every unused segment's topic recent → None, stock 0
+    assert pick([sw], live, at) is None and shorts.stock([sw], _Hist(live), at) == 0
+    assert any("concept_market_structure refused" in x for x in logs) and any("overview refused" in x for x in logs)
+
+    import main as app
+    saved, app.render.build_video = app.render.build_video, (lambda audio, pics, cfg_, wd, out, music=None:
+                                                              Path(out).write_bytes(b"mp4") and 0.0)
+    try:
+        # a _ShortRun skip: every segment's topic was a concept Short yesterday (another episode's titles)
+        bm = _basics_material(cfg)
+        titles = ["What is an exchange-traded fund?", "What is a spot Bitcoin ETF?", "What is a custodian?",
+                  "What are the trade-offs?"]
+        old = [{"kind": "short", "short_kind": "concept", "session": "short_b", "brief_date": "2026-10-14",
+                "date": (SHORT_NOW - timedelta(days=1)).isoformat(), "material": "basics-older",
+                "segment": f"point_{i}", "hook": h, "title": h, "video_id": f"OLD{i}"} for i, h in enumerate(titles, 1)]
+        with _ShortRun([bm], history=old) as r:
+            assert r.run("--session", "short_a", "--scheduled") == 0, r.logs[-6:]
+            assert not r.yt and not r.prompts and len(r.history()) == len(old)
+            assert any("the short_a slot is skipped" in x for x in r.logs), r.logs[-6:]
+            assert any("low-stock warning: 0 eligible concept segments" in x for x in r.logs), r.logs[-6:]
+            assert any(f"{shorts.key(bm)} · overview refused" in x for x in r.logs), r.logs
+        # published concept Short → its entry holds the normalized topic; the low-stock count is eligible only
+        # (4 unused segments left after it: the custodian one's topic was a concept Short yesterday and the overview's
+        # "bitcoin etf" shares point_2's "spot bitcoin etf", counted once → 2 eligible)
+        with _ShortRun([bm], history=old[2:3]) as r:
+            assert r.run("--session", "short_a") == 0, r.logs[-6:]
+            e = r.history()[-1]
+            assert e["short_kind"] == "concept" and e["segment"] == "point_1" and e["topic"] == "exchange traded fund", e
+            assert any("low-stock warning: 2 eligible concept segment(s) left after this Short" in x
+                       for x in r.logs), r.logs
+        # a market Short records its hook's topic (it never blocks a concept)
+        with _ShortRun([_market_material()], answer=_market_answer) as r:
+            assert r.run("--session", "short_a") == 0, r.logs[-6:]
+            e = r.history()[-1]
+            assert e["short_kind"] == "market" and e["topic"] == t("Why did Bitcoin just drop 7%?") == "bitcoin drop 7", e
+    finally:
+        app.render.build_video = saved
+    print("OK short rotation: topics normalized (stop-words, (…), plurals, swing high / low → swing point); fresh "
+          "sources alternate A, B, A, B; 2-per-source cap (relaxed only when nothing else, logged); 7-day topic "
+          "cooldown (contains / alias refused, 8 days ago allowed, market / pulse never block); live swing-structure "
+          "mirror → only the other lesson; low stock counts eligible segments; nothing eligible → skip + warning; "
+          "history records topic")
 
 
 def test_pulse_material(cfg):
@@ -5691,7 +5890,7 @@ def test_short_pulse(cfg):
             assert r.run("--session", "short_a") == 0 and not r.yt and not r.prompts
             assert any("Pulse: no pulse Short (quiet market" in x and "the short_a slot is skipped" in x
                        for x in r.logs), r.logs
-            assert any("low-stock warning: 0 unused" in x for x in r.logs) and len(r.history()) == len(used)
+            assert any("low-stock warning: 0 eligible" in x for x in r.logs) and len(r.history()) == len(used)
         # fetch fails: concept fallback, the reason logged
         triggers.fetch = broken
         with _ShortRun([_basics_material(cfg)]) as r:

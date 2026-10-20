@@ -152,10 +152,17 @@ shared by every video format:
                             output/<stamp>/material.json (Save history merges it). `gate: <section>` (any session): timed
                             runs log "<section>.enabled is false…" and exit 0 before any fetch; manual runs make + publish
   → shorts.pick             daily mix: a market Short when a triggered / recap material < 3 days old (not future) has an
-                            unused hook candidate (≤ 2 per source, distinct candidates, hook text never re-used), else the
-                            oldest Basics / Lesson material's first unused segment (lesson material rebuilt from history's
-                            BTC / ETH lessons + curriculum + glossary); nothing → slot skipped + low-stock warning (also
-                            when < 7 unused segments remain)
+                            unused hook candidate (≤ 2 per source, distinct candidates, hook text never re-used), else a
+                            concept Short (shorts.pick_concept, E6-3; lesson material rebuilt from history's BTC / ETH
+                            lessons + curriculum + glossary): round-robin over the Basics / Lesson materials (the one whose
+                            last Short is oldest first, never-used first, ties by publish time; ≤ 2 Shorts per source in
+                            7 days, relaxed only when no other source has an eligible segment, logged) + a hard 7-day
+                            topic cooldown (shorts.topic: lowercase, "(…)" / "crypto" / "what is" / stop-words dropped,
+                            plurals singular, swing high / low → "swing point"; a segment's term or first hook equal to,
+                            containing or contained in a concept Short's topic of the last 7 days is refused, logged; an
+                            entry without `topic` → its segment's term, else title, else hook; pulse / market Shorts never
+                            block); pick_pulse's concept fallback uses the same rules; nothing eligible → slot skipped +
+                            low-stock warning (also when < 7 eligible segments remain after this Short)
   → write_concept / write_market  Gemini: hook / explain / payoff, 70-105 words, narration rules, no subscribe ask in
                             the first sentence, numbers only from the material; originality guard (MinHash `fingerprint`
                             in history, ≥ 0.5 overlap → one rewrite → next segment); title = hook ≤ 60 chars + title rules
@@ -167,7 +174,8 @@ shared by every video format:
                             once (market / pulse), disclosure once, hashtags (#Shorts last); Reel caption = same without
                             #Shorts; after upload a "Studio task: set the related video" line (no API field)
   → history.json            kind short, short_kind (concept / market / pulse), material, segment (point_n / hook_n),
-                            source_video, hook, fingerprint
+                            source_video, hook, topic (concept: the segment's normalized term; market / pulse: the
+                            normalized hook), fingerprint
 ```
 
 Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make_lesson_edition()` /
@@ -346,7 +354,9 @@ autopilot/triggers.py    trigger engine: evaluate (rules 1-4, coin gate), limits
 autopilot/pulse.py       market-pulse material from fetched data alone (no long video, no LLM): pick_lead, build (quiet
                          market / no price data / invalid → none + reason), make (fetch + material.write
                          data/material/pulse-<date>-<slot>.json; main.make_pulse calls it for the pulse Short, 6.2)
-autopilot/shorts.py      standalone Shorts: load_materials, pick (daily mix) / pick_market / pick_concept, pick_pulse +
+autopilot/shorts.py      standalone Shorts: load_materials, pick (daily mix) / pick_market / pick_concept (source rotation,
+                         MAX_PER_SOURCE, COOLDOWN_DAYS topic guard: topic / segment_topics / recent_topics), stock
+                         (eligible segments), pick_pulse +
                          latest_long (pulse-first), write_concept / write_market (+ originality guard, packaging),
                          render_slides / render_market_slides, metadata / reel_caption, studio_task
 autopilot/triggered.py   triggered video: scene plan, narration + checks + fact-check, slides, draw_move_chart (16:9 + 9:16),
