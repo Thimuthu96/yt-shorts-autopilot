@@ -8538,8 +8538,9 @@
    ],
    "key": "r4:BTC:super-league-holders-approve-metaplanet-",
    "category": "regulation",
-   "status": "dispatched",
-   "dispatched_utc": "2026-10-20T15:23:40+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-10-20T15:23:40+00:00",
+   "reason": "not published within 3 h of its due time"
   }
  ]
 }
