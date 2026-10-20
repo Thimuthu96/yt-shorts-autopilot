@@ -1980,6 +1980,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-20T16:05:00+00:00",
+      "brief_date": "2026-10-20",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BLACKROCK SEEKS BITCOIN SHIELD",
+      "fb_post_id": "462331040302049_122253940478610202",
+      "headlines": [
+        "BlackRock seeks to shield bitcoin investors from losses after rival fund weathers 50% crash"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
