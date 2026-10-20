@@ -1849,6 +1849,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-20T01:48:32+00:00",
+      "brief_date": "2026-10-20",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-bos-vs-choch",
+      "segment": "point_1",
+      "source_video": "xB0EKBFEn8U",
+      "hook": "How do charts confirm a break of structure?",
+      "fingerprint": [
+        "01d9bda0",
+        "0146b78b",
+        "05b6ca08",
+        "05e40324",
+        "021e9407",
+        "00300f6f",
+        "0864c52f",
+        "008c1a75",
+        "044478fc",
+        "0035a426",
+        "0196fb61",
+        "009bc704",
+        "046475a4",
+        "0d7740ef",
+        "02eaeba8",
+        "003ad8de",
+        "02e478fb",
+        "009b3d0d",
+        "01800e0f",
+        "01d4f440",
+        "04c6e5d6",
+        "0799aa62",
+        "0002777f",
+        "09546219",
+        "00523747",
+        "06da11b0",
+        "03d5f5a2",
+        "036d7ae6",
+        "116b19c9",
+        "052a4e3a",
+        "01db69b5",
+        "07bf8fdf"
+      ],
+      "title": "How do charts confirm a break of structure?",
+      "video_id": "D2qqtwwNGeA",
+      "seconds": 32.6,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1786490832563138",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
