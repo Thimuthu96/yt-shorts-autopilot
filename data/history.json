@@ -1924,6 +1924,62 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-20T13:01:57+00:00",
+      "brief_date": "2026-10-20",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-bos-vs-choch",
+      "segment": "point_2",
+      "source_video": "xB0EKBFEn8U",
+      "hook": "What is a change of character in crypto?",
+      "fingerprint": [
+        "01add52e",
+        "02a11167",
+        "070df2e0",
+        "014e7865",
+        "037c8d8d",
+        "00300f6f",
+        "06ad421e",
+        "04b911af",
+        "04aa778a",
+        "02c687a6",
+        "0007ae40",
+        "09388af2",
+        "031c3991",
+        "033c9167",
+        "01a003d6",
+        "05191038",
+        "02e478fb",
+        "021107f1",
+        "024ed304",
+        "060b4e7a",
+        "00a778aa",
+        "024dc562",
+        "00581207",
+        "0289fda0",
+        "0501e528",
+        "09161c68",
+        "01fc0b80",
+        "042de19f",
+        "0266e8df",
+        "09245029",
+        "02866741",
+        "01d02382"
+      ],
+      "title": "What is a change of character in crypto?",
+      "video_id": "CLZU1XpDbJU",
+      "seconds": 37.4,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2186488678925099",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
