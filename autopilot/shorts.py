@@ -14,6 +14,15 @@ and script, written from one segment of a long video's Shorts material (autopilo
     pick(materials, history, now, log)   the daily mix for short_a / short_b: a market Short when one is due
                                          (about 4 a week from 2 market videos), else a concept Short from the oldest
                                          Basics / Lesson material with an unused segment, else None (slot skipped)
+    latest_long(history, now)            the related video of a pulse Short: the newest counting basics / lesson /
+                                         triggered / recap upload with a video id whose publish time (publish_at,
+                                         else date) has passed → its id, else None (no link line)
+    pick_pulse(fresh, materials, history, now, log, skip)   the pulse-first pick (epic-shorts-reach 6.2; short_p,
+                                         short_a once pulse.enabled): ("pulse", fresh, hook index) from the material
+                                         this run built only (never an earlier one), else ("concept", material,
+                                         segment) (pick_concept), else None. Pulse Shorts reuse the market path:
+                                         write_market (today's-data wording), render_market_slides, MARKET PULSE chip,
+                                         "▶ Latest video" link line, no "From the full video" line
     stock(materials, history)            unused concept segments left; under LOW_STOCK → a low-stock warning
     write_market(cfg, m, idx, log)       the candidate is the hook; Gemini writes the scenes from the material's
                                          fetched numbers + causes only (triggered.unknown_numbers); 3 attempts
@@ -34,8 +43,9 @@ and script, written from one segment of a long video's Shorts material (autopilo
     package(cfg, pkg, ctx, log)          a hook breaking a title rule is rewritten once by Gemini, else
                                          RuntimeError ("Short packaging"); a bad card falls back to the term / hook
     source_link(m) / studio_task(...)    the related video: https://youtu.be/<source youtube_id> on the description's
-                                         and Reel caption's first line; the Data API has no related-video field, so
-                                         after an upload one line asks the owner to set it in Studio
+                                         and Reel caption's first line (pulse: youtube_id = the latest long video);
+                                         the Data API has no related-video field, so after an upload one line asks
+                                         the owner to set it in Studio
     metadata(cfg, m, seg, pkg)           title = hook (no hashtag); description = link, hook, payoff, source, the
                                          disclosure line once, hashtags (#Shorts last); reel_caption(meta, cfg):
                                          the same metadata without #Shorts
@@ -64,7 +74,8 @@ CONCEPT_SOURCES = ("basics", "lesson")
 MARKET_MAX_DAYS = 3  # a market Short goes up within 3 days of its source video
 MAX_PER_MARKET = 2  # up to 2 market Shorts per source, each from a distinct hook candidate
 LOW_STOCK = 7  # unused concept segments: under half a week of evergreen Shorts → a low-stock warning
-CHIPS = {"basics": "CRYPTO BASICS", "lesson": "TRADING LESSON", "triggered": "WHY IT MOVED", "recap": "WEEKLY RECAP"}
+CHIPS = {"basics": "CRYPTO BASICS", "lesson": "TRADING LESSON", "triggered": "WHY IT MOVED", "recap": "WEEKLY RECAP",
+         "pulse": "MARKET PULSE"}
 DISCLAIMER = "Education only · Not financial advice"
 SUBSCRIBE_OPEN = re.compile(r"\bsubscri[bp]\w*|\bhit the (?:bell|like)\b|\blike and (?:share|follow)\b|"
                             r"\bfollow (?:us|the channel|for more)\b|\bturn on (?:the )?notifications?\b", re.I)
@@ -209,6 +220,34 @@ def pick_market(materials: list[dict], history, now: datetime, log=_log,
         if free:
             return m, free[0]
     return None
+
+
+def latest_long(history, now: datetime) -> str | None:
+    """The related long video of a pulse Short: the newest counting basics / lesson / triggered / recap upload with
+    a YouTube id whose publish time (publish_at when scheduled, else the run's date) has passed; None when none."""
+    from autopilot.slate import LONG_KINDS
+    best, best_at = None, None
+    for v in history.uploaded():
+        if v.get("kind") not in LONG_KINDS or not v.get("video_id") or not v.get("counts", True):
+            continue
+        at = _when(v.get("publish_at") or v.get("date") or "")
+        if at is None or at > now:
+            continue
+        if best_at is None or at >= best_at:
+            best, best_at = v["video_id"], at
+    return best
+
+
+def pick_pulse(fresh: dict | None, materials: list[dict], history, now: datetime, log=_log,
+               skip: set | None = None):
+    """The pulse-first pick: ("pulse", fresh, hook index) when the material this run built (`fresh`; never an
+    earlier one) has an unused hook (pick_market with kinds=("pulse",)), else ("concept", material, segment) from
+    the oldest Basics / Lesson material, else None (slot skipped)."""
+    got = pick_market([fresh], history, now, log, skip, kinds=(material.PULSE,)) if fresh else None
+    if got:
+        return ("pulse", *got)
+    got = pick_concept(materials, history, skip)
+    return ("concept", *got) if got else None
 
 
 def pick(materials: list[dict], history, now: datetime, log=_log, skip: set | None = None):
@@ -362,10 +401,15 @@ def _market_prompt(cfg: dict, m: dict, idx: int, problems: list[str]) -> str:
     hook = m["market"]["hooks"][idx]
     period = "this week" if m["source"]["kind"] == "recap" else "in the last 24 hours"
     redo = ("\nYour last draft was rejected: " + "; ".join(problems) + "\n") if problems else ""
+    if m["source"]["kind"] == material.PULSE:  # no long video behind it: today's fetched data is the source
+        source = ("It answers that hook in its own words from today's fetched market data below (a market pulse: no "
+                  "long video behind it). If no headline is given, say no single story explains the move.")
+    else:
+        source = f"It answers that hook in its own words (the long video \"{m['source']['title']}\" is the source; never copy it)."
     return f"""You write a NEW standalone YouTube Short ({lo}-{hi} words, 30-40 seconds) for
 {ch.get('display_name', 'CryptoFX Daily')}, a crypto data desk, about a market move {period}.
 HOOK: {hook}
-It answers that hook in its own words (the long video "{m['source']['title']}" is the source; never copy it).
+{source}
 
 FETCHED DATA (the only facts and numbers you may state; change_24h / change_7d are percent):
 {json.dumps(market_facts(m), ensure_ascii=False, indent=1)}
@@ -682,7 +726,8 @@ def _no_tags(text: str) -> str:
 
 def metadata(cfg: dict, m: dict, seg: dict | None, pkg: dict, extra: list[str] | None = None) -> dict:
     """YouTube metadata: title = the hook question (packaging rules already checked; any hashtag removed);
-    description = hook → payoff → `extra` lines → source → the disclosure line once → hashtags (#Shorts last)."""
+    description = link → hook → payoff → `extra` lines → data + credit (market) → source (not for pulse) → the
+    disclosure line once → hashtags (#Shorts last). Pulse: "▶ Latest video: <latest long video>" as the link."""
     line = rules.disclosure(cfg, "shorts")
     payoff = " ".join(s["text"] for s in pkg["scenes"] if s["id"] == pkg["scenes"][-1]["id"])
     body = rules.without_disclosure(_no_tags(payoff), line)
@@ -690,8 +735,9 @@ def metadata(cfg: dict, m: dict, seg: dict | None, pkg: dict, extra: list[str] |
     link = source_link(m)
     mk = m.get("market") or {}
     credits = [f"Data: {', '.join(mk['data_source'])}", mk.get("credit") or ""] if mk else []
-    parts = [f"▶ Full video: {link}" if link else "", _no_tags(pkg["hook"]), body, *(extra or []), *credits,
-             f"From the full video: {m['source']['title']}",
+    pulse = m["source"]["kind"] == material.PULSE  # no source video: the link is the latest long video
+    parts = [(f"▶ Latest video: {link}" if pulse else f"▶ Full video: {link}") if link else "", _no_tags(pkg["hook"]),
+             body, *(extra or []), *credits, "" if pulse else f"From the full video: {m['source']['title']}",
              "⚠️ " + line, " ".join(tags)]
     return {"title": _no_tags(pkg["hook"])[:MAX_TITLE], "description": "\n\n".join(p for p in parts if p),
             "tags": [t.lstrip("#") for t in tags if t != "#Shorts"] + ([seg["term"]] if seg else []),

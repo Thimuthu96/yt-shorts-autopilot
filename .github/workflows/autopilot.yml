@@ -20,9 +20,9 @@ on:
   workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
     inputs:
       session:
-        description: "Edition to make (short_a / short_b = standalone Short, news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`, triggered = why crypto moved for `trigger`, recap = Saturday recap, topup_sun = Sunday weekly-floor top-up)"
+        description: "Edition to make (short_a / short_b = standalone Short, short_p = market-pulse Short (timed runs skip while pulse.enabled is false), news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`, triggered = why crypto moved for `trigger`, recap = Saturday recap, topup_sun = Sunday weekly-floor top-up)"
         type: choice
-        options: [short_a, short_b, news_morning, news_midday, news_evening, basics, lesson, recap, topup_sun, evergreen, triggered]
+        options: [short_a, short_b, short_p, news_morning, news_midday, news_evening, basics, lesson, recap, topup_sun, evergreen, triggered]
         default: short_a
       platforms:
         description: "Where to publish (limited to the edition's own platforms)"
@@ -104,7 +104,7 @@ jobs:
         run: |
           shopt -s nullglob
           entries=(output/*/history_entry.json)
-          materials=(output/*/material.json)   # Shorts material of long videos (data/material/, epic 4 reads it)
+          materials=(output/*/material.json)   # Shorts material of long videos + a pulse Short's pulse material (data/material/)
           if [ ${#entries[@]} -eq 0 ]; then echo "Nothing published, nothing to log"; exit 0; fi
           git config user.name "shorts-autopilot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

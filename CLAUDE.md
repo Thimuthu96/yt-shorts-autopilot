@@ -137,8 +137,20 @@ shared by every video format:
                             data/material/pulse-<date>-<slot>.json (no source video: youtube_id = a related long video or
                             null; `lead` + `headlines` added); |lead| < pulse.quiet_move_pct (1.5) with no story → none
                             ("quiet market"); shorts.pick_market serves only triggered / recap unless kinds=("pulse",)
-  standalone Shorts (kind: short, short_a 13:00 / short_b 23:00 UTC, YT Short + FB Reel; switch: shorts.enabled, on since 5.7;
-  autopilot/shorts.py + lesson_material.py; main.make_short → main.publish):
+  standalone Shorts (kind: short, short_a 13:00 / short_b 23:00 UTC + short_p (market pulse, untimed until 6.5), YT Short +
+  FB Reel; switch: shorts.enabled, on since 5.7; autopilot/shorts.py + lesson_material.py; main.make_short → main.publish):
+  → pulse-first (epic-shorts-reach 6.2; main.pulse_first = session `pulse: true` and (pulse.enabled or `gate: pulse`):
+                            short_p always when it runs, short_a only once pulse.enabled is true (6.6); short_b never):
+                            main.make_pulse → shorts.latest_long (newest counting basics / lesson / triggered / recap
+                            upload whose publish time has passed = the related video, none → no link line) → pulse.make
+                            (fetch + build + data/material/pulse-<date>-<slot>.json; a same date + slot file is merged)
+                            → shorts.pick_pulse: a pulse Short (short_kind pulse) from that fresh material only (never an
+                            earlier day's or slot's), through write_market (today's-data wording) / render_market_slides
+                            (MARKET PULSE chip), title = the pulse hook ("Why did Ethereum just fall 5%?"); a quiet
+                            market / no price data / fetch error / every hook used or too close → a concept Short (reason
+                            logged), else the slot skips + low-stock warning (exit 0). The material copy goes to
+                            output/<stamp>/material.json (Save history merges it). `gate: <section>` (any session): timed
+                            runs log "<section>.enabled is false…" and exit 0 before any fetch; manual runs make + publish
   → shorts.pick             daily mix: a market Short when a triggered / recap material < 3 days old (not future) has an
                             unused hook candidate (≤ 2 per source, distinct candidates, hook text never re-used), else the
                             oldest Basics / Lesson material's first unused segment (lesson material rebuilt from history's
@@ -150,10 +162,12 @@ shared by every video format:
                             (one rewrite, else "Short packaging", exit 1); card 1-4 words
   → 9:16 slides             hook card = frame 0 / thumbnail; concept: term → diagram (step reveal) → payoff; market:
                             move chart draw-in → cause → coins diagram → numbers; A/B voice logged as `voice`
-  → metadata                first line "▶ Full video: https://youtu.be/<source>", hook, payoff, data + CoinGecko credit
-                            once (market), disclosure once, hashtags (#Shorts last); Reel caption = same without #Shorts;
-                            after upload a "Studio task: set the related video" line (no API field)
-  → history.json            kind short, short_kind, material, segment (point_n / hook_n), source_video, hook, fingerprint
+  → metadata                first line "▶ Full video: https://youtu.be/<source>" (pulse: "▶ Latest video: https://youtu.be/
+                            <latest long>", no "From the full video" line), hook, payoff, data + CoinGecko credit
+                            once (market / pulse), disclosure once, hashtags (#Shorts last); Reel caption = same without
+                            #Shorts; after upload a "Studio task: set the related video" line (no API field)
+  → history.json            kind short, short_kind (concept / market / pulse), material, segment (point_n / hook_n),
+                            source_video, hook, fingerprint
 ```
 
 Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make_lesson_edition()` /
@@ -174,14 +188,19 @@ Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make
 | `news_midday` | Midday News | 16:00 | 21:30 | cron-job.org, every day | `17 16 * * *` | FB post |
 | `news_evening` | Evening News | 21:00 | 02:30 | cron-job.org, every day | `17 21 * * *` | FB post |
 | `short_b` | Short B | 23:00 | 04:30 | cron-job.org, every day | `17 23 * * *` | YT Short + FB Reel |
+| `short_p` | Short P (market pulse) | none yet (6.5 times it) | — | none yet | none | YT Short + FB Reel |
 | `triggered` | Why Crypto Moved | trigger's due time | — | triggers.yml poll (30 min) dispatches it | none | YT 16:9 |
 | `evergreen` | Evergreen top-up | — (`--slot`) | — | called by recap / topup_sun | none | the episode's |
 
 - Retired by the slate (epic 5): `asia`, `london`, `newyork`, `gold` (+ `auto`, `weekend_sessions`, the forex
   weekend skip and the gold outlook code). `--session` is required (no edition / `auto` → exit 1).
-- Defined in `config.yaml → sessions` (label, short, start_utc, `kind`, `days`, `platforms`). `main.py` has
-  `DEFAULT_SESSIONS` (news posts + Shorts) as a fallback if config lacks them. The release (5.7) turns on
+- Defined in `config.yaml → sessions` (label, short, start_utc, `kind`, `days`, `platforms`, Shorts: `pulse`, `gate`).
+  `main.py` has `DEFAULT_SESSIONS` (news posts + Shorts) as a fallback if config lacks them. The release (5.7) turns on
   `basics`, `triggers`, `recap`, `shorts` and `evergreen` (`*.enabled`); while one is false its timed runs skip.
+- **Market-pulse Short (`short_p`, epic-shorts-reach 6.2):** `pulse: true` + `gate: pulse`, no `start_utc` until 6.5
+  times it (so no timer job, backup cron or late window yet). While `pulse.enabled` is false (it ships false; 6.6
+  flips it) timed short_p runs log and exit 0 and short_a keeps today's mix; a manual short_p run makes and publishes
+  a pulse Short (or the concept fallback).
 - **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
   work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (`--delete-retired` deletes the retired jobs).
 - **Crypto Basics is live (`basics.enabled: true`, 5.7):** the Wednesday timed run publishes the next approved
@@ -240,7 +259,7 @@ Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make
 - Timed runs make each edition once per UTC day (`--force` overrides, CLI only). Old history
   entries without `session` count as `london`; without `counts` they count.
 
-Manual runs: Actions → Shorts autopilot → Run workflow → `session` (short_a/short_b/news_*/basics/lesson/recap/
+Manual runs: Actions → Shorts autopilot → Run workflow → `session` (short_a/short_b/short_p/news_*/basics/lesson/recap/
 topup_sun/evergreen/triggered), `platforms` (all/youtube/facebook, limited to the edition's own), optional
 `as_edition`, `slot` (top-ups), `trigger` (triggered).
 **YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific); the slate uses ≤ 3.
@@ -326,7 +345,10 @@ autopilot/triggers.py    trigger engine: evaluate (rules 1-4, coin gate), limits
                          check (the 30-minute poll, `python -m autopilot.triggers check`); coin_gate (rule 3's gate, shared)
 autopilot/pulse.py       market-pulse material from fetched data alone (no long video, no LLM): pick_lead, build (quiet
                          market / no price data / invalid → none + reason), make (fetch + material.write
-                         data/material/pulse-<date>-<slot>.json; the pulse Short, 6.2, calls it)
+                         data/material/pulse-<date>-<slot>.json; main.make_pulse calls it for the pulse Short, 6.2)
+autopilot/shorts.py      standalone Shorts: load_materials, pick (daily mix) / pick_market / pick_concept, pick_pulse +
+                         latest_long (pulse-first), write_concept / write_market (+ originality guard, packaging),
+                         render_slides / render_market_slides, metadata / reel_caption, studio_task
 autopilot/triggered.py   triggered video: scene plan, narration + checks + fact-check, slides, draw_move_chart (16:9 + 9:16),
                          packaging (title_for, thumbnail_words, render_thumbnail, metadata)
 autopilot/recap.py       Saturday recap: fetch, week_has_triggered, build (biggest 7-day moves), narration, slides, board
@@ -341,8 +363,9 @@ tests/lessons/           sample curriculum + glossary + fixture candles
 tests/basics/            sample_topic.yaml: the Crypto Basics tracer topic (+ a diagram per point);
                          sample_narration.yaml: its narration naming every diagram part in order
 data/history.json        upload log, committed back by the workflow (don't hand-edit casually)
-data/material/           Shorts material per published long video (<kind>-<id>.json) + pulse-<date>-<slot>.json, committed
-                         by the workflow
+data/material/           Shorts material per published long video (<kind>-<id>.json) + pulse-<date>-<slot>.json (a pulse
+                         Short's run leaves a copy in output/<stamp>/material.json), merged and committed by the
+                         workflow's Save history step
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
 .github/workflows/autopilot.yml   9 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled, slot)
 ```

@@ -111,17 +111,31 @@ sessions:
   # Standalone Shorts (kind: short, CAP-2): an original 30-40 s vertical Short written from one segment of a long
   # video's Shorts material (data/material/), YouTube Short + Facebook Reel. On since the slate release (5.7) (`shorts.enabled`)
   # (false → timed runs skip; manual runs make + publish). Short A 13:00, Short B 23:00 UTC.
+  # `pulse: true` = pulse-first (epic-shorts-reach 6.2) once pulse.enabled is true: fresh pulse material
+  # (autopilot/pulse.py) → a market Short from it; a quiet market → a concept Short, else the slot skips.
   short_a:
     label: Short A
     short: Short A
     start_utc: "13:00"
     kind: short
+    pulse: true
     platforms: [youtube, facebook]
   short_b:
     label: Short B
     short: Short B
     start_utc: "23:00"
     kind: short
+    platforms: [youtube, facebook]
+  # Market-pulse Short (kind: short, epic-shorts-reach 6.2): always pulse-first when it runs (fresh pulse material →
+  # a market Short; quiet market → a concept Short, else the slot skips). `gate: pulse` = timed runs log and skip
+  # while pulse.enabled is false (manual runs make + publish). No start_utc yet: 6.5 times it (00:30 UTC), so it has
+  # no timer job, no backup cron and no late window until then.
+  short_p:
+    label: Short P
+    short: Short P
+    kind: short
+    pulse: true
+    gate: pulse
     platforms: [youtube, facebook]
 # Timed runs (GitHub schedule or the outside timer) that start more than this many minutes
 # after the edition's start_utc are skipped, so a very late run can't post the wrong edition.
@@ -235,6 +249,9 @@ shorts:
 # moved less than quiet_move_pct in 24 h with no story behind it writes no material ("quiet market"). Re-tunable at the
 # 7-day check.
 pulse:
+  # Switch (6.6 turns it on): while false, timed short_p runs (gate: pulse) log and skip and short_a keeps today's
+  # mix (no fetch); a manual short_p run still makes and publishes a pulse Short.
+  enabled: false
   quiet_move_pct: 1.5         # |lead 24 h move| under this and no cause story → quiet market, no pulse material
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────

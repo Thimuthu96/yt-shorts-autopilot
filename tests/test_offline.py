@@ -284,6 +284,7 @@ def main():
     test_short_lesson(cfg)
     test_short_mix(cfg)
     test_pulse_material(cfg)
+    test_short_pulse(cfg)
     test_slate_timetable(cfg)
     test_slate_budget(cfg)
     test_slate_floor(cfg)
@@ -5546,6 +5547,184 @@ def test_pulse_material(cfg):
           "source + credit), quiet market → none, gated-out coin never leads (logged), gated coin leads on CoinGecko "
           "numbers, no story → no cause, no data → none, < 2 hooks → none, pick_market excludes pulse by default, "
           "make → data/material/pulse-<date>-<slot>.json")
+
+
+def _pulse_answer(n: int, prompt: str) -> dict:
+    """A mocked pulse Short script: only the snapshot's numbers (Ethereum −5%, Bitcoin −1%) are spoken."""
+    a = _short_answer(n, "HOOK: the Ethereum move")
+    a["scenes"][0]["text"] = "Ethereum fell 5% in a day. " + a["scenes"][0]["text"]
+    a["scenes"][2]["text"] = "Bitcoin slipped 1% beside it. " + a["scenes"][2]["text"]
+    a["card"] = "WHY -5%?"
+    return a
+
+
+def test_short_pulse(cfg):
+    """Pulse Short (epic-shorts-reach entry 6.2): the live config has short_p (kind short, pulse-first, gate: pulse, no
+    start_utc), short_a pulse-first, pulse.enabled false and autopilot.yml offers short_p. A manual short_p run on
+    ETH −5% + an ETH story with a published lesson LV9 builds fresh pulse material (stub fetch) and publishes (mocked)
+    a pulse Short: title = the pulse hook (no date / stamp, title rules pass), spoken numbers ⊂ the snapshot,
+    youtu.be/LV9 on the description's and Reel caption's first line ("▶ Latest video"), CoinGecko credit once, no
+    "From the full video" line, history short_kind pulse, output/<stamp>/material.json = the pulse material. A timed
+    short_p run while pulse.enabled is false logs and exits 0 without fetching; quiet short_a with pulse on → concept
+    Short (the quiet market logged; yesterday's pulse material never served); no concept left → slot skipped +
+    low-stock warning; a fetch error → concept fallback with the reason; every pulse hook used → concept; short_b with
+    pulse on and timed short_a with pulse off keep today's mix (triggered market Short, no fetch)."""
+    import main as app
+    from autopilot import material, shorts, triggers
+    from autopilot.sources import CG_CREDIT
+    from autopilot.triggered import unknown_numbers
+
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    sp = live["sessions"]["short_p"]
+    assert sp["kind"] == "short" and sp["pulse"] is True and sp["gate"] == "pulse" and not sp.get("start_utc"), sp
+    assert live["sessions"]["short_a"]["pulse"] is True and not live["sessions"]["short_b"].get("pulse")
+    assert live["pulse"]["enabled"] is False
+    assert {k: app.DEFAULT_SESSIONS["short_p"][k] for k in ("kind", "pulse", "gate")} == \
+        {"kind": "short", "pulse": True, "gate": "pulse"} and "start_utc" not in app.DEFAULT_SESSIONS["short_p"]
+    assert app.DEFAULT_SESSIONS["short_a"]["pulse"] is True
+    ap = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
+    assert "short_p" in ap.get("on", ap.get(True))["workflow_dispatch"]["inputs"]["session"]["options"]
+    assert app.pulse_first(live, "short_p") and not app.pulse_first(live, "short_a")
+    assert not app.pulse_first(live, "short_b")
+    on = dict(live, pulse=dict(live["pulse"], enabled=True))
+    assert app.pulse_first(on, "short_a") and not app.pulse_first(on, "short_b")
+
+    day = timedelta(days=1)
+    t0 = (SHORT_NOW - timedelta(hours=1)).isoformat()
+    eth_story = {"category": "crypto", "source": "CoinDesk", "title": "Ethereum slides as staking withdrawals jump",
+                 "summary": "Ether fell as staking withdrawals rose.", "published": t0}
+    lesson = {"kind": "lesson", "episode": "bos-vs-choch", "video_id": "LV9", "session": "lesson",
+              "brief_date": "2026-10-14", "date": (SHORT_NOW - day).isoformat(), "counts": True}
+    older = {"kind": "triggered", "video_id": "TV0", "session": "triggered", "brief_date": "2026-10-12",
+             "date": (SHORT_NOW - 3 * day).isoformat()}
+    future = {"kind": "basics", "video_id": "BV2", "session": "basics", "brief_date": "2026-10-15",
+              "date": (SHORT_NOW - timedelta(hours=2)).isoformat(), "publish_at": (SHORT_NOW + day).isoformat()}
+    review = {"kind": "basics", "video_id": "MV1", "session": "basics", "brief_date": "2026-10-15",
+              "date": (SHORT_NOW - timedelta(hours=1)).isoformat(), "counts": False}
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        (tmp / "h.json").write_text(json.dumps({"videos": [older, lesson, future, review]}))
+        assert shorts.latest_long(History(tmp / "h.json"), SHORT_NOW) == "LV9"
+        (tmp / "h.json").write_text(json.dumps({"videos": [future]}))
+        assert shorts.latest_long(History(tmp / "h.json"), SHORT_NOW) is None
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    calls = []
+
+    def stub(data_fn):
+        def fetch(cfg_, log=print):
+            calls.append(1)
+            return data_fn()
+        return fetch
+
+    move = stub(lambda: (trigger_data(btc=-1.0, eth=-5.0, sol=-1.0, xrp=-1.0, news=[eth_story], now=SHORT_NOW),
+                         trigger_overview(cap=-2.0, coins=[("BTC", "Bitcoin", 62400, -1.0),
+                                                           ("ETH", "Ethereum", 2450, -5.0)])))
+    quiet = stub(lambda: (trigger_data(btc=-0.8, eth=0.5, sol=0.3, xrp=-0.2, news=[], now=SHORT_NOW), None))
+
+    def broken(cfg_, log=print):
+        calls.append(1)
+        raise RuntimeError("Coinbase timed out")
+    saved = (triggers.fetch, app.render.build_video)
+    try:
+        # manual short_p: a pulse Short from the fresh material (real render)
+        triggers.fetch = move
+        with _ShortRun([], answer=_pulse_answer, history=[older, lesson, future]) as r:
+            assert r.run("--session", "short_p") == 0, r.logs[-8:]
+            assert len(calls) == 1 and len(r.yt) == 1 and len(r.fb) == 1
+            assert any("Pulse: related long video LV9" in x for x in r.logs), r.logs
+            assert any(x.startswith("Short (pulse): pulse-2026-10-15-short_p · hook_0") for x in r.logs), r.logs
+            assert "market pulse" in r.prompts[0] and "is the source; never copy it" not in r.prompts[0]
+            assert "HOOK: Why did Ethereum just fall 5%?" in r.prompts[0]
+            assert _probe_size(r.yt[0]["video"]) == (1080, 1920)
+            meta = r.yt[0]["meta"]
+            assert meta["title"] == "Why did Ethereum just fall 5%?" and not shorts.title_problems(meta["title"])
+            assert not rules.title_problems(meta["title"]) and "short_p" not in meta["title"].lower()
+            d, cap = meta["description"], r.fb[0]["caption"]
+            assert d.splitlines()[0] == "▶ Latest video: https://youtu.be/LV9", d
+            assert cap.splitlines()[0] == "▶ Latest video: https://youtu.be/LV9", cap
+            assert d.count(CG_CREDIT) == 1 and cap.count(CG_CREDIT) == 1 and "From the full video" not in d
+            m = material.load(r.tmp / "data" / "material" / "pulse-2026-10-15-short_p.json")
+            said = " ".join(sc["text"] for sc in r.spoken[-1])
+            assert "5%" in said and not unknown_numbers(said, shorts.market_facts(m)), said
+            e = r.history()[-1]
+            assert e["kind"] == "short" and e["short_kind"] == "pulse" and e["material"] == "pulse-2026-10-15-short_p"
+            assert e["segment"] == "hook_0" and e["source_video"] == "LV9" and e["session"] == "short_p", e
+            copy = r.yt[0]["video"].parent / "material.json"
+            assert copy.exists() and material.load(copy) == m and m["source"]["kind"] == "pulse", copy
+            assert m["market"]["lead"] == "ETH" and m["youtube_id"] == "LV9"
+            assert shorts._ctx(r.cfg, m).chip == "MARKET PULSE"
+            assert any(x.startswith("Studio task: set the related video of https://youtube.com/shorts/S1 to "
+                                    "https://youtu.be/LV9") for x in r.logs)
+            # a second run of the slot: the merged material's other hook (the first is used)
+            assert r.run("--session", "short_p") == 0 and r.history()[-1]["segment"] == "hook_1"
+            assert r.yt[1]["meta"]["title"] == "Why is Ethereum down 5%?"
+
+        app.render.build_video = lambda audio, pics, cfg_, wd, out, music=None: Path(out).write_bytes(b"mp4") and 0.0
+        # timed short_p while pulse.enabled is false: logged, exit 0, no fetch
+        calls.clear()
+        with _ShortRun([_basics_material(cfg)]) as r:
+            assert r.run("--session", "short_p", "--scheduled") == 0
+            assert any(x.startswith("pulse.enabled is false") for x in r.logs), r.logs
+            assert not calls and not r.prompts and not r.yt and not r.history()
+        # quiet short_a with pulse on: concept Short, the quiet market logged, yesterday's pulse material not served
+        triggers.fetch = quiet
+        stale, _ = app.pulse.build(trigger_data(btc=-1.0, eth=-5.0, sol=-1.0, xrp=-1.0, news=[eth_story],
+                                                now=SHORT_NOW - day), None, SHORT_NOW - day, "short_a", cfg,
+                                   log=lambda x: None)
+        assert stale is not None and material.validate(stale) == []
+        with _ShortRun([_basics_material(cfg), stale], update={"pulse": {"enabled": True}}) as r:
+            assert r.run("--session", "short_a") == 0, r.logs[-6:]
+            assert calls and any("Pulse: no pulse Short (quiet market" in x and "concept Short takes the short_a slot"
+                                 in x for x in r.logs), r.logs
+            e = r.history()[-1]
+            assert e["short_kind"] == "concept" and e["material"].startswith("basics-"), e
+            assert not any("HOOK: " in p_ for p_ in r.prompts) and len(r.yt) == 1
+            assert not (r.yt[0]["video"].parent / "material.json").exists()
+        # quiet, no concept left: slot skipped + low-stock warning, exit 0
+        bm = _basics_material(cfg)
+        used = [{"kind": "short", "session": "short_b", "brief_date": "2026-10-14", "material": shorts.key(bm),
+                 "segment": s_["id"], "hook": f"Old hook {s_['id']}?", "video_id": f"U{s_['id']}"}
+                for s_ in bm["segments"]]
+        with _ShortRun([bm], update={"pulse": {"enabled": True}}, history=used) as r:
+            assert r.run("--session", "short_a") == 0 and not r.yt and not r.prompts
+            assert any("Pulse: no pulse Short (quiet market" in x and "the short_a slot is skipped" in x
+                       for x in r.logs), r.logs
+            assert any("low-stock warning: 0 unused" in x for x in r.logs) and len(r.history()) == len(used)
+        # fetch fails: concept fallback, the reason logged
+        triggers.fetch = broken
+        with _ShortRun([_basics_material(cfg)]) as r:
+            assert r.run("--session", "short_p") == 0, r.logs[-6:]
+            assert any("pulse build failed: Coinbase timed out" in x for x in r.logs), r.logs
+            assert r.history()[-1]["short_kind"] == "concept"
+        # every hook of the fresh material used by earlier Shorts: concept
+        triggers.fetch = move
+        hooked = [{"kind": "short", "session": "short_b", "brief_date": "2026-10-14", "material": "triggered-x",
+                   "segment": f"hook_{i}", "hook": h, "video_id": f"H{i}"}
+                  for i, h in enumerate(["Why did Ethereum just fall 5%?", "Why is Ethereum down 5%?",
+                                         "What really moved Ethereum?"])]
+        with _ShortRun([_basics_material(cfg)], history=hooked) as r:
+            assert r.run("--session", "short_p") == 0, r.logs[-6:]
+            assert any("every hook of pulse-2026-10-15-short_p is used" in x for x in r.logs), r.logs
+            assert r.history()[-1]["short_kind"] == "concept"
+        # short_b with pulse on, timed short_a with pulse off: today's mix (triggered market Short), no fetch
+        calls.clear()
+        with _ShortRun([_market_material(), _basics_material(cfg)], answer=_market_answer,
+                       update={"pulse": {"enabled": True}}) as r:
+            assert r.run("--session", "short_b") == 0, r.logs[-6:]
+            assert not calls and r.history()[-1]["short_kind"] == "market"
+            assert r.history()[-1]["material"] == "triggered-t1"
+        with _ShortRun([_market_material(), _basics_material(cfg)], answer=_market_answer) as r:
+            assert r.run("--session", "short_a", "--scheduled") == 0, r.logs[-6:]
+            assert not calls and r.history()[-1]["short_kind"] == "market" and r.history()[-1]["segment"] == "hook_0"
+    finally:
+        triggers.fetch, app.render.build_video = saved
+    print("OK short pulse: live config (short_p gated by pulse, no start_utc; pulse.enabled false; dispatch offers "
+          "short_p); manual short_p → pulse Short (hook title, snapshot numbers, ▶ Latest video youtu.be/LV9, credit "
+          "once, history short_kind pulse, output material.json); dark timed short_p skips without fetching; quiet / "
+          "fetch error / used hooks → concept; no concept left → skip + low-stock; short_b and timed short_a keep "
+          "today's mix")
 
 
 def _wf_map(text: str) -> tuple[dict, dict, dict]:

@@ -18,7 +18,9 @@ data/material/pulse-<YYYY-MM-DD>-<slot>.json in the market material format (auto
                                      (None, "invalid pulse material: <problems>"); else (material, what it holds)
     make(cfg, root, slot, now, log, fetch, related) -> (path | None, reason)
                                      fetch + build + material.write (a second build for the same date + slot merges
-                                     into the existing file); the builder the pulse Short (6.2) calls
+                                     into the existing file); the builder the pulse Short (6.2) calls:
+                                     main.make_pulse passes the latest long video (shorts.latest_long) as `related`
+                                     and loads the written file; a None path → the concept fallback
 """
 from datetime import datetime
 from pathlib import Path
