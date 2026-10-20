@@ -1905,6 +1905,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-20T12:11:02+00:00",
+      "brief_date": "2026-10-20",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "VISA AND MESH UNVEIL CARD-FREE CRYPTO PAYMENTS",
+      "fb_post_id": "462331040302049_122253926078610202",
+      "headlines": [
+        "Mesh Signs Visa Deal to Turn Wallet Crypto and Stablecoin Balances Into Card-Free Payments"
+      ],
+      "topic": "regulation",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
