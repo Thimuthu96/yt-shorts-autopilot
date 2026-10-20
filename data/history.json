@@ -1999,6 +1999,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-20T21:03:48+00:00",
+      "brief_date": "2026-10-20",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BLACKROCK FILES BUFFERED BTC ETF",
+      "fb_post_id": "462331040302049_122253962126610202",
+      "headlines": [
+        "BlackRock Enters the Buffered Bitcoin ETF Race With New SEC Filing"
+      ],
+      "topic": "regulation",
+      "source": "CryptoRank",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
