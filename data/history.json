@@ -2094,6 +2094,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-21T16:04:46+00:00",
+      "brief_date": "2026-10-21",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "OCC ISSUES NEW STABLECOIN RULES",
+      "fb_post_id": "462331040302049_122254142570610202",
+      "headlines": [
+        "OCC leaves room for stablecoin yield maneuvers in final rule"
+      ],
+      "topic": "regulation",
+      "source": "American Banker",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
