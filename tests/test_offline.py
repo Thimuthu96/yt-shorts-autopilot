@@ -284,6 +284,7 @@ def main():
     test_short_lesson(cfg)
     test_short_mix(cfg)
     test_short_rotation(cfg)
+    test_short_frame0(cfg)
     test_pulse_material(cfg)
     test_short_pulse(cfg)
     test_slate_timetable(cfg)
@@ -5581,6 +5582,169 @@ def test_short_rotation(cfg):
           "cooldown (contains / alias refused, 8 days ago allowed, market / pulse never block); live swing-structure "
           "mirror → only the other lesson; low stock counts eligible segments; nothing eligible → skip + warning; "
           "history records topic")
+
+
+def _ink_share(img, box, bg=(14, 15, 18), tol: int = 8) -> float:
+    """Share of the pixels in box (x0, y0, x1, y1) that differ from the plain background by more than `tol`."""
+    from PIL import Image, ImageChops
+    crop = img.convert("RGB").crop(box)
+    diff = ImageChops.difference(crop, Image.new("RGB", crop.size, bg)).convert("L")
+    return sum(1 for v in diff.getdata() if v > tol) / (crop.width * crop.height)
+
+
+def test_short_frame0(cfg):
+    """Visual first frame (epic-shorts-reach E6-4): frame 0 (thumbnail.jpg = the Reel cover) is 1-4 card words over a
+    visual, never text alone: a concept Short with a diagram → every diagram part drawn; one without (a lesson
+    segment) → the icon card (candles, BTC badge, term pill); a diagram that can't fit even without its notes → the
+    icon card (logged); a pulse Short → the lead coin's badge + "−5.0% · 24h" pill + its move chart; a lead without
+    a series → the badge card; an 8-word hook → its first 4 words. Each visual region has ≥ 3% non-background pixels
+    and the words region is inked, in PORTRAIT and LANDSCAPE. Text slides hold ≤ 14 words: a 28- / 30-word fact
+    gives 2 / 3 pages (all words kept, breaks moved to a sentence end), > 14 words to text_slide → ValueError; a
+    paged scene stays one slide and build_video splits its time by words (10 + 5 words in 6 s → 4 s + 2 s)."""
+    import copy
+    from PIL import Image
+    from autopilot import diagrams, lesson_slides as ls, material, pulse, shorts
+    out = ROOT / "output" / "test_frame0"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir(parents=True)
+    logs = []
+    b = _basics_material(cfg)
+    flow = next(s_ for s_ in b["segments"] if s_["id"] == "point_1")
+    assert flow["diagram"]["type"] == "flow"
+    lesson = _fixture_lesson("bos-vs-choch")
+    lseg = next(s_ for s_ in lesson["segments"] if s_["id"] == "point_1")
+    assert not lseg.get("diagram")
+    huge = dict(flow, term="Giant diagram", diagram={"type": "flow", "nodes": [
+        {"label": "Fund", "say": ["fund"]},
+        {"label": "Holds" + "x" * 90, "coin": "ETH", "arrow": "holds", "say": ["holdings"]}],
+        "notes": [{"text": "A note", "say": ["note"]}]})
+    assert diagrams.validate(huge["diagram"]) == []
+    eth_story = {"category": "crypto", "source": "CoinDesk", "title": "Ethereum slides as staking withdrawals jump",
+                 "summary": "Ether fell as staking withdrawals rose.",
+                 "published": (TRIGGER_NOW - timedelta(hours=1)).isoformat()}
+    data = trigger_data(btc=-1.0, eth=-5.0, sol=-1.0, xrp=-1.0, news=[eth_story])
+    ov = trigger_overview(cap=-2.0, coins=[("BTC", "Bitcoin", 62400, -1.0), ("ETH", "Ethereum", 2450, -5.0)])
+    pm, why = pulse.build(data, ov, TRIGGER_NOW, "short_a", cfg, log=lambda m_: None)
+    assert pm is not None and material.validate(pm) == [] and pm["market"]["lead"] == "ETH", why
+    # a related coin moving more than the lead (SOL −9% beside ETH −5%) never takes frame 0: the material's lead does
+    big, _ = pulse.build(trigger_data(btc=-1.0, eth=-5.0, sol=-9.0, xrp=-1.0, news=[eth_story]), ov, TRIGGER_NOW,
+                         "short_b", cfg, log=lambda m_: None)
+    assert big is not None and big["market"]["lead"] == "ETH" and shorts.lead_coin(big) == "ETH", big and big["market"]
+    _, binfo = shorts.hook_card(shorts._ctx(cfg, big), "WHY -5%?", m=big)
+    assert binfo["coin"] == "ETH" and binfo["pill"] == "−5.0% · 24h", binfo
+    bare = copy.deepcopy(_market_material())
+    bare["market"]["series"] = {}
+
+    cases = [("concept_diagram", b, flow, None, "WHY IT MATTERS?", "diagram"),
+             ("concept_icon", lesson, lseg, None, "WHY IT MATTERS?", "icon"),
+             ("diagram_too_big", b, huge, None, "WHY IT MATTERS?", "icon"),
+             ("pulse", pm, None, pm, "WHY -5%?", "chart"),
+             ("no_series", bare, None, bare, "WHY -7%?", "badge"),
+             ("long_hook", b, flow, None, "Why does an exchange traded fund matter today?", "diagram")]
+    for layout in (ls.PORTRAIT, ls.LANDSCAPE):
+        for name, m, seg, mk, card, kind in cases:
+            ctx = shorts._ctx(cfg, m, layout)
+            img, info = shorts.hook_card(ctx, card, m=mk, seg=seg, log=logs.append)
+            img.save(out / f"{name}_{layout.name}.png")
+            assert img.size == (layout.w, layout.h)
+            assert info["kind"] == kind, (name, layout.name, info)
+            words = info["words"].split()
+            assert 1 <= len(words) <= shorts.CARD_WORDS and words == card.upper().split()[:4], (name, info)
+            vis = _ink_share(img, info["visual"])
+            assert vis >= 0.03, f"{name} {layout.name}: visual region {vis:.1%} non-background"
+            assert _ink_share(img, info["words_box"]) >= 0.03, (name, layout.name)
+            x0, y0, x1, y1 = layout.content_box
+            assert y0 <= info["words_box"][3] < info["visual"][1] < info["visual"][3] <= y1, info
+            if kind == "diagram":  # every part of the spec drawn
+                parts = {it for st in diagrams.steps(seg["diagram"]) for it in st["items"]}
+                assert set(info["parts"]) == parts, (info["parts"], parts)
+            if name == "concept_icon":
+                assert info["coin"] == "BTC" and info["term"] == "Break of structure", info
+            if name == "diagram_too_big":
+                assert info["coin"] == "ETH", info
+            if kind in ("chart", "badge"):
+                want = "−5.0% · 24h" if name == "pulse" else "−7.2% · 24h"
+                assert info["pill"] == want and info["coin"] == ("ETH" if name == "pulse" else "BTC"), info
+        assert sum("Short frame 0 (Giant diagram): the diagram doesn't fit" in x and "icon card" in x for x in logs) == 1
+        logs.clear()
+    assert shorts.card_words("Why does an exchange traded fund matter today?") == "WHY DOES AN EXCHANGE"
+    recap = _market_material(kind="recap")
+    _, rinfo = shorts.hook_card(shorts._ctx(cfg, recap), "WHAT MOVED?", m=recap)
+    assert rinfo["pill"] == "−9.1% · 7d", rinfo
+    assert shorts.icon_coin({"term": "Gas fees", "facts": ["Ethereum charges gas. Bitcoin too."]}) == "ETH"
+    assert shorts.icon_coin({"term": "Order blocks", "facts": ["A zone on a chart."]}) is None
+
+    # text pages: ≤ 14 body words a page, every word kept, breaks at a sentence end within ±2 words
+    w28 = " ".join(f"w{i}" for i in range(28))
+    w30 = " ".join(f"w{i}" for i in range(30))
+    assert [shorts.text_words(p_) for p_ in shorts.text_pages(w28)] == [14, 14]
+    assert [shorts.text_words(p_) for p_ in shorts.text_pages(w30)] == [10, 10, 10]
+    s30 = " ".join(f"w{i}" + ("." if i == 8 else "") for i in range(30))
+    pages = shorts.text_pages(s30)
+    assert [shorts.text_words(p_) for p_ in pages] == [9, 11, 10] and pages[0].endswith("w8."), pages
+    for text in (w28, w30, s30, flow["facts"][0], b["segments"][0]["facts"][0], "Bitcoin: −7.2% · Ethereum: −4.5%"):
+        pages = shorts.text_pages(text)
+        assert " ".join(pages) == " ".join(text.split()) and all(shorts.text_words(p_) <= 14 for p_ in pages), pages
+        assert len(pages) == max(1, math.ceil(shorts.text_words(text) / 14)), pages
+    assert shorts.text_words("Bitcoin: −7.2% · Ethereum: −4.5%") == 4
+    ctx = shorts._ctx(cfg, b)
+    try:
+        shorts.text_slide(ctx, "FACT", " ".join(["word"] * 15))
+        raise AssertionError("a 15-word text slide was drawn")
+    except ValueError as e:
+        assert "15 words" in str(e)
+    shorts.text_slide(ctx, "FACT", " ".join(["word"] * 14))
+
+    # the renders: frame 0 info on the cover, thumbnail.jpg inked, one slide per scene (later text pages ride along)
+    pkg = {"hook": "Why does an ETF matter?", "card": "WHY IT MATTERS?"}
+    renders = {"render_concept": shorts.render_slides(cfg, b, flow, pkg, out / "render_concept"),
+               "render_lesson": shorts.render_slides(cfg, lesson, lseg, pkg, out / "render_lesson"),
+               "render_overview": shorts.render_slides(cfg, b, b["segments"][0], pkg, out / "render_overview"),
+               "render_pulse": shorts.render_market_slides(cfg, pm, {"hook": pm["market"]["hooks"][0], "card": "WHY -5%?"},
+                                                           out / "render_pulse")}
+    for name, (pics, thumb) in renders.items():
+        assert len(pics) == 3 and [p_["id"] for p_ in pics] == ["hook", "explain", "payoff"], name
+        assert thumb.name == "thumbnail.jpg" and pics[0]["image"] == thumb and pics[0]["cover"]
+        info = pics[0]["frame0"]
+        assert 1 <= len(info["words"].split()) <= 4 and info["kind"] != "", info
+        jpg = Image.open(thumb)
+        assert _ink_share(jpg, info["visual"]) >= 0.03 and _ink_share(jpg, info["words_box"]) >= 0.03, name
+        shutil.copy(thumb, out / f"{name}_thumbnail.jpg")
+        for p_ in pics[1:]:
+            if p_.get("steps"):  # a stepped diagram scene, not text
+                continue
+            for part in [p_] + p_.get("pages", []):
+                assert Path(part["image"]).exists() and 1 <= part["words"] <= 14, (name, part)
+    explain = renders["render_lesson"][0][1]
+    assert shorts.text_words(lseg["facts"][0]) == 15 and len(explain["pages"]) == 1, explain
+    assert explain["words"] + explain["pages"][0]["words"] == 15
+    over = renders["render_overview"][0]
+    assert len(over[1]["pages"]) == 2 and len(over[2]["pages"]) == 2, over[1]
+
+    # build_video: a paged scene splits its narration time by words; the cover keeps its hold
+    calls = []
+    saved = render._segment, render.run
+    render._segment = lambda part, dur, seg, *a, **k: calls.append((Path(part["image"]).name, round(dur, 3)))
+    render.run = lambda *a, **k: None
+    try:
+        tmp = Path(tempfile.mkdtemp())
+        slide = {"image": tmp / "a.png", "words": 10, "id": "explain", "reveal": None,
+                 "pages": [{"image": tmp / "b.png", "words": 5, "reveal": None}]}
+        cover = {"image": tmp / "c.jpg", "cover": True, "follow": {"image": tmp / "f.png", "reveal": None}}
+        audio = [{"audio": tmp / "v0.wav", "words": [(0.1, 0.4, "Hi")], "duration": 3.0},
+                 {"audio": tmp / "v1.wav", "words": [], "duration": 6.0}]
+        render.build_video(audio, [cover, slide], cfg, tmp, tmp / "out.mp4")
+        assert calls == [("c.jpg", render.COVER_HOLD), ("f.png", 3.0 - render.COVER_HOLD), ("a.png", 4.0),
+                         ("b.png", 2.0)], calls
+        assert "seg_01p1.mp4" in (tmp / "seg_list.txt").read_text()
+        shutil.rmtree(tmp, ignore_errors=True)
+    finally:
+        render._segment, render.run = saved
+    print("OK short frame0: 1-4 card words over a visual (diagram fully drawn / icon card with candles, coin badge and "
+          "term pill / lead coin badge + %-move pill + move chart / badge card without a series), oversized diagram → "
+          "icon card (logged), long hook cut to 4 words, PORTRAIT + LANDSCAPE inked; text pages ≤ 14 words (28 → 2, "
+          "30 → 3, all words kept), > 14 → ValueError; paged scene time split by words (4 s + 2 s); samples in "
+          "output/test_frame0/")
 
 
 def test_pulse_material(cfg):

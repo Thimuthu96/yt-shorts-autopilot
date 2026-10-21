@@ -167,8 +167,13 @@ shared by every video format:
                             the first sentence, numbers only from the material; originality guard (MinHash `fingerprint`
                             in history, ≥ 0.5 overlap → one rewrite → next segment); title = hook ≤ 60 chars + title rules
                             (one rewrite, else "Short packaging", exit 1); card 1-4 words
-  → 9:16 slides             hook card = frame 0 / thumbnail; concept: term → diagram (step reveal) → payoff; market:
-                            move chart draw-in → cause → coins diagram → numbers; A/B voice logged as `voice`
+  → 9:16 slides             hook card = frame 0 / thumbnail (E6-4, never text alone): 1-4 card words over a visual:
+                            market / pulse → the lead coin's drawn badge + %-move pill ("−7.2% · 24h") over its move
+                            chart (no series → badge card); concept → the segment's diagram fully drawn (then without
+                            notes), else an icon card (candles + coin badge + term pill; logged); concept: term →
+                            diagram (step reveal) → payoff; market: move chart draw-in → cause → coins diagram →
+                            numbers; text slides ≤ 14 words (shorts.text_pages: a longer text → pages of one scene's
+                            slide, `pages`, sharing its time by word count in render.build_video); A/B voice `voice`
   → metadata                first line "▶ Full video: https://youtu.be/<source>" (pulse: "▶ Latest video: https://youtu.be/
                             <latest long>", no "From the full video" line), hook, payoff, data + CoinGecko credit
                             once (market / pulse), disclosure once, hashtags (#Shorts last); Reel caption = same without
@@ -358,7 +363,8 @@ autopilot/shorts.py      standalone Shorts: load_materials, pick (daily mix) / p
                          MAX_PER_SOURCE, COOLDOWN_DAYS topic guard: topic / segment_topics / recent_topics), stock
                          (eligible segments), pick_pulse +
                          latest_long (pulse-first), write_concept / write_market (+ originality guard, packaging),
-                         render_slides / render_market_slides, metadata / reel_caption, studio_task
+                         render_slides / render_market_slides (hook_card = the visual frame 0, text_pages / text_scene
+                         = ≤ 14-word text pages), metadata / reel_caption, studio_task
 autopilot/triggered.py   triggered video: scene plan, narration + checks + fact-check, slides, draw_move_chart (16:9 + 9:16),
                          packaging (title_for, thumbnail_words, render_thumbnail, metadata)
 autopilot/recap.py       Saturday recap: fetch, week_has_triggered, build (biggest 7-day moves), narration, slides, board

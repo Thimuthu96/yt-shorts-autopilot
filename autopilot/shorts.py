@@ -39,8 +39,9 @@ and script, written from one segment of a long video's Shorts material (autopilo
                                          counted as used); under LOW_STOCK → a low-stock warning
     write_market(cfg, m, idx, log)       the candidate is the hook; Gemini writes the scenes from the material's
                                          fetched numbers + causes only (triggered.unknown_numbers); 3 attempts
-    render_market_slides(...)            hook card → the move chart (triggered.draw_move_chart), the cause → coins
-                                         flow diagram with step reveal, the key numbers
+    render_market_slides(...)            hook card (frame 0: the card words over the lead coin's badge + %-move pill
+                                         and its move chart) → the move chart draw-in (triggered.draw_move_chart), the
+                                         cause → coins flow diagram with step reveal, the key numbers
     fingerprint(text) / similarity(a, b) the originality guard: a MinHash of the script's word 3-grams (stored
                                          in the Short's history entry); a script whose similarity to any earlier
                                          Short's reaches MAX_SIMILARITY is rewritten once, then TooClose (the run
@@ -51,6 +52,17 @@ and script, written from one segment of a long video's Shorts material (autopilo
     write_concept(cfg, m, seg, log)      Gemini writes {hook, scenes: hook / explain / payoff}; 3 attempts
     render_slides(cfg, m, seg, pkg, wd)  9:16: the hook card (frame 0, `cover`) → the term, the segment's diagram
                                          with step reveal (diagrams.step_layers) or its fact, the payoff card
+    hook_card(ctx, text, m, seg)         frame 0 (E6-4; = thumbnail.jpg = the Reel cover, its info kept on the cover
+                                         slide as `frame0`): 1-CARD_WORDS card words (a longer hook is cut) on top of a
+                                         visual, never text alone: market / pulse → the lead coin's drawn badge +
+                                         %-move pill ("−7.2% · 24h", recap "· 7d") over its move chart (no ≥ 2-point
+                                         series → the badge card); concept → the segment's diagram fully drawn (full
+                                         spec, then without notes), else the icon card (candles, coin badge, term
+                                         pill; logged). Layout-relative: PORTRAIT and LANDSCAPE
+    text_pages(text) / text_scene(...)   text slides hold ≤ TEXT_WORDS (14) body words (text_slide raises on more);
+                                         a longer text → ceil(n / 14) near-equal pages (breaks at a sentence / clause
+                                         end within ±2 words), page 1 the scene's slide, the rest its `pages`, which
+                                         share the scene's narration time by word count (render.build_video)
     title_problems(hook) / card_problems(card)   packaging.md Short row: the hook question is the title (≤ 60
                                          characters, rules.title_problems); the hook card (frame 0) carries 1-4 words
     package(cfg, pkg, ctx, log)          a hook breaking a title rule is rewritten once by Gemini, else
@@ -77,7 +89,8 @@ from autopilot.basics import unknown_numbers as _concept_unknown
 from autopilot.lesson_slides import BG, FG, MUTED, PORTRAIT, Layout, _flow, _font, _title_font
 from autopilot.llm import generate_json
 from autopilot.script import _models
-from autopilot.slides import PANEL, _hex, _wrap
+from autopilot.slides import DOWN, PANEL, UP, _hex, _wrap
+from autopilot.thumbnail import _fit as _fit_font
 
 MAX_TITLE = 60  # packaging.md: a Short's title is its hook question, 60 characters or fewer
 CARD_WORDS = 4  # the hook card (frame 0): 1-4 words
@@ -725,16 +738,198 @@ def _fit(d, text: str, size: int, width: int) -> int:
     return size
 
 
-def hook_card(ctx: _Ctx, text: str) -> Image.Image:
-    """Frame 0: the hook card words in huge type over an accent bar (no captions over it)."""
+# ─── frame 0 (epic-shorts-reach E6-4): the card words over a visual, never text alone ──────────
+
+FRAME0_WORDS_SHARE = 0.36  # the card words take at most this share of the content box's height; the visual the rest
+CANDLES = ((0.22, 0.46, 0.12, 0.54), (0.46, 0.34, 0.26, 0.56), (0.34, 0.64, 0.30, 0.72), (0.64, 0.52, 0.44, 0.70),
+           (0.52, 0.86, 0.48, 0.96))  # the icon card's candles: (open, close, low, high) as shares of their height
+COIN_WORDS = ((re.compile(r"\b(?:bitcoin|btc)\b", re.I), "BTC"), (re.compile(r"\b(?:ethereum|ether|eth)\b", re.I), "ETH"))
+DIAGRAM_COIN = re.compile(r"'coin': '([A-Z]{2,5})'")
+
+
+def card_words(text) -> str:
+    """The frame-0 words: the card text's first CARD_WORDS words in upper case (a longer hook passed in is cut)."""
+    return " ".join(_clean(text).upper().split()[:CARD_WORDS])
+
+
+def _move(m: dict, sym: str) -> tuple[float | None, str]:
+    """(the coin's move in %, "24h" / "7d"): a recap reads change_7d first, any other material change_24h first."""
+    n = m["market"]["numbers"].get(sym) or {}
+    order = ("change_7d", "change_24h") if m["source"]["kind"] == "recap" else ("change_24h", "change_7d")
+    for k in order:
+        if n.get(k) is not None:
+            return n[k], "7d" if k == "change_7d" else "24h"
+    return None, ""
+
+
+def _ticker(sym) -> str:
+    t = re.sub(r"[^A-Z]", "", str(sym).upper())[:5]
+    return t or "?"
+
+
+def _coin_badge(ctx: _Ctx, d, cx: int, cy: int, size: int, coin: str) -> None:
+    """A drawn coin badge (diagrams._badge: BTC / ETH brand colours, else the accent) of diameter `size`."""
+    L = ctx.layout
+    f = _fit_font(coin, lambda s: _font(s, True), round(size * 0.72), max(L.min_text, round(size * 0.36)), L.min_text)
+    diagrams._paint(d, diagrams._badge(cx, cy, size, coin, f, ctx.accent))
+
+
+def _pill(ctx: _Ctx, d, text: str, h: int):
+    """(width, draw(x, cy)) of a rounded pill of height `h` holding `text` in bold."""
+    f = _font(max(ctx.layout.min_text, round(h * 0.46)), True)
+    pad = round(h * 0.42)
+    w = round(d.textlength(text, font=f)) + 2 * pad
+
+    def draw(x: int, cy: int, fill, ink) -> None:
+        d.rounded_rectangle([x, cy - h // 2, x + w, cy - h // 2 + h], radius=h // 2, fill=fill)
+        d.text((x + pad, cy), text, font=f, fill=ink, anchor="lm")
+    return w, draw
+
+
+def _market_visual(ctx: _Ctx, img, d, box, m: dict, sym: str) -> dict:
+    """The lead coin's row (badge + name + %-move pill, green / red) over its move chart; no ≥ 2-point series →
+    the badge card (a panel with a large badge and the pill)."""
+    from autopilot.triggered import draw_move_chart
+    L = ctx.layout
+    x0, y0, x1, y1 = box
+    ch, period = _move(m, sym)
+    name = _clean(m["market"]["numbers"][sym].get("name")) or sym
+    label = f"{_pct(ch)} · {period}" if ch is not None else name
+    fill, ink = ((UP if ch >= 0 else DOWN), FG) if ch is not None else (ctx.accent, BG)
+    coin = _ticker(sym)
+    series = [v for v in (m["market"].get("series") or {}).get(sym) or [] if v is not None]
+    gap = round(L.min_text * 0.8)
+    if len(series) >= 2:
+        D = round(L.min_text * 3.4)
+        cy = y0 + D // 2
+        _coin_badge(ctx, d, x0 + D // 2, cy, D, coin)
+        pw, pill = _pill(ctx, d, label, round(D * 0.72))
+        x = x0 + D + gap
+        nf = _font(max(L.min_text, round(D * 0.48)), True)
+        nw = round(d.textlength(name, font=nf))
+        if ch is not None and x + nw + gap + pw <= x1:
+            d.text((x, cy), name, font=nf, fill=FG, anchor="lm")
+            x += nw + gap
+        pill(x, cy, fill, ink)
+        draw_move_chart(img, (x0, y0 + D + gap, x1, y1), series, L, ctx.accent)
+        return {"kind": "chart", "coin": coin, "pill": label}
+    w, h = x1 - x0, y1 - y0
+    pad = max(L.min_text, round(min(w, h) * 0.07))
+    d.rounded_rectangle(box, radius=round(pad * 0.8), fill=PANEL)
+    D = max(L.min_text * 2, min(round(h * 0.5), round(w * 0.4)))
+    ph = max(round(L.min_text * 2.2), round(D * 0.34))
+    pw, pill = _pill(ctx, d, label, ph)
+    top = y0 + (h - (D + gap + ph)) // 2
+    _coin_badge(ctx, d, x0 + w // 2, top + D // 2, D, coin)
+    pill(x0 + (w - pw) // 2, top + D + gap + ph // 2, fill, ink)
+    return {"kind": "badge", "coin": coin, "pill": label}
+
+
+def icon_coin(seg: dict) -> str | None:
+    """The icon card's coin: the first coin of the segment's diagram, else Bitcoin / Ethereum named in its term or
+    facts (first mention wins), else None."""
+    found = DIAGRAM_COIN.findall(repr(seg.get("diagram") or {}))
+    if found:
+        return found[0]
+    text = " ".join([_clean(seg.get("term"))] + [_clean(f) for f in seg.get("facts") or []])
+    hits = [(hit.start(), sym) for pat, sym in COIN_WORDS for hit in [pat.search(text)] if hit]
+    return min(hits)[1] if hits else None
+
+
+def _icon_card(ctx: _Ctx, d, box, term: str, coin: str | None) -> str:
+    """A rounded panel: a drawn candlestick cluster (+ a coin badge when a coin is named) above the term
+    (parentheticals dropped, ≤ 3 lines) in an accent pill. → the pill's text."""
+    L = ctx.layout
+    x0, y0, x1, y1 = box
+    w, h = x1 - x0, y1 - y0
+    pad = max(L.min_text, round(min(w, h) * 0.07))
+    d.rounded_rectangle(box, radius=round(pad * 0.8), fill=PANEL)
+    label = _clean(re.sub(r"\([^)]*\)", " ", term)) or _clean(term) or "KEY IDEA"
+    iw, pp = w - 2 * pad, round(L.min_text * 0.7)
+    size = round(L.min_text * 2)
+    while True:
+        f = _font(size, True)
+        lines = diagrams._wrap_all(d, label, f, iw - 2 * pp)
+        if (lines is not None and len(lines) <= 3) or size <= L.min_text:
+            break
+        size -= 2
+    if lines is None or len(lines) > 3:
+        lines = _wrap(d, label, f, iw - 2 * pp, 3)
+    lh = round(size * 1.22)
+    ph = len(lines) * lh + 2 * pp
+    pw = min(iw, max(round(d.textlength(ln, font=f)) for ln in lines) + 2 * pp)
+    px0, py0 = x0 + (w - pw) // 2, y1 - pad - ph
+    d.rounded_rectangle([px0, py0, px0 + pw, py0 + ph], radius=min(ph // 2, pp * 2), fill=ctx.accent)
+    for i, ln in enumerate(lines):
+        d.text((x0 + w // 2, py0 + pp + i * lh + lh // 2), ln, font=f, fill=BG, anchor="mm")
+    top, bottom = y0 + pad, py0 - pad
+    ah = bottom - top
+    if ah < L.min_text * 2:
+        return label
+    D = min(ah, round(iw * 0.3)) if coin else 0
+    cw = min(iw - (D + pad if coin else 0), round(ah * (1.3 if coin else 1.5)))
+    gx = x0 + (w - (cw + (pad + D if coin else 0))) // 2
+    slot = cw / len(CANDLES)
+    body, wick = max(6, round(slot * 0.56)), max(3, round(slot * 0.08))
+    for k, (o, c, lo, hi) in enumerate(CANDLES):
+        cx = round(gx + slot * (k + 0.5))
+        colour = UP if c > o else DOWN
+        d.rectangle([cx - wick // 2, round(bottom - hi * ah), cx - wick // 2 + wick, round(bottom - lo * ah)], fill=colour)
+        b0, b1 = sorted((round(bottom - o * ah), round(bottom - c * ah)))
+        d.rectangle([cx - body // 2, b0, cx - body // 2 + body, max(b1, b0 + 4)], fill=colour)
+    if coin:
+        _coin_badge(ctx, d, round(gx + cw + pad + D / 2), top + ah // 2, D, coin)
+    return label
+
+
+def _concept_visual(ctx: _Ctx, img, d, box, seg: dict, words: str, log=_log) -> dict:
+    """The segment's diagram fully drawn in `box` (the full spec, then without its notes), else the icon card
+    (logged)."""
+    term = _clean(seg.get("term")) or words
+    spec = seg.get("diagram")
+    if spec:
+        tries = [spec] + ([{k: v for k, v in spec.items() if k != "notes"}] if isinstance(spec, dict)
+                          and spec.get("notes") else [])
+        why = ""
+        for n, s in enumerate(tries):
+            try:
+                parts = diagrams.draw(img, box, s, ctx.layout, ctx.accent, who="Short frame 0")
+            except ValueError as e:
+                why = str(e)
+                continue
+            if n:
+                log(f"Short frame 0 ({term}): the diagram fits only without its notes; notes dropped")
+            return {"kind": "diagram", "parts": sorted(parts), "notes": bool(s.get("notes"))}
+        log(f"Short frame 0 ({term}): the diagram doesn't fit ({why}); drawing the icon card")
+    coin = icon_coin(seg)
+    label = _icon_card(ctx, d, box, term, coin)
+    return {"kind": "icon", "coin": coin, "term": label}
+
+
+def hook_card(ctx: _Ctx, text: str, m: dict | None = None, seg: dict | None = None,
+              log=_log) -> tuple[Image.Image, dict]:
+    """Frame 0 (= thumbnail.jpg = the Reel cover; no captions over it): the card's 1-CARD_WORDS words (card_words)
+    on top, then a visual: market / pulse material (`m` with a `market` section) → the lead coin's badge + %-move
+    pill over its move chart (triggered.draw_move_chart; no ≥ 2-point series → the badge card); otherwise the
+    segment's (`seg`) diagram fully drawn (diagrams.draw: full spec, then without notes), else the icon card
+    (logged). → (image, {"words", "words_box", "visual": (x0, y0, x1, y1), "kind": chart / badge / diagram /
+    icon, …})."""
     img, d = _base(ctx)
     L = ctx.layout
     x0, y0, x1, y1 = L.content_box
-    text = _clean(text).upper()
-    y = _flow(d, [{"text": text, "size": _fit(d, text, 190, x1 - x0), "title": True, "fill": FG, "gap": 40,
-                   "max_lines": 5}], (x0, y0, x1, y1 - 60), L, valign="center", who="hook card")
-    d.rectangle([x0, y, x0 + 240, y + 22], fill=ctx.accent)
-    return img
+    words = card_words(text) or "KEY IDEA"
+    cap = y0 + round((y1 - y0) * FRAME0_WORDS_SHARE)
+    y = _flow(d, [{"text": words, "size": _fit(d, words, 170, x1 - x0), "title": True, "fill": FG, "keep": True}],
+              (x0, y0, x1, cap), L, who="frame 0 words")
+    bar, by = max(10, round(L.min_text * 0.4)), y + round(L.min_text * 1.1)
+    d.rectangle([x0, by, x0 + round(L.min_text * 6), by + bar], fill=ctx.accent)
+    box = (x0, by + bar + round(L.min_text * 0.9), x1, y1)
+    info = {"words": words, "words_box": (x0, y0, x1, y), "visual": box}
+    if m and m.get("market"):
+        info.update(_market_visual(ctx, img, d, box, m, lead_coin(m)))
+    else:
+        info.update(_concept_visual(ctx, img, d, box, seg or {}, words, log))
+    return img, info
 
 
 def term_slide(ctx: _Ctx, term: str, sub: str = "") -> Image.Image:
@@ -759,29 +954,91 @@ def diagram_slide(ctx: _Ctx, term: str, spec: dict, show=None) -> Image.Image:
     return img
 
 
+TEXT_WORDS = 14  # E6-4: a text slide holds at most 14 body words; text_pages splits a longer text
+_SENT_END = re.compile(r"[.!?…][\"'”’)]*$")
+_CLAUSE_END = re.compile(r"[,;:—–][\"'”’)]*$|^[—–-]+$")
+
+
+def _counted(tok: str) -> bool:
+    return any(c.isalnum() for c in tok)
+
+
+def text_words(text) -> int:
+    """Body words of a text slide: whitespace tokens with a letter or digit ("·" / "—" don't count)."""
+    return sum(_counted(t) for t in str(text or "").split())
+
+
+def text_pages(text) -> list[str]:
+    """The text in pages of ≤ TEXT_WORDS words: ceil(n / TEXT_WORDS) near-equal pages, each break moved to a
+    sentence end (else a clause end) within ±2 words when both pages beside it stay ≤ TEXT_WORDS. Every token is
+    kept, in order (" ".join(pages) == the cleaned text); a word-less token stays with the page before it."""
+    toks = _clean(text).split()
+    idx = [i for i, t in enumerate(toks) if _counted(t)]  # token index of each counted word
+    n = len(idx)
+    if n <= TEXT_WORDS:
+        return [" ".join(toks)]
+    k = -(-n // TEXT_WORDS)
+    bounds = [0]
+    for i in range(1, k):
+        ideal = round(i * n / k)
+        nxt = round((i + 1) * n / k) if i + 1 < k else n
+        ok = [c for c in (ideal, ideal - 1, ideal + 1, ideal - 2, ideal + 2)
+              if bounds[-1] < c < n and c - bounds[-1] <= TEXT_WORDS and nxt - c <= TEXT_WORDS]
+        bounds.append(next((c for pat in (_SENT_END, _CLAUSE_END) for c in ok if pat.search(toks[idx[c] - 1])),
+                           ideal))
+    cuts = [0] + [idx[b] for b in bounds[1:]] + [len(toks)]
+    return [" ".join(toks[a:b]) for a, b in zip(cuts, cuts[1:])]
+
+
 def text_slide(ctx: _Ctx, heading: str, text: str) -> Image.Image:
+    """A heading + ≤ TEXT_WORDS body words (more → ValueError: text_pages / text_scene split a longer text)."""
+    n = text_words(text)
+    if n > TEXT_WORDS:
+        raise ValueError(f"Short text slide: {n} words (at most {TEXT_WORDS}; text_scene pages a longer text)")
     img, d = _base(ctx)
     _flow(d, [{"text": heading, "size": 48, "bold": True, "fill": ctx.accent, "gap": 34, "max_lines": 1},
-              {"text": text, "size": 64, "bold": True, "fill": FG, "max_lines": 9}],
+              {"text": text, "size": 64, "bold": True, "fill": FG, "keep": True}],
           ctx.layout.content_box, ctx.layout, valign="center", max_scale=1.2, who="Short text slide")
     return img
 
 
-def _cover(ctx: _Ctx, card_text: str, follow_img: Image.Image, workdir: Path) -> tuple[dict, Path]:
+def text_scene(ctx: _Ctx, heading: str, text: str, path: Path, sid: str) -> dict:
+    """One scene's text slide(s): page 1 (text_pages) is the slide at `path`; later pages (<stem>_p2.png, …) ride on
+    it as `pages` [{image, reveal, words}] and share the scene's narration time in proportion to their `words`
+    (render.build_video), so slides and scenes stay one to one."""
+    path = Path(path)
+    slide = None
+    for k, page in enumerate(text_pages(text)):
+        p = path if k == 0 else path.with_name(f"{path.stem}_p{k + 1}{path.suffix}")
+        text_slide(ctx, heading, page).save(p)
+        part = {"image": p, "reveal": None, "words": text_words(page)}
+        if slide is None:
+            slide = dict(part, id=sid)
+        else:
+            slide.setdefault("pages", []).append(part)
+    return slide
+
+
+def _cover(ctx: _Ctx, card_text: str, follow_img: Image.Image, workdir: Path, m: dict | None = None,
+           seg: dict | None = None, log=_log) -> tuple[dict, Path]:
+    """The cover slide: frame 0 (hook_card) saved as thumbnail.jpg, its info as `frame0`, then the follow slide."""
     card = workdir / "thumbnail.jpg"
-    hook_card(ctx, card_text).save(card, quality=92)
+    img, info = hook_card(ctx, card_text, m=m, seg=seg, log=log)
+    img.save(card, quality=92)
     follow = workdir / "short_01_follow.png"
     follow_img.save(follow)
     return {"image": card, "cover": True, "follow": {"image": follow, "reveal": None}, "reveal": None,
-            "id": "hook"}, card
+            "id": "hook", "frame0": info}, card
 
 
-def render_slides(cfg: dict, m: dict, seg: dict, pkg: dict, workdir: Path) -> tuple[list[dict], Path]:
-    """The concept Short's slides (one per scene) → (slides, hook card path = the thumbnail / Reel cover)."""
+def render_slides(cfg: dict, m: dict, seg: dict, pkg: dict, workdir: Path, log=_log) -> tuple[list[dict], Path]:
+    """The concept Short's slides (one per scene; a long text scene carries its later pages as `pages`) → (slides,
+    hook card path = the thumbnail / Reel cover: the card words over the segment's diagram or the icon card)."""
     workdir = Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)
     ctx = _ctx(cfg, m)
-    cover, card = _cover(ctx, pkg.get("card") or pkg["hook"], term_slide(ctx, seg["term"]), workdir)
+    cover, card = _cover(ctx, pkg.get("card") or pkg["hook"], term_slide(ctx, seg["term"]), workdir, seg=seg,
+                         log=log)
     out = [cover]
     path = workdir / "short_02.png"
     if seg.get("diagram"):
@@ -791,12 +1048,9 @@ def render_slides(cfg: dict, m: dict, seg: dict, pkg: dict, workdir: Path) -> tu
         slide["base"], slide["steps"] = diagrams.step_layers(
             lambda show: diagram_slide(ctx, seg["term"], spec, show=show), diagrams.steps(spec), workdir, "short_02")
     else:
-        text_slide(ctx, seg["term"].upper(), seg["facts"][0]).save(path)
-        slide = {"image": path, "reveal": None, "id": "explain"}
+        slide = text_scene(ctx, seg["term"].upper(), seg["facts"][0], path, "explain")
     out.append(slide)
-    path = workdir / "short_03.png"
-    text_slide(ctx, "REMEMBER", seg["facts"][0]).save(path)
-    out.append({"image": path, "reveal": None, "id": "payoff"})
+    out.append(text_scene(ctx, "REMEMBER", seg["facts"][0], workdir / "short_03.png", "payoff"))
     return out, card
 
 
@@ -811,8 +1065,12 @@ def _change(m: dict, sym: str):
 
 
 def lead_coin(m: dict) -> str:
-    """The coin whose move leads: the biggest move among coins with a chart series (else any coin)."""
+    """The coin whose move leads: a pulse material's own `lead` (the coin its hook is about) when it has a chart
+    series, else the biggest move among coins with a chart series (else any coin)."""
     nums, series = m["market"]["numbers"], m["market"].get("series") or {}
+    lead = m["market"].get("lead")
+    if lead in nums and len(series.get(lead) or []) >= 2:
+        return lead
     with_series = [s for s in nums if len(series.get(s) or []) >= 2] or list(nums)
     return max(with_series, key=lambda s: abs(_change(m, s) or 0))
 
@@ -850,15 +1108,16 @@ def chart_slide(ctx: _Ctx, m: dict, sym: str) -> tuple[Image.Image, tuple]:
     return img, (x0, y, x1 - x0, y1 - y)
 
 
-def render_market_slides(cfg: dict, m: dict, pkg: dict, workdir: Path) -> tuple[list[dict], Path]:
-    """The market Short's slides → (slides, hook card path)."""
+def render_market_slides(cfg: dict, m: dict, pkg: dict, workdir: Path, log=_log) -> tuple[list[dict], Path]:
+    """The market Short's slides → (slides, hook card path = the card words over the lead coin's badge, %-move pill
+    and move chart)."""
     workdir = Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)
     ctx = _ctx(cfg, m)
     sym = lead_coin(m)
     has_chart = len((m["market"].get("series") or {}).get(sym) or []) >= 2
     follow, box = chart_slide(ctx, m, sym) if has_chart else (term_slide(ctx, pkg["hook"]), None)
-    cover, card = _cover(ctx, pkg.get("card") or pkg["hook"], follow, workdir)
+    cover, card = _cover(ctx, pkg.get("card") or pkg["hook"], follow, workdir, m=m, log=log)
     cover["follow"]["reveal"] = box  # the move draws in left to right
     spec = market_diagram(m)
     path = workdir / "short_02.png"
@@ -869,9 +1128,7 @@ def render_market_slides(cfg: dict, m: dict, pkg: dict, workdir: Path) -> tuple[
     nums = m["market"]["numbers"]
     lines = [f"{_clean(nums[s].get('name')) or s}: {_pct(_change(m, s))}" for s in list(nums)[:4]
              if _change(m, s) is not None]
-    path3 = workdir / "short_03.png"
-    text_slide(ctx, "THE NUMBERS", " · ".join(lines)).save(path3)
-    return [cover, slide, {"image": path3, "reveal": None, "id": "payoff"}], card
+    return [cover, slide, text_scene(ctx, "THE NUMBERS", " · ".join(lines), workdir / "short_03.png", "payoff")], card
 
 
 # ─── packaging ─────────────────────────────────────────────────────────────

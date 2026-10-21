@@ -890,9 +890,9 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     audio, total = narrate(v, pkg["scenes"], cfg["video"]["max_seconds"], workdir, pauses=True,
                            what="Short narration", log=log)
     if market:
-        pics, thumb = shorts.render_market_slides(cfg, m, pkg, workdir)
+        pics, thumb = shorts.render_market_slides(cfg, m, pkg, workdir, log=log)
     else:
-        pics, thumb = shorts.render_slides(cfg, m, seg, pkg, workdir)
+        pics, thumb = shorts.render_slides(cfg, m, seg, pkg, workdir, log=log)
     reveal.time_steps(pics, pkg["scenes"], audio, log=log)
     music_files = sorted((ROOT / "music").glob("*.mp3"))
     out = workdir / "short.mp4"
