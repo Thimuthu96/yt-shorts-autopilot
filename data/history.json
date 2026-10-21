@@ -2018,6 +2018,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-21T12:03:36+00:00",
+      "brief_date": "2026-10-21",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "SPACEX AND TESLA EXPLORE MERGER WITH 30,000 BTC",
+      "fb_post_id": "462331040302049_122254130426610202",
+      "headlines": [
+        "Bitcoin advances as SpaceX, Tesla explore a merger holding 30,000 BTC: Crypto Markets Today"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
