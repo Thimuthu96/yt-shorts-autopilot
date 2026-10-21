@@ -6,9 +6,9 @@ so a day with a planned long video and a trigger has 2 long videos, ≤ 5 upload
     day_shorts(history, date)             … of them the Shorts (kind short, plus legacy market / gold / none)
     day_longs(history, date)              … of them the long videos (LONG_KINDS: basics, lesson, triggered, recap)
     long_videos(history, now)             the ISO week's counting long uploads (basics, lesson, triggered, recap)
-    short_skip(history, state, key, now, cfg) -> reason | ''
+    short_skip(history, now, cfg) -> reason | ''
         A timed Short is skipped when the day already has `shorts_day_cap` (3) Shorts. Long videos never take a
-        Short's slot (Short B no longer yields to a triggered video); `state` (the trigger state) is unused.
+        Short's slot (Short B no longer yields to a triggered video).
     Triggered videos are never held by the daily budget (owner, 2026-10-21: "trigger first, same day"): the trigger
     poll dispatches a due trigger within its own limits (autopilot/triggers.py), and Basics / Lesson still run that
     day. `long_day_cap` (1) limits the evergreen top-up (main.floor_top_up waits when the day has that many long
@@ -72,7 +72,7 @@ def long_videos(history, now: datetime) -> list[dict]:
     return out
 
 
-def short_skip(history, state: dict | None, session_key: str, now: datetime, cfg: dict | None = None) -> str:
+def short_skip(history, now: datetime, cfg: dict | None = None) -> str:
     """'' = the timed Short goes ahead, else why it skips (logged by main). Only the Shorts cap counts."""
     cap = limits(cfg)["shorts_day_cap"]
     shorts = day_shorts(history, now.astimezone(timezone.utc).strftime("%Y-%m-%d"))

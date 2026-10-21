@@ -1159,7 +1159,7 @@ def main(argv: list[str] | None = None) -> int:
             and not history.published_on(today, session_key, "youtube"):
         # the daily budget (crypto-pivot 5.2, epic-shorts-reach 6.5): at most 3 Shorts a day on YouTube (manual ones
         # count); long videos never take a Short's slot (a triggered video is never held either: owner 2026-10-21)
-        why = slate.short_skip(history, triggers.load_state(ROOT / triggers.STATE), session_key, now, cfg)
+        why = slate.short_skip(history, now, cfg)
         if why:
             log(f"{label} skipped: {why}. Nothing to publish in this slot.")
             return 0

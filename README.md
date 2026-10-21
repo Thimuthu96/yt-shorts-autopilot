@@ -10,7 +10,7 @@ Page. Every edition runs 7 days a week (no forex weekend rule).
 |---|---|---|---|---|
 | Short P (`short_p`) | 00:30 daily | 06:00 | market-pulse Short from the day's fetched data (timed runs skip while `pulse.enabled` is false) | YouTube Short + Facebook Reel |
 | Morning News (`news_morning`) | 12:00 daily | 17:30 | news image post: one crypto story | Facebook |
-| Short A (`short_a`) | 13:00 daily | 18:30 | standalone Short from a long video's material | YouTube Short + Facebook Reel |
+| Short A (`short_a`) | 13:00 daily | 18:30 | standalone Short from a long video's material (a market-pulse Short first once `pulse.enabled` is true) | YouTube Short + Facebook Reel |
 | Crypto Basics (`basics`) | 15:00 Wed | 20:30 | the next approved beginner explainer | YouTube 16:9 + Facebook 9:16 video |
 | Trading Lesson (`lesson`) | 15:00 Thu | 20:30 | the next curriculum episode | YouTube 16:9 + Facebook 9:16 video |
 | Weekly Recap (`recap`) | 15:00 Sat | 20:30 | the week's biggest moves and why; skipped in a week with a triggered video → evergreen top-up when the week is short | YouTube 16:9 |
@@ -337,6 +337,9 @@ get_token.py            one-time YouTube login
 autopilot/sources.py    news feeds, economic calendar, crypto, forex + gold prices, US yields, CPI
 autopilot/focus.py      picks each brief's lead story and the assets it moves
 autopilot/slate.py      the slate's budget: 3 Shorts + 1 long video a day, weekly floor/cap (triggered videos never held)
+autopilot/shorts.py     standalone Shorts: picking (market / pulse, concept rotation + 7-day topic cooldown), script,
+                        visual frame 0, slides, metadata
+autopilot/pulse.py      market-pulse material from the day's fetched data (no LLM; a quiet market writes none)
 autopilot/script.py     research note, grounded script + fact-check against the data (Gemini)
 autopilot/slides.py     shared slide constants + the (retired) brief's charts, kept as the offline render fixture
 autopilot/thumbnail.py  thumbnail templates + picking one from the data

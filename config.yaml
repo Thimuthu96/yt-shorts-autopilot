@@ -109,8 +109,9 @@ sessions:
     days: [sat]
     platforms: [youtube]
   # Standalone Shorts (kind: short, CAP-2): an original 30-40 s vertical Short written from one segment of a long
-  # video's Shorts material (data/material/), YouTube Short + Facebook Reel. On since the slate release (5.7) (`shorts.enabled`)
-  # (false → timed runs skip; manual runs make + publish). Short P 00:30, Short A 13:00, Short B 23:00 UTC.
+  # video's Shorts material (data/material/) or, pulse-first, from the day's pulse material; YouTube Short + Facebook
+  # Reel. On since the slate release (5.7) (`shorts.enabled`) (false → timed runs skip; manual runs make + publish).
+  # Short P 00:30, Short A 13:00, Short B 23:00 UTC.
   # `pulse: true` = pulse-first (epic-shorts-reach 6.2) once pulse.enabled is true: fresh pulse material
   # (autopilot/pulse.py) → a market Short from it; a quiet market → a concept Short, else the slot skips.
   short_a:

@@ -16,7 +16,7 @@ data/material/pulse-<YYYY-MM-DD>-<slot>.json in the market material format (auto
                                      no price data → (None, "no price data"); |lead move| < pulse.quiet_move_pct with no
                                      cause → (None, "quiet market: …"); material.build_pulse failing material.validate →
                                      (None, "invalid pulse material: <problems>"); else (material, what it holds)
-    make(cfg, root, slot, now, log, fetch, related) -> (path | None, reason)
+    make(cfg, root, slot, now, log, fetch, related, used) -> (path | None, reason)
                                      fetch + build + material.write (a second build for the same date + slot merges
                                      into the existing file); the builder the pulse Short (6.2) calls:
                                      main.make_pulse passes the latest long video (shorts.latest_long) as `related`

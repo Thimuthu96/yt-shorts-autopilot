@@ -6227,7 +6227,7 @@ def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetim
                 elif wd == 5 and not any(v["kind"] == "triggered" for v in slate.long_videos(hist, when)):
                     up("recap", "recap", when)
                 continue
-            why = slate.short_skip(hist, state, what, when, cfg)
+            why = slate.short_skip(hist, when, cfg)
             if why:
                 logs.append(f"{what} {when:%a} skips: {why}")
             else:

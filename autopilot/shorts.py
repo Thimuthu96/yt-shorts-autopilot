@@ -1,6 +1,7 @@
 """Standalone Shorts (epic-standalone-shorts, kind: short): an original 30-40 second vertical piece with its own hook
-and script, written from one segment of a long video's Shorts material (autopilot/material.py). Dark until
-`shorts.enabled`: timed short_a / short_b runs log and skip; manual runs make and publish.
+and script, written from one segment of a long video's Shorts material (autopilot/material.py), or a market-pulse
+Short from the day's fetched pulse material (autopilot/pulse.py; short_p, short_a once pulse.enabled). While
+`shorts.enabled` is false, timed short_p / short_a / short_b runs log and skip; manual runs make and publish.
 
     load_materials(root, log)            every valid data/material/*.json (invalid files logged and skipped)
     key(m)                               "<source kind>-<source id>" (what a Short's history entry names)
@@ -22,9 +23,9 @@ and script, written from one segment of a long video's Shorts material (autopilo
                                          pulse only when passed) under
                                          MARKET_MAX_DAYS old with an unused hook candidate and fewer than
                                          MAX_PER_MARKET Shorts, else None (an old or used-up source is logged)
-    pick(materials, history, now, log)   the daily mix for short_a / short_b: a market Short when one is due
-                                         (about 4 a week from 2 market videos), else a concept Short (pick_concept:
-                                         source rotation + topic cooldown), else None (slot skipped)
+    pick(materials, history, now, log)   the daily mix (short_b; short_a until pulse.enabled): a market Short when
+                                         one is due (about 4 a week from 2 market videos), else a concept Short
+                                         (pick_concept: source rotation + topic cooldown), else None (slot skipped)
     latest_long(history, now)            the related video of a pulse Short: the newest counting basics / lesson /
                                          triggered / recap upload with a video id whose publish time (publish_at,
                                          else date) has passed → its id, else None (no link line)
@@ -52,7 +53,7 @@ and script, written from one segment of a long video's Shorts material (autopilo
     write_concept(cfg, m, seg, log)      Gemini writes {hook, scenes: hook / explain / payoff}; 3 attempts
     render_slides(cfg, m, seg, pkg, wd)  9:16: the hook card (frame 0, `cover`) → the term, the segment's diagram
                                          with step reveal (diagrams.step_layers) or its fact, the payoff card
-    hook_card(ctx, text, m, seg)         frame 0 (E6-4; = thumbnail.jpg = the Reel cover, its info kept on the cover
+    hook_card(ctx, text, m, seg, log)    frame 0 (E6-4; = thumbnail.jpg = the Reel cover, its info kept on the cover
                                          slide as `frame0`): 1-CARD_WORDS card words (a longer hook is cut) on top of a
                                          visual, never text alone: market / pulse → the lead coin's drawn badge +
                                          %-move pill ("−7.2% · 24h", recap "· 7d") over its move chart (no ≥ 2-point
@@ -1059,9 +1060,8 @@ def _pct(v: float) -> str:
 
 
 def _change(m: dict, sym: str):
-    n = m["market"]["numbers"].get(sym) or {}
-    first = "change_7d" if m["source"]["kind"] == "recap" else "change_24h"
-    return n.get(first) if n.get(first) is not None else n.get("change_7d" if first == "change_24h" else "change_24h")
+    """The coin's move in % (recap: change_7d first, else change_24h first; see _move)."""
+    return _move(m, sym)[0]
 
 
 def lead_coin(m: dict) -> str:
