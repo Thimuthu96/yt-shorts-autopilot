@@ -5045,6 +5045,7 @@ class _ShortRun:
         self.tmp = Path(tempfile.mkdtemp())
         live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
         self.cfg = json.loads(json.dumps(live))
+        self.cfg.setdefault("pulse", {})["enabled"] = False  # tests opt in to pulse-first (`update`)
         for k, v in (update or {}).items():
             self.cfg.setdefault(k, {}).update(v)
         (self.tmp / "config.yaml").write_text(yaml.safe_dump(self.cfg, allow_unicode=True), encoding="utf-8")
@@ -5923,7 +5924,7 @@ def _pulse_answer(n: int, prompt: str) -> dict:
 
 def test_short_pulse(cfg):
     """Pulse Short (epic-shorts-reach entry 6.2): the live config has short_p (kind short, pulse-first, gate: pulse,
-    start_utc 00:30 since 6.5), short_a pulse-first, pulse.enabled false and autopilot.yml offers short_p. A manual short_p run on
+    start_utc 00:30 since 6.5), short_a pulse-first, pulse.enabled true (6.6) and autopilot.yml offers short_p. A manual short_p run on
     ETH −5% + an ETH story with a published lesson LV9 builds fresh pulse material (stub fetch) and publishes (mocked)
     a pulse Short: title = the pulse hook (no date / stamp, title rules pass), spoken numbers ⊂ the snapshot,
     youtu.be/LV9 on the description's and Reel caption's first line ("▶ Latest video"), CoinGecko credit once, no
@@ -5941,16 +5942,15 @@ def test_short_pulse(cfg):
     sp = live["sessions"]["short_p"]
     assert sp["kind"] == "short" and sp["pulse"] is True and sp["gate"] == "pulse" and sp["start_utc"] == "00:30", sp
     assert live["sessions"]["short_a"]["pulse"] is True and not live["sessions"]["short_b"].get("pulse")
-    assert live["pulse"]["enabled"] is False
+    assert live["pulse"]["enabled"] is True  # on since the pulse release (6.6)
     assert {k: app.DEFAULT_SESSIONS["short_p"][k] for k in ("kind", "pulse", "gate", "start_utc")} == \
         {"kind": "short", "pulse": True, "gate": "pulse", "start_utc": "00:30"}
     assert app.DEFAULT_SESSIONS["short_a"]["pulse"] is True
     ap = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
     assert "short_p" in ap.get("on", ap.get(True))["workflow_dispatch"]["inputs"]["session"]["options"]
-    assert app.pulse_first(live, "short_p") and not app.pulse_first(live, "short_a")
-    assert not app.pulse_first(live, "short_b")
-    on = dict(live, pulse=dict(live["pulse"], enabled=True))
-    assert app.pulse_first(on, "short_a") and not app.pulse_first(on, "short_b")
+    assert app.pulse_first(live, "short_p") and app.pulse_first(live, "short_a") and not app.pulse_first(live, "short_b")
+    off = dict(live, pulse=dict(live["pulse"], enabled=False))
+    assert app.pulse_first(off, "short_p") and not app.pulse_first(off, "short_a") and not app.pulse_first(off, "short_b")
 
     day = timedelta(days=1)
     t0 = (SHORT_NOW - timedelta(hours=1)).isoformat()
@@ -6027,7 +6027,7 @@ def test_short_pulse(cfg):
         app.render.build_video = lambda audio, pics, cfg_, wd, out, music=None: Path(out).write_bytes(b"mp4") and 0.0
         # timed short_p while pulse.enabled is false: logged, exit 0, no fetch
         calls.clear()
-        with _ShortRun([_basics_material(cfg)]) as r:
+        with _ShortRun([_basics_material(cfg)], update={"pulse": {"enabled": False}}) as r:
             assert r.run("--session", "short_p", "--scheduled") == 0
             assert any(x.startswith("pulse.enabled is false") for x in r.logs), r.logs
             assert not calls and not r.prompts and not r.yt and not r.history()
@@ -6083,7 +6083,7 @@ def test_short_pulse(cfg):
             assert not calls and r.history()[-1]["short_kind"] == "market" and r.history()[-1]["segment"] == "hook_0"
     finally:
         triggers.fetch, app.render.build_video = saved
-    print("OK short pulse: live config (short_p gated by pulse, due 00:30; pulse.enabled false; dispatch offers "
+    print("OK short pulse: live config (short_p gated by pulse, due 00:30; pulse.enabled true; dispatch offers "
           "short_p); manual short_p → pulse Short (hook title, snapshot numbers, ▶ Latest video youtu.be/LV9, credit "
           "once, history short_kind pulse, output material.json); dark timed short_p skips without fetching; quiet / "
           "fetch error / used hooks → concept; no concept left → skip + low-stock; short_b and timed short_a keep "

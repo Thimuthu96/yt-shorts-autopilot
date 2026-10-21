@@ -256,9 +256,9 @@ shorts:
 # moved less than quiet_move_pct in 24 h with no story behind it writes no material ("quiet market"). Re-tunable at the
 # 7-day check.
 pulse:
-  # Switch (6.6 turns it on): while false, timed short_p runs (gate: pulse) log and skip and short_a keeps today's
+  # Switch (on since 6.6): false → timed short_p runs (gate: pulse) log and skip and short_a keeps the plain Shorts
   # mix (no fetch); a manual short_p run still makes and publishes a pulse Short.
-  enabled: false
+  enabled: true
   quiet_move_pct: 1.5         # |lead 24 h move| under this and no cause story → quiet market, no pulse material
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────

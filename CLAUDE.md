@@ -220,8 +220,8 @@ Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make
   `basics`, `triggers`, `recap`, `shorts` and `evergreen` (`*.enabled`); while one is false its timed runs skip.
 - **Market-pulse Short (`short_p`, epic-shorts-reach 6.2; timed by 6.5):** `pulse: true` + `gate: pulse`, due 00:30
   UTC every day (config `start_utc`, `DEFAULT_SESSIONS`, backup cron `47 0 * * *` in EDITION + concurrency.group;
-  setup_cronjobs.py lists its job, which the owner creates in 6.6). While `pulse.enabled` is false (it ships false;
-  6.6 flips it) timed short_p runs log and exit 0 (the gate is checked before the late window) and short_a keeps
+  setup_cronjobs.py lists its job, which the owner creates in 6.6). `pulse.enabled` is true since the pulse release (6.6);
+  set it false and timed short_p runs log and exit 0 (the gate is checked before the late window) and short_a keeps
   today's mix; a manual short_p run makes and publishes a pulse Short (or the concept fallback).
 - **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
   work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (`--delete-retired` deletes the retired jobs).
@@ -304,8 +304,8 @@ live until the owner pushes; do these in order, on a **Monday** (the owner picks
 6. First day: Shorts at 13:00 and 23:00, news posts at 12:00, 16:00 and 21:00, no legacy edition runs, cron-job.org
    lists only the slate's nine jobs, and the trigger poll's runs log their evaluation with triggers enabled.
 7. Pulse release (epic-shorts-reach 6.6): run `python setup_cronjobs.py` again (check with `--dry-run`: it lists
-   `CryptoFX · short_p` at 00:30 UTC, every day) to create the **00:30 short_p job** (the slate's tenth), then flip
-   `pulse.enabled: true`. Until then the `47 0 * * *` backup cron's short_p runs log the gate and exit 0.
+   `CryptoFX · short_p` at 00:30 UTC, every day) to create the **00:30 short_p job** (the slate's tenth). The code ships `pulse.enabled: true`, so from the push
+   short_a is pulse-first and short_p runs (the `47 0 * * *` backup cron covers it until the job exists).
 
 ## Files
 
