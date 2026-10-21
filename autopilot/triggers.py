@@ -43,8 +43,9 @@ Limits (state in data/triggers.json, written only by the poll job, `python -m au
                                      uploaded → published; pending / dispatched more than publish_window_hours (3)
                                      past its due time → dropped with a log line
     due_now(state, now, cfg) -> trigger | None  the pending trigger whose due time has come (within the window)
-    hold(t, history, now, cfg, log) -> bool  the daily budget (autopilot/slate.py): a due trigger that would be
-                                     the day's fourth YouTube upload moves its due time to 00:00 UTC next day
+    hold(t, history, now, cfg, log) -> bool  the daily budget (autopilot/slate.py): a due trigger on a day that
+                                     already has its long video (slate.long_day_cap, 1) or a standing Basics /
+                                     Lesson edition still to come moves its due time to 00:00 UTC next day
     mark_dispatched(state, id, now)
 Spacing and the cap count published `kind: triggered` history records (simulated ones never count).
 
@@ -436,9 +437,10 @@ def due_now(state: dict, now: datetime | None = None, cfg: dict | None = None) -
 
 
 def hold(t: dict, history, now: datetime | None = None, cfg: dict | None = None, log=print) -> bool:
-    """The daily upload budget (autopilot/slate.py, crypto-pivot 5.2): a due trigger that would be the day's
-    fourth YouTube upload holds to 00:00 UTC next day: its due time moves there (the publish window then counts
-    from it). True = held (not dispatched now)."""
+    """The daily upload budget (autopilot/slate.py, crypto-pivot 5.2, epic-shorts-reach 6.5): a due trigger on a
+    day that already has its long video (slate.long_day_cap, 1 a day) or whose standing Basics / Lesson edition is
+    still to come holds to 00:00 UTC next day: its due time moves there (the publish window then counts from it).
+    True = held (not dispatched now)."""
     from autopilot import slate
     now = _now(now)
     why = slate.hold_reason(history, now, cfg)

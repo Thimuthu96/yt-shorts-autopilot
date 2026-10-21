@@ -110,7 +110,7 @@ sessions:
     platforms: [youtube]
   # Standalone Shorts (kind: short, CAP-2): an original 30-40 s vertical Short written from one segment of a long
   # video's Shorts material (data/material/), YouTube Short + Facebook Reel. On since the slate release (5.7) (`shorts.enabled`)
-  # (false → timed runs skip; manual runs make + publish). Short A 13:00, Short B 23:00 UTC.
+  # (false → timed runs skip; manual runs make + publish). Short P 00:30, Short A 13:00, Short B 23:00 UTC.
   # `pulse: true` = pulse-first (epic-shorts-reach 6.2) once pulse.enabled is true: fresh pulse material
   # (autopilot/pulse.py) → a market Short from it; a quiet market → a concept Short, else the slot skips.
   short_a:
@@ -128,11 +128,12 @@ sessions:
     platforms: [youtube, facebook]
   # Market-pulse Short (kind: short, epic-shorts-reach 6.2): always pulse-first when it runs (fresh pulse material →
   # a market Short; quiet market → a concept Short, else the slot skips). `gate: pulse` = timed runs log and skip
-  # while pulse.enabled is false (manual runs make + publish). No start_utc yet: 6.5 times it (00:30 UTC), so it has
-  # no timer job, no backup cron and no late window until then.
+  # while pulse.enabled is false (manual runs make + publish). Due 00:30 UTC (= 06:00 Sri Lanka, epic-shorts-reach 6.5),
+  # every day; backup cron 47 0 * * *; its cron-job.org job is created by the owner with setup_cronjobs.py (6.6).
   short_p:
     label: Short P
     short: Short P
+    start_utc: "00:30"
     kind: short
     pulse: true
     gate: pulse
@@ -142,10 +143,13 @@ sessions:
 max_late_minutes: 180
 
 # ─── The slate's upload budget (autopilot/slate.py, weekly-slate.md) ────────
+# Per UTC day on YouTube: at most 3 Shorts (short_p, short_a, short_b; manual uploads count) and 1 long video
+# (≤ 4 uploads a day). Long videos never take a Short's slot. (An old config's `day_cap` is read as shorts_day_cap.)
 slate:
-  day_cap: 3                  # YouTube uploads per UTC day: a timed Short skips at 3; a due trigger holds to 00:00
-  yield_days: [wed, thu]      # a triggered video takes Short B's (23:00) slot on these days (and on any day with a long video)
-  week_floor: 3               # long videos (basics, lesson, triggered, recap) per ISO week (UTC): top up below this …
+  shorts_day_cap: 3           # Shorts per UTC day: a timed Short skips at 3
+  long_day_cap: 1             # long videos (basics, lesson, triggered, recap) per UTC day: a due trigger holds to 00:00
+                              # UTC next day when the day has one, or when today's Basics / Lesson is still to come
+  week_floor: 2               # long videos per ISO week (UTC): top up below this (Basics + Lesson already make 2) …
   week_cap: 4                 # … and never upload a fifth
 
 # ─── Facebook Page (Graph API; secrets FB_PAGE_ID + FB_PAGE_TOKEN, see README) ─

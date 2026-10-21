@@ -5,8 +5,8 @@ Context for Claude Code. Read this before changing anything.
 ## What this is
 
 A fully automated faceless crypto-education channel, **CryptoFX Daily** (@CryptoFXDaily202), on the
-**crypto-only weekly slate** (crypto pivot, epic 5; weekly-slate.md): two standalone Shorts a day (YouTube
-Short + **Facebook Reel**), Crypto Basics (Wed) and a trading lesson (Thu) as YouTube 16:9 + Facebook 9:16
+**crypto-only weekly slate** (crypto pivot, epic 5; weekly-slate.md): three standalone Shorts a day (YouTube
+Short + **Facebook Reel**: short_p 00:30, short_a 13:00, short_b 23:00 UTC), Crypto Basics (Wed) and a trading lesson (Thu) as YouTube 16:9 + Facebook 9:16
 videos, triggered "why crypto moved" videos and a Saturday recap (YouTube only), evergreen top-ups for the
 weekly floor, plus **3 Facebook-only crypto news image posts a day**. The market briefs (asia / london /
 newyork) and the gold outlook are retired.
@@ -28,12 +28,19 @@ shared by every video format:
        Shorts → main.publish(): youtube.upload() + facebook.publish_reel(); Basics / lessons → YouTube 16:9 +
        facebook.publish_video() 9:16; triggered / recap → YouTube only; news posts → facebook.publish_photo()
   → history.json        logs the ids (dedupe, once-per-slot guard, the slate budget)
-  slate budget (autopilot/slate.py, config `slate`): ≤ 3 YouTube uploads per UTC day (timed Shorts skip at 3; Short B
-                        yields to a triggered video published / due that day on Wed/Thu or on a day with a long video;
-                        the trigger poll holds a would-be 4th trigger to 00:00 UTC next day: triggers.hold); 3-4 long
-                        videos (basics, lesson, triggered, recap) per ISO week: main.floor_top_up runs the evergreen
-                        top-up when a timed recap skips (Saturday) or at topup_sun (Sun 15:00) while the week has < 3;
-                        a counting long upload that would be the 5th is refused ("Weekly cap", exit 0)
+  slate budget (autopilot/slate.py, config `slate`; epic-shorts-reach 6.5): per UTC day on YouTube ≤ 3 Shorts
+                        (shorts_day_cap: kind short + legacy market / gold / none; manual uploads count) and ≤ 1 long
+                        video (long_day_cap: slate.LONG_KINDS basics / lesson / triggered / recap), so ≤ 4 uploads.
+                        Timed Shorts check only the Shorts cap (skip at 3, "… at most 3 Shorts a day"); no Short yields
+                        to a long video. The trigger poll checks only the long cap (slate.hold_reason → triggers.hold):
+                        a due trigger holds to 00:00 UTC next day when the day already has a long video, or when a
+                        standing long edition is still to come (an enabled basics / lesson session due today whose
+                        start_utc + max_late_minutes hasn't passed), so a Wednesday trigger can hold to Thu, then Fri
+                        00:00 (the recap and topup_sun are not looked ahead to). 2-4 long videos per ISO week:
+                        main.floor_top_up runs the evergreen top-up when a timed recap skips (Saturday) or at
+                        topup_sun (Sun 15:00) while the week has < 2 (week_floor); a counting long upload that would
+                        be the 5th is refused ("Weekly cap", exit 0). An old config with only `day_cap` still loads
+                        (= shorts_day_cap; `yield_days` ignored)
   news image post (kind: post, Facebook only):
   → news_post.pick_story()  48 h of news (all feeds incl. geopolitics + regulation) filtered to crypto
                             stories (is_crypto: crypto named in the headline or its lead, never only the
@@ -137,7 +144,7 @@ shared by every video format:
                             data/material/pulse-<date>-<slot>.json (no source video: youtube_id = a related long video or
                             null; `lead` + `headlines` added); |lead| < pulse.quiet_move_pct (1.5) with no story → none
                             ("quiet market"); shorts.pick_market serves only triggered / recap unless kinds=("pulse",)
-  standalone Shorts (kind: short, short_a 13:00 / short_b 23:00 UTC + short_p (market pulse, untimed until 6.5), YT Short +
+  standalone Shorts (kind: short, short_p 00:30 (market pulse) / short_a 13:00 / short_b 23:00 UTC, YT Short +
   FB Reel; switch: shorts.enabled, on since 5.7; autopilot/shorts.py + lesson_material.py; main.make_short → main.publish):
   → pulse-first (epic-shorts-reach 6.2; main.pulse_first = session `pulse: true` and (pulse.enabled or `gate: pulse`):
                             short_p always when it runs, short_a only once pulse.enabled is true (6.6); short_b never):
@@ -201,7 +208,7 @@ Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make
 | `news_midday` | Midday News | 16:00 | 21:30 | cron-job.org, every day | `17 16 * * *` | FB post |
 | `news_evening` | Evening News | 21:00 | 02:30 | cron-job.org, every day | `17 21 * * *` | FB post |
 | `short_b` | Short B | 23:00 | 04:30 | cron-job.org, every day | `17 23 * * *` | YT Short + FB Reel |
-| `short_p` | Short P (market pulse) | none yet (6.5 times it) | — | none yet | none | YT Short + FB Reel |
+| `short_p` | Short P (market pulse) | 00:30 | 06:00 | cron-job.org, every day (owner creates it in 6.6) | `47 0 * * *` | YT Short + FB Reel |
 | `triggered` | Why Crypto Moved | trigger's due time | — | triggers.yml poll (30 min) dispatches it | none | YT 16:9 |
 | `evergreen` | Evergreen top-up | — (`--slot`) | — | called by recap / topup_sun | none | the episode's |
 
@@ -210,10 +217,11 @@ Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make
 - Defined in `config.yaml → sessions` (label, short, start_utc, `kind`, `days`, `platforms`, Shorts: `pulse`, `gate`).
   `main.py` has `DEFAULT_SESSIONS` (news posts + Shorts) as a fallback if config lacks them. The release (5.7) turns on
   `basics`, `triggers`, `recap`, `shorts` and `evergreen` (`*.enabled`); while one is false its timed runs skip.
-- **Market-pulse Short (`short_p`, epic-shorts-reach 6.2):** `pulse: true` + `gate: pulse`, no `start_utc` until 6.5
-  times it (so no timer job, backup cron or late window yet). While `pulse.enabled` is false (it ships false; 6.6
-  flips it) timed short_p runs log and exit 0 and short_a keeps today's mix; a manual short_p run makes and publishes
-  a pulse Short (or the concept fallback).
+- **Market-pulse Short (`short_p`, epic-shorts-reach 6.2; timed by 6.5):** `pulse: true` + `gate: pulse`, due 00:30
+  UTC every day (config `start_utc`, `DEFAULT_SESSIONS`, backup cron `47 0 * * *` in EDITION + concurrency.group;
+  setup_cronjobs.py lists its job, which the owner creates in 6.6). While `pulse.enabled` is false (it ships false;
+  6.6 flips it) timed short_p runs log and exit 0 (the gate is checked before the late window) and short_a keeps
+  today's mix; a manual short_p run makes and publishes a pulse Short (or the concept fallback).
 - **`days`** (any session): timed runs on other weekdays are skipped with a log line; manual runs
   work any day. `setup_cronjobs.py` turns `days` into cron-job.org `wdays` (`--delete-retired` deletes the retired jobs).
 - **Crypto Basics is live (`basics.enabled: true`, 5.7):** the Wednesday timed run publishes the next approved
@@ -275,7 +283,8 @@ Entry point: `main.py`. Producing is in `make_short()` / `make_basics()` / `make
 Manual runs: Actions → Shorts autopilot → Run workflow → `session` (short_a/short_b/short_p/news_*/basics/lesson/recap/
 topup_sun/evergreen/triggered), `platforms` (all/youtube/facebook, limited to the edition's own), optional
 `as_edition`, `slot` (top-ups), `trigger` (triggered).
-**YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific); the slate uses ≤ 3.
+**YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific); the slate uses ≤ 4
+(3 Shorts + 1 long video).
 
 ## Release checklist (crypto slate, epic 5.7; owner, hitl)
 
@@ -293,6 +302,9 @@ live until the owner pushes; do these in order, on a **Monday** (the owner picks
    and creates short_a, short_b, basics, recap and topup_sun (lesson stays Thursday 15:00).
 6. First day: Shorts at 13:00 and 23:00, news posts at 12:00, 16:00 and 21:00, no legacy edition runs, cron-job.org
    lists only the slate's nine jobs, and the trigger poll's runs log their evaluation with triggers enabled.
+7. Pulse release (epic-shorts-reach 6.6): run `python setup_cronjobs.py` again (check with `--dry-run`: it lists
+   `CryptoFX · short_p` at 00:30 UTC, every day) to create the **00:30 short_p job** (the slate's tenth), then flip
+   `pulse.enabled: true`. Until then the `47 0 * * *` backup cron's short_p runs log the gate and exit 0.
 
 ## Files
 
@@ -306,8 +318,10 @@ setup_cronjobs.py        creates / fixes the cron-job.org jobs from config.yaml 
 autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frankfurter FX, gold, macro,
                          CoinGecko market overview (`python -m autopilot.sources overview`)
 autopilot/focus.py       lead story + related assets (keywords, scoring, typical market links)
-autopilot/slate.py       the slate budget: day_uploads, short_skip (3 a day, Short B yield), hold_reason (trigger hold),
-                         long_videos (ISO-week floor / cap), next_day
+autopilot/slate.py       the slate budget: limits (shorts_day_cap / long_day_cap / week_floor / week_cap; day_cap
+                         fallback), day_uploads / day_shorts / day_longs, short_skip (3 Shorts a day), hold_reason
+                         (1 long video a day + the standing Basics / Lesson look-ahead), long_videos (ISO-week floor 2 /
+                         cap 4), next_day
 autopilot/script.py      Gemini prompt, fact-check, validate, fix_visuals (scene types)
 autopilot/rules.py       shared narration rules: narration_problems(text) + NARRATION_RULES prompt text; date/time patterns
                          + packaging checks title_problems(title) / thumbnail_text_problems(text) (CAP-8): logged
@@ -383,7 +397,7 @@ data/material/           Shorts material per published long video (<kind>-<id>.j
                          Short's run leaves a copy in output/<stamp>/material.json), merged and committed by the
                          workflow's Save history step
 assets/backgrounds/      optional own images per news topic (<topic>/*.jpg, or general/)
-.github/workflows/autopilot.yml   9 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled, slot)
+.github/workflows/autopilot.yml   10 backup crons + workflow_dispatch inputs (session, platforms, as_edition, scheduled, slot)
 ```
 
 ## Data sources (all free, no API keys)
@@ -644,7 +658,7 @@ the workflow keeps them 7 days as run artifacts. Look at the `contact.png` / fra
 - GitHub scheduled runs can start hours late or never (hence the outside timer); schedules
   also pause after 60 days of repo inactivity. A green 1-min run = a skip; read its last log line.
 - Run times in the Actions UI are in the browser's time zone (GMT+5:30), not UTC.
-- cron-job.org `401` = PAT expired (1-year expiry) → new token into all nine jobs (setup_cronjobs.py re-patches them).
+- cron-job.org `401` = PAT expired (1-year expiry) → new token into all ten jobs (nine before 6.6) (setup_cronjobs.py re-patches them).
   `422` = `main`'s workflow lacks the `scheduled` input.
 - A cron expression in YAML must stay on one line inside `${{ }}`.
 - Node 20 deprecation warning for actions/checkout@v4, setup-python@v5, upload-artifact@v4 —

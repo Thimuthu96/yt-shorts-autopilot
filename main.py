@@ -5,8 +5,8 @@ trading lessons (YouTube 16:9 + Facebook 9:16 video), triggered "why crypto move
     python main.py --session short_a   # a standalone Short, made and published now (a manual run)
     python main.py --session short_b --scheduled   # timed run: days rule, late/early skip, daily budget, once a day
     python main.py --session news_morning   # a Facebook news image post
-    python main.py --session short_p   # a market-pulse Short (YT Short + FB Reel) from fresh data; timed runs skip
-                                       # while pulse.enabled is false (session gate: pulse)
+    python main.py --session short_p   # a market-pulse Short (YT Short + FB Reel) from fresh data, due 00:30 UTC;
+                                       # timed runs skip while pulse.enabled is false (session gate: pulse)
     python main.py --session short_a --no-upload   # make it only, saved in output/
     python main.py --session short_a --platforms facebook   # publish to Facebook only
     python main.py --session short_a --as-edition  # manual run that fills today's slot (timed run skips)
@@ -56,9 +56,10 @@ DEFAULT_SESSIONS = {
                     "platforms": ["facebook"]},
     "news_evening": {"label": "Evening News", "short": "News", "start_utc": "21:00", "kind": "post",
                      "platforms": ["facebook"]},
-    # short_p (market pulse, epic-shorts-reach 6.2): no start_utc until 6.5 times it; gate: pulse = timed runs skip
+    # short_p (market pulse, epic-shorts-reach 6.2; timed at 00:30 UTC since 6.5); gate: pulse = timed runs skip
     # while pulse.enabled is false. pulse: True = pulse-first (short_p always; short_a once pulse.enabled is true)
-    "short_p": {"label": "Short P", "short": "Short P", "kind": "short", "pulse": True, "gate": "pulse"},
+    "short_p": {"label": "Short P", "short": "Short P", "start_utc": "00:30", "kind": "short", "pulse": True,
+                "gate": "pulse"},
     "short_a": {"label": "Short A", "short": "Short A", "start_utc": "13:00", "kind": "short", "pulse": True},
     "short_b": {"label": "Short B", "short": "Short B", "start_utc": "23:00", "kind": "short"},
 }
@@ -924,7 +925,7 @@ def floor_top_up(cfg: dict, history: History, slot_key: str, now: datetime, args
         log(f"Weekly floor: this ISO week already has {len(have)} long videos (floor {lim['week_floor']}); no top-up.")
         return 0
     today = now.strftime("%Y-%m-%d")
-    used = [v for v in have if v.get("brief_date") == today]
+    used = slate.day_longs(history, today)  # manual long uploads today count too
     if used:
         log(f"Weekly floor: today already had a {used[0].get('kind')} long video, so the top-up waits for the next "
             "free slot (Sunday 15:00, topup_sun).")
@@ -1154,10 +1155,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if kind == "short" and args.scheduled and not args.force and "youtube" in wanted \
             and not history.published_on(today, session_key, "youtube"):
-        # the daily budget (crypto-pivot 5.2): at most 3 YouTube uploads a day; Short B yields to a triggered video
+        # the daily budget (crypto-pivot 5.2, epic-shorts-reach 6.5): at most 3 Shorts a day on YouTube (manual ones
+        # count); long videos have their own cap (1 a day, the trigger poll's hold), so no Short yields to one
         why = slate.short_skip(history, triggers.load_state(ROOT / triggers.STATE), session_key, now, cfg)
         if why:
-            log(f"{label} yields its slot today: {why}. Nothing to publish in this slot.")
+            log(f"{label} skipped: {why}. Nothing to publish in this slot.")
             return 0
     if kind == "recap" and args.scheduled and not (cfg.get("recap") or {}).get("enabled", False):
         log("recap.enabled is false in config.yaml (the Saturday recap is dark), so the timed run is skipped. "
