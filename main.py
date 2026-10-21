@@ -5,6 +5,8 @@ trading lessons (YouTube 16:9 + Facebook 9:16 video), triggered "why crypto move
     python main.py --session short_a   # a standalone Short, made and published now (a manual run)
     python main.py --session short_b --scheduled   # timed run: days rule, late/early skip, daily budget, once a day
     python main.py --session news_morning   # a Facebook news image post
+    python main.py --session short_p   # a market-pulse Short (YT Short + FB Reel) from fresh data, due 00:30 UTC;
+                                       # timed runs skip while pulse.enabled is false (session gate: pulse)
     python main.py --session short_a --no-upload   # make it only, saved in output/
     python main.py --session short_a --platforms facebook   # publish to Facebook only
     python main.py --session short_a --as-edition  # manual run that fills today's slot (timed run skips)
@@ -38,7 +40,7 @@ from pathlib import Path
 import yaml
 
 from autopilot import (basics, facebook, images, lesson_data, lesson_meta, lesson_script, lesson_slides,
-                       lessons, material, news_post, recap, render, reveal, shorts, slate, sources,
+                       lessons, material, news_post, pulse, recap, render, reveal, shorts, slate, sources,
                        triggered, triggers, voice)
 from autopilot import detectors  # noqa: F401  (registers the lesson detectors)
 from autopilot import lesson_material
@@ -54,7 +56,11 @@ DEFAULT_SESSIONS = {
                     "platforms": ["facebook"]},
     "news_evening": {"label": "Evening News", "short": "News", "start_utc": "21:00", "kind": "post",
                      "platforms": ["facebook"]},
-    "short_a": {"label": "Short A", "short": "Short A", "start_utc": "13:00", "kind": "short"},
+    # short_p (market pulse, epic-shorts-reach 6.2; timed at 00:30 UTC since 6.5); gate: pulse = timed runs skip
+    # while pulse.enabled is false. pulse: True = pulse-first (short_p always; short_a once pulse.enabled is true)
+    "short_p": {"label": "Short P", "short": "Short P", "start_utc": "00:30", "kind": "short", "pulse": True,
+                "gate": "pulse"},
+    "short_a": {"label": "Short A", "short": "Short A", "start_utc": "13:00", "kind": "short", "pulse": True},
     "short_b": {"label": "Short B", "short": "Short B", "start_utc": "23:00", "kind": "short"},
 }
 PLATFORMS = ("youtube", "facebook")
@@ -738,7 +744,7 @@ def make_recap(cfg: dict, history: History, session_key: str, date: str) -> dict
     if problems:
         raise RuntimeError(f"Recap packaging: {'; '.join(problems)}")
     data, overview = recap.fetch(cfg, log=log)
-    week = recap.build(data, overview)
+    week = recap.build(data, overview, datetime.now(timezone.utc))  # the run's clock (tests fix it)
     log("Recap moves: " + ", ".join(f"{s} {week['moves'][s]['change_7d']:+.1f}%" for s in week["coins"]))
     workdir = ROOT / "output" / datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
@@ -789,38 +795,93 @@ def short_lesson_materials(history: History) -> list[dict]:
     return lesson_material.from_history(history, curriculum, glossary, log=log)
 
 
+def pulse_first(cfg: dict, session_key: str) -> bool:
+    """A pulse-first Short session (epic-shorts-reach 6.2): `pulse: true` and either pulse.enabled or the session is
+    gated by pulse (short_p: its gate already stopped a dark timed run, so it is always pulse-first when it runs;
+    short_a stays on today's mix until pulse.enabled is true)."""
+    session = (cfg.get("sessions") or {}).get(session_key) or {}
+    return bool(session.get("pulse")) and (bool((cfg.get("pulse") or {}).get("enabled", False))
+                                           or session.get("gate") == "pulse")
+
+
+def make_pulse(cfg: dict, history: History, session_key: str, now: datetime) -> tuple[dict | None, str]:
+    """Fresh pulse material for this slot (autopilot/pulse.py): the latest long video as its related video →
+    pulse.make (fetch + build + data/material/pulse-<date>-<slot>.json) → the written file loaded (a same date +
+    slot file already there is merged, so that is what is served). (material, reason) or (None, why there is none:
+    a quiet market, no price data, invalid material or a fetch / build error)."""
+    related = shorts.latest_long(history, now)
+    log(f"Pulse: related long video {related or 'none (no link line)'}")
+    try:
+        path, why = pulse.make(cfg, ROOT, session_key, now=now, log=log, fetch=triggers.fetch, related=related)
+        if path is None:
+            return None, why
+        m = material.load(path)
+        problems = material.validate(m)
+        if problems:
+            return None, f"pulse material {path.name} is invalid: {'; '.join(problems)}"
+        return m, why
+    except Exception as e:  # a fetch / build failure never stops the slot: the concept fallback takes it
+        return None, f"pulse build failed: {e}"
+
+
 def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict | None:
     """One standalone Short (kind: short; autopilot/shorts.py) from the Shorts material in data/material/
     (shorts.pick: a market Short from a triggered / recap video under 3 days old with an unused hook candidate,
-    else a concept Short from the oldest Basics / Lesson material with an unused segment): a new 30-40 s script
-    (Gemini + shorts.check_script, 3 attempts; packaging rules), the A/B voice with pauses, 9:16 slides (hook card
-    = frame 0), render, metadata. None = nothing to make (logged). Returns made for main.publish."""
+    else a concept Short: shorts.pick_concept rotates over the Basics / Lesson materials (≤ 2 Shorts per source in
+    7 days unless nothing else is eligible) with a hard 7-day topic cooldown; the entry records the `topic`). A
+    pulse-first session (pulse_first: short_p; short_a once pulse.enabled) builds fresh pulse material first
+    (make_pulse) and makes a pulse Short from it through the market path (shorts.pick_pulse), else a concept
+    Short, else the slot skips.
+    Then a new 30-40 s script (Gemini + shorts.check_script, 3 attempts; packaging rules), the A/B voice with
+    pauses, 9:16 slides (hook card = frame 0), render, metadata. None = nothing to make (logged). Returns made
+    for main.publish."""
     now = datetime.now(timezone.utc)
+    fresh, why_none, first = None, "", pulse_first(cfg, session_key)
+    if first:
+        fresh, why = make_pulse(cfg, history, session_key, now)
+        why_none = "" if fresh else why
     materials = shorts.load_materials(ROOT, log=log) + short_lesson_materials(history)
     earlier, hooks, skip = shorts.fingerprints(history), shorts.used_hooks(history), set()
+    fell_back = False
     while True:  # originality guard: a segment whose script stays too close to an earlier Short's is passed over
-        picked = shorts.pick(materials, history, now, log=log, skip=skip)
+        picked = (shorts.pick_pulse(fresh, materials, history, now, log=log, skip=skip) if first
+                  else shorts.pick(materials, history, now, log=log, skip=skip))
+        reason = why_none or (f"every hook of {shorts.key(fresh)} is used, too close to an earlier Short or over "
+                              "the per-source cap" if fresh else "")
+        if first and picked and picked[0] == "concept" and not fell_back:
+            fell_back = True
+            log(f"Pulse: no pulse Short ({reason}); a concept Short takes the {session_key} slot.")
         if picked is None:
-            log(f"Shorts: no market hook or Basics / Lesson segment left unused; the {session_key} slot is skipped "
-                "(nothing to publish in this slot).")
-            log("Shorts low-stock warning: 0 unused concept segments; publish Basics / Lesson episodes to refill "
-                "the Shorts material.")
+            if first and not fell_back:
+                log(f"Pulse: no pulse Short ({reason}) and no eligible Basics / Lesson segment; the "
+                    f"{session_key} slot is skipped (nothing to publish in this slot).")
+            elif first:
+                log(f"Shorts: no eligible Basics / Lesson segment; the {session_key} slot is skipped "
+                    "(nothing to publish in this slot).")
+            else:
+                log(f"Shorts: no market hook or eligible Basics / Lesson segment; the {session_key} slot is skipped "
+                    "(nothing to publish in this slot).")
+            log(f"Shorts low-stock warning: 0 eligible concept segments (unused, topic not a concept Short in the "
+                f"last {shorts.COOLDOWN_DAYS} days); publish Basics / Lesson episodes to refill the Shorts material.")
             return None
         what, m, which = picked
-        seg, segment = (None, shorts.hook_id(which)) if what == "market" else (which, which["id"])
+        market = what in ("market", "pulse")
+        seg, segment = (None, shorts.hook_id(which)) if market else (which, which["id"])
         log(f"Short ({what}): {shorts.key(m)} · {segment} ("
-            + (m["market"]["hooks"][which] if what == "market" else seg["term"]) + ")")
+            + (m["market"]["hooks"][which] if market else seg["term"]) + ")")
         try:
-            pkg = (shorts.write_market(cfg, m, which, log=log, earlier=earlier, hooks=hooks) if what == "market"
+            pkg = (shorts.write_market(cfg, m, which, log=log, earlier=earlier, hooks=hooks) if market
                    else shorts.write_concept(cfg, m, seg, log=log, earlier=earlier, hooks=hooks))
             break
         except shorts.TooClose as e:
             log(f"Originality guard: {shorts.key(m)} · {segment}: {e}; moving to another segment")
             skip.add((shorts.key(m), segment))
-    left = shorts.stock(materials, history) - (what == "concept")
+    topic = shorts.topic(pkg["hook"]) if market else shorts.segment_topic(seg)
+    left = shorts.stock(materials, history, now, also=None if market else (shorts.key(m), segment, topic))
     if left < shorts.LOW_STOCK:
-        log(f"Shorts low-stock warning: {left} unused concept segment(s) left after this Short (under "
-            f"{shorts.LOW_STOCK}); publish Basics / Lesson episodes to refill the Shorts material.")
+        log(f"Shorts low-stock warning: {left} eligible concept segment(s) left after this Short (unused, topic not "
+            f"a concept Short in the last {shorts.COOLDOWN_DAYS} days; under {shorts.LOW_STOCK}); publish Basics / "
+            "Lesson episodes to refill the Shorts material.")
     workdir = ROOT / "output" / now.strftime("%Y%m%d-%H%M%S")
     workdir.mkdir(parents=True, exist_ok=True)
     (workdir / "package.json").write_text(json.dumps({"material": shorts.key(m), "segment": segment, **pkg},
@@ -829,10 +890,10 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     log(f"Voice: {v['name']}" + (" (A/B rotation)" if v.get("alternate") else ""))
     audio, total = narrate(v, pkg["scenes"], cfg["video"]["max_seconds"], workdir, pauses=True,
                            what="Short narration", log=log)
-    if what == "market":
-        pics, thumb = shorts.render_market_slides(cfg, m, pkg, workdir)
+    if market:
+        pics, thumb = shorts.render_market_slides(cfg, m, pkg, workdir, log=log)
     else:
-        pics, thumb = shorts.render_slides(cfg, m, seg, pkg, workdir)
+        pics, thumb = shorts.render_slides(cfg, m, seg, pkg, workdir, log=log)
     reveal.time_steps(pics, pkg["scenes"], audio, log=log)
     music_files = sorted((ROOT / "music").glob("*.mp3"))
     out = workdir / "short.mp4"
@@ -844,9 +905,12 @@ def make_short(cfg: dict, history: History, session_key: str, date: str) -> dict
     (workdir / "caption_fb.txt").write_text(fb_caption, encoding="utf-8")
     entry = {"date": now.isoformat(timespec="seconds"), "brief_date": date, "session": session_key, "kind": "short",
              "short_kind": what, "material": shorts.key(m), "segment": segment, "source_video": m.get("youtube_id"),
-             "hook": pkg["hook"], "fingerprint": pkg["fingerprint"], "title": meta["title"], "video_id": None,
+             "hook": pkg["hook"], "topic": topic, "fingerprint": pkg["fingerprint"], "title": meta["title"],
+             "video_id": None,
              "seconds": round(total, 1),
              "voice": audio[0]["voice"] if audio else v["name"], "workdir": str(workdir.relative_to(ROOT))}
+    if what == "pulse":  # the run's pulse material: the workflow's Save history step merges this copy after its reset
+        material.save(m, workdir / "material.json")
     return {"entry": entry, "video": out, "thumbnail": thumb, "meta": meta, "fb_caption": fb_caption, "material": m}
 
 
@@ -861,10 +925,12 @@ def floor_top_up(cfg: dict, history: History, slot_key: str, now: datetime, args
         log(f"Weekly floor: this ISO week already has {len(have)} long videos (floor {lim['week_floor']}); no top-up.")
         return 0
     today = now.strftime("%Y-%m-%d")
-    used = [v for v in have if v.get("brief_date") == today]
-    if used:
-        log(f"Weekly floor: today already had a {used[0].get('kind')} long video, so the top-up waits for the next "
-            "free slot (Sunday 15:00, topup_sun).")
+    used = slate.day_longs(history, today)  # manual and triggered long uploads today count too
+    if len(used) >= lim["long_day_cap"]:  # slate.long_day_cap (1): the top-up never makes a second long video today
+        kinds = ", ".join(sorted({str(v.get("kind")) for v in used}))
+        log(f"Weekly floor: today already had {len(used)} long video(s)" + (f" ({kinds})" if kinds else "")
+            + f" (at most {lim['long_day_cap']} a day before a top-up), so the top-up waits for the next free slot "
+            "(Sunday 15:00, topup_sun).")
         return 0
     log(f"Weekly floor: this ISO week has {len(have)} long video(s) (under {lim['week_floor']}): the evergreen "
         f"top-up fills today's {slot_key} slot.")
@@ -949,8 +1015,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-upload", action="store_true", help="make it only, publish nowhere")
     p.add_argument("--force", action="store_true", help="timed run: make it even if this edition is already up today")
     p.add_argument("--session", default="",
-                   help="news_morning | news_midday | news_evening | short_a | short_b | basics | lesson | recap | "
-                        "triggered | evergreen (the edition to make; required)")
+                   help="news_morning | news_midday | news_evening | short_a | short_b | short_p (market pulse) | "
+                        "basics | lesson | recap | triggered | evergreen (the edition to make; required)")
     p.add_argument("--platforms", default="all",
                    help="all | youtube | facebook | youtube,facebook (limited to the edition's own platforms)")
     p.add_argument("--scheduled", action="store_true",
@@ -1084,12 +1150,18 @@ def main(argv: list[str] | None = None) -> int:
         log("shorts.enabled is false in config.yaml (standalone Shorts are dark), so the timed run is skipped. "
             "A manual run (Run workflow, no `scheduled`) still makes and publishes one.")
         return 0
+    gate = str(session.get("gate") or "").strip()
+    if gate and args.scheduled and not (cfg.get(gate) or {}).get("enabled", False):
+        log(f"{gate}.enabled is false in config.yaml (the {label} edition is gated by it and dark), so the timed run "
+            "is skipped. A manual run (Run workflow, no `scheduled`) still makes and publishes it.")
+        return 0
     if kind == "short" and args.scheduled and not args.force and "youtube" in wanted \
             and not history.published_on(today, session_key, "youtube"):
-        # the daily budget (crypto-pivot 5.2): at most 3 YouTube uploads a day; Short B yields to a triggered video
-        why = slate.short_skip(history, triggers.load_state(ROOT / triggers.STATE), session_key, now, cfg)
+        # the daily budget (crypto-pivot 5.2, epic-shorts-reach 6.5): at most 3 Shorts a day on YouTube (manual ones
+        # count); long videos never take a Short's slot (a triggered video is never held either: owner 2026-10-21)
+        why = slate.short_skip(history, now, cfg)
         if why:
-            log(f"{label} yields its slot today: {why}. Nothing to publish in this slot.")
+            log(f"{label} skipped: {why}. Nothing to publish in this slot.")
             return 0
     if kind == "recap" and args.scheduled and not (cfg.get("recap") or {}).get("enabled", False):
         log("recap.enabled is false in config.yaml (the Saturday recap is dark), so the timed run is skipped. "

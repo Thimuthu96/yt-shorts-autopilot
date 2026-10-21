@@ -35,15 +35,29 @@ section is required:
                "causes": {"<SYM>": "<headline>" | null},
                "hooks": ["<hook question ≤ 60 chars>", …]}    at least 2 distinct, no title / narration rule broken
 
+Pulse material (source kind "pulse", epic-shorts-reach entry 6.1; autopilot/pulse.py builds it from the day's fetched
+data alone, no long video): market material whose source is {"kind": "pulse", "id": "<YYYY-MM-DD>-<slot>", "title"};
+`youtube_id` = the related long video when the builder was given one, else null (pulse is exempt from the platform-id
+rule; `facebook_id` null), `published_at` = the build time, `segments` []. Its `market` section adds:
+
+               "lead": "<SYM>",                                the coin the Short is about: in `numbers`, with a
+                                                               `series` of at least 2 points
+               "headlines": [{"title", "source", "published"}] the cause first, then other stories naming its coins
+
+    VIDEO_MARKET_SOURCES = ("triggered", "recap")   what shorts.pick_market serves by default (the current mix)
+    MARKET_SOURCES = VIDEO_MARKET_SOURCES + ("pulse",)
+
     build_triggered(trigger, meta, entry) / build_recap(recap, meta, entry)   market material of a published
                                          triggered / recap video (its fetched numbers, sources, series, causes and
                                          ≥ 2 hook candidates)
+    build_pulse(pulse, now, slot, related)   pulse material from pulse.pick_lead's result (lead, coins, moves, cause,
+                                         headlines, market, data_sources); `related` = the related long video id
     build_basics(topic, scenes, entry, cfg)  the material of one Basics episode: an overview segment (the
                                          question answered by the hook narration, the summary as its fact)
                                          + one concept segment per point (its narration without the
                                          subscribe ask, its diagram, its approved text as the fact)
     validate(m) -> [reason]              [] = usable
-    path_for(m, root)                    data/material/<kind>-<id>.json
+    path_for(m, root)                    data/material/<kind>-<id>.json (pulse: pulse-<YYYY-MM-DD>-<slot>.json)
     save(m, path) / load(path)           JSON (UTF-8, indented)
     merge(old, new)                      new's platform ids / publish time filled into old (idempotent)
     add(paths, root)                     merge each output copy into data/material/ (the workflow)
@@ -61,7 +75,9 @@ VERSION = 1
 MIN_SEGMENTS = 5  # owner, 2026-10-14: enough unused segments for ~10 evergreen Shorts a week
 MAX_HOOK = 60  # characters (packaging.md: a Short's title is its hook question, ≤ 60)
 KINDS = ("overview", "concept")
-MARKET_SOURCES = ("triggered", "recap")  # market material: a `market` section, no segment minimum
+PULSE = "pulse"  # market material built from the day's fetched data alone (no source video)
+VIDEO_MARKET_SOURCES = ("triggered", "recap")  # market material of a published long video
+MARKET_SOURCES = VIDEO_MARKET_SOURCES + (PULSE,)  # market material: a `market` section, no segment minimum
 MIN_HOOKS = 2  # market material: distinct hook candidates (epic 4 makes up to 2 Shorts from distinct ones)
 MARKET_FIELDS = ("numbers", "data_source", "credit", "series", "cause_headline", "hooks")
 FIELDS = ("version", "source", "youtube_id", "facebook_id", "published_at", "segments")
@@ -201,6 +217,31 @@ def build_recap(recap: dict, meta: dict, entry: dict) -> dict:
                         recap.get("market"), recap.get("data_sources") or [], causes, causes.get(first), hooks)
 
 
+def build_pulse(pulse: dict, now, slot: str, related: str | None = None) -> dict:
+    """Pulse material from pulse.pick_lead's result: the lead's fetched move, its cause and headlines, the coins'
+    numbers + series as fetched; `related` = the related long video's YouTube id (else null)."""
+    lead = pulse["lead"]
+    moves = pulse.get("moves") or {}
+    m = moves.get(lead) or {}
+    name = _clean(m.get("name")) or lead
+    move = m.get("change_24h") or 0.0
+    up, pct = move >= 0, _pct_words(move)
+    hooks = [f"Why did {name} just {'rise' if up else 'fall'} {pct}%?", f"Why is {name} {'up' if up else 'down'} {pct}%?",
+             f"What really moved {name}?"]
+    if pct == "0.0":  # a flat move: no "0.0%" hook (fewer than 2 hooks → the validator refuses the material)
+        hooks = hooks[2:]
+    cause = (pulse.get("cause") or {}).get("title")
+    coins = [s for s in pulse.get("coins") or [] if s in moves] or [lead]
+    entry = {"video_id": related or None, "fb_video_id": None,
+             "date": now.isoformat(timespec="seconds")}
+    out = _market_base(PULSE, f"{now:%Y-%m-%d}-{slot}", f"What moved {name}: {'up' if up else 'down'} {pct}% in 24 hours",
+                       entry, moves, pulse.get("market"), pulse.get("data_sources") or [],
+                       {s: cause if s == lead else None for s in coins}, cause, hooks)
+    out["market"]["lead"] = lead
+    out["market"]["headlines"] = [dict(h) for h in pulse.get("headlines") or []]
+    return out
+
+
 def _market_problems(mk) -> list[str]:
     if not isinstance(mk, dict):
         return ["market material needs a `market` section"]
@@ -224,6 +265,16 @@ def _market_problems(mk) -> list[str]:
     return out
 
 
+def _pulse_problems(mk: dict) -> list[str]:
+    """A pulse material's lead: one of its numbers, with a chart series of at least 2 points."""
+    lead = mk.get("lead")
+    if not (isinstance(lead, str) and isinstance(mk.get("numbers"), dict) and lead in mk["numbers"]):
+        return [f"pulse: lead {lead!r} must be one of the numbers"]
+    if len(((mk.get("series") or {}).get(lead)) or []) < 2:
+        return [f"pulse: lead {lead} needs a series of at least 2 points"]
+    return []
+
+
 def validate(m) -> list[str]:
     """Every problem with one material file ([] = usable), one reason each."""
     if not isinstance(m, dict):
@@ -234,7 +285,8 @@ def validate(m) -> list[str]:
     src = m.get("source")
     if not (isinstance(src, dict) and all(_clean(src.get(k)) for k in ("kind", "id", "title"))):
         out.append("source needs kind, id and title")
-    if "youtube_id" in m and "facebook_id" in m and not (m.get("youtube_id") or m.get("facebook_id")):
+    pulse = isinstance(src, dict) and src.get("kind") == PULSE  # no source video: no platform id needed
+    if not pulse and "youtube_id" in m and "facebook_id" in m and not (m.get("youtube_id") or m.get("facebook_id")):
         out.append("no platform id (youtube_id or facebook_id)")
     if "published_at" in m and not _clean(m.get("published_at")):
         out.append("empty published_at")
@@ -246,6 +298,8 @@ def validate(m) -> list[str]:
     market = isinstance(src, dict) and src.get("kind") in MARKET_SOURCES
     if market:
         out += _market_problems(m.get("market"))
+        if pulse and isinstance(m.get("market"), dict):
+            out += _pulse_problems(m["market"])
     elif len(segs) < MIN_SEGMENTS:
         out.append(f"{len(segs)} segments (at least {MIN_SEGMENTS})")
     ids = set()
