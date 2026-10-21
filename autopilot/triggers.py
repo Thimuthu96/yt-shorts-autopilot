@@ -22,6 +22,8 @@ A trigger (JSON, also the fixture format of `main.py --session triggered --trigg
                                        upgrade) published in the last `major_hours`
                                      Every trigger carries its cause and the 1-3 coins it moved; data = sources-style
                                      {crypto, news}
+    coin_gate(data, overview, pct, log, outcome)  rule 3's gate as a generator: (symbol, coin, story) per gated-in
+                                     coin, biggest move first (evaluate takes the first; autopilot/pulse.py too)
     load(ref, root) -> trigger       `ref` = a trigger id in data/triggers.json, or a fixture path: a trigger JSON
                                      ({"trigger": …} or a trigger), or market data ({crypto, news, overview?})
                                      whose first firing trigger is used
@@ -41,10 +43,10 @@ Limits (state in data/triggers.json, written only by the poll job, `python -m au
                                      uploaded → published; pending / dispatched more than publish_window_hours (3)
                                      past its due time → dropped with a log line
     due_now(state, now, cfg) -> trigger | None  the pending trigger whose due time has come (within the window)
-    hold(t, history, now, cfg, log) -> bool  the daily budget (autopilot/slate.py): a due trigger that would be
-                                     the day's fourth YouTube upload moves its due time to 00:00 UTC next day
     mark_dispatched(state, id, now)
 Spacing and the cap count published `kind: triggered` history records (simulated ones never count).
+The daily upload budget never holds a due trigger (epic-shorts-reach 6.5, owner 2026-10-21: "trigger first, same
+day"): it publishes within ~3 h even on a Basics / Lesson day (autopilot/slate.py).
 
     check(cfg, root, now, log, fetch) -> {"fired", "recorded", "due"}   one poll (the 30-minute job): fetch Coinbase
                                      prices, crypto news and the CoinGecko overview, evaluate, record, and with
@@ -227,6 +229,29 @@ def make_trigger(rule: int, lead: str, coins: list[str], cause: dict | None, dat
             "key": f"r{rule}:{lead}:{_slug((cause or {}).get('title') or 'no-story')}"}
 
 
+def _news(data: dict) -> list[dict]:
+    """The headlines with a title, newest first."""
+    news = [n for n in data.get("news") or [] if (n.get("title") or "").strip()]
+    news.sort(key=lambda n: n.get("published") or "", reverse=True)
+    return news
+
+
+def coin_gate(data: dict, overview: dict | None, pct: float = COIN_PCT, log=print, outcome: str = "no trigger"):
+    """Rule 3's coin gate (shared with autopilot/pulse.py): yields (symbol, overview coin, story) for each top-50
+    coin moving ±`pct`% or more in 24 h that a crypto headline names (the newest such headline = its story),
+    biggest move first. A big mover no crypto headline names is logged ("…; `outcome`") and skipped."""
+    news = _news(data)
+    for sym, c in sorted(_overview_coins(overview).items(), key=lambda kv: -abs(kv[1].get("change_24h") or 0)):
+        if abs(c.get("change_24h") or 0) < pct:
+            continue
+        rx = _coin_rx(sym, str(c.get("name") or ""))
+        story = next((n for n in news if rx.search(n["title"])
+                      and (n.get("category") == "crypto" or focus.CRYPTO_NAMED.search(n["title"]))), None)
+        if story is None:
+            log(f"Coin gate: {sym} {c['change_24h']:+.2f}% in 24 h but no crypto headline names it; {outcome}")
+            continue
+        yield sym, c, story
+
 
 def evaluate(data: dict, overview: dict | None = None, now: datetime | None = None, cfg: dict | None = None,
              used: list[str] | None = None, log=print) -> list[dict]:
@@ -257,18 +282,8 @@ def evaluate(data: dict, overview: dict | None = None, now: datetime | None = No
         log(f"Trigger rule 2: total market cap {cap:+.2f}% in 24 h" + (f" · cause: {cause['title']}" if cause else ""))
 
     # rule 3: a top-50 coin's big move, only with a crypto headline naming it (the coin gate)
-    pct3 = float(tc.get("coin_pct", COIN_PCT))
-    news = [n for n in data.get("news") or [] if (n.get("title") or "").strip()]
-    news.sort(key=lambda n: n.get("published") or "", reverse=True)
-    for sym, c in sorted(_overview_coins(overview).items(), key=lambda kv: -abs(kv[1].get("change_24h") or 0)):
-        if abs(c.get("change_24h") or 0) < pct3:
-            continue
-        rx = _coin_rx(sym, str(c.get("name") or ""))
-        story = next((n for n in news if rx.search(n["title"])
-                      and (n.get("category") == "crypto" or focus.CRYPTO_NAMED.search(n["title"]))), None)
-        if story is None:
-            log(f"Coin gate: {sym} {c['change_24h']:+.2f}% in 24 h but no crypto headline names it; no trigger")
-            continue
+    news = _news(data)
+    for sym, c, story in coin_gate(data, overview, float(tc.get("coin_pct", COIN_PCT)), log):
         coins = [sym] + [x for x in named_coins(story["title"], data, overview) if x != sym]
         moves = coin_moves(data, overview, coins[:MAX_COINS])
         out.append(make_trigger(3, sym, coins[:MAX_COINS], story, data, now, overview, moves=moves))
@@ -420,21 +435,6 @@ def due_now(state: dict, now: datetime | None = None, cfg: dict | None = None) -
     return None
 
 
-def hold(t: dict, history, now: datetime | None = None, cfg: dict | None = None, log=print) -> bool:
-    """The daily upload budget (autopilot/slate.py, crypto-pivot 5.2): a due trigger that would be the day's
-    fourth YouTube upload holds to 00:00 UTC next day: its due time moves there (the publish window then counts
-    from it). True = held (not dispatched now)."""
-    from autopilot import slate
-    now = _now(now)
-    why = slate.hold_reason(history, now, cfg)
-    if not why:
-        return False
-    t["held_from"], t["due_utc"] = t.get("held_from") or t["due_utc"], _iso(slate.next_day(now))
-    t["reason"] = f"held: {why}"
-    log(f"Trigger {t['id']} held to {t['due_utc']}: {why}")
-    return True
-
-
 def mark_dispatched(state: dict, trigger_id: str, now: datetime | None = None) -> None:
     for t in state["triggers"]:
         if t["id"] == trigger_id:
@@ -493,8 +493,6 @@ def check(cfg: dict, root: Path, now: datetime | None = None, log=print, fetch=f
     new = record(state, fired, history, now=now, cfg=cfg, log=log)
     due = due_now(state, now, cfg)
     out = {"fired": [t["id"] for t in fired], "recorded": new["id"] if new else "", "due": ""}
-    if due and hold(due, history, now, cfg, log):
-        due = None
     if due and tc.get("enabled", False):
         mark_dispatched(state, due["id"], now)
         out["due"] = due["id"]

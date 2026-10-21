@@ -6,6 +6,10 @@ are updated, missing ones are created, so running it again after changing a time
 safe. Other jobs are left alone; the retired editions' jobs (asia, london, newyork, gold) are listed and
 deleted only with --delete-retired.
 
+The slate's ten jobs: news_morning 12:00, short_a 13:00, basics (Wed) / lesson (Thu) / recap (Sat) / topup_sun (Sun)
+15:00, news_midday 16:00, news_evening 21:00, short_b 23:00, and short_p 00:30 (market pulse, epic-shorts-reach 6.5;
+the owner creates its job with this script in 6.6; until pulse.enabled is true its timed runs log and exit 0).
+
     python setup_cronjobs.py --dry-run          # show what it would do (no keys needed)
     python setup_cronjobs.py                    # asks for both keys (hidden input)
     python setup_cronjobs.py --disable news_morning,news_midday,news_evening   # create them paused

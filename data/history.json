@@ -567,6 +567,1269 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-12T07:22:48+00:00",
+      "brief_date": "2026-10-12",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Rallies 3% as Prediction Bets Rise | London Open, Oct 12",
+      "video_id": "PXnU0H2L0dU",
+      "seconds": 42.9,
+      "headlines": [
+        "ETH price on Oct 12, 2026 at 3am EDT Crypto Prediction Market",
+        "Why is Bitcoin price stuck below $85,000?"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "1799422224632814",
+      "trigger": "manual",
+      "counts": false,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-12T09:37:26+00:00",
+      "brief_date": "2026-10-12",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "DOLLAR FIRM NEAR 18-MONTH HIGH",
+      "fb_post_id": "462331040302049_122252618384610202",
+      "headlines": [
+        "Dollar firm near 18-month highs, as Gulf unrest, US inflation keep investors on edge"
+      ],
+      "topic": "macro",
+      "source": "Euronext Markets: Real-time Stock Market Data | live",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-12T12:35:28+00:00",
+      "brief_date": "2026-10-12",
+      "session": "newyork",
+      "kind": "market",
+      "title": "Gold Price Today: Slips to $4,163 as Dollar Firms | NY Open, Oct 12",
+      "video_id": "eZ2u2_P5ceM",
+      "seconds": 32.1,
+      "headlines": [
+        "US Dollar Rises Early Monday; Focus on Inflation, Retail Sales This Week"
+      ],
+      "lead": "XAU",
+      "fb_reel_id": "2700535480393533",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-12T16:33:12+00:00",
+      "brief_date": "2026-10-12",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "DOLLAR INDEX 18-MONTH HIGH",
+      "fb_post_id": "462331040302049_122252653946610202",
+      "headlines": [
+        "Dollar Index hits an 18-month high as the energy ceasefire fails"
+      ],
+      "topic": "geopolitics",
+      "source": "FXStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-13T00:35:51+00:00",
+      "brief_date": "2026-10-13",
+      "session": "asia",
+      "kind": "market",
+      "title": "Ethereum Price Today: Down 4.7% as Market Slides | Asia Open, Oct 13",
+      "video_id": "l_CJnaPF1u4",
+      "seconds": 34.9,
+      "headlines": [
+        "US Dollar Index Hits 18-Month High as Bitcoin and Stocks Slip"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "1105699358533337",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-13T03:03:15+00:00",
+      "brief_date": "2026-10-13",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "DOLLAR INDEX EASES BACK",
+      "fb_post_id": "462331040302049_122252702906610202",
+      "headlines": [
+        "United States Dollar Index eases as hawkish Fed, Iran risks support"
+      ],
+      "topic": "geopolitics",
+      "source": "FXStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-13T05:44:59+00:00",
+      "brief_date": "2026-10-13",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Price Today: ETH Nears $2,500 | London Open, Oct 13",
+      "video_id": "7BE6TWYEV9s",
+      "seconds": 29.8,
+      "headlines": [
+        "Crypto News: AlphaPepe Closes In On Binance Listing While Ethereum Price Prediction Eyes $2,500"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "1405331745018831",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-13T06:19:50+00:00",
+      "brief_date": "2026-10-13",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Neutral Range | XAU/USD Oct 13",
+      "video_id": "xQf4xJNVncY",
+      "seconds": 31.9,
+      "headlines": [
+        "Gold Price Forecast: XAU/USD Eyes $4,216 Breakout Ahead of CPI"
+      ],
+      "outlook": {
+        "price": 4190.7,
+        "daily_bias": "neutral",
+        "time": "2026-10-13T06:16:26+00:00"
+      },
+      "fb_reel_id": "2306847203188693",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-13T09:37:21+00:00",
+      "brief_date": "2026-10-13",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "GOLD PRICES HOLD FIRM",
+      "fb_post_id": "462331040302049_122252734520610202",
+      "headlines": [
+        "Gold: Soft Debt Default Using Inflation (Commodity:XAUUSD:CUR)"
+      ],
+      "topic": "macro",
+      "source": "Seeking Alpha",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-13T16:34:52+00:00",
+      "brief_date": "2026-10-13",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "COLOMBIA RATE HIKES ON TABLE",
+      "fb_post_id": "462331040302049_122252766500610202",
+      "headlines": [
+        "Columbia Central Bank official says further rate hikes on the table"
+      ],
+      "topic": "rates",
+      "source": "Newsquawk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-14T00:35:32+00:00",
+      "brief_date": "2026-10-14",
+      "session": "asia",
+      "kind": "market",
+      "title": "Ethereum Price Today: ETH Gains 3.8% to $2,510 | Asia Open, Oct 14",
+      "video_id": "chzN540HVbc",
+      "seconds": 42.0,
+      "headlines": [
+        "Bitcoin Analysis: Caution Keeps BTC Below $85K",
+        "Economists expect September CPI report to show accelerating inflation as energy costs surge"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "1833727907761491",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-14T03:03:33+00:00",
+      "brief_date": "2026-10-14",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "XAU/USD FACES CPI AND RISKS",
+      "fb_post_id": "462331040302049_122252798498610202",
+      "headlines": [
+        "Gold Price Forecast: XAU/USD looks to $4100 and US CPI inflation amid geopolitical risks"
+      ],
+      "topic": "geopolitics",
+      "source": "FXStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-14T05:46:39+00:00",
+      "brief_date": "2026-10-14",
+      "session": "london",
+      "kind": "market",
+      "title": "US Dollar News Today: Fed Hike Odds Top 90% Ahead of CPI | Oct 14",
+      "video_id": "4CHzQe8zbMs",
+      "seconds": 37.7,
+      "headlines": [
+        "Fed Rate Hike Odds Above 90%: Here’s What Wall Street Is Watching",
+        "Fed’s Williams sees AI supply squeeze lasting beyond 2 years"
+      ],
+      "lead": "USD",
+      "fb_reel_id": "1542093124606446",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-14T06:18:38+00:00",
+      "brief_date": "2026-10-14",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Bearish Below $4,166 | XAU/USD Oct 14",
+      "video_id": "MNsF-LLSgfw",
+      "seconds": 41.6,
+      "headlines": [],
+      "outlook": {
+        "price": 4160.7,
+        "daily_bias": "bearish",
+        "time": "2026-10-14T06:16:28+00:00"
+      },
+      "fb_reel_id": "1282811397303108",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-14T09:32:36+00:00",
+      "brief_date": "2026-10-14",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN RISES TOWARD $84,000 ON FED REMARKS",
+      "fb_post_id": "462331040302049_122252881466610202",
+      "headlines": [
+        "Bitcoin climbs toward $84,000 after Fed’s Williams sees no rate hikes in 2027"
+      ],
+      "topic": "rates",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-14T12:46:22+00:00",
+      "brief_date": "2026-10-14",
+      "session": "newyork",
+      "kind": "market",
+      "title": "Gold Price Today: Slips 1.1% Ahead of US CPI | NY Open, Oct 14",
+      "video_id": "68rlaqxNGes",
+      "seconds": 34.5,
+      "headlines": [
+        "Gold price today, Wednesday, October 14, 2026: Gold prices losing ground ahead of inflation data"
+      ],
+      "lead": "XAU",
+      "fb_reel_id": "1459946419685088",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-14T16:33:17+00:00",
+      "brief_date": "2026-10-14",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "DOLLAR INDEX NEARS 103",
+      "fb_post_id": "462331040302049_122252966630610202",
+      "headlines": [
+        "US Dollar Index roars towards 103 as hot CPI reignite Fed hike bets"
+      ],
+      "topic": "central_bank",
+      "source": "FXStreet",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-15T00:34:30+00:00",
+      "brief_date": "2026-10-15",
+      "session": "asia",
+      "kind": "market",
+      "title": "Bitcoin Price Today: Down 2% as Dollar Surges | Asia Open, Oct 15",
+      "video_id": "bYzMKWq0dVE",
+      "seconds": 38.9,
+      "headlines": [
+        "Surging dollar forces Bitcoin sell-off as rate hike odds double",
+        "Bitcoin price falls toward $81,500 after September CPI report"
+      ],
+      "lead": "BTC",
+      "fb_reel_id": "2037188720331898",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-15T05:47:20+00:00",
+      "brief_date": "2026-10-15",
+      "session": "london",
+      "kind": "market",
+      "title": "Ethereum Price Today: Down 5.6% as Liquidations Hit $1B | Oct 15",
+      "video_id": "L101qL-yyTs",
+      "seconds": 37.3,
+      "headlines": [
+        "Nearly $1 billion in crypto bets liquidated as bitcoin, ether and XRP slide",
+        "Bitcoin wilts as Fed rate uncertainty weighs. Kospi plunges 8%"
+      ],
+      "lead": "ETH",
+      "fb_reel_id": "2499253493917142",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-15T06:20:16+00:00",
+      "brief_date": "2026-10-15",
+      "session": "gold",
+      "kind": "gold",
+      "title": "Gold Price Today: Neutral Range Near $4,134 | XAU/USD Oct 15",
+      "video_id": "_CAC0FIOdgs",
+      "seconds": 41.3,
+      "headlines": [
+        "October Fed rate hike odds jump to 33% after inflation report"
+      ],
+      "outlook": {
+        "price": 4134.1,
+        "daily_bias": "neutral",
+        "time": "2026-10-15T06:16:28+00:00"
+      },
+      "fb_reel_id": "897263856686798",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-15T09:09:12+00:00",
+      "brief_date": "2026-10-15",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "point_1",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "What Are Swing Highs and Swing Lows?",
+      "fingerprint": [
+        "023cbe8e",
+        "03f825f8",
+        "0019b20e",
+        "00afc353",
+        "05bf0396",
+        "04ccef8f",
+        "026313ba",
+        "015381ce",
+        "028ef159",
+        "013179ae",
+        "04936489",
+        "009bc704",
+        "03fecb40",
+        "0074d06b",
+        "00522a17",
+        "01b04c87",
+        "02b0aeac",
+        "014f5f60",
+        "00cfd0c5",
+        "02755a73",
+        "04b4f1e5",
+        "003fc14f",
+        "03a96a28",
+        "02730ea6",
+        "012de6d2",
+        "0214ac7e",
+        "1358a142",
+        "080f24e7",
+        "014ad99a",
+        "00abc3ef",
+        "025b58ad",
+        "09c5937a"
+      ],
+      "title": "What Are Swing Highs and Swing Lows?",
+      "video_id": "kN5eJHqyCDk",
+      "seconds": 36.5,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1114714581208600",
+      "trigger": "manual",
+      "counts": false,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-15T12:08:44+00:00",
+      "brief_date": "2026-10-15",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN SLIPS AS RATE HIKE ODDS REACH 44%",
+      "fb_post_id": "462331040302049_122253067562610202",
+      "headlines": [
+        "Bitcoin Price Crash Wipes Out $89 Billion as Fed Rate Hike Odds Hit 44%"
+      ],
+      "topic": "rates",
+      "source": "Coinpedia",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-15T15:12:41+00:00",
+      "brief_date": "2026-10-15",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "valid-trendlines",
+      "track": 1,
+      "title": "What Is a Valid Trendline? (Crypto Chart Example)",
+      "video_id": "7xiuZEJL6t8",
+      "fb_video_id": "1023304477390375",
+      "seconds": 294.2,
+      "examples": [
+        {
+          "asset": "BTC/USD",
+          "timeframe": "4H",
+          "start": "2026-10-05T00:00:00+00:00",
+          "end": "2026-10-14T08:00:00+00:00"
+        },
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-10-12T07:00:00+00:00",
+          "end": "2026-10-13T14:00:00+00:00"
+        }
+      ],
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-15T16:09:03+00:00",
+      "brief_date": "2026-10-15",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "CRYPTO DOWN $1B WIPED OUT",
+      "fb_post_id": "462331040302049_122253079880610202",
+      "headlines": [
+        "Why Is Crypto Down Today? Nearly $1 Billion in Leveraged Positions Just Got Wiped Out."
+      ],
+      "topic": "crypto",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-15T21:03:04+00:00",
+      "brief_date": "2026-10-15",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BITCOIN BRIEFLY SLIPS UNDER $80K",
+      "fb_post_id": "462331040302049_122253100874610202",
+      "headlines": [
+        "Bitcoin slips under $80K after US PPI gains most in four years"
+      ],
+      "topic": "rates",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-16T01:19:24+00:00",
+      "brief_date": "2026-10-16",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "point_2",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "What is market structure?",
+      "fingerprint": [
+        "034598e0",
+        "03d075cc",
+        "03c023e2",
+        "08de64b4",
+        "05729179",
+        "01e01d88",
+        "059df25e",
+        "06859661",
+        "012b7064",
+        "0546f0c5",
+        "0012aec4",
+        "007e6928",
+        "0143f1be",
+        "01d24d54",
+        "04dedbb6",
+        "02175396",
+        "01f55792",
+        "0051a7f1",
+        "084d402c",
+        "066b2ff1",
+        "00f6d41b",
+        "01755ca3",
+        "0016e9a4",
+        "007ec6d8",
+        "00a0f595",
+        "06e25f9f",
+        "06f54586",
+        "098e0aec",
+        "000c02a3",
+        "00e16eb2",
+        "09114d0f",
+        "01529428"
+      ],
+      "title": "What is market structure?",
+      "video_id": "zpLIrfmY8ZM",
+      "seconds": 30.6,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1112917384525229",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-16T12:03:31+00:00",
+      "brief_date": "2026-10-16",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "CFTC PREPARES NEW CRYPTO RULES",
+      "fb_post_id": "462331040302049_122253163424610202",
+      "headlines": [
+        "CFTC Chairman Michael Selig Says New Crypto Rules Are Coming Soon. Here's What Crypto Investors Need to Know."
+      ],
+      "topic": "regulation",
+      "source": "The Motley Fool",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-16T13:02:04+00:00",
+      "brief_date": "2026-10-16",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "point_3",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "How should a swing point be labeled on a crypto chart?",
+      "fingerprint": [
+        "0000203c",
+        "0242fbc0",
+        "05a8e465",
+        "0028e941",
+        "00ecf869",
+        "014e9cea",
+        "022b6172",
+        "00353338",
+        "04f3ca3b",
+        "05193874",
+        "0445b47e",
+        "00eca5ea",
+        "01e7d7cb",
+        "031df0cb",
+        "03d04be5",
+        "03667e4e",
+        "01f1a67d",
+        "00e3bc96",
+        "04ab7337",
+        "0176332c",
+        "01aac3fb",
+        "01755ca3",
+        "00945c06",
+        "01847ad0",
+        "0420de87",
+        "039e40e0",
+        "01106585",
+        "0263c0ef",
+        "01eb2572",
+        "0087b653",
+        "032229e6",
+        "0be19221"
+      ],
+      "title": "How should a swing point be labeled on a crypto chart?",
+      "video_id": "lyZu_C01hh0",
+      "seconds": 30.8,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1670964024697587",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-16T16:07:12+00:00",
+      "brief_date": "2026-10-16",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "DEUTSCHE BANK EXPANDS CUSTODY",
+      "fb_post_id": "462331040302049_122253180518610202",
+      "headlines": [
+        "Deutsche Bank prepares German crypto custody launch, eyes Asia: Report"
+      ],
+      "topic": "crypto",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-16T21:03:15+00:00",
+      "brief_date": "2026-10-16",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "CFTC WEIGHS NEW RETAIL CRYPTO LEVERAGE RULES",
+      "fb_post_id": "462331040302049_122253198920610202",
+      "headlines": [
+        "CFTC seeks comment on framework to bring leveraged retail crypto transactions onto regulated exchanges"
+      ],
+      "topic": "regulation",
+      "source": "JD Supra",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-17T01:18:15+00:00",
+      "brief_date": "2026-10-17",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "point_4",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "What is crypto market structure?",
+      "fingerprint": [
+        "01d9bda0",
+        "063a9618",
+        "0060bbdc",
+        "00307a75",
+        "01f4a178",
+        "00300f6f",
+        "026313ba",
+        "053af194",
+        "044478fc",
+        "033541b1",
+        "0111a0c9",
+        "01405f10",
+        "06052f64",
+        "0148c50b",
+        "00522a17",
+        "00b1d0df",
+        "01a6f06a",
+        "00e3bc96",
+        "03f1b841",
+        "06cae71b",
+        "00984441",
+        "06fc46bf",
+        "00945c06",
+        "06f4a0f5",
+        "00a0f595",
+        "03a3cd03",
+        "03f1ac17",
+        "005cbcc5",
+        "05150942",
+        "00f2b56a",
+        "08942cab",
+        "05b2aed7"
+      ],
+      "title": "What is crypto market structure?",
+      "video_id": "xY3QTxsUJyE",
+      "seconds": 29.6,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2495646000924343",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-17T12:02:30+00:00",
+      "brief_date": "2026-10-17",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN HOLDS ABOVE $81,000",
+      "fb_post_id": "462331040302049_122253427250610202",
+      "headlines": [
+        "Bitcoin price holds above $81,000 as ETF outflows weigh on sentiment"
+      ],
+      "topic": "crypto",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-17T13:01:57+00:00",
+      "brief_date": "2026-10-17",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "concept_swing_point",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "What is a swing point?",
+      "fingerprint": [
+        "009ac287",
+        "007aa823",
+        "00eb55e5",
+        "09c27b45",
+        "04874222",
+        "01dc1263",
+        "04247577",
+        "00880d9e",
+        "03429bc9",
+        "0218b1df",
+        "00c4de6d",
+        "0380bdf1",
+        "009a36cc",
+        "025fb95e",
+        "02321638",
+        "0125aa1c",
+        "026b3839",
+        "0635ef9e",
+        "00b01c89",
+        "02316fae",
+        "0e8c9ec9",
+        "0067456b",
+        "01fce79e",
+        "03ae7d05",
+        "00a0f595",
+        "021224a0",
+        "0536ad5b",
+        "00015d56",
+        "01e09088",
+        "00736b66",
+        "0be37821",
+        "0123c070"
+      ],
+      "title": "What is a swing point?",
+      "video_id": "DuvjJGODuAc",
+      "seconds": 30.2,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "3788095324666425",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-17T16:02:35+00:00",
+      "brief_date": "2026-10-17",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "DEUTSCHE BANK TO CUSTODY BTC AND ETH",
+      "fb_post_id": "462331040302049_122253440642610202",
+      "headlines": [
+        "Deutsche Bank Is Weeks From Holding Bitcoin and Ethereum for Clients. Could Other Big Banks Follow?"
+      ],
+      "topic": "crypto",
+      "source": "24/7 Wall St.",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-17T21:04:32+00:00",
+      "brief_date": "2026-10-17",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "SOLANA STABLECOIN BASE REACHES $15.96 BILLION",
+      "fb_post_id": "462331040302049_122253457262610202",
+      "headlines": [
+        "Solana price prediction: stablecoin base at $15.96bn"
+      ],
+      "topic": "regulation",
+      "source": "CryptoTicker",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-17T23:33:35+00:00",
+      "brief_date": "2026-10-17",
+      "session": "triggered",
+      "kind": "triggered",
+      "trigger_id": "20261017-2327-r4-btc",
+      "title": "What the Hack Means for Bitcoin (What Actually Happened)",
+      "rule": 4,
+      "coins": [
+        "BTC"
+      ],
+      "video_id": "PepzcQhZJh4",
+      "seconds": 184.5,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "publish_at": "2026-10-18T01:33:35.000Z",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
+    },
+    {
+      "date": "2026-10-18T12:03:34+00:00",
+      "brief_date": "2026-10-18",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "MARKET CAUTION HITS BITCOIN",
+      "fb_post_id": "462331040302049_122253571088610202",
+      "headlines": [
+        "Crypto Analysis: Market Caution Extends Even to Bitcoin"
+      ],
+      "topic": "crypto",
+      "source": "FOREX.com",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-18T13:02:09+00:00",
+      "brief_date": "2026-10-18",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261017-2327-r4-btc",
+      "segment": "hook_0",
+      "source_video": "PepzcQhZJh4",
+      "hook": "Why did Bitcoin just drop 0.4%?",
+      "fingerprint": [
+        "00278364",
+        "03a4d70e",
+        "0113147f",
+        "02f41ba1",
+        "002ab548",
+        "0055cf48",
+        "03500167",
+        "014864f9",
+        "00090b5d",
+        "08c9f696",
+        "0460b826",
+        "01512f81",
+        "01248d72",
+        "08d75262",
+        "00fbc896",
+        "0261024c",
+        "00386a35",
+        "07469c4e",
+        "027fbd1d",
+        "01b14544",
+        "0f4e3a4f",
+        "03de8c35",
+        "01eaf301",
+        "0375dfe6",
+        "0323d71f",
+        "0bf15d28",
+        "03ea4374",
+        "02f04c25",
+        "06c75031",
+        "00fa46c0",
+        "00f1b8f2",
+        "01795fbb"
+      ],
+      "title": "Why did Bitcoin just drop 0.4%?",
+      "video_id": "n4XaPH7Akqs",
+      "seconds": 38.5,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2465111803894593",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-18T15:14:57+00:00",
+      "brief_date": "2026-10-18",
+      "session": "topup_sun",
+      "kind": "lesson",
+      "episode": "trendline-breaks",
+      "track": 1,
+      "title": "What Is a Trendline Break and Retest? (Crypto Chart Example)",
+      "video_id": "l_7_G-Wm5MI",
+      "fb_video_id": "1135404405683155",
+      "seconds": 292.0,
+      "examples": [
+        {
+          "asset": "BTC/USD",
+          "timeframe": "1H",
+          "start": "2026-10-14T08:00:00+00:00",
+          "end": "2026-10-18T12:00:00+00:00"
+        },
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-10-12T07:00:00+00:00",
+          "end": "2026-10-14T05:00:00+00:00"
+        }
+      ],
+      "evergreen": true,
+      "trigger": "topup",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-18T16:02:08+00:00",
+      "brief_date": "2026-10-18",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "PAYMENTS JUMP 45% AS SUPPLY STALLS",
+      "fb_post_id": "462331040302049_122253635156610202",
+      "headlines": [
+        "Stablecoin supply stalls, but payments jump 45% as Visa, Mastercard and Stripe connect crypto to cash"
+      ],
+      "topic": "regulation",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-18T21:02:31+00:00",
+      "brief_date": "2026-10-18",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "ANALYST ISSUES BITCOIN WARNING",
+      "fb_post_id": "462331040302049_122253657920610202",
+      "headlines": [
+        "Could Bitcoin Price Drop to $10,000? Bloomberg Analyst Gives Grim Warning"
+      ],
+      "topic": "crypto",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-18T23:01:57+00:00",
+      "brief_date": "2026-10-18",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261017-2327-r4-btc",
+      "segment": "hook_1",
+      "source_video": "PepzcQhZJh4",
+      "hook": "What really moved Bitcoin?",
+      "fingerprint": [
+        "00a77db8",
+        "02ced825",
+        "01c9f04d",
+        "02f41ba1",
+        "057a4352",
+        "02d11d41",
+        "0169a7da",
+        "023ada2f",
+        "00ade6d1",
+        "00308637",
+        "0460b826",
+        "00be8f89",
+        "004de9f9",
+        "005a4bd4",
+        "00e7b07e",
+        "00e6b3b9",
+        "04b2d33a",
+        "01e04c80",
+        "00d5ede2",
+        "043d768f",
+        "00ab2f92",
+        "0084c752",
+        "0271499e",
+        "01b0f78b",
+        "00053efc",
+        "0021ab2d",
+        "00844f5f",
+        "020126d6",
+        "01639721",
+        "02df1269",
+        "07f46e3b",
+        "0314b888"
+      ],
+      "title": "What really moved Bitcoin?",
+      "video_id": "wP4mxd1BQ7Y",
+      "seconds": 35.9,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1148497274516698",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-19T01:13:54+00:00",
+      "brief_date": "2026-10-19",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "concept_market_structure",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "How do swing highs and lows build structure?",
+      "fingerprint": [
+        "01d9bda0",
+        "091dab7e",
+        "04f5aaf7",
+        "01d5b921",
+        "01f4a178",
+        "00300f6f",
+        "003f6add",
+        "067cbf16",
+        "044478fc",
+        "090a482b",
+        "0655b8b0",
+        "04c13d24",
+        "0189d221",
+        "00ac061f",
+        "000335e6",
+        "03a3836e",
+        "00467f55",
+        "00e3bc96",
+        "04ab7337",
+        "03369aa5",
+        "03d10bcc",
+        "0b64dee8",
+        "0028d990",
+        "08d13a62",
+        "012de6d2",
+        "00d0ced4",
+        "0803f003",
+        "013013ef",
+        "03ec8637",
+        "00f2b56a",
+        "0f66e4aa",
+        "016086c6"
+      ],
+      "title": "How do swing highs and lows build structure?",
+      "video_id": "y5kYnalT-2c",
+      "seconds": 33.8,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1467100691999453",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-19T12:02:25+00:00",
+      "brief_date": "2026-10-19",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN BOUNCES ABOVE $82,000 AS STOCKS REBOUND",
+      "fb_post_id": "462331040302049_122253828026610202",
+      "headlines": [
+        "Stocks rebound into key tech earnings: Three things to know in Bitcoin this week"
+      ],
+      "topic": "crypto",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-19T13:01:59+00:00",
+      "brief_date": "2026-10-19",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-swing-structure",
+      "segment": "overview",
+      "source_video": "Q9ZkgyE1cS8",
+      "hook": "How do swing highs and lows work?",
+      "fingerprint": [
+        "00ba0bde",
+        "00b61c32",
+        "05a8e465",
+        "069b05be",
+        "00ecf869",
+        "028e60b1",
+        "026313ba",
+        "032eb05a",
+        "04f3ca3b",
+        "011df7e9",
+        "0111a0c9",
+        "01c86b33",
+        "0143f1be",
+        "01dd3047",
+        "09095261",
+        "02277e08",
+        "0048ce29",
+        "0051a7f1",
+        "00183076",
+        "0091c156",
+        "0450321a",
+        "00d74d88",
+        "06ed8659",
+        "0130454c",
+        "012de6d2",
+        "04234ef5",
+        "033a5ae3",
+        "06f432dc",
+        "064f6881",
+        "04e6138c",
+        "04b7e53b",
+        "0031584b"
+      ],
+      "title": "How do swing highs and lows work?",
+      "video_id": "YNcVeti-Ekk",
+      "seconds": 34.2,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "2499003087293137",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
+    },
+    {
+      "date": "2026-10-19T16:04:46+00:00",
+      "brief_date": "2026-10-19",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "JPM COIN ON ETHEREUM",
+      "fb_post_id": "462331040302049_122253842828610202",
+      "headlines": [
+        "JPMorgan's JPM Coin, representing dollar deposits, is coming to Ethereum"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }

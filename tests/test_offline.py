@@ -283,6 +283,10 @@ def main():
     test_short_originality(cfg)
     test_short_lesson(cfg)
     test_short_mix(cfg)
+    test_short_rotation(cfg)
+    test_short_frame0(cfg)
+    test_pulse_material(cfg)
+    test_short_pulse(cfg)
     test_slate_timetable(cfg)
     test_slate_budget(cfg)
     test_slate_floor(cfg)
@@ -5011,11 +5015,23 @@ def _short_answer(n: int, prompt: str, first: str | None = None) -> dict:
                        {"id": "payoff", "text": text(14) + " " + text(14)}]}
 
 
-def _basics_material(cfg, vid: str = "Y1", published: str = "2026-10-14T15:05:00+00:00", topic_id: str = "") -> dict:
+# distinct episode questions + point terms (no topic of one equals / contains another's: E6-3's topic cooldown)
+DISTINCT_TERMS = (("What Is a Bitcoin ETF? (Explained Simply)", ("Exchange-traded fund", "Spot fund shares", "Custodian",
+                                                                 "The trade-offs")),
+                  ("What Is a Stablecoin?", ("Dollar peg", "Reserve audit", "Redemption", "Depeg risk")),
+                  ("What Is Staking?", ("Validator", "Lockup period", "Slashing", "Yield source")))
+
+
+def _basics_material(cfg, vid: str = "Y1", published: str = "2026-10-14T15:05:00+00:00", topic_id: str = "",
+                     terms: tuple | None = None) -> dict:
+    """The sample topic's Basics material; `terms` = (question, point terms) renames the episode and its points."""
     from autopilot import basics, material
     topic = dict(basics.sample_topic(), thumbnail="BITCOIN ETF?", approved=True)
     if topic_id:
         topic["id"] = topic_id
+    if terms:
+        topic["question"] = terms[0]
+        topic["points"] = [dict(p_, term=t_) for p_, t_ in zip(topic["points"], terms[1])]
     scenes = [{"id": k, "text": v} for k, v in _sample_narration().items()]
     return material.build_basics(topic, scenes, {"video_id": vid, "fb_video_id": None, "date": published}, cfg)
 
@@ -5029,6 +5045,7 @@ class _ShortRun:
         self.tmp = Path(tempfile.mkdtemp())
         live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
         self.cfg = json.loads(json.dumps(live))
+        self.cfg.setdefault("pulse", {})["enabled"] = False  # tests opt in to pulse-first (`update`)
         for k, v in (update or {}).items():
             self.cfg.setdefault(k, {}).update(v)
         (self.tmp / "config.yaml").write_text(yaml.safe_dump(self.cfg, allow_unicode=True), encoding="utf-8")
@@ -5332,12 +5349,12 @@ def test_short_lesson(cfg):
 def test_short_mix(cfg):
     """Daily Shorts mix (entry 7): a simulated week of timed short_a / short_b runs (14 slots, shorts.enabled on)
     gives 4 market Shorts when 2 market videos are published that week (none from a 5-day-old one) and only
-    evergreen Shorts when there are none, with no segment repeated; a slot's second timed run stops under the
-    once-per-slot guard; with every segment used a slot logs the skip and the low-stock warning and publishes
-    nothing."""
+    evergreen Shorts when there are none, with no segment repeated and the concept Shorts rotating over the three
+    Basics episodes (E6-3); a slot's second timed run stops under the once-per-slot guard; with every segment used a
+    slot logs the skip and the low-stock warning and publishes nothing."""
     import main as app
     week0 = SHORT_NOW.replace(hour=10, minute=0)
-    basics_m = [_basics_material(cfg, vid=f"B{i}", topic_id=f"topic-{i}",
+    basics_m = [_basics_material(cfg, vid=f"B{i}", topic_id=f"topic-{i}", terms=DISTINCT_TERMS[i],
                                  published=(week0 - timedelta(days=20 - i)).isoformat()) for i in range(3)]
     market = [_market_material(tid="m1", vid="M1", published=week0),
               _market_material(tid="m2", vid="M2", published=week0 + timedelta(days=3),
@@ -5366,20 +5383,711 @@ def test_short_mix(cfg):
         assert {e["material"] for e in hist if e["short_kind"] == "market"} == {"triggered-m1", "triggered-m2"}
         assert len({(e["material"], e["segment"]) for e in hist}) == 14
         assert any("triggered-m0 is 5 days old" in x for x in logs)
-        assert [e["material"] for e in hist if e["short_kind"] == "concept"][:5] == ["basics-topic-0"] * 5
-        hist, _ = week(basics_m)
+        cycle = ["basics-topic-0", "basics-topic-1", "basics-topic-2"]
+        assert [e["material"] for e in hist if e["short_kind"] == "concept"][:6] == cycle * 2, hist
+        assert all(e.get("topic") for e in hist), hist
+        hist, logs = week(basics_m)
         assert [e["short_kind"] for e in hist] == ["concept"] * 14 and len({(e["material"], e["segment"]) for e in hist}) == 14
+        assert [e["material"] for e in hist] == (cycle * 5)[:14], [e["material"] for e in hist]
+        assert len({e["topic"] for e in hist}) == 14 and any("per-source cap is relaxed" in x for x in logs)
         used = [{"kind": "short", "session": "short_b", "brief_date": "2026-10-14", "material": "basics-topic-0",
                  "segment": s_["id"], "hook": f"Old hook {s_['id']}?", "video_id": f"U{s_['id']}"}
                 for s_ in basics_m[0]["segments"]]
         with _ShortRun([basics_m[0]], update={"shorts": {"enabled": True}}, history=used) as r:
             assert r.run("--session", "short_a", "--scheduled") == 0 and not r.yt and not r.prompts
             assert any("the short_a slot is skipped" in x for x in r.logs), r.logs[-4:]
-            assert any("low-stock warning: 0 unused" in x for x in r.logs) and len(r.history()) == len(used)
+            assert any("low-stock warning: 0 eligible" in x for x in r.logs) and len(r.history()) == len(used)
     finally:
         app.render.build_video = saved
     print("OK short mix: simulated week → 4 market + 10 evergreen Shorts with 2 market videos (old one refused), "
-          "14 evergreen with none, no segment repeated, once per slot, empty stock → skip + low-stock warning")
+          "14 evergreen with none, no segment repeated, concept Shorts rotate over the episodes, once per slot, "
+          "empty stock → skip + low-stock warning")
+
+
+class _Hist:
+    """A stand-in History over a list of entries (shorts reads only uploaded())."""
+
+    def __init__(self, videos):
+        self.videos = list(videos)
+
+    def uploaded(self):
+        return [v for v in self.videos if v.get("video_id")]
+
+
+def _fixture_lesson(eid: str) -> dict:
+    from autopilot import lesson_material, lessons
+    cur = lessons.load_curriculum(ROOT / "tests" / "lessons" / "curriculum.yaml")
+    glo = lessons.load_glossary(ROOT / "tests" / "lessons" / "glossary.yaml")
+    ep = next(e for e in cur if e["id"] == eid)
+    return lesson_material.build_lesson(ep, glo, {
+        "kind": "lesson", "episode": eid, "video_id": f"L-{eid}", "date": "2026-10-08T15:05:00+00:00",
+        "examples": [{"asset": "BTC", "timeframe": "4h", "start": "2026-10-01T00:00:00+00:00",
+                      "end": "2026-10-03T00:00:00+00:00"}]})
+
+
+# the 5 live standalone Shorts of 2026-10-15..17 (data/history.json), all from lesson-swing-structure, no `topic`
+LIVE_SWING_SHORTS = [
+    ("2026-10-15T09:09:12+00:00", "point_1", "What Are Swing Highs and Swing Lows?"),
+    ("2026-10-16T01:19:24+00:00", "point_2", "What is market structure?"),
+    ("2026-10-16T13:02:04+00:00", "point_3", "How should a swing point be labeled on a crypto chart?"),
+    ("2026-10-17T01:18:15+00:00", "point_4", "What is crypto market structure?"),
+    ("2026-10-17T13:01:57+00:00", "concept_swing_point", "What is a swing point?")]
+
+
+def test_short_rotation(cfg):
+    """Diverse concept picks (epic-shorts-reach E6-3): topic normalization (stop-words, "(…)", plurals, aliases);
+    two fresh sources alternate A, B, A, B; a source with 2 Shorts in 7 days is passed over for another source's
+    eligible segment and relaxed only when no other source has one (both logged); a candidate whose topic equals /
+    contains / is contained in a concept Short's of the last 7 days is refused (logged; the alias makes "Swing point"
+    = "Swing Highs and Swing Lows"); the same topic 8 days ago is allowed; pulse / market Shorts never block a concept;
+    a fixture mirror of the 5 live swing-structure Shorts (no `topic`) leaves no swing-point / market-structure
+    segment eligible and another source is picked; the low-stock count is eligible segments only; nothing eligible
+    → the slot skips with the low-stock warning (exit 0); a published concept / market Short records its `topic`."""
+    from autopilot import shorts
+    t = shorts.topic
+    assert t("What is crypto market structure?") == "market structure"
+    assert t("Market structure (HH / HL / LH / LL)") == "market structure"
+    assert t("What Are Swing Highs and Swing Lows?") == "swing point" == t("Swing point")
+    assert t("How do swing highs and lows build structure?") == "swing point build structure"
+    assert t("Trend lines") == "trendline" == t("What is a trendline?") and t("The trade-offs") == "trade off"
+    assert t("What is Bitcoin's halving?") == "bitcoin halving" == t("Bitcoin halving")
+    assert t("Ethereum vs Bitcoin: What’s the Difference?") == "ethereum bitcoin difference"
+    assert t("Stop losses") == t("Stop-loss") == "stop loss" and t("Wallet addresses") == "wallet address"
+    assert t("What is it?") == "" and not shorts.overlaps("", "market structure")
+    assert shorts.overlaps("market structure", "market structure") and shorts.overlaps("swing point labeled chart", "swing point")
+    assert not shorts.overlaps("market", "marketing plan") and not shorts.overlaps("break structure", "market structure")
+    now = SHORT_NOW
+    logs = []
+
+    def short(m, seg_id, at, **kw):
+        return dict({"kind": "short", "short_kind": "concept", "material": shorts.key(m), "segment": seg_id,
+                     "date": at.isoformat(), "video_id": f"V{seg_id}{at.isoformat()}"}, **kw)
+
+    def pick(materials, videos, at=now, skip=None):
+        logs.clear()
+        return shorts.pick_concept(materials, _Hist(videos), skip, now=at, log=logs.append)
+
+    # two fresh sources: A (older), B → A, B, A, B
+    a = _basics_material(cfg, vid="A1", topic_id="a", terms=DISTINCT_TERMS[1], published="2026-10-01T15:05:00+00:00")
+    b = _basics_material(cfg, vid="B1", topic_id="b", terms=DISTINCT_TERMS[2], published="2026-10-08T15:05:00+00:00")
+    hist, order = [], []
+    for i in range(4):
+        at = now + timedelta(hours=12 * i)
+        m, seg = pick([b, a], hist, at)
+        order.append(shorts.key(m))
+        hist.append(short(m, seg["id"], at, topic=shorts.segment_topic(seg)))
+    assert order == ["basics-a", "basics-b"] * 2, order
+    # cap: A (last Short older than B's) has 2 Shorts in 7 days → B
+    hist = [short(a, "point_1", now - timedelta(days=3)), short(a, "point_2", now - timedelta(days=2)),
+            short(b, "point_1", now - timedelta(days=1))]
+    m, seg = pick([a, b], hist)
+    assert shorts.key(m) == "basics-b" and seg["id"] == "point_2", (shorts.key(m), seg["id"])
+    assert any("basics-a already has 2 Shorts in the last 7 days" in x for x in logs), logs
+    # cap relaxes: B has nothing eligible → A, logged
+    hist_b = hist + [short(b, s_["id"], now - timedelta(days=4)) for s_ in b["segments"]]
+    m, seg = pick([a, b], hist_b)
+    assert shorts.key(m) == "basics-a" and seg["id"] == "point_3", (shorts.key(m), seg["id"])
+    assert any("per-source cap is relaxed for basics-a" in x for x in logs), logs
+    # topic contains: a past "What is market structure?" refuses top-down-reading's market-structure segments
+    td, sw, bos = _fixture_lesson("top-down-reading"), _fixture_lesson("swing-structure"), _fixture_lesson("bos-vs-choch")
+    past = {"kind": "short", "short_kind": "concept", "material": "lesson-old", "segment": "point_9",
+            "title": "What is market structure?", "hook": "What is market structure?", "video_id": "P1"}
+    hist = [dict(past, date=(now - timedelta(days=1)).isoformat()), short(td, "point_1", now - timedelta(days=9))]
+    m, seg = pick([td], hist)
+    assert seg["id"] == "concept_top_down_analysis", seg["id"]
+    assert any('lesson-top-down-reading · point_2 refused: topic "market structure" overlaps "market structure"' in x
+               for x in logs), logs
+    assert all(not shorts.overlaps(c, "market structure") for c in shorts.segment_topics(seg))
+    assert shorts.overlaps(t("What is crypto market structure?"), t(past["title"]))
+    # old topic: the same past Short 8 days ago → allowed
+    m, seg = pick([td], [dict(past, date=(now - timedelta(days=8)).isoformat()),
+                         short(td, "point_1", now - timedelta(days=9))])
+    assert seg["id"] == "point_2", seg["id"]
+    # age from brief_date when there is no date
+    m, seg = pick([td], [dict(past, brief_date=(now - timedelta(days=2)).strftime("%Y-%m-%d")),
+                         short(td, "point_1", now - timedelta(days=9))])
+    assert seg["id"] == "concept_top_down_analysis", seg["id"]
+    # a market / pulse Short with that title never blocks a concept
+    m, seg = pick([td], [dict(past, short_kind="market", date=(now - timedelta(days=1)).isoformat()),
+                         dict(past, short_kind="pulse", date=(now - timedelta(days=1)).isoformat()),
+                         short(td, "point_1", now - timedelta(days=9))])
+    assert seg["id"] == "point_2", seg["id"]
+    # alias: a past title "What Are Swing Highs and Swing Lows?" refuses the term "Swing point"
+    alias = dict(past, title="What Are Swing Highs and Swing Lows?", hook="What Are Swing Highs and Swing Lows?",
+                 date=(now - timedelta(days=1)).isoformat())
+    m, seg = pick([sw], [alias])
+    assert seg["id"] == "point_2", seg["id"]
+    assert any("lesson-swing-structure · point_1 refused: topic \"swing point\"" in x for x in logs), logs
+    # live mirror: the 5 live swing-structure Shorts (no topic) + a second lesson
+    live = [{"kind": "short", "short_kind": "concept", "material": "lesson-swing-structure", "segment": sid,
+             "date": d, "brief_date": d[:10], "hook": h, "title": h, "video_id": f"LIVE{n}"}
+            for n, (d, sid, h) in enumerate(LIVE_SWING_SHORTS)]
+    at = datetime(2026, 10, 19, 14, 0, tzinfo=timezone.utc)
+    assert shorts.recent_topics([sw, bos], _Hist(live), at) == ["swing point", "market structure",
+                                                                  "swing point labeled chart"]
+    picked, skip = [], set()
+    while True:
+        got = pick([sw, bos], live, at, skip)
+        if got is None:
+            break
+        picked.append(got)
+        skip.add((shorts.key(got[0]), got[1]["id"]))
+    assert picked and all(shorts.key(m_) == "lesson-bos-vs-choch" for m_, _ in picked), picked
+    assert all(not shorts.overlaps(c, r_) for _, s_ in picked for c in shorts.segment_topics(s_)
+               for r_ in ("swing point", "market structure"))
+    assert {s_["id"] for _, s_ in picked} == {s_["id"] for s_ in bos["segments"]} - {"concept_swing_point"}
+    # segments sharing a topic count once: bos-vs-choch's 5 eligible segments are 2 topics (break / change)
+    assert shorts.stock([sw, bos], _Hist(live), at) == 2
+    # after this Short (point_1, "break structure"): its own segment is used and the topic blocks the overview and
+    # concept_break_of_structure → 1 (point_2 + concept_change_of_character share "change character")
+    assert shorts.stock([sw, bos], _Hist(live), at, also=("lesson-bos-vs-choch", "point_1", "break structure")) == 1
+    # nothing eligible: every unused segment's topic recent → None, stock 0
+    assert pick([sw], live, at) is None and shorts.stock([sw], _Hist(live), at) == 0
+    assert any("concept_market_structure refused" in x for x in logs) and any("overview refused" in x for x in logs)
+
+    import main as app
+    saved, app.render.build_video = app.render.build_video, (lambda audio, pics, cfg_, wd, out, music=None:
+                                                              Path(out).write_bytes(b"mp4") and 0.0)
+    try:
+        # a _ShortRun skip: every segment's topic was a concept Short yesterday (another episode's titles)
+        bm = _basics_material(cfg)
+        titles = ["What is an exchange-traded fund?", "What is a spot Bitcoin ETF?", "What is a custodian?",
+                  "What are the trade-offs?"]
+        old = [{"kind": "short", "short_kind": "concept", "session": "short_b", "brief_date": "2026-10-14",
+                "date": (SHORT_NOW - timedelta(days=1)).isoformat(), "material": "basics-older",
+                "segment": f"point_{i}", "hook": h, "title": h, "video_id": f"OLD{i}"} for i, h in enumerate(titles, 1)]
+        with _ShortRun([bm], history=old) as r:
+            assert r.run("--session", "short_a", "--scheduled") == 0, r.logs[-6:]
+            assert not r.yt and not r.prompts and len(r.history()) == len(old)
+            assert any("the short_a slot is skipped" in x for x in r.logs), r.logs[-6:]
+            assert any("low-stock warning: 0 eligible concept segments" in x for x in r.logs), r.logs[-6:]
+            assert any(f"{shorts.key(bm)} · overview refused" in x for x in r.logs), r.logs
+        # published concept Short → its entry holds the normalized topic; the low-stock count is eligible only
+        # (4 unused segments left after it: the custodian one's topic was a concept Short yesterday and the overview's
+        # "bitcoin etf" shares point_2's "spot bitcoin etf", counted once → 2 eligible)
+        with _ShortRun([bm], history=old[2:3]) as r:
+            assert r.run("--session", "short_a") == 0, r.logs[-6:]
+            e = r.history()[-1]
+            assert e["short_kind"] == "concept" and e["segment"] == "point_1" and e["topic"] == "exchange traded fund", e
+            assert any("low-stock warning: 2 eligible concept segment(s) left after this Short" in x
+                       for x in r.logs), r.logs
+        # a market Short records its hook's topic (it never blocks a concept)
+        with _ShortRun([_market_material()], answer=_market_answer) as r:
+            assert r.run("--session", "short_a") == 0, r.logs[-6:]
+            e = r.history()[-1]
+            assert e["short_kind"] == "market" and e["topic"] == t("Why did Bitcoin just drop 7%?") == "bitcoin drop 7", e
+    finally:
+        app.render.build_video = saved
+    print("OK short rotation: topics normalized (stop-words, (…), plurals, swing high / low → swing point); fresh "
+          "sources alternate A, B, A, B; 2-per-source cap (relaxed only when nothing else, logged); 7-day topic "
+          "cooldown (contains / alias refused, 8 days ago allowed, market / pulse never block); live swing-structure "
+          "mirror → only the other lesson; low stock counts eligible segments; nothing eligible → skip + warning; "
+          "history records topic")
+
+
+def _ink_share(img, box, bg=(14, 15, 18), tol: int = 8) -> float:
+    """Share of the pixels in box (x0, y0, x1, y1) that differ from the plain background by more than `tol`."""
+    from PIL import Image, ImageChops
+    crop = img.convert("RGB").crop(box)
+    diff = ImageChops.difference(crop, Image.new("RGB", crop.size, bg)).convert("L")
+    return sum(1 for v in diff.getdata() if v > tol) / (crop.width * crop.height)
+
+
+def test_short_frame0(cfg):
+    """Visual first frame (epic-shorts-reach E6-4): frame 0 (thumbnail.jpg = the Reel cover) is 1-4 card words over a
+    visual, never text alone: a concept Short with a diagram → every diagram part drawn; one without (a lesson
+    segment) → the icon card (candles, BTC badge, term pill); a diagram that can't fit even without its notes → the
+    icon card (logged); a pulse Short → the lead coin's badge + "−5.0% · 24h" pill + its move chart; a lead without
+    a series → the badge card; an 8-word hook → its first 4 words. Each visual region has ≥ 3% non-background pixels
+    and the words region is inked, in PORTRAIT and LANDSCAPE. Text slides hold ≤ 14 words: a 28- / 30-word fact
+    gives 2 / 3 pages (all words kept, breaks moved to a sentence end), > 14 words to text_slide → ValueError; a
+    paged scene stays one slide and build_video splits its time by words (10 + 5 words in 6 s → 4 s + 2 s)."""
+    import copy
+    from PIL import Image
+    from autopilot import diagrams, lesson_slides as ls, material, pulse, shorts
+    out = ROOT / "output" / "test_frame0"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir(parents=True)
+    logs = []
+    b = _basics_material(cfg)
+    flow = next(s_ for s_ in b["segments"] if s_["id"] == "point_1")
+    assert flow["diagram"]["type"] == "flow"
+    lesson = _fixture_lesson("bos-vs-choch")
+    lseg = next(s_ for s_ in lesson["segments"] if s_["id"] == "point_1")
+    assert not lseg.get("diagram")
+    huge = dict(flow, term="Giant diagram", diagram={"type": "flow", "nodes": [
+        {"label": "Fund", "say": ["fund"]},
+        {"label": "Holds" + "x" * 90, "coin": "ETH", "arrow": "holds", "say": ["holdings"]}],
+        "notes": [{"text": "A note", "say": ["note"]}]})
+    assert diagrams.validate(huge["diagram"]) == []
+    eth_story = {"category": "crypto", "source": "CoinDesk", "title": "Ethereum slides as staking withdrawals jump",
+                 "summary": "Ether fell as staking withdrawals rose.",
+                 "published": (TRIGGER_NOW - timedelta(hours=1)).isoformat()}
+    data = trigger_data(btc=-1.0, eth=-5.0, sol=-1.0, xrp=-1.0, news=[eth_story])
+    ov = trigger_overview(cap=-2.0, coins=[("BTC", "Bitcoin", 62400, -1.0), ("ETH", "Ethereum", 2450, -5.0)])
+    pm, why = pulse.build(data, ov, TRIGGER_NOW, "short_a", cfg, log=lambda m_: None)
+    assert pm is not None and material.validate(pm) == [] and pm["market"]["lead"] == "ETH", why
+    # a related coin moving more than the lead (SOL −9% beside ETH −5%) never takes frame 0: the material's lead does
+    big, _ = pulse.build(trigger_data(btc=-1.0, eth=-5.0, sol=-9.0, xrp=-1.0, news=[eth_story]), ov, TRIGGER_NOW,
+                         "short_b", cfg, log=lambda m_: None)
+    assert big is not None and big["market"]["lead"] == "ETH" and shorts.lead_coin(big) == "ETH", big and big["market"]
+    _, binfo = shorts.hook_card(shorts._ctx(cfg, big), "WHY -5%?", m=big)
+    assert binfo["coin"] == "ETH" and binfo["pill"] == "−5.0% · 24h", binfo
+    bare = copy.deepcopy(_market_material())
+    bare["market"]["series"] = {}
+
+    cases = [("concept_diagram", b, flow, None, "WHY IT MATTERS?", "diagram"),
+             ("concept_icon", lesson, lseg, None, "WHY IT MATTERS?", "icon"),
+             ("diagram_too_big", b, huge, None, "WHY IT MATTERS?", "icon"),
+             ("pulse", pm, None, pm, "WHY -5%?", "chart"),
+             ("no_series", bare, None, bare, "WHY -7%?", "badge"),
+             ("long_hook", b, flow, None, "Why does an exchange traded fund matter today?", "diagram")]
+    for layout in (ls.PORTRAIT, ls.LANDSCAPE):
+        for name, m, seg, mk, card, kind in cases:
+            ctx = shorts._ctx(cfg, m, layout)
+            img, info = shorts.hook_card(ctx, card, m=mk, seg=seg, log=logs.append)
+            img.save(out / f"{name}_{layout.name}.png")
+            assert img.size == (layout.w, layout.h)
+            assert info["kind"] == kind, (name, layout.name, info)
+            words = info["words"].split()
+            assert 1 <= len(words) <= shorts.CARD_WORDS and words == card.upper().split()[:4], (name, info)
+            vis = _ink_share(img, info["visual"])
+            assert vis >= 0.03, f"{name} {layout.name}: visual region {vis:.1%} non-background"
+            assert _ink_share(img, info["words_box"]) >= 0.03, (name, layout.name)
+            x0, y0, x1, y1 = layout.content_box
+            assert y0 <= info["words_box"][3] < info["visual"][1] < info["visual"][3] <= y1, info
+            if kind == "diagram":  # every part of the spec drawn
+                parts = {it for st in diagrams.steps(seg["diagram"]) for it in st["items"]}
+                assert set(info["parts"]) == parts, (info["parts"], parts)
+            if name == "concept_icon":
+                assert info["coin"] == "BTC" and info["term"] == "Break of structure", info
+            if name == "diagram_too_big":
+                assert info["coin"] == "ETH", info
+            if kind in ("chart", "badge"):
+                want = "−5.0% · 24h" if name == "pulse" else "−7.2% · 24h"
+                assert info["pill"] == want and info["coin"] == ("ETH" if name == "pulse" else "BTC"), info
+        assert sum("Short frame 0 (Giant diagram): the diagram doesn't fit" in x and "icon card" in x for x in logs) == 1
+        logs.clear()
+    assert shorts.card_words("Why does an exchange traded fund matter today?") == "WHY DOES AN EXCHANGE"
+    recap = _market_material(kind="recap")
+    _, rinfo = shorts.hook_card(shorts._ctx(cfg, recap), "WHAT MOVED?", m=recap)
+    assert rinfo["pill"] == "−9.1% · 7d", rinfo
+    assert shorts.icon_coin({"term": "Gas fees", "facts": ["Ethereum charges gas. Bitcoin too."]}) == "ETH"
+    assert shorts.icon_coin({"term": "Order blocks", "facts": ["A zone on a chart."]}) is None
+
+    # text pages: ≤ 14 body words a page, every word kept, breaks at a sentence end within ±2 words
+    w28 = " ".join(f"w{i}" for i in range(28))
+    w30 = " ".join(f"w{i}" for i in range(30))
+    assert [shorts.text_words(p_) for p_ in shorts.text_pages(w28)] == [14, 14]
+    assert [shorts.text_words(p_) for p_ in shorts.text_pages(w30)] == [10, 10, 10]
+    s30 = " ".join(f"w{i}" + ("." if i == 8 else "") for i in range(30))
+    pages = shorts.text_pages(s30)
+    assert [shorts.text_words(p_) for p_ in pages] == [9, 11, 10] and pages[0].endswith("w8."), pages
+    for text in (w28, w30, s30, flow["facts"][0], b["segments"][0]["facts"][0], "Bitcoin: −7.2% · Ethereum: −4.5%"):
+        pages = shorts.text_pages(text)
+        assert " ".join(pages) == " ".join(text.split()) and all(shorts.text_words(p_) <= 14 for p_ in pages), pages
+        assert len(pages) == max(1, math.ceil(shorts.text_words(text) / 14)), pages
+    assert shorts.text_words("Bitcoin: −7.2% · Ethereum: −4.5%") == 4
+    ctx = shorts._ctx(cfg, b)
+    try:
+        shorts.text_slide(ctx, "FACT", " ".join(["word"] * 15))
+        raise AssertionError("a 15-word text slide was drawn")
+    except ValueError as e:
+        assert "15 words" in str(e)
+    shorts.text_slide(ctx, "FACT", " ".join(["word"] * 14))
+
+    # the renders: frame 0 info on the cover, thumbnail.jpg inked, one slide per scene (later text pages ride along)
+    pkg = {"hook": "Why does an ETF matter?", "card": "WHY IT MATTERS?"}
+    renders = {"render_concept": shorts.render_slides(cfg, b, flow, pkg, out / "render_concept"),
+               "render_lesson": shorts.render_slides(cfg, lesson, lseg, pkg, out / "render_lesson"),
+               "render_overview": shorts.render_slides(cfg, b, b["segments"][0], pkg, out / "render_overview"),
+               "render_pulse": shorts.render_market_slides(cfg, pm, {"hook": pm["market"]["hooks"][0], "card": "WHY -5%?"},
+                                                           out / "render_pulse")}
+    for name, (pics, thumb) in renders.items():
+        assert len(pics) == 3 and [p_["id"] for p_ in pics] == ["hook", "explain", "payoff"], name
+        assert thumb.name == "thumbnail.jpg" and pics[0]["image"] == thumb and pics[0]["cover"]
+        info = pics[0]["frame0"]
+        assert 1 <= len(info["words"].split()) <= 4 and info["kind"] != "", info
+        jpg = Image.open(thumb)
+        assert _ink_share(jpg, info["visual"]) >= 0.03 and _ink_share(jpg, info["words_box"]) >= 0.03, name
+        shutil.copy(thumb, out / f"{name}_thumbnail.jpg")
+        for p_ in pics[1:]:
+            if p_.get("steps"):  # a stepped diagram scene, not text
+                continue
+            for part in [p_] + p_.get("pages", []):
+                assert Path(part["image"]).exists() and 1 <= part["words"] <= 14, (name, part)
+    explain = renders["render_lesson"][0][1]
+    assert shorts.text_words(lseg["facts"][0]) == 15 and len(explain["pages"]) == 1, explain
+    assert explain["words"] + explain["pages"][0]["words"] == 15
+    over = renders["render_overview"][0]
+    assert len(over[1]["pages"]) == 2 and len(over[2]["pages"]) == 2, over[1]
+
+    # build_video: a paged scene splits its narration time by words; the cover keeps its hold
+    calls = []
+    saved = render._segment, render.run
+    render._segment = lambda part, dur, seg, *a, **k: calls.append((Path(part["image"]).name, round(dur, 3)))
+    render.run = lambda *a, **k: None
+    try:
+        tmp = Path(tempfile.mkdtemp())
+        slide = {"image": tmp / "a.png", "words": 10, "id": "explain", "reveal": None,
+                 "pages": [{"image": tmp / "b.png", "words": 5, "reveal": None}]}
+        cover = {"image": tmp / "c.jpg", "cover": True, "follow": {"image": tmp / "f.png", "reveal": None}}
+        audio = [{"audio": tmp / "v0.wav", "words": [(0.1, 0.4, "Hi")], "duration": 3.0},
+                 {"audio": tmp / "v1.wav", "words": [], "duration": 6.0}]
+        render.build_video(audio, [cover, slide], cfg, tmp, tmp / "out.mp4")
+        assert calls == [("c.jpg", render.COVER_HOLD), ("f.png", 3.0 - render.COVER_HOLD), ("a.png", 4.0),
+                         ("b.png", 2.0)], calls
+        assert "seg_01p1.mp4" in (tmp / "seg_list.txt").read_text()
+        shutil.rmtree(tmp, ignore_errors=True)
+    finally:
+        render._segment, render.run = saved
+    print("OK short frame0: 1-4 card words over a visual (diagram fully drawn / icon card with candles, coin badge and "
+          "term pill / lead coin badge + %-move pill + move chart / badge card without a series), oversized diagram → "
+          "icon card (logged), long hook cut to 4 words, PORTRAIT + LANDSCAPE inked; text pages ≤ 14 words (28 → 2, "
+          "30 → 3, all words kept), > 14 → ValueError; paged scene time split by words (4 s + 2 s); samples in "
+          "output/test_frame0/")
+
+
+def test_pulse_material(cfg):
+    """Pulse material (epic-shorts-reach entry 6.1): built from the day's fetched data alone (no LLM). ETH −5% with
+    an ETH story → valid pulse material led by ETH (numbers + series as fetched, ≥ 2 hooks, data source + CoinGecko
+    credit); a 0.8% day with no story → nothing ("quiet market"); a +20% top-50 coin without a headline naming it
+    never leads (coin gate log line); with one it leads on CoinGecko numbers with that story as its cause; BTC −3%
+    with no story → material without a cause; no prices and no overview → "no price data"; fewer than 2 surviving
+    hooks → no material, the validator's reasons; shorts.pick_market never serves pulse by default, only with
+    kinds=("pulse",); make() with a stub fetch writes data/material/pulse-<date>-<slot>.json that loads."""
+    from autopilot import material, pulse, rules, shorts, triggers
+    from autopilot.sources import CG_CREDIT
+    calm = dict(btc=-1.0, eth=-1.0, sol=-1.0, xrp=-1.0)
+    t0 = (TRIGGER_NOW - timedelta(hours=1)).isoformat()
+    eth_story = {"category": "crypto", "source": "CoinDesk", "title": "Ethereum slides as staking withdrawals jump",
+                 "summary": "Ether fell as staking withdrawals rose.", "published": t0}
+    neutral = {"category": "crypto", "source": "CoinDesk", "title": "Crypto exchange adds new trading pairs",
+               "summary": "", "published": t0}
+
+    def build(data, ov=None, logs=None, **kw):
+        return pulse.build(data, ov, TRIGGER_NOW, "short_a", cfg, log=(logs.append if logs is not None else lambda m: None),
+                           **kw)
+
+    # ETH −5% with an ETH story: lead ETH, numbers + series exactly as fetched, hooks, data source + credit
+    data = trigger_data(**dict(calm, btc=-1.0, eth=-5.0), news=[eth_story])
+    series = [2580.0 - 2.5 * i for i in range(49)] + [2450.0]
+    data["crypto"]["ETH"]["series"] = list(series)
+    ov = trigger_overview(cap=-2.0, coins=[("BTC", "Bitcoin", 62400, -1.0), ("ETH", "Ethereum", 2450, -5.0)])
+    m, why = build(data, ov)
+    assert m is not None and material.validate(m) == [], (why, m and material.validate(m))
+    mk = m["market"]
+    assert m["source"]["kind"] == "pulse" and m["source"]["id"] == "2026-10-15-short_a" and m["segments"] == []
+    assert m["youtube_id"] is None and m["facebook_id"] is None and m["published_at"] == TRIGGER_NOW.isoformat()
+    assert mk["lead"] == "ETH" and list(mk["numbers"])[0] == "ETH", mk["numbers"]
+    eth = data["crypto"]["ETH"]
+    assert mk["numbers"]["ETH"] == {"name": "Ethereum", "price": eth["price"], "change_24h": -5.0,
+                                    "change_7d": triggers._round(eth["change_7d"]), "source": "Coinbase"}, mk["numbers"]
+    assert mk["series"]["ETH"] == series and mk["numbers"]["BTC"]["change_24h"] == -1.0
+    assert mk["cause_headline"] == eth_story["title"] and mk["causes"]["ETH"] == eth_story["title"]
+    assert all(v is None for s_, v in mk["causes"].items() if s_ != "ETH")
+    assert mk["headlines"][0]["title"] == eth_story["title"]
+    assert set(mk["data_source"]) == {"Coinbase", "CoinGecko"} and mk["credit"] == CG_CREDIT
+    assert mk["total_cap_change_24h"] == -2.0
+    hooks = mk["hooks"]
+    assert len(set(h.lower() for h in hooks)) == len(hooks) >= 2, hooks
+    assert hooks[:2] == ["Why did Ethereum just fall 5%?", "Why is Ethereum down 5%?"], hooks
+    for text in hooks + [m["source"]["title"]]:
+        assert len(text) <= 60 and not rules.title_problems(text) and not rules.narration_problems(text), text
+    assert "ETH" in why and eth_story["title"] in why
+    # the market Short's helpers read it like a triggered material (24 h period)
+    assert shorts.lead_coin(m) == "ETH" and shorts._change(m, "ETH") == -5.0
+    assert "in the last 24 hours" in shorts._market_prompt(cfg, m, 0, [])
+    assert shorts.market_facts(m)["cause_headline"] == eth_story["title"]
+    # Coinbase only (no overview): no CoinGecko, no credit
+    m2, _ = build(data)
+    assert m2["market"]["data_source"] == ["Coinbase"] and m2["market"]["credit"] == ""
+    # related long video id kept; validator: pulse needs no platform id, but its lead + a series of ≥ 2 points
+    assert build(data, related="LV1")[0]["youtube_id"] == "LV1"
+    bad = json.loads(json.dumps(m))
+    bad["market"]["lead"] = "DOGE"
+    assert material.validate(bad) == ["pulse: lead 'DOGE' must be one of the numbers"], material.validate(bad)
+    bad["market"]["lead"], bad["market"]["series"]["ETH"] = "ETH", [2450.0]
+    assert material.validate(bad) == ["pulse: lead ETH needs a series of at least 2 points"], material.validate(bad)
+    tri = _market_material()
+    assert material.validate(dict(tri, youtube_id=None)) == ["no platform id (youtube_id or facebook_id)"]
+
+    # quiet market: |lead| 0.8% and no story → nothing, reason starts "quiet market"
+    logs = []
+    m, why = build(trigger_data(btc=-0.8, eth=0.5, sol=0.3, xrp=-0.2, news=[]), logs=logs)
+    assert m is None and why.startswith("quiet market"), why
+    assert any("Pulse: no material (quiet market" in x for x in logs), logs
+    assert pulse.QUIET_MOVE_PCT == 1.5 and cfg["pulse"]["quiet_move_pct"] == 1.5
+    m, why = pulse.build(trigger_data(btc=-0.8, eth=0.5, sol=0.3, xrp=-0.2, news=[]), None, TRIGGER_NOW, "short_a",
+                         {"pulse": {"quiet_move_pct": 0.5}}, log=lambda x: None)
+    assert m is not None and m["market"]["lead"] == "BTC", why  # re-tunable threshold
+
+    # gated-out coin: PEPE +20% without a headline naming it never leads; BTC +2% leads; the gate logs it
+    logs = []
+    ov = trigger_overview(coins=[("BTC", "Bitcoin", 62400, 2.0), ("PEPE", "Pepe", 1e-5, 20.0)])
+    m, why = build(trigger_data(**dict(calm, btc=2.0), news=[neutral]), ov, logs=logs)
+    assert m is not None and m["market"]["lead"] == "BTC" and "PEPE" not in m["market"]["numbers"], why
+    assert any("Coin gate: PEPE" in x and "not a pulse lead" in x for x in logs), logs
+    # gated coin: PEPE +20% with a story naming it, bigger than BTC/ETH → it leads on CoinGecko numbers
+    story = {"category": "crypto", "source": "CoinDesk", "title": "Pepe jumps as memecoin traders pile in",
+             "summary": "", "published": t0}
+    ov = trigger_overview(coins=[("BTC", "Bitcoin", 62400, -3.0), ("PEPE", "Pepe", 1e-5, 20.0)])
+    m, why = build(trigger_data(**dict(calm, btc=-3.0), news=[neutral, story]), ov)
+    assert m is not None and m["market"]["lead"] == "PEPE", why
+    assert m["market"]["cause_headline"] == story["title"] and m["market"]["causes"]["PEPE"] == story["title"]
+    assert m["market"]["numbers"]["PEPE"]["source"] == "CoinGecko" and m["market"]["numbers"]["PEPE"]["change_24h"] == 20.0
+    assert m["market"]["series"]["PEPE"] == [triggers._round(1e-5 / 1.2), 1e-5]
+    assert "CoinGecko" in m["market"]["data_source"] and m["market"]["credit"] == CG_CREDIT
+    assert m["market"]["hooks"][0] == "Why did Pepe just rise 20%?", m["market"]["hooks"]
+    # a gated coin smaller than the BTC move does not lead
+    ov = trigger_overview(coins=[("BTC", "Bitcoin", 62400, -25.0), ("PEPE", "Pepe", 1e-5, 20.0)])
+    assert build(trigger_data(**dict(calm, btc=-25.0), news=[story]), ov)[0]["market"]["lead"] == "BTC"
+
+    # big move, no story: material with no cause
+    m, why = build(trigger_data(**dict(calm, btc=-3.0), news=[neutral]))
+    assert m is not None and m["market"]["lead"] == "BTC" and m["market"]["cause_headline"] is None, why
+    assert all(v is None for v in m["market"]["causes"].values()) and "no matching story" in why
+    assert m["market"]["hooks"][0] == "Why did Bitcoin just fall 3%?"
+
+    # no data: no Coinbase prices and no overview
+    logs = []
+    m, why = build({"crypto": {}, "news": [eth_story]}, None, logs=logs)
+    assert m is None and why == "no price data" and any("no price data" in x for x in logs), (why, logs)
+    # the overview alone is enough (Coinbase failed): BTC / ETH from CoinGecko
+    ov = trigger_overview(coins=[("BTC", "Bitcoin", 62400, -4.0), ("ETH", "Ethereum", 2450, -2.0)])
+    m, why = build({"crypto": {}, "news": []}, ov)
+    assert m is not None and m["market"]["lead"] == "BTC" and m["market"]["data_source"] == ["CoinGecko"], why
+
+    # invalid build: fewer than 2 hooks survive (a name too long for a 60-character hook) → nothing, the reasons
+    data = trigger_data(**dict(calm, btc=-3.0), news=[neutral])
+    data["crypto"]["BTC"]["name"] = "Bitcoin Extraordinarily Long Placeholder Token Name"
+    logs = []
+    m, why = build(data, logs=logs)
+    assert m is None and why.startswith("invalid pulse material") and "hook candidates" in why, why
+    assert any("Pulse: no material (invalid pulse material" in x for x in logs)
+    # a flat lead with a story: no "0.0%" hook, so fewer than 2 hooks → no material
+    m, why = build(trigger_data(btc=0.02, eth=0.01, sol=0.0, xrp=0.0,
+                                news=[dict(eth_story, title="Bitcoin holds steady as ETF flows stall")]))
+    assert m is None and why.startswith("invalid pulse material"), why
+
+    # shorts.pick_market: pulse never served by default (the current mix), only with kinds=("pulse",)
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        hist = History(tmp / "history.json")
+        pm, _ = pulse.build(trigger_data(**dict(calm, eth=-5.0), news=[eth_story]), None, SHORT_NOW - timedelta(days=2),
+                            "short_a", cfg, log=lambda x: None)  # older than tri: it would come first if served
+        assert datetime.fromisoformat(pm["published_at"]) < datetime.fromisoformat(tri["published_at"])
+        got = shorts.pick_market([pm, tri], hist, SHORT_NOW, log=lambda x: None)
+        assert got and got[0] is tri, got
+        assert shorts.pick_market([pm], hist, SHORT_NOW, log=lambda x: None) is None
+        assert shorts.pick([pm], hist, SHORT_NOW, log=lambda x: None) is None
+        got = shorts.pick_market([pm, tri], hist, SHORT_NOW, log=lambda x: None, kinds=("pulse",))
+        assert got == (pm, 0), got
+
+        # make() with a stub fetch: writes data/material/pulse-<date>-short_a.json, loads through load_materials
+        calls = []
+
+        def fetch(cfg_, log=print):
+            calls.append(1)
+            return trigger_data(**dict(calm, eth=-5.0), news=[eth_story]), trigger_overview(coins=[])
+        logs = []
+        path, why = pulse.make(cfg, tmp, "short_a", now=TRIGGER_NOW, log=logs.append, fetch=fetch, related="LV2")
+        assert path == tmp / "data" / "material" / "pulse-2026-10-15-short_a.json" and path.exists(), (path, why)
+        loaded = shorts.load_materials(tmp, log=logs.append)
+        assert [shorts.key(x) for x in loaded] == ["pulse-2026-10-15-short_a"], logs
+        assert loaded[0]["youtube_id"] == "LV2" and loaded[0]["market"]["lead"] == "ETH" and len(calls) == 1
+        # a second build for the same date + slot merges into the file
+        assert pulse.make(cfg, tmp, "short_a", now=TRIGGER_NOW + timedelta(minutes=5), log=logs.append,
+                          fetch=fetch)[0] == path
+        assert material.load(path)["youtube_id"] == "LV2" and material.load(path)["published_at"] == TRIGGER_NOW.isoformat()
+        # a quiet day writes nothing
+        path, why = pulse.make(cfg, tmp, "short_b", now=TRIGGER_NOW, log=logs.append,
+                               fetch=lambda c, log=print: (trigger_data(btc=0.4, eth=0.2, sol=0.1, xrp=0.1, news=[]), None))
+        assert path is None and why.startswith("quiet market")
+        assert not (tmp / "data" / "material" / "pulse-2026-10-15-short_b.json").exists()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    print("OK pulse material: ETH −5% + story → valid pulse material (numbers + series as fetched, ≥ 2 hooks, data "
+          "source + credit), quiet market → none, gated-out coin never leads (logged), gated coin leads on CoinGecko "
+          "numbers, no story → no cause, no data → none, < 2 hooks → none, pick_market excludes pulse by default, "
+          "make → data/material/pulse-<date>-<slot>.json")
+
+
+def _pulse_answer(n: int, prompt: str) -> dict:
+    """A mocked pulse Short script: only the snapshot's numbers (Ethereum −5%, Bitcoin −1%) are spoken."""
+    a = _short_answer(n, "HOOK: the Ethereum move")
+    a["scenes"][0]["text"] = "Ethereum fell 5% in a day. " + a["scenes"][0]["text"]
+    a["scenes"][2]["text"] = "Bitcoin slipped 1% beside it. " + a["scenes"][2]["text"]
+    a["card"] = "WHY -5%?"
+    return a
+
+
+def test_short_pulse(cfg):
+    """Pulse Short (epic-shorts-reach entry 6.2): the live config has short_p (kind short, pulse-first, gate: pulse,
+    start_utc 00:30 since 6.5), short_a pulse-first, pulse.enabled true (6.6) and autopilot.yml offers short_p. A manual short_p run on
+    ETH −5% + an ETH story with a published lesson LV9 builds fresh pulse material (stub fetch) and publishes (mocked)
+    a pulse Short: title = the pulse hook (no date / stamp, title rules pass), spoken numbers ⊂ the snapshot,
+    youtu.be/LV9 on the description's and Reel caption's first line ("▶ Latest video"), CoinGecko credit once, no
+    "From the full video" line, history short_kind pulse, output/<stamp>/material.json = the pulse material. A timed
+    short_p run while pulse.enabled is false logs and exits 0 without fetching; quiet short_a with pulse on → concept
+    Short (the quiet market logged; yesterday's pulse material never served); no concept left → slot skipped +
+    low-stock warning; a fetch error → concept fallback with the reason; every pulse hook used → concept; short_b with
+    pulse on and timed short_a with pulse off keep today's mix (triggered market Short, no fetch)."""
+    import main as app
+    from autopilot import material, shorts, triggers
+    from autopilot.sources import CG_CREDIT
+    from autopilot.triggered import unknown_numbers
+
+    live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    sp = live["sessions"]["short_p"]
+    assert sp["kind"] == "short" and sp["pulse"] is True and sp["gate"] == "pulse" and sp["start_utc"] == "00:30", sp
+    assert live["sessions"]["short_a"]["pulse"] is True and not live["sessions"]["short_b"].get("pulse")
+    assert live["pulse"]["enabled"] is True  # on since the pulse release (6.6)
+    assert {k: app.DEFAULT_SESSIONS["short_p"][k] for k in ("kind", "pulse", "gate", "start_utc")} == \
+        {"kind": "short", "pulse": True, "gate": "pulse", "start_utc": "00:30"}
+    assert app.DEFAULT_SESSIONS["short_a"]["pulse"] is True
+    ap = yaml.safe_load((ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8"))
+    assert "short_p" in ap.get("on", ap.get(True))["workflow_dispatch"]["inputs"]["session"]["options"]
+    assert app.pulse_first(live, "short_p") and app.pulse_first(live, "short_a") and not app.pulse_first(live, "short_b")
+    off = dict(live, pulse=dict(live["pulse"], enabled=False))
+    assert app.pulse_first(off, "short_p") and not app.pulse_first(off, "short_a") and not app.pulse_first(off, "short_b")
+
+    day = timedelta(days=1)
+    t0 = (SHORT_NOW - timedelta(hours=1)).isoformat()
+    eth_story = {"category": "crypto", "source": "CoinDesk", "title": "Ethereum slides as staking withdrawals jump",
+                 "summary": "Ether fell as staking withdrawals rose.", "published": t0}
+    lesson = {"kind": "lesson", "episode": "bos-vs-choch", "video_id": "LV9", "session": "lesson",
+              "brief_date": "2026-10-14", "date": (SHORT_NOW - day).isoformat(), "counts": True}
+    older = {"kind": "triggered", "video_id": "TV0", "session": "triggered", "brief_date": "2026-10-12",
+             "date": (SHORT_NOW - 3 * day).isoformat()}
+    future = {"kind": "basics", "video_id": "BV2", "session": "basics", "brief_date": "2026-10-15",
+              "date": (SHORT_NOW - timedelta(hours=2)).isoformat(), "publish_at": (SHORT_NOW + day).isoformat()}
+    review = {"kind": "basics", "video_id": "MV1", "session": "basics", "brief_date": "2026-10-15",
+              "date": (SHORT_NOW - timedelta(hours=1)).isoformat(), "counts": False}
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        (tmp / "h.json").write_text(json.dumps({"videos": [older, lesson, future, review]}))
+        assert shorts.latest_long(History(tmp / "h.json"), SHORT_NOW) == "LV9"
+        (tmp / "h.json").write_text(json.dumps({"videos": [future]}))
+        assert shorts.latest_long(History(tmp / "h.json"), SHORT_NOW) is None
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    calls = []
+
+    def stub(data_fn):
+        def fetch(cfg_, log=print):
+            calls.append(1)
+            return data_fn()
+        return fetch
+
+    move = stub(lambda: (trigger_data(btc=-1.0, eth=-5.0, sol=-1.0, xrp=-1.0, news=[eth_story], now=SHORT_NOW),
+                         trigger_overview(cap=-2.0, coins=[("BTC", "Bitcoin", 62400, -1.0),
+                                                           ("ETH", "Ethereum", 2450, -5.0)])))
+    quiet = stub(lambda: (trigger_data(btc=-0.8, eth=0.5, sol=0.3, xrp=-0.2, news=[], now=SHORT_NOW), None))
+
+    def broken(cfg_, log=print):
+        calls.append(1)
+        raise RuntimeError("Coinbase timed out")
+    saved = (triggers.fetch, app.render.build_video)
+    try:
+        # manual short_p: a pulse Short from the fresh material (real render)
+        triggers.fetch = move
+        with _ShortRun([], answer=_pulse_answer, history=[older, lesson, future]) as r:
+            assert r.run("--session", "short_p") == 0, r.logs[-8:]
+            assert len(calls) == 1 and len(r.yt) == 1 and len(r.fb) == 1
+            assert any("Pulse: related long video LV9" in x for x in r.logs), r.logs
+            assert any(x.startswith("Short (pulse): pulse-2026-10-15-short_p · hook_0") for x in r.logs), r.logs
+            assert "market pulse" in r.prompts[0] and "is the source; never copy it" not in r.prompts[0]
+            assert "HOOK: Why did Ethereum just fall 5%?" in r.prompts[0]
+            assert _probe_size(r.yt[0]["video"]) == (1080, 1920)
+            meta = r.yt[0]["meta"]
+            assert meta["title"] == "Why did Ethereum just fall 5%?" and not shorts.title_problems(meta["title"])
+            assert not rules.title_problems(meta["title"]) and "short_p" not in meta["title"].lower()
+            d, cap = meta["description"], r.fb[0]["caption"]
+            assert d.splitlines()[0] == "▶ Latest video: https://youtu.be/LV9", d
+            assert cap.splitlines()[0] == "▶ Latest video: https://youtu.be/LV9", cap
+            assert d.count(CG_CREDIT) == 1 and cap.count(CG_CREDIT) == 1 and "From the full video" not in d
+            m = material.load(r.tmp / "data" / "material" / "pulse-2026-10-15-short_p.json")
+            said = " ".join(sc["text"] for sc in r.spoken[-1])
+            assert "5%" in said and not unknown_numbers(said, shorts.market_facts(m)), said
+            e = r.history()[-1]
+            assert e["kind"] == "short" and e["short_kind"] == "pulse" and e["material"] == "pulse-2026-10-15-short_p"
+            assert e["segment"] == "hook_0" and e["source_video"] == "LV9" and e["session"] == "short_p", e
+            copy = r.yt[0]["video"].parent / "material.json"
+            assert copy.exists() and material.load(copy) == m and m["source"]["kind"] == "pulse", copy
+            assert m["market"]["lead"] == "ETH" and m["youtube_id"] == "LV9"
+            assert shorts._ctx(r.cfg, m).chip == "MARKET PULSE"
+            assert any(x.startswith("Studio task: set the related video of https://youtube.com/shorts/S1 to "
+                                    "https://youtu.be/LV9") for x in r.logs)
+            # a second run of the slot: the merged material's other hook (the first is used)
+            assert r.run("--session", "short_p") == 0 and r.history()[-1]["segment"] == "hook_1"
+            assert r.yt[1]["meta"]["title"] == "Why is Ethereum down 5%?"
+
+        app.render.build_video = lambda audio, pics, cfg_, wd, out, music=None: Path(out).write_bytes(b"mp4") and 0.0
+        # timed short_p while pulse.enabled is false: logged, exit 0, no fetch
+        calls.clear()
+        with _ShortRun([_basics_material(cfg)], update={"pulse": {"enabled": False}}) as r:
+            assert r.run("--session", "short_p", "--scheduled") == 0
+            assert any(x.startswith("pulse.enabled is false") for x in r.logs), r.logs
+            assert not calls and not r.prompts and not r.yt and not r.history()
+        # quiet short_a with pulse on: concept Short, the quiet market logged, yesterday's pulse material not served
+        triggers.fetch = quiet
+        stale, _ = app.pulse.build(trigger_data(btc=-1.0, eth=-5.0, sol=-1.0, xrp=-1.0, news=[eth_story],
+                                                now=SHORT_NOW - day), None, SHORT_NOW - day, "short_a", cfg,
+                                   log=lambda x: None)
+        assert stale is not None and material.validate(stale) == []
+        with _ShortRun([_basics_material(cfg), stale], update={"pulse": {"enabled": True}}) as r:
+            assert r.run("--session", "short_a") == 0, r.logs[-6:]
+            assert calls and any("Pulse: no pulse Short (quiet market" in x and "concept Short takes the short_a slot"
+                                 in x for x in r.logs), r.logs
+            e = r.history()[-1]
+            assert e["short_kind"] == "concept" and e["material"].startswith("basics-"), e
+            assert not any("HOOK: " in p_ for p_ in r.prompts) and len(r.yt) == 1
+            assert not (r.yt[0]["video"].parent / "material.json").exists()
+        # quiet, no concept left: slot skipped + low-stock warning, exit 0
+        bm = _basics_material(cfg)
+        used = [{"kind": "short", "session": "short_b", "brief_date": "2026-10-14", "material": shorts.key(bm),
+                 "segment": s_["id"], "hook": f"Old hook {s_['id']}?", "video_id": f"U{s_['id']}"}
+                for s_ in bm["segments"]]
+        with _ShortRun([bm], update={"pulse": {"enabled": True}}, history=used) as r:
+            assert r.run("--session", "short_a") == 0 and not r.yt and not r.prompts
+            assert any("Pulse: no pulse Short (quiet market" in x and "the short_a slot is skipped" in x
+                       for x in r.logs), r.logs
+            assert any("low-stock warning: 0 eligible" in x for x in r.logs) and len(r.history()) == len(used)
+        # fetch fails: concept fallback, the reason logged
+        triggers.fetch = broken
+        with _ShortRun([_basics_material(cfg)]) as r:
+            assert r.run("--session", "short_p") == 0, r.logs[-6:]
+            assert any("pulse build failed: Coinbase timed out" in x for x in r.logs), r.logs
+            assert r.history()[-1]["short_kind"] == "concept"
+        # every hook of the fresh material used by earlier Shorts: concept
+        triggers.fetch = move
+        hooked = [{"kind": "short", "session": "short_b", "brief_date": "2026-10-14", "material": "triggered-x",
+                   "segment": f"hook_{i}", "hook": h, "video_id": f"H{i}"}
+                  for i, h in enumerate(["Why did Ethereum just fall 5%?", "Why is Ethereum down 5%?",
+                                         "What really moved Ethereum?"])]
+        with _ShortRun([_basics_material(cfg)], history=hooked) as r:
+            assert r.run("--session", "short_p") == 0, r.logs[-6:]
+            assert any("every hook of pulse-2026-10-15-short_p is used" in x for x in r.logs), r.logs
+            assert r.history()[-1]["short_kind"] == "concept"
+        # short_b with pulse on, timed short_a with pulse off: today's mix (triggered market Short), no fetch
+        calls.clear()
+        with _ShortRun([_market_material(), _basics_material(cfg)], answer=_market_answer,
+                       update={"pulse": {"enabled": True}}) as r:
+            assert r.run("--session", "short_b") == 0, r.logs[-6:]
+            assert not calls and r.history()[-1]["short_kind"] == "market"
+            assert r.history()[-1]["material"] == "triggered-t1"
+        with _ShortRun([_market_material(), _basics_material(cfg)], answer=_market_answer) as r:
+            assert r.run("--session", "short_a", "--scheduled") == 0, r.logs[-6:]
+            assert not calls and r.history()[-1]["short_kind"] == "market" and r.history()[-1]["segment"] == "hook_0"
+    finally:
+        triggers.fetch, app.render.build_video = saved
+    print("OK short pulse: live config (short_p gated by pulse, due 00:30; pulse.enabled true; dispatch offers "
+          "short_p); manual short_p → pulse Short (hook title, snapshot numbers, ▶ Latest video youtu.be/LV9, credit "
+          "once, history short_kind pulse, output material.json); dark timed short_p skips without fetching; quiet / "
+          "fetch error / used hooks → concept; no concept left → skip + low-stock; short_b and timed short_a keep "
+          "today's mix")
 
 
 def _wf_map(text: str) -> tuple[dict, dict, dict]:
@@ -5426,7 +6134,7 @@ def test_slate_timetable(cfg):
     assert "gold." not in src and "make_brief" not in src and "news_since_last_brief" not in src
     timed = {k: s for k, s in sessions.items() if s.get("start_utc")}
     want = {"news_morning": ("12:00", []), "news_midday": ("16:00", []), "news_evening": ("21:00", []),
-            "short_a": ("13:00", []), "short_b": ("23:00", []), "basics": ("15:00", ["wed"]),
+            "short_a": ("13:00", []), "short_b": ("23:00", []), "short_p": ("00:30", []), "basics": ("15:00", ["wed"]),
             "lesson": ("15:00", ["thu"]), "recap": ("15:00", ["sat"])}
     for k, (t, days) in want.items():
         assert timed[k]["start_utc"] == t and list(timed[k].get("days") or []) == days, (k, timed[k])
@@ -5475,6 +6183,9 @@ def test_slate_timetable(cfg):
         sys.argv = argv0
     planned = [ln.split()[2] for ln in out.getvalue().splitlines() if ln.startswith("  CryptoFX · ")]
     assert sorted(planned) == sorted(timed), out.getvalue()
+    sp = next(ln for ln in out.getvalue().splitlines() if ln.startswith("  CryptoFX · short_p "))
+    assert sp.split()[3:] == ["00:30", "UTC,", "every", "day"], sp
+    assert edition["47 0 * * *"] == group["47 0 * * *"] == "short_p", edition
     assert "Retired" in out.getvalue() and all(f"CryptoFX · {r}" in out.getvalue() for r in retired)
     shutil.rmtree(tmp, ignore_errors=True)
     print("OK slate timetable (one backup cron per timed session in EDITION + concurrency.group, retired editions "
@@ -5482,10 +6193,10 @@ def test_slate_timetable(cfg):
 
 
 def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetime(2026, 10, 12, tzinfo=timezone.utc)):
-    """A slate week through the budget rules (slate.short_skip, triggers.hold): Short A 13:00, the standing long
-    video 15:00 (Wed Basics, Thu Lesson, Sat recap unless a triggered video published this week), Short B 23:00,
-    and triggered videos at their due times (a held one moves to 00:00 next day). Returns (history, logs)."""
-    from autopilot import slate, triggers
+    """A slate week through the budget rules (slate.short_skip; a triggered video is never held): Short P 00:30,
+    Short A 13:00, the standing long video 15:00 (Wed Basics, Thu Lesson, Sat recap unless a triggered video
+    published this week), Short B 23:00, and triggered videos at their due times. Returns (history, logs)."""
+    from autopilot import slate
     hist, logs = [], []
     state = {"version": 1, "triggers": [{"id": f"t{i}", "status": "pending", "due_utc": t.isoformat()}
                                        for i, t in enumerate(trigger_times)]}
@@ -5493,9 +6204,10 @@ def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetim
     def up(kind, session, when):
         hist.append({"brief_date": when.strftime("%Y-%m-%d"), "session": session, "kind": kind,
                      "video_id": f"V{len(hist)}", "date": when.isoformat(), "counts": True})
-    for d in range(8):  # the week + the Monday after (a held Sunday trigger lands there)
+    for d in range(8):  # the week + the Monday after
         day = start + timedelta(days=d)
-        events = [(day.replace(hour=13), "short_a"), (day.replace(hour=15), "long"), (day.replace(hour=23), "short_b")]
+        events = [(day.replace(hour=0, minute=30), "short_p"), (day.replace(hour=13), "short_a"),
+                  (day.replace(hour=15), "long"), (day.replace(hour=23), "short_b")]
         while True:
             due = [t for t in state["triggers"] if t["status"] == "pending"
                    and datetime.fromisoformat(t["due_utc"]).date() == day.date()]
@@ -5504,9 +6216,8 @@ def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetim
                 break
             when, what = evs[0]
             if isinstance(what, dict):
-                if not triggers.hold(what, hist, when, cfg, logs.append):
-                    what["status"] = "published"
-                    up("triggered", "triggered", when)
+                what["status"] = "published"
+                up("triggered", "triggered", when)
                 continue
             events.remove((when, what))
             if what == "long":
@@ -5516,93 +6227,150 @@ def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetim
                 elif wd == 5 and not any(v["kind"] == "triggered" for v in slate.long_videos(hist, when)):
                     up("recap", "recap", when)
                 continue
-            seen = {"triggers": [t for t in state["triggers"]  # a trigger is known once it has fired (≈ its due time)
-                                 if datetime.fromisoformat(t.get("held_from") or t["due_utc"]) <= when]}
-            why = slate.short_skip(hist, seen, what, when, cfg)
+            why = slate.short_skip(hist, when, cfg)
             if why:
-                logs.append(f"{what} {when:%a} yields: {why}")
+                logs.append(f"{what} {when:%a} skips: {why}")
             else:
                 up("short", what, when)
     return hist, logs
 
 
 def test_slate_budget(cfg):
-    """Slate 5.2: at most 3 YouTube uploads a UTC day. A Wednesday with Basics and a due trigger skips the timed
-    Short B with a log line (through main); on a Thursday where Short B is already up a due trigger holds to 00:00
-    UTC next day (triggers.check moves its due time, then dispatches it); simulated weeks never exceed 3 a day."""
+    """Slate budget (5.2, epic-shorts-reach 6.5; owner 2026-10-21 "trigger first, same day"): per UTC day at most 3
+    Shorts on YouTube and a triggered video is never held. A Wednesday with Basics and a due trigger makes all three
+    timed Shorts through main (no Short yields) and the trigger poll dispatches the trigger the same day; a
+    Wednesday-morning trigger dispatches before Basics, and the timed Basics still runs that day (no budget skip); a
+    fourth Short (manual ones count) skips with a log line; a timed short_p at 00:40 while pulse.enabled is false
+    logs the gate; an old `day_cap` config still loads; simulated weeks never exceed 3 Shorts a day or 1 planned long
+    video a day (2 only with a triggered video), publish every trigger at its due time and stay ≤ 5 uploads a day."""
     from collections import Counter
     import main as app
     from autopilot import slate, triggers
 
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
-    assert live["slate"] == {"day_cap": 3, "yield_days": ["wed", "thu"], "week_floor": 3, "week_cap": 4}
+    want = {"shorts_day_cap": 3, "long_day_cap": 1, "week_floor": 2, "week_cap": 4}
+    assert live["slate"] == want and slate.limits(live) == want, live["slate"]
+    assert slate.limits({"slate": {"day_cap": 3, "yield_days": ["wed", "thu"]}}) == want  # an old config
+    assert slate.limits({"slate": {"day_cap": 2}})["shorts_day_cap"] == 2 and slate.limits(None) == want
+    assert not hasattr(slate, "YIELD_DAYS") and not hasattr(slate, "DAY_CAP")
     tmp = Path(tempfile.mkdtemp())
     c = json.loads(json.dumps(live))
-    c["shorts"]["enabled"], c["triggers"]["enabled"] = True, True
+    c["shorts"]["enabled"], c["triggers"]["enabled"], c["pulse"]["enabled"] = True, True, True
     (tmp / "config.yaml").write_text(yaml.safe_dump(c, sort_keys=False), encoding="utf-8")
     (tmp / "data").mkdir()
-    wed = datetime(2026, 10, 14, 23, 4, tzinfo=timezone.utc)
+    D = lambda d, h, m=0: datetime(2026, 10, d, h, m, tzinfo=timezone.utc)  # noqa: E731
+    hfile = tmp / "data" / "history.json"
 
-    def entry(kind, session, vid, date="2026-10-14"):
-        return {"brief_date": date, "session": session, "kind": kind, "video_id": vid, "counts": True,
+    def entry(kind, session, vid, date="2026-10-14", counts=True):
+        return {"brief_date": date, "session": session, "kind": kind, "video_id": vid, "counts": counts,
                 "date": f"{date}T15:05:00+00:00"}
-    (tmp / "data" / "history.json").write_text(json.dumps({"videos": [entry("short", "short_a", "A1"),
-                                                                       entry("basics", "basics", "B1")]}))
-    triggers.save_state({"version": 1, "triggers": [{"id": "t-wed", "status": "pending",
-                                                     "due_utc": "2026-10-14T19:00:00+00:00"}]}, tmp / triggers.STATE)
+
+    def put(*rows):
+        hfile.write_text(json.dumps({"videos": list(rows)}))
     made = []
+
+    def fake_short(cfg_, h, key, date):  # "uploads" the Short: its history row, as a published run would
+        made.append(key)
+        rows = json.loads(hfile.read_text())["videos"]
+        put(*rows, entry("short", key, f"S{len(made)}", date))
+        return None
+    quiet = lambda cfg_, log=print: ({"crypto": {}, "news": []}, None)  # noqa: E731  (nothing new fires)
     saved = app.make_short
-    app.make_short = lambda *a, **k: made.append(a[2]) or None
+    app.make_short = fake_short
     try:
-        rc, logs = _main_logs(app, ["--session", "short_b", "--scheduled"], wed, tmp)
-        assert rc == 0 and not made and any("Short B yields its slot today" in x and "Wed" in x for x in logs), logs
-        # a Tuesday with a due trigger and no long video: Short B goes ahead
-        triggers.save_state({"version": 1, "triggers": [{"id": "t-tue", "status": "pending",
-                                                         "due_utc": "2026-10-13T19:00:00+00:00"}]}, tmp / triggers.STATE)
-        rc, logs = _main_logs(app, ["--session", "short_b", "--scheduled"], wed - timedelta(days=1), tmp)
+        # Wednesday: Basics up (15:05), a trigger due 19:00; short_p, short_a and short_b all run timed
+        put(entry("basics", "basics", "B1"))
+        triggers.save_state({"version": 1, "triggers": [{"id": "t-wed", "status": "pending", "key": "k",
+                                                         "fired_utc": "2026-10-14T19:00:00+00:00",
+                                                         "due_utc": "2026-10-14T19:00:00+00:00"}]}, tmp / triggers.STATE)
+        for key, when in (("short_p", D(14, 0, 34)), ("short_a", D(14, 13, 4)), ("short_b", D(14, 23, 4))):
+            rc, logs = _main_logs(app, ["--session", key, "--scheduled"], when, tmp)
+            assert rc == 0 and made[-1] == key and not any("Nothing to publish" in x for x in logs), (key, logs)
+        assert made == ["short_p", "short_a", "short_b"], made
+        assert len(slate.day_shorts(json.loads(hfile.read_text())["videos"], "2026-10-14")) == 3
+        logs = []
+        res = triggers.check(c, tmp, now=D(14, 19, 13), log=logs.append, fetch=quiet)
+        t = triggers.load_state(tmp / triggers.STATE)["triggers"][0]
+        assert res["due"] == "t-wed" and t["status"] == "dispatched" and "held_from" not in t, (res, t, logs)
+        assert t["due_utc"] == "2026-10-14T19:00:00+00:00" and not any("held" in m for m in logs), logs
+
+        # a fourth Short: 3 Shorts already today (two manual) → the timed Short B skips with a log line
+        made.clear()
+        put(entry("short", "short_p", "M1", "2026-10-13", counts=False),
+            entry("short", "short_a", "A1", "2026-10-13"), entry("short", "short_a", "M2", "2026-10-13", counts=False))
+        rc, logs = _main_logs(app, ["--session", "short_b", "--scheduled"], D(13, 23, 4), tmp)
+        assert rc == 0 and not made and any("Short B skipped" in x and "3 Shorts a day" in x for x in logs), logs
+        # a long video and two Shorts: the third Short still runs (long videos have their own cap)
+        put(entry("short", "short_p", "P3", "2026-10-13"), entry("short", "short_a", "A3", "2026-10-13"),
+            entry("triggered", "triggered", "T3", "2026-10-13"))
+        rc, logs = _main_logs(app, ["--session", "short_b", "--scheduled"], D(13, 23, 4), tmp)
         assert rc == 0 and made == ["short_b"], logs
     finally:
         app.make_short = saved
 
-    # Thursday: Short A, Lesson and Short B are up; a trigger due 23:30 holds to Friday 00:00, then dispatches
-    thu = "2026-10-15"
-    (tmp / "data" / "history.json").write_text(json.dumps({"videos": [
-        entry("short", "short_a", "A2", thu), entry("lesson", "lesson", "L2", thu), entry("short", "short_b", "S2", thu)]}))
-    triggers.save_state({"version": 1, "triggers": [{"id": "t-thu", "status": "pending", "key": "k",
-                                                     "fired_utc": "2026-10-15T23:30:00+00:00",
-                                                     "due_utc": "2026-10-15T23:30:00+00:00"}]}, tmp / triggers.STATE)
-    quiet = lambda cfg_, log=print: ({"crypto": {}, "news": []}, None)  # noqa: E731  (nothing new fires)
+    # a Wednesday-morning trigger due 12:00: dispatched at once (Basics at 15:00 doesn't hold it) …
+    put()
+    triggers.save_state({"version": 1, "triggers": [{"id": "t-am", "status": "pending", "key": "k2",
+                                                     "fired_utc": "2026-10-14T08:00:00+00:00",
+                                                     "due_utc": "2026-10-14T12:00:00+00:00"}]}, tmp / triggers.STATE)
     logs = []
-    res = triggers.check(c, tmp, now=datetime(2026, 10, 15, 23, 43, tzinfo=timezone.utc), log=logs.append, fetch=quiet)
-    t = triggers.load_state(tmp / triggers.STATE)["triggers"][0]
-    assert res["due"] == "" and t["status"] == "pending" and t["due_utc"] == "2026-10-16T00:00:00+00:00", (res, t)
-    assert t["held_from"] == "2026-10-15T23:30:00+00:00" and any("held to 2026-10-16T00:00" in m for m in logs), logs
-    res = triggers.check(c, tmp, now=datetime(2026, 10, 16, 0, 13, tzinfo=timezone.utc), log=logs.append, fetch=quiet)
-    assert res["due"] == "t-thu", (res, logs)
+    res = triggers.check(c, tmp, now=D(14, 12, 13), log=logs.append, fetch=quiet)
+    assert res["due"] == "t-am" and not any("held" in m for m in logs), (res, logs)
+    assert not hasattr(slate, "hold_reason") and not hasattr(triggers, "hold")
+    # … and the timed Basics still runs that day with the triggered video up (no daily-budget skip)
+    put(entry("triggered", "triggered", "T1"))
+    basics_runs = []
+    saved = app.make_basics
+    app.make_basics = lambda *a, **k: basics_runs.append(1) or (_ for _ in ()).throw(RuntimeError("faked"))
+    try:
+        rc, logs = _main_logs(app, ["--session", "basics", "--scheduled"], D(14, 15, 4), tmp)
+    finally:
+        app.make_basics = saved
+    assert basics_runs == [1] and any("Edition: Crypto Basics" in x for x in logs), logs
+
+    # a timed short_p at 00:40 while pulse.enabled is false: the gate's log line, exit 0 (inside its late window)
+    off = json.loads(json.dumps(c))
+    off["pulse"]["enabled"] = False
+    (tmp / "config.yaml").write_text(yaml.safe_dump(off, sort_keys=False), encoding="utf-8")
+    calls = []
+    saved = app.make_short
+    app.make_short = lambda *a, **k: calls.append(a[2])
+    try:
+        rc, logs = _main_logs(app, ["--session", "short_p", "--scheduled"], D(14, 0, 40), tmp)
+    finally:
+        app.make_short = saved
+    assert rc == 0 and not calls and any(x.startswith("pulse.enabled is false") for x in logs), logs
+    assert not any("min late" in x for x in logs), logs
     shutil.rmtree(tmp, ignore_errors=True)
 
-    # simulated weeks (Mon 12 Oct 2026): never more than 3 YouTube uploads on a UTC day
-    D = lambda d, h, m=0: datetime(2026, 10, d, h, m, tzinfo=timezone.utc)  # noqa: E731
+    # simulated weeks (Mon 12 Oct 2026): ≤ 3 Shorts and ≤ 1 planned long video on any UTC day (a triggered video
+    # comes on top: ≤ 2 long, ≤ 5 uploads), every trigger published at its due time
     for times in ([], [D(14, 12)], [D(14, 23, 30)], [D(15, 18)], [D(17, 20)], [D(17, 23, 40)], [D(18, 23, 30)],
-                  [D(12, 12), D(14, 16)], [D(13, 23, 30), D(15, 23, 45)], [D(16, 14), D(18, 18)]):
+                  [D(12, 12), D(14, 16)], [D(13, 23, 30), D(15, 23, 45)], [D(16, 14), D(18, 18)],
+                  [D(12, 0, 10), D(14, 0, 10)], [D(17, 12), D(15, 9)]):
         hist, logs = _simulate_week(live, times)
-        per_day = Counter(v["brief_date"] for v in hist)
-        assert max(per_day.values()) <= 3, (times, per_day, logs)
-        assert sum(v["kind"] == "triggered" for v in hist) == len(times), (times, hist)  # every trigger published
-    hist, logs = _simulate_week(live, [D(14, 23, 30)])  # Wed after Short B: held to Thu 00:00, Thu Short B yields
-    trig = next(v for v in hist if v["kind"] == "triggered")
-    assert trig["date"] == "2026-10-15T00:00:00+00:00", trig
-    assert any(x.startswith("short_b Thu yields") for x in logs), logs
-    assert slate.next_day(D(15, 23, 59)) == D(16, 0)
-    print("OK slate budget (Wed trigger → Short B yields with a log line, Thu full day → trigger held to 00:00 then "
-          "dispatched, simulated weeks ≤ 3 YouTube uploads a day)")
+        shorts = Counter(v["brief_date"] for v in hist if v["kind"] == "short")
+        planned = Counter(v["brief_date"] for v in hist if v["kind"] in slate.LONG_KINDS and v["kind"] != "triggered")
+        ups = Counter(v["brief_date"] for v in hist)
+        assert max(shorts.values()) <= 3 and max(planned.values(), default=0) <= 1, (times, shorts, planned, logs)
+        assert max(ups.values()) <= 5, (times, ups)
+        assert all(shorts[(D(12, 0) + timedelta(days=d)).strftime("%Y-%m-%d")] == 3 for d in range(8)), (times, shorts)
+        assert sorted(v["date"] for v in hist if v["kind"] == "triggered") == sorted(t.isoformat() for t in times)
+    hist, logs = _simulate_week(live, [D(14, 12)])  # Wed noon trigger: same day as Basics, all 3 Shorts still run
+    wed = [v["kind"] for v in hist if v["brief_date"] == "2026-10-14"]
+    assert sorted(wed) == ["basics", "short", "short", "short", "triggered"] and not logs, (wed, logs)
+    print("OK slate budget (Wed Basics + due trigger → short_p, short_a, short_b all made and the trigger dispatched "
+          "the same day; Wed-morning trigger dispatched and Basics still runs; a fourth Short skips (manual ones "
+          "count); timed short_p 00:40 → gate log; old day_cap config loads; simulated weeks ≤ 3 Shorts and ≤ 1 "
+          "planned long video a day, every trigger at its due time, ≤ 5 uploads)")
 
 
 def test_slate_floor(cfg):
-    """Slate 5.3: the weekly floor of 3 and cap of 4 long videos (ISO week, UTC). A skipped Saturday recap with the
-    week short runs the evergreen top-up into the recap slot; a week whose Saturday already had the recap (or a
-    triggered video) tops up Sunday 15:00 (topup_sun); Basics + Lesson + one trigger → no top-up; a long upload in a
-    week that already has 4 is refused with a log line. make_evergreen / make_lesson_edition are faked."""
+    """Slate 5.3 (floor 2 since epic-shorts-reach 6.5): the weekly floor of 2 and cap of 4 long videos (ISO week,
+    UTC). A skipped Saturday recap with the week short runs the evergreen top-up into the recap slot; a week whose
+    Saturday already had the recap (or a triggered video) tops up Sunday 15:00 (topup_sun); Basics + Lesson → no
+    top-up (Sunday, or a skipped recap after Basics + a trigger); a long upload in a week that already has 4 is
+    refused with a log line. make_evergreen / make_lesson_edition are faked."""
     import main as app
 
     live = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
@@ -5627,29 +6395,35 @@ def test_slate_floor(cfg):
     app.make_lesson_edition = lambda *a, **k: (calls.append(("lesson", a[3])) and None, a[4])
     app.make_recap = lambda *a, **k: calls.append(("recap", a[2])) or (_ for _ in ()).throw(RuntimeError("faked"))
     try:
-        # a trigger Monday, Basics Wednesday, the lesson held: the recap skips → Saturday top-up into the recap slot
-        week(("triggered", "2026-10-12"), ("basics", "2026-10-14"))
+        # a trigger Monday, no Basics, the lesson held: the recap skips → Saturday top-up into the recap slot
+        week(("triggered", "2026-10-12"))
         rc, logs = _main_logs(app, ["--session", "recap", "--scheduled"], sat, tmp)
         assert rc == 0 and calls == [("evergreen", "recap")], (calls, logs)
-        assert any("Recap skipped" in x for x in logs) and any("under 3" in x and "recap slot" in x for x in logs), logs
-        # no trigger + a held lesson: the recap goes out Saturday, so the top-up is Sunday 15:00 (topup_sun)
+        assert any("Recap skipped" in x for x in logs) and any("under 2" in x and "recap slot" in x for x in logs), logs
+        # no trigger, no Basics, a held lesson: the recap goes out Saturday, so the top-up is Sunday 15:00 (topup_sun)
         calls.clear()
-        week(("basics", "2026-10-14"), ("recap", "2026-10-17"))
+        week(("recap", "2026-10-17"))
         rc, logs = _main_logs(app, ["--session", "topup_sun", "--scheduled"], sun, tmp)
         assert rc == 0 and calls == [("evergreen", "topup_sun")], (calls, logs)
         # a triggered video on Saturday itself: no Saturday top-up (logged), Sunday tops up
         calls.clear()
-        week(("basics", "2026-10-14"), ("triggered", "2026-10-17"))
+        week(("triggered", "2026-10-17"))
         rc, logs = _main_logs(app, ["--session", "recap", "--scheduled"], sat, tmp)
         assert rc == 0 and calls == [] and any("waits for the next free slot" in x for x in logs), logs
         rc, logs = _main_logs(app, ["--session", "topup_sun", "--scheduled"], sun, tmp)
         assert rc == 0 and calls == [("evergreen", "topup_sun")], (calls, logs)
-        # Basics + Lesson + one trigger = 3: no top-up on Saturday or Sunday
+        # Basics + Lesson = 2: no Sunday top-up; Basics + a trigger = 2: the recap skips and nothing tops up
         calls.clear()
+        week(("basics", "2026-10-14"), ("lesson", "2026-10-15"))
+        rc, logs = _main_logs(app, ["--session", "topup_sun", "--scheduled"], sun, tmp)
+        assert rc == 0 and calls == [] and any("already has 2 long videos" in x for x in logs), logs
+        week(("triggered", "2026-10-12"), ("basics", "2026-10-14"))
+        rc, logs = _main_logs(app, ["--session", "recap", "--scheduled"], sat, tmp)
+        assert rc == 0 and calls == [] and any("Recap skipped" in x for x in logs), logs
+        assert any("already has 2 long videos" in x for x in logs), logs
         week(("triggered", "2026-10-12"), ("basics", "2026-10-14"), ("lesson", "2026-10-15"))
-        for argv, when in ((["--session", "recap", "--scheduled"], sat), (["--session", "topup_sun", "--scheduled"], sun)):
-            rc, logs = _main_logs(app, argv, when, tmp)
-            assert rc == 0 and calls == [] and any("already has 3 long videos" in x for x in logs), (argv, logs)
+        rc, logs = _main_logs(app, ["--session", "topup_sun", "--scheduled"], sun, tmp)
+        assert rc == 0 and calls == [] and any("already has 3 long videos" in x for x in logs), logs
         # last week's videos don't count for this week; a manual topup_sun run is a manual evergreen top-up
         week(("triggered", "2026-10-05"), ("basics", "2026-10-07"), ("lesson", "2026-10-08"))
         rc, logs = _main_logs(app, ["--session", "topup_sun"], sun, tmp)
@@ -5671,7 +6445,8 @@ def test_slate_floor(cfg):
     finally:
         app.make_evergreen, app.make_lesson_edition, app.make_recap = saved
     shutil.rmtree(tmp, ignore_errors=True)
-    print("OK slate floor (skipped recap → Saturday top-up, Saturday used → Sunday topup_sun, 3 long → no top-up, "
+    print("OK slate floor (floor 2: skipped recap → Saturday top-up, Saturday used → Sunday topup_sun, Basics + "
+          "Lesson → no top-up, "
           "ISO week only, a fifth long upload refused with a log line)")
 
 

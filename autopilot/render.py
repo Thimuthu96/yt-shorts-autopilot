@@ -123,6 +123,19 @@ def _segment(slide: dict, dur: float, out: Path, w: int, h: int, fps: int, bg: s
         run(base + ["-vf", vf] + enc)
 
 
+def page_parts(slide: dict, dur: float) -> list[tuple[dict, float, str]]:
+    """[(part, seconds, tag)] of a slide with `pages`: the slide, then each page, sharing `dur` in proportion to
+    their `words` (each at least 1); the last part takes the remainder so the scene's length is exact."""
+    parts = [slide] + list(slide["pages"])
+    ws = [max(1, int(p.get("words") or 1)) for p in parts]
+    total, out, used = sum(ws), [], 0.0
+    for k, (p, w) in enumerate(zip(parts, ws)):
+        d = dur - used if k == len(parts) - 1 else dur * w / total
+        used += d
+        out.append((p, d, f"p{k}" if k else ""))
+    return out
+
+
 def build_video(scene_audio: list[dict], slides: list[dict], cfg: dict, workdir: Path,
                 out_path: Path, music: Path | None = None) -> float:
     v = cfg["video"]
@@ -142,7 +155,8 @@ def build_video(scene_audio: list[dict], slides: list[dict], cfg: dict, workdir:
 
     # 2) one video segment per scene, same length as that scene's narration. A Shorts opening card
     #    (`cover` + `follow`) holds ~COVER_HOLD s, then scene 1's follow-up slide (the lead chart) runs
-    #    for the rest of that scene.
+    #    for the rest of that scene. A slide with `pages` (a long Shorts text, autopilot.shorts.text_scene) shows
+    #    itself, then each page, splitting the scene's time in proportion to each part's `words`.
     skip = 0.0
     with open(workdir / "seg_list.txt", "w") as f:
         for i, (sa, slide) in enumerate(zip(scene_audio, slides)):
@@ -152,6 +166,8 @@ def build_video(scene_audio: list[dict], slides: list[dict], cfg: dict, workdir:
                 if slide.get("follow"):
                     skip = min(COVER_HOLD, sa["duration"] / 2)
                     parts = [(slide, skip, ""), (slide["follow"], sa["duration"] - skip, "b")]
+            elif slide.get("pages"):
+                parts = page_parts(slide, sa["duration"])
             for part, dur, tag in parts:
                 seg = workdir / f"seg_{i:02d}{tag}.mp4"
                 _segment(part, dur, seg, w, h, fps, zoom=v.get("push_in", 0.035))

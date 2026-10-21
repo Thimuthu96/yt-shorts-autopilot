@@ -1,28 +1,31 @@
 # Shorts Autopilot: CryptoFX Daily (crypto-only slate)
 
 Makes and publishes a **crypto-only weekly slate** with no manual work, running free on GitHub Actions:
-two standalone **Shorts** a day (YouTube Short + Facebook Reel), a weekly **Crypto Basics** explainer and a
+three standalone **Shorts** a day (YouTube Short + Facebook Reel), a weekly **Crypto Basics** explainer and a
 weekly **trading lesson** (YouTube 16:9 + Facebook 9:16 video), **"why crypto just moved"** videos after big
 moves and a **Saturday recap** (YouTube only), plus **three crypto news image posts** a day on the Facebook
 Page. Every edition runs 7 days a week (no forex weekend rule).
 
 | Edition | UTC | Sri Lanka | What it is | Where |
 |---|---|---|---|---|
+| Short P (`short_p`) | 00:30 daily | 06:00 | market-pulse Short from the day's fetched data (timed runs skip while `pulse.enabled` is false) | YouTube Short + Facebook Reel |
 | Morning News (`news_morning`) | 12:00 daily | 17:30 | news image post: one crypto story | Facebook |
-| Short A (`short_a`) | 13:00 daily | 18:30 | standalone Short from a long video's material | YouTube Short + Facebook Reel |
+| Short A (`short_a`) | 13:00 daily | 18:30 | standalone Short from a long video's material (a market-pulse Short first once `pulse.enabled` is true) | YouTube Short + Facebook Reel |
 | Crypto Basics (`basics`) | 15:00 Wed | 20:30 | the next approved beginner explainer | YouTube 16:9 + Facebook 9:16 video |
 | Trading Lesson (`lesson`) | 15:00 Thu | 20:30 | the next curriculum episode | YouTube 16:9 + Facebook 9:16 video |
 | Weekly Recap (`recap`) | 15:00 Sat | 20:30 | the week's biggest moves and why; skipped in a week with a triggered video → evergreen top-up when the week is short | YouTube 16:9 |
-| Sunday top-up (`topup_sun`) | 15:00 Sun | 20:30 | evergreen top-up (Basics first, then the next lesson) only when the week still has < 3 long videos | YouTube 16:9 + Facebook 9:16 video |
+| Sunday top-up (`topup_sun`) | 15:00 Sun | 20:30 | evergreen top-up (Basics first, then the next lesson) only when the week still has < 2 long videos | YouTube 16:9 + Facebook 9:16 video |
 | Midday News (`news_midday`) | 16:00 daily | 21:30 | news image post | Facebook |
 | Evening News (`news_evening`) | 21:00 daily | 02:30 | news image post | Facebook |
-| Short B (`short_b`) | 23:00 daily | 04:30 | standalone Short (yields to a triggered video on Wed/Thu) | YouTube Short + Facebook Reel |
+| Short B (`short_b`) | 23:00 daily | 04:30 | standalone Short | YouTube Short + Facebook Reel |
 | Why Crypto Moved (`triggered`) | within ~3 h of a trigger | — | dispatched by the 30-minute trigger poll | YouTube 16:9 |
 
-**Budget:** at most 3 YouTube uploads per UTC day (a timed Short skips at 3; on Wednesday and Thursday, or any
-day that already has a long video, a triggered video takes Short B's 23:00 slot; a trigger that would be the
-4th upload holds to 00:00 UTC next day) and 3-4 long videos per ISO week (a shortfall is topped up Saturday
-15:00, or Sunday 15:00 when Saturday already had the recap or a triggered video; a fifth is refused).
+**Budget:** per UTC day on YouTube at most 3 Shorts and 1 planned long video (≤ 4 uploads; manual uploads count). A
+timed Short skips when the day already has 3 Shorts; long videos never take a Short's slot. A triggered video is
+never held for the budget: it publishes within ~3 h even on a day with a planned long video (Crypto Basics, the
+Lesson, a recap or a top-up), and Basics / the Lesson still run (that day: 2 long videos, up to 5 uploads). 2-4 long videos per ISO week (a shortfall is
+topped up Saturday 15:00, or Sunday 15:00 when Saturday already had the recap or a triggered video; a fifth is
+refused).
 
 **Release checklist (crypto slate, owner):** on a Monday you pick — (1) approve the Crypto Basics topics and fill
 the evergreen stock to 4 ready episodes (`python main.py --session basics --prepare next`, `--stock`); (2) add the
@@ -48,7 +51,7 @@ than posting the wrong edition. Setup: [Outside timer](#outside-timer-cron-jobor
 **always** makes and uploads, at any time, and never blocks the autopilot: that edition's timed run still
 happens. Tick **Count it as today's edition** only if you want the timed run to skip. Leave **Timed run**
 unticked (it's for the outside timer). YouTube's API allows about 6 uploads daily in total, and the slate uses
-up to 3. **Platforms** (`all` / `youtube` / `facebook`) limits where it goes; news posts only ever go to
+up to 4 (3 Shorts + 1 long video; 5 on a day with a planned long video and a triggered video). **Platforms** (`all` / `youtube` / `facebook`) limits where it goes; news posts only ever go to
 Facebook, triggered and recap videos only to YouTube.
 
 
@@ -263,7 +266,7 @@ While `lessons.enabled` is false, lesson runs log why and stop without fetching 
 | `market.calendar_impacts` | `[High]` by default; `[High, Medium]` for more events |
 | `video.accent` / `video.footer` | Brand colour and the footer line on every graphic |
 | Posting times | change all of: the cron-job.org job, `start_utc` in `config.yaml`, and the backup `cron` line in `.github/workflows/autopilot.yml` plus the matching string in its `EDITION:` line and `concurrency.group` |
-| Editions | `sessions` (start_utc, `days`, `platforms`) and `slate` (daily / weekly budget) in `config.yaml` |
+| Editions | `sessions` (start_utc, `days`, `platforms`) and `slate` (`shorts_day_cap` 3, `long_day_cap` 1, `week_floor` 2, `week_cap` 4; an old `day_cap` is read as the Shorts cap) in `config.yaml` |
 | Facebook | `facebook.enabled`, `facebook.max_hashtags`; news posts: `news_posts.topic_weights`, `fresh_hours`, `disclaimer` |
 | Trading lessons | `lessons.enabled`, `review_window_hours`, `path_playlist`, `track_playlist`, `fb_published`, `max_seconds`; run days: `sessions.lesson.days` |
 | News post backgrounds | `images.provider` (`cloudflare` or `none`), `images.steps`; your own images in `assets/backgrounds/<topic>/` |
@@ -322,8 +325,8 @@ What helps most from your side, even if it's 10 minutes a week:
 - Facebook may refuse a custom Reel cover through the API; the Reel then uses its own frame.
 - A Reel or lesson video still processing after 10 minutes is logged as published (so it isn't
   posted twice); check the Page if a run says so.
-- YouTube's ~6 uploads a day: with lessons on, the autopilot uses 5 on Thursdays
-  (4 Shorts + the lesson), leaving about 1 manual upload that day.
+- YouTube's ~6 uploads a day: the autopilot uses at most 4 (3 Shorts + 1 long video), 5 on a day with a
+  planned long video and a triggered video, leaving 1-2 manual uploads a day (a manual Short counts toward the 3 Shorts).
 
 ## Files
 
@@ -333,7 +336,10 @@ config.yaml             all settings
 get_token.py            one-time YouTube login
 autopilot/sources.py    news feeds, economic calendar, crypto, forex + gold prices, US yields, CPI
 autopilot/focus.py      picks each brief's lead story and the assets it moves
-autopilot/slate.py      the slate's budget: 3 YouTube uploads a day, Short B yield, trigger hold, weekly floor/cap
+autopilot/slate.py      the slate's budget: 3 Shorts + 1 long video a day, weekly floor/cap (triggered videos never held)
+autopilot/shorts.py     standalone Shorts: picking (market / pulse, concept rotation + 7-day topic cooldown), script,
+                        visual frame 0, slides, metadata
+autopilot/pulse.py      market-pulse material from the day's fetched data (no LLM; a quiet market writes none)
 autopilot/script.py     research note, grounded script + fact-check against the data (Gemini)
 autopilot/slides.py     shared slide constants + the (retired) brief's charts, kept as the offline render fixture
 autopilot/thumbnail.py  thumbnail templates + picking one from the data
@@ -361,7 +367,7 @@ data/history.json       what has been published (YouTube id, Facebook Reel / pos
 
 One-time setup, free, about 10 minutes.
 
-**Shortcut:** `python setup_cronjobs.py` creates or fixes the slate's nine jobs from `config.yaml` through
+**Shortcut:** `python setup_cronjobs.py` creates or fixes the slate's ten jobs from `config.yaml` through
 the cron-job.org API (jobs titled "CryptoFX · <edition>", times in UTC, basics / lesson / recap / topup_sun on
 their `days`). `--delete-retired` also deletes the retired `asia`, `london`, `newyork` and `gold` jobs (or delete
 them by hand). It asks for a cron-job.org API key (Settings → API) and the GitHub token from step 1, with hidden
@@ -380,10 +386,11 @@ input. Run it again after changing any `start_utc`; `--dry-run` shows the plan. 
    - Body: `{"ref":"main","inputs":{"session":"short_a","scheduled":"true"}}`
    - Save, then **Test run**: `204` = it worked (a "Timer · short_a" run appears in Actions).
 3. Copy the job, changing only the time, days and session (UTC): **23:00 → `short_b`**, **12:00 →
-   `news_morning`**, **16:00 → `news_midday`**, **21:00 → `news_evening`** (every day); **15:00 → `basics`**
+   `news_morning`**, **16:00 → `news_midday`**, **21:00 → `news_evening`**, **00:30 → `short_p`** (every day; the
+   owner adds it with the pulse release, 6.6); **15:00 → `basics`**
    (Wednesday), **`lesson`** (Thursday), **`recap`** (Saturday), **`topup_sun`** (Sunday).
 4. Delete the retired jobs: `asia`, `london`, `newyork`, `gold`.
 
 Keep the token only in cron-job.org (never in the repo or chat). If the jobs start failing
-with `401`, the token has expired: make a new one and paste it into all eight jobs. A `422`
+with `401`, the token has expired: make a new one and paste it into all ten jobs (nine before the pulse release adds short_p). A `422`
 means the workflow on `main` doesn't have the `scheduled` input yet (push the latest code).
