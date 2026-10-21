@@ -2037,6 +2037,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-21T13:02:14+00:00",
+      "brief_date": "2026-10-21",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-21-short_a",
+      "segment": "hook_0",
+      "source_video": "l_7_G-Wm5MI",
+      "hook": "Why did Ethereum just rise 2%?",
+      "topic": "ethereum rise 2",
+      "fingerprint": [
+        "058d9198",
+        "02fecab9",
+        "019df900",
+        "02648f16",
+        "003f64ca",
+        "0154cb1b",
+        "002d8f4c",
+        "02152558",
+        "01c1ff28",
+        "00308637",
+        "03cf1758",
+        "00be8f89",
+        "00004f4c",
+        "04052de3",
+        "06f963ae",
+        "0043055d",
+        "026eecb9",
+        "0765b522",
+        "0112e0ea",
+        "06065598",
+        "008de5bc",
+        "000a68c6",
+        "03afb9d5",
+        "04bcb290",
+        "09f6096f",
+        "00d381c9",
+        "0215bed6",
+        "00011082",
+        "004eaba9",
+        "00f16cc6",
+        "01ecff84",
+        "02024a35"
+      ],
+      "title": "Why did Ethereum just rise 2%?",
+      "video_id": "Z0LEg3_N9Jg",
+      "seconds": 38.4,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "952590324240813",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
