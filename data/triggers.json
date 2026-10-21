@@ -9749,8 +9749,9 @@
    ],
    "key": "r4:SOL:solana-s-alpenglow-launches-on-mainnet-t",
    "category": "upgrade",
-   "status": "dispatched",
-   "dispatched_utc": "2026-10-21T17:14:17+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-10-21T17:14:17+00:00",
+   "reason": "not published within 3 h of its due time"
   }
  ]
 }
