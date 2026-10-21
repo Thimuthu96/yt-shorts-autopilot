@@ -20,10 +20,10 @@ Page. Every edition runs 7 days a week (no forex weekend rule).
 | Short B (`short_b`) | 23:00 daily | 04:30 | standalone Short | YouTube Short + Facebook Reel |
 | Why Crypto Moved (`triggered`) | within ~3 h of a trigger | — | dispatched by the 30-minute trigger poll | YouTube 16:9 |
 
-**Budget:** per UTC day on YouTube at most 3 Shorts and 1 long video (≤ 4 uploads; manual uploads count). A timed
-Short skips when the day already has 3 Shorts; long videos never take a Short's slot. A due trigger holds to
-00:00 UTC next day when the day already has a long video or its Crypto Basics / Trading Lesson is still to come
-(so a Wednesday trigger can wait to Thursday, or Friday, 00:00). 2-4 long videos per ISO week (a shortfall is
+**Budget:** per UTC day on YouTube at most 3 Shorts and 1 planned long video (≤ 4 uploads; manual uploads count). A
+timed Short skips when the day already has 3 Shorts; long videos never take a Short's slot. A triggered video is
+never held for the budget: it publishes within ~3 h even on a day with a planned long video (Crypto Basics, the
+Lesson, a recap or a top-up), and Basics / the Lesson still run (that day: 2 long videos, up to 5 uploads). 2-4 long videos per ISO week (a shortfall is
 topped up Saturday 15:00, or Sunday 15:00 when Saturday already had the recap or a triggered video; a fifth is
 refused).
 
@@ -51,7 +51,7 @@ than posting the wrong edition. Setup: [Outside timer](#outside-timer-cron-jobor
 **always** makes and uploads, at any time, and never blocks the autopilot: that edition's timed run still
 happens. Tick **Count it as today's edition** only if you want the timed run to skip. Leave **Timed run**
 unticked (it's for the outside timer). YouTube's API allows about 6 uploads daily in total, and the slate uses
-up to 4 (3 Shorts + 1 long video). **Platforms** (`all` / `youtube` / `facebook`) limits where it goes; news posts only ever go to
+up to 4 (3 Shorts + 1 long video; 5 on a day with a planned long video and a triggered video). **Platforms** (`all` / `youtube` / `facebook`) limits where it goes; news posts only ever go to
 Facebook, triggered and recap videos only to YouTube.
 
 
@@ -325,8 +325,8 @@ What helps most from your side, even if it's 10 minutes a week:
 - Facebook may refuse a custom Reel cover through the API; the Reel then uses its own frame.
 - A Reel or lesson video still processing after 10 minutes is logged as published (so it isn't
   posted twice); check the Page if a run says so.
-- YouTube's ~6 uploads a day: the autopilot uses at most 4 (3 Shorts + 1 long video), leaving about 2
-  manual uploads a day (a manual Short counts toward the 3 Shorts).
+- YouTube's ~6 uploads a day: the autopilot uses at most 4 (3 Shorts + 1 long video), 5 on a day with a
+  planned long video and a triggered video, leaving 1-2 manual uploads a day (a manual Short counts toward the 3 Shorts).
 
 ## Files
 
@@ -336,7 +336,7 @@ config.yaml             all settings
 get_token.py            one-time YouTube login
 autopilot/sources.py    news feeds, economic calendar, crypto, forex + gold prices, US yields, CPI
 autopilot/focus.py      picks each brief's lead story and the assets it moves
-autopilot/slate.py      the slate's budget: 3 Shorts + 1 long video a day, trigger hold (with the Basics / Lesson look-ahead), weekly floor/cap
+autopilot/slate.py      the slate's budget: 3 Shorts + 1 long video a day, weekly floor/cap (triggered videos never held)
 autopilot/script.py     research note, grounded script + fact-check against the data (Gemini)
 autopilot/slides.py     shared slide constants + the (retired) brief's charts, kept as the offline render fixture
 autopilot/thumbnail.py  thumbnail templates + picking one from the data

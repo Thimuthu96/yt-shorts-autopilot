@@ -29,14 +29,15 @@ shared by every video format:
        facebook.publish_video() 9:16; triggered / recap → YouTube only; news posts → facebook.publish_photo()
   → history.json        logs the ids (dedupe, once-per-slot guard, the slate budget)
   slate budget (autopilot/slate.py, config `slate`; epic-shorts-reach 6.5): per UTC day on YouTube ≤ 3 Shorts
-                        (shorts_day_cap: kind short + legacy market / gold / none; manual uploads count) and ≤ 1 long
-                        video (long_day_cap: slate.LONG_KINDS basics / lesson / triggered / recap), so ≤ 4 uploads.
-                        Timed Shorts check only the Shorts cap (skip at 3, "… at most 3 Shorts a day"); no Short yields
-                        to a long video. The trigger poll checks only the long cap (slate.hold_reason → triggers.hold):
-                        a due trigger holds to 00:00 UTC next day when the day already has a long video, or when a
-                        standing long edition is still to come (an enabled basics / lesson session due today whose
-                        start_utc + max_late_minutes hasn't passed), so a Wednesday trigger can hold to Thu, then Fri
-                        00:00 (the recap and topup_sun are not looked ahead to). 2-4 long videos per ISO week:
+                        (shorts_day_cap: kind short + legacy market / gold / none; manual uploads count) and 1 planned
+                        long video, so ≤ 4 uploads. Timed Shorts check only the Shorts cap (skip at 3, "… at most 3
+                        Shorts a day"); no Short yields to a long video. A triggered video is never held by the daily
+                        budget (owner 2026-10-21, "trigger first, same day"): the poll dispatches it within its own
+                        limits (≤ 2 a week, 48 h apart, 03:00-11:00 → 12:00, 3 h window), and Basics / Lesson still
+                        run that day, so any day with a planned long video (Basics, Lesson, recap or top-up) and a
+                        trigger has 2 long videos (≤ 5 uploads); a triggered week skips the recap as before.
+                        long_day_cap (1; slate.LONG_KINDS, manual and triggered uploads count) only stops the
+                        evergreen top-up (main.floor_top_up waits for the next free slot). 2-4 long videos per ISO week:
                         main.floor_top_up runs the evergreen top-up when a timed recap skips (Saturday) or at
                         topup_sun (Sun 15:00) while the week has < 2 (week_floor); a counting long upload that would
                         be the 5th is refused ("Weekly cap", exit 0). An old config with only `day_cap` still loads
@@ -284,7 +285,7 @@ Manual runs: Actions → Shorts autopilot → Run workflow → `session` (short_
 topup_sun/evergreen/triggered), `platforms` (all/youtube/facebook, limited to the edition's own), optional
 `as_edition`, `slot` (top-ups), `trigger` (triggered).
 **YouTube API quota:** ~6 uploads/day (1,600 of 10,000 units each, resets midnight Pacific); the slate uses ≤ 4
-(3 Shorts + 1 long video).
+(3 Shorts + 1 long video), 5 on a day with a planned long video and a triggered video.
 
 ## Release checklist (crypto slate, epic 5.7; owner, hitl)
 
@@ -319,9 +320,8 @@ autopilot/sources.py     news RSS, ForexFactory calendar, Coinbase crypto, Frank
                          CoinGecko market overview (`python -m autopilot.sources overview`)
 autopilot/focus.py       lead story + related assets (keywords, scoring, typical market links)
 autopilot/slate.py       the slate budget: limits (shorts_day_cap / long_day_cap / week_floor / week_cap; day_cap
-                         fallback), day_uploads / day_shorts / day_longs, short_skip (3 Shorts a day), hold_reason
-                         (1 long video a day + the standing Basics / Lesson look-ahead), long_videos (ISO-week floor 2 /
-                         cap 4), next_day
+                         fallback), day_uploads / day_shorts / day_longs, short_skip (3 Shorts a day), long_videos
+                         (ISO-week floor 2 / cap 4); triggered videos are never held by it
 autopilot/script.py      Gemini prompt, fact-check, validate, fix_visuals (scene types)
 autopilot/rules.py       shared narration rules: narration_problems(text) + NARRATION_RULES prompt text; date/time patterns
                          + packaging checks title_problems(title) / thumbnail_text_problems(text) (CAP-8): logged

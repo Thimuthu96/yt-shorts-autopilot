@@ -925,10 +925,12 @@ def floor_top_up(cfg: dict, history: History, slot_key: str, now: datetime, args
         log(f"Weekly floor: this ISO week already has {len(have)} long videos (floor {lim['week_floor']}); no top-up.")
         return 0
     today = now.strftime("%Y-%m-%d")
-    used = slate.day_longs(history, today)  # manual long uploads today count too
-    if used:
-        log(f"Weekly floor: today already had a {used[0].get('kind')} long video, so the top-up waits for the next "
-            "free slot (Sunday 15:00, topup_sun).")
+    used = slate.day_longs(history, today)  # manual and triggered long uploads today count too
+    if len(used) >= lim["long_day_cap"]:  # slate.long_day_cap (1): the top-up never makes a second long video today
+        kinds = ", ".join(sorted({str(v.get("kind")) for v in used}))
+        log(f"Weekly floor: today already had {len(used)} long video(s)" + (f" ({kinds})" if kinds else "")
+            + f" (at most {lim['long_day_cap']} a day before a top-up), so the top-up waits for the next free slot "
+            "(Sunday 15:00, topup_sun).")
         return 0
     log(f"Weekly floor: this ISO week has {len(have)} long video(s) (under {lim['week_floor']}): the evergreen "
         f"top-up fills today's {slot_key} slot.")
@@ -1156,7 +1158,7 @@ def main(argv: list[str] | None = None) -> int:
     if kind == "short" and args.scheduled and not args.force and "youtube" in wanted \
             and not history.published_on(today, session_key, "youtube"):
         # the daily budget (crypto-pivot 5.2, epic-shorts-reach 6.5): at most 3 Shorts a day on YouTube (manual ones
-        # count); long videos have their own cap (1 a day, the trigger poll's hold), so no Short yields to one
+        # count); long videos never take a Short's slot (a triggered video is never held either: owner 2026-10-21)
         why = slate.short_skip(history, triggers.load_state(ROOT / triggers.STATE), session_key, now, cfg)
         if why:
             log(f"{label} skipped: {why}. Nothing to publish in this slot.")

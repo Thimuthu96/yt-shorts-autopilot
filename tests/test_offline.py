@@ -4735,9 +4735,8 @@ def test_trigger_poll(cfg):
         fetched.append(1)
         return trigger_data(btc=-7.2), trigger_overview(cap=-2.0)
 
-    # dark: a 14:00 trigger is recorded and due at once, but never dispatched (a Friday: no standing long edition is
-    # still to come, so the daily budget doesn't hold it; slate.hold_reason)
-    now = datetime(2026, 10, 16, 14, 0, tzinfo=timezone.utc)
+    # dark: a 14:00 trigger is recorded and due at once, but never dispatched
+    now = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
     res = triggers.check(live, tmp, now=now, log=logs.append, fetch=fake_fetch)
     assert res["recorded"] and res["due"] == "" and any("triggers.enabled is false" in m for m in logs), (res, logs)
     state = triggers.load_state(tmp / triggers.STATE)
@@ -6194,11 +6193,10 @@ def test_slate_timetable(cfg):
 
 
 def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetime(2026, 10, 12, tzinfo=timezone.utc)):
-    """A slate week through the budget rules (slate.short_skip, triggers.hold with the live cfg's look-ahead): Short P
-    00:30, Short A 13:00, the standing long video 15:00 (Wed Basics, Thu Lesson, Sat recap unless a triggered video
-    published this week), Short B 23:00, and triggered videos at their due times (a held one moves to 00:00 next
-    day). Returns (history, logs)."""
-    from autopilot import slate, triggers
+    """A slate week through the budget rules (slate.short_skip; a triggered video is never held): Short P 00:30,
+    Short A 13:00, the standing long video 15:00 (Wed Basics, Thu Lesson, Sat recap unless a triggered video
+    published this week), Short B 23:00, and triggered videos at their due times. Returns (history, logs)."""
+    from autopilot import slate
     hist, logs = [], []
     state = {"version": 1, "triggers": [{"id": f"t{i}", "status": "pending", "due_utc": t.isoformat()}
                                        for i, t in enumerate(trigger_times)]}
@@ -6206,7 +6204,7 @@ def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetim
     def up(kind, session, when):
         hist.append({"brief_date": when.strftime("%Y-%m-%d"), "session": session, "kind": kind,
                      "video_id": f"V{len(hist)}", "date": when.isoformat(), "counts": True})
-    for d in range(8):  # the week + the Monday after (a held Sunday trigger lands there)
+    for d in range(8):  # the week + the Monday after
         day = start + timedelta(days=d)
         events = [(day.replace(hour=0, minute=30), "short_p"), (day.replace(hour=13), "short_a"),
                   (day.replace(hour=15), "long"), (day.replace(hour=23), "short_b")]
@@ -6218,9 +6216,8 @@ def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetim
                 break
             when, what = evs[0]
             if isinstance(what, dict):
-                if not triggers.hold(what, hist, when, cfg, logs.append):
-                    what["status"] = "published"
-                    up("triggered", "triggered", when)
+                what["status"] = "published"
+                up("triggered", "triggered", when)
                 continue
             events.remove((when, what))
             if what == "long":
@@ -6239,12 +6236,13 @@ def _simulate_week(cfg, trigger_times: list[datetime], start: datetime = datetim
 
 
 def test_slate_budget(cfg):
-    """Slate budget (5.2, epic-shorts-reach 6.5): per UTC day at most 3 Shorts and 1 long video on YouTube. A
-    Wednesday with Basics and a due trigger makes all three timed Shorts through main (no Short yields) and the
-    trigger poll holds the trigger to Thursday 00:00 (then the Lesson look-ahead to Friday 00:00, then dispatched);
-    a Wednesday-morning trigger holds while Basics is still to come; a fourth Short (manual ones count) skips with a
-    log line; a timed short_p at 00:40 while pulse.enabled is false logs the gate; an old `day_cap` config still
-    loads; simulated weeks never exceed 3 Shorts or 1 long video a day and publish every trigger."""
+    """Slate budget (5.2, epic-shorts-reach 6.5; owner 2026-10-21 "trigger first, same day"): per UTC day at most 3
+    Shorts on YouTube and a triggered video is never held. A Wednesday with Basics and a due trigger makes all three
+    timed Shorts through main (no Short yields) and the trigger poll dispatches the trigger the same day; a
+    Wednesday-morning trigger dispatches before Basics, and the timed Basics still runs that day (no budget skip); a
+    fourth Short (manual ones count) skips with a log line; a timed short_p at 00:40 while pulse.enabled is false
+    logs the gate; an old `day_cap` config still loads; simulated weeks never exceed 3 Shorts a day or 1 planned long
+    video a day (2 only with a triggered video), publish every trigger at its due time and stay ≤ 5 uploads a day."""
     from collections import Counter
     import main as app
     from autopilot import slate, triggers
@@ -6293,16 +6291,8 @@ def test_slate_budget(cfg):
         logs = []
         res = triggers.check(c, tmp, now=D(14, 19, 13), log=logs.append, fetch=quiet)
         t = triggers.load_state(tmp / triggers.STATE)["triggers"][0]
-        assert res["due"] == "" and t["status"] == "pending" and t["due_utc"] == "2026-10-15T00:00:00+00:00", (res, t)
-        assert any("held to 2026-10-15T00:00" in m and "basics long video" in m for m in logs), logs
-        # Thursday 00:13: the Lesson (15:00) is still to come → held again to Friday 00:00, then dispatched
-        res = triggers.check(c, tmp, now=D(15, 0, 13), log=logs.append, fetch=quiet)
-        t = triggers.load_state(tmp / triggers.STATE)["triggers"][0]
-        assert res["due"] == "" and t["due_utc"] == "2026-10-16T00:00:00+00:00", (res, t, logs)
-        assert t["held_from"] == "2026-10-14T19:00:00+00:00" and any("Trading Lesson (15:00 UTC) is still to come" in m
-                                                                     for m in logs), logs
-        res = triggers.check(c, tmp, now=D(16, 0, 13), log=logs.append, fetch=quiet)
-        assert res["due"] == "t-wed", (res, logs)
+        assert res["due"] == "t-wed" and t["status"] == "dispatched" and "held_from" not in t, (res, t, logs)
+        assert t["due_utc"] == "2026-10-14T19:00:00+00:00" and not any("held" in m for m in logs), logs
 
         # a fourth Short: 3 Shorts already today (two manual) → the timed Short B skips with a log line
         made.clear()
@@ -6318,20 +6308,25 @@ def test_slate_budget(cfg):
     finally:
         app.make_short = saved
 
-    # a Wednesday-morning trigger due 12:00, no long video yet: held while Basics (15:00) is still to come
+    # a Wednesday-morning trigger due 12:00: dispatched at once (Basics at 15:00 doesn't hold it) …
     put()
     triggers.save_state({"version": 1, "triggers": [{"id": "t-am", "status": "pending", "key": "k2",
                                                      "fired_utc": "2026-10-14T08:00:00+00:00",
                                                      "due_utc": "2026-10-14T12:00:00+00:00"}]}, tmp / triggers.STATE)
     logs = []
     res = triggers.check(c, tmp, now=D(14, 12, 13), log=logs.append, fetch=quiet)
-    t = triggers.load_state(tmp / triggers.STATE)["triggers"][0]
-    assert res["due"] == "" and t["due_utc"] == "2026-10-15T00:00:00+00:00", (res, t, logs)
-    assert any("Crypto Basics (15:00 UTC) is still to come" in m for m in logs), logs
-    assert slate.hold_reason([], D(14, 12, 13), dict(c, basics={**c["basics"], "enabled": False})) == ""  # dark
-    assert slate.hold_reason([], D(14, 18, 1), c) == ""  # past Basics' late window (15:00 + 180 min)
-    assert slate.hold_reason([], D(13, 12, 13), c) == ""  # Tuesday: no standing long edition
-    assert slate.hold_reason([], D(17, 12, 13), c) == ""  # Saturday: the recap is not looked ahead to
+    assert res["due"] == "t-am" and not any("held" in m for m in logs), (res, logs)
+    assert not hasattr(slate, "hold_reason") and not hasattr(triggers, "hold")
+    # … and the timed Basics still runs that day with the triggered video up (no daily-budget skip)
+    put(entry("triggered", "triggered", "T1"))
+    basics_runs = []
+    saved = app.make_basics
+    app.make_basics = lambda *a, **k: basics_runs.append(1) or (_ for _ in ()).throw(RuntimeError("faked"))
+    try:
+        rc, logs = _main_logs(app, ["--session", "basics", "--scheduled"], D(14, 15, 4), tmp)
+    finally:
+        app.make_basics = saved
+    assert basics_runs == [1] and any("Edition: Crypto Basics" in x for x in logs), logs
 
     # a timed short_p at 00:40 while pulse.enabled is false: the gate's log line, exit 0 (inside its late window)
     off = json.loads(json.dumps(c))
@@ -6348,25 +6343,26 @@ def test_slate_budget(cfg):
     assert not any("min late" in x for x in logs), logs
     shutil.rmtree(tmp, ignore_errors=True)
 
-    # simulated weeks (Mon 12 Oct 2026): ≤ 3 Shorts and ≤ 1 long video on any UTC day, every trigger published
+    # simulated weeks (Mon 12 Oct 2026): ≤ 3 Shorts and ≤ 1 planned long video on any UTC day (a triggered video
+    # comes on top: ≤ 2 long, ≤ 5 uploads), every trigger published at its due time
     for times in ([], [D(14, 12)], [D(14, 23, 30)], [D(15, 18)], [D(17, 20)], [D(17, 23, 40)], [D(18, 23, 30)],
                   [D(12, 12), D(14, 16)], [D(13, 23, 30), D(15, 23, 45)], [D(16, 14), D(18, 18)],
                   [D(12, 0, 10), D(14, 0, 10)], [D(17, 12), D(15, 9)]):
         hist, logs = _simulate_week(live, times)
         shorts = Counter(v["brief_date"] for v in hist if v["kind"] == "short")
-        longs = Counter(v["brief_date"] for v in hist if v["kind"] in slate.LONG_KINDS)
-        assert max(shorts.values()) <= 3 and max(longs.values(), default=0) <= 1, (times, shorts, longs, logs)
+        planned = Counter(v["brief_date"] for v in hist if v["kind"] in slate.LONG_KINDS and v["kind"] != "triggered")
+        ups = Counter(v["brief_date"] for v in hist)
+        assert max(shorts.values()) <= 3 and max(planned.values(), default=0) <= 1, (times, shorts, planned, logs)
+        assert max(ups.values()) <= 5, (times, ups)
         assert all(shorts[(D(12, 0) + timedelta(days=d)).strftime("%Y-%m-%d")] == 3 for d in range(8)), (times, shorts)
-        assert sum(v["kind"] == "triggered" for v in hist) == len(times), (times, hist, logs)  # every trigger published
-    hist, logs = _simulate_week(live, [D(14, 23, 30)])  # Wed after Short B: held to Thu 00:00, then to Fri 00:00
-    trig = next(v for v in hist if v["kind"] == "triggered")
-    assert trig["date"] == "2026-10-16T00:00:00+00:00", (trig, logs)
-    assert not any("skips" in x for x in logs), logs
-    assert slate.next_day(D(15, 23, 59)) == D(16, 0)
-    print("OK slate budget (Wed Basics + due trigger → short_p, short_a, short_b all made, trigger held to Thu 00:00 "
-          "then Fri 00:00 (Lesson look-ahead) then dispatched; Wed-morning trigger held while Basics is due; a fourth "
-          "Short skips (manual ones count); timed short_p 00:40 → gate log; old day_cap config loads; simulated weeks "
-          "≤ 3 Shorts and ≤ 1 long video a day, every trigger published)")
+        assert sorted(v["date"] for v in hist if v["kind"] == "triggered") == sorted(t.isoformat() for t in times)
+    hist, logs = _simulate_week(live, [D(14, 12)])  # Wed noon trigger: same day as Basics, all 3 Shorts still run
+    wed = [v["kind"] for v in hist if v["brief_date"] == "2026-10-14"]
+    assert sorted(wed) == ["basics", "short", "short", "short", "triggered"] and not logs, (wed, logs)
+    print("OK slate budget (Wed Basics + due trigger → short_p, short_a, short_b all made and the trigger dispatched "
+          "the same day; Wed-morning trigger dispatched and Basics still runs; a fourth Short skips (manual ones "
+          "count); timed short_p 00:40 → gate log; old day_cap config loads; simulated weeks ≤ 3 Shorts and ≤ 1 "
+          "planned long video a day, every trigger at its due time, ≤ 5 uploads)")
 
 
 def test_slate_floor(cfg):

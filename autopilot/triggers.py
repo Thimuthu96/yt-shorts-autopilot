@@ -43,11 +43,10 @@ Limits (state in data/triggers.json, written only by the poll job, `python -m au
                                      uploaded → published; pending / dispatched more than publish_window_hours (3)
                                      past its due time → dropped with a log line
     due_now(state, now, cfg) -> trigger | None  the pending trigger whose due time has come (within the window)
-    hold(t, history, now, cfg, log) -> bool  the daily budget (autopilot/slate.py): a due trigger on a day that
-                                     already has its long video (slate.long_day_cap, 1) or a standing Basics /
-                                     Lesson edition still to come moves its due time to 00:00 UTC next day
     mark_dispatched(state, id, now)
 Spacing and the cap count published `kind: triggered` history records (simulated ones never count).
+The daily upload budget never holds a due trigger (epic-shorts-reach 6.5, owner 2026-10-21: "trigger first, same
+day"): it publishes within ~3 h even on a Basics / Lesson day (autopilot/slate.py).
 
     check(cfg, root, now, log, fetch) -> {"fired", "recorded", "due"}   one poll (the 30-minute job): fetch Coinbase
                                      prices, crypto news and the CoinGecko overview, evaluate, record, and with
@@ -436,22 +435,6 @@ def due_now(state: dict, now: datetime | None = None, cfg: dict | None = None) -
     return None
 
 
-def hold(t: dict, history, now: datetime | None = None, cfg: dict | None = None, log=print) -> bool:
-    """The daily upload budget (autopilot/slate.py, crypto-pivot 5.2, epic-shorts-reach 6.5): a due trigger on a
-    day that already has its long video (slate.long_day_cap, 1 a day) or whose standing Basics / Lesson edition is
-    still to come holds to 00:00 UTC next day: its due time moves there (the publish window then counts from it).
-    True = held (not dispatched now)."""
-    from autopilot import slate
-    now = _now(now)
-    why = slate.hold_reason(history, now, cfg)
-    if not why:
-        return False
-    t["held_from"], t["due_utc"] = t.get("held_from") or t["due_utc"], _iso(slate.next_day(now))
-    t["reason"] = f"held: {why}"
-    log(f"Trigger {t['id']} held to {t['due_utc']}: {why}")
-    return True
-
-
 def mark_dispatched(state: dict, trigger_id: str, now: datetime | None = None) -> None:
     for t in state["triggers"]:
         if t["id"] == trigger_id:
@@ -510,8 +493,6 @@ def check(cfg: dict, root: Path, now: datetime | None = None, log=print, fetch=f
     new = record(state, fired, history, now=now, cfg=cfg, log=log)
     due = due_now(state, now, cfg)
     out = {"fired": [t["id"] for t in fired], "recorded": new["id"] if new else "", "due": ""}
-    if due and hold(due, history, now, cfg, log):
-        due = None
     if due and tc.get("enabled", False):
         mark_dispatched(state, due["id"], now)
         out["due"] = due["id"]

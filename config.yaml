@@ -143,12 +143,14 @@ sessions:
 max_late_minutes: 180
 
 # ─── The slate's upload budget (autopilot/slate.py, weekly-slate.md) ────────
-# Per UTC day on YouTube: at most 3 Shorts (short_p, short_a, short_b; manual uploads count) and 1 long video
-# (≤ 4 uploads a day). Long videos never take a Short's slot. (An old config's `day_cap` is read as shorts_day_cap.)
+# Per UTC day on YouTube: at most 3 Shorts (short_p, short_a, short_b; manual uploads count) and 1 planned long video
+# (≤ 4 uploads a day). Long videos never take a Short's slot. A triggered video is never held (owner 2026-10-21:
+# "trigger first, same day"): on a day with a planned long video (Basics, Lesson, a recap or a top-up) it comes
+# on top (2 long videos, ≤ 5 uploads), and Basics / Lesson still run. (An old config's `day_cap` is read as shorts_day_cap.)
 slate:
   shorts_day_cap: 3           # Shorts per UTC day: a timed Short skips at 3
-  long_day_cap: 1             # long videos (basics, lesson, triggered, recap) per UTC day: a due trigger holds to 00:00
-                              # UTC next day when the day has one, or when today's Basics / Lesson is still to come
+  long_day_cap: 1             # long videos (basics, lesson, triggered, recap) per UTC day before the evergreen top-up
+                              # waits for the next free slot (triggered videos and Basics / Lesson are never held)
   week_floor: 2               # long videos per ISO week (UTC): top up below this (Basics + Lesson already make 2) …
   week_cap: 4                 # … and never upload a fifth
 
