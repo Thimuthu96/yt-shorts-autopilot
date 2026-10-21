@@ -2132,6 +2132,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-21T23:01:51+00:00",
+      "brief_date": "2026-10-21",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-valid-trendlines",
+      "segment": "point_1",
+      "source_video": "7xiuZEJL6t8",
+      "hook": "What makes a trendline valid?",
+      "topic": "valid trendline",
+      "fingerprint": [
+        "003125a1",
+        "0433a10c",
+        "006ad074",
+        "0147b0dd",
+        "017cedd7",
+        "03e9a7bb",
+        "03a907e5",
+        "018c0f92",
+        "0168878d",
+        "02fa9307",
+        "098b3085",
+        "04c13d24",
+        "0412ee72",
+        "011fd514",
+        "044d91ce",
+        "004b3f58",
+        "0013cb54",
+        "00e3bc96",
+        "00cde11e",
+        "023ca28e",
+        "0130bce8",
+        "0816c0e0",
+        "00945c06",
+        "02e11e0a",
+        "01018490",
+        "039e40e0",
+        "00b17737",
+        "080f24e7",
+        "04fe4c2d",
+        "00f2b56a",
+        "09241c57",
+        "026096c7"
+      ],
+      "title": "What makes a trendline valid?",
+      "video_id": "7PGoJ8rbkkk",
+      "seconds": 29.2,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "981726844987278",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
