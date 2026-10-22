@@ -2379,6 +2379,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-22T16:03:17+00:00",
+      "brief_date": "2026-10-22",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN DROPS BELOW $82K",
+      "fb_post_id": "462331040302049_122254293452610202",
+      "headlines": [
+        "Bitcoin corrects below $82K after Tesla Q3 results, KOSPI falls"
+      ],
+      "topic": "crypto",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
