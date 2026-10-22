@@ -2398,6 +2398,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-22T21:02:29+00:00",
+      "brief_date": "2026-10-22",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "TRUMP SUED OVER UAE CRYPTO DEALS",
+      "fb_post_id": "462331040302049_122254308824610202",
+      "headlines": [
+        "Lawsuit accuses Trump of illegally profiting from UAE in­vest­ments in his family's crypto firm"
+      ],
+      "topic": "regulation",
+      "source": "Spectrum News",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
