@@ -2303,6 +2303,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-22T12:07:31+00:00",
+      "brief_date": "2026-10-22",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "STABLECOIN YIELD SPARKS BANKING INDUSTRY FIGHT",
+      "fb_post_id": "462331040302049_122254205774610202",
+      "headlines": [
+        "Stablecoin yield rule revives crypto vs. banking industry fight"
+      ],
+      "topic": "regulation",
+      "source": "Roll Call",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
