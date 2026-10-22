@@ -2246,6 +2246,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-22T01:29:41+00:00",
+      "brief_date": "2026-10-22",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-trendline-breaks",
+      "segment": "point_1",
+      "source_video": "l_7_G-Wm5MI",
+      "hook": "What is a trendline break?",
+      "topic": "trendline break",
+      "fingerprint": [
+        "06284e4d",
+        "0b9f2556",
+        "0422e094",
+        "007f9b55",
+        "05729179",
+        "00300f6f",
+        "01b10f7c",
+        "004009b9",
+        "033865f9",
+        "01654c1c",
+        "03121d70",
+        "09b4398e",
+        "028fed14",
+        "0012e88c",
+        "00ce986c",
+        "05680337",
+        "09bad095",
+        "002e7f89",
+        "03b28e01",
+        "0162faa6",
+        "026e8d58",
+        "0898d6f1",
+        "02c32ac1",
+        "02f0a81b",
+        "031303c6",
+        "0313e3ce",
+        "0134dbc8",
+        "021f63ed",
+        "01df5cd2",
+        "04bbb8e7",
+        "04c6fc89",
+        "01c973ff"
+      ],
+      "title": "What is a trendline break?",
+      "video_id": "Mb1CpHaRNMU",
+      "seconds": 30.0,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1111921885069741",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
