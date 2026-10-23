@@ -14598,8 +14598,9 @@
     "Coinbase"
    ],
    "key": "r2:CRYPTO:altcoins-are-crypto-s-stock-market-bitco",
-   "status": "dispatched",
-   "dispatched_utc": "2026-10-22T22:46:43+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-10-22T22:46:43+00:00",
+   "reason": "not published within 3 h of its due time"
   },
   {
    "id": "20261023-0132-r2-crypto",
