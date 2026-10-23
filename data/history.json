@@ -2607,6 +2607,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-23T16:07:51+00:00",
+      "brief_date": "2026-10-23",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BTC VOLATILITY RIVALS NVIDIA",
+      "fb_post_id": "462331040302049_122254439030610202",
+      "headlines": [
+        "Bitcoin's volatility is well above euro-dollar gyrations, though it has calmed to rival Nvidia's"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
