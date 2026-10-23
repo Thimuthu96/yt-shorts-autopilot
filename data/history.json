@@ -2626,6 +2626,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-23T21:06:18+00:00",
+      "brief_date": "2026-10-23",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BITCOIN HOLDS ABOVE $81,000 AS OIL RISES",
+      "fb_post_id": "462331040302049_122254453088610202",
+      "headlines": [
+        "Live updates: Bitcoin holds above $81,000 as oil prices hit six-month high"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
