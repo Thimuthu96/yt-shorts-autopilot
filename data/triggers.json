@@ -16528,8 +16528,9 @@
    ],
    "key": "r4:BTC:initia-halts-blockchain-after-exploit-re",
    "category": "hack",
-   "status": "dispatched",
-   "dispatched_utc": "2026-10-23T20:30:25+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-10-23T20:30:25+00:00",
+   "reason": "not published within 3 h of its due time"
   }
  ]
 }
