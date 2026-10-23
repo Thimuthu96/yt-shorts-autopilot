@@ -2474,6 +2474,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-23T01:28:25+00:00",
+      "brief_date": "2026-10-23",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-trendline-breaks",
+      "segment": "point_2",
+      "source_video": "l_7_G-Wm5MI",
+      "hook": "What is a fakeout on a crypto chart?",
+      "topic": "fakeout",
+      "fingerprint": [
+        "00e6700c",
+        "0037428e",
+        "0079982e",
+        "04edd24b",
+        "002acfe1",
+        "04dc8590",
+        "042b5334",
+        "000e09db",
+        "00553326",
+        "07ca31fe",
+        "00568693",
+        "0096a9c3",
+        "01c1ba96",
+        "02da9518",
+        "02d2f950",
+        "0d2949a6",
+        "004bddbf",
+        "017d515f",
+        "019db9b7",
+        "01ac849d",
+        "003bbed0",
+        "01bd6cdf",
+        "06727099",
+        "02b34bde",
+        "005e8eb2",
+        "00644781",
+        "0143f66e",
+        "0577202f",
+        "06db8808",
+        "098926a2",
+        "04d44821",
+        "069f3b16"
+      ],
+      "title": "What is a fakeout on a crypto chart?",
+      "video_id": "IbDxMhvgp_w",
+      "seconds": 30.5,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2293994788119687",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
