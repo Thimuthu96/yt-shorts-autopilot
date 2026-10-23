@@ -2531,6 +2531,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-23T12:54:17+00:00",
+      "brief_date": "2026-10-23",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN VOLATILITY MATCHES NVIDIA 8X ABOVE EURO",
+      "fb_post_id": "462331040302049_122254411088610202",
+      "headlines": [
+        "Bitcoin's price is as jumpy as Nvidia's and eight times more turbulent than the euro"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
