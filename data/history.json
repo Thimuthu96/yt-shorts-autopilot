@@ -2702,6 +2702,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-24T01:34:09+00:00",
+      "brief_date": "2026-10-24",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-trendline-breaks",
+      "segment": "point_3",
+      "source_video": "l_7_G-Wm5MI",
+      "hook": "What Is a Trendline Retest?",
+      "topic": "retest",
+      "fingerprint": [
+        "01add52e",
+        "0138df9c",
+        "0169d05d",
+        "00bfa8c7",
+        "0313ad29",
+        "00300f6f",
+        "0a495239",
+        "060e9c04",
+        "04aa778a",
+        "07aff91a",
+        "0275ae54",
+        "0703f65a",
+        "028dd4ac",
+        "033af5e2",
+        "03516c4f",
+        "05b9eb94",
+        "001055b2",
+        "00a7b863",
+        "008656ac",
+        "016cd270",
+        "00b019f8",
+        "03b4a5b9",
+        "07783aa5",
+        "0aa8b981",
+        "0048d3db",
+        "039e40e0",
+        "00e6396f",
+        "031e4968",
+        "026bf084",
+        "05d8381d",
+        "0b4cad19",
+        "01272415"
+      ],
+      "title": "What Is a Trendline Retest?",
+      "video_id": "wpFvGgC4IFg",
+      "seconds": 30.0,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1635559991049246",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
