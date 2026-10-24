@@ -18748,8 +18748,9 @@
     "Coinbase"
    ],
    "key": "r2:CRYPTO:bitcoin-price-news-btc-falls-below-80-00",
-   "status": "dispatched",
-   "dispatched_utc": "2026-10-24T16:15:55+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-10-24T16:15:55+00:00",
+   "reason": "not published within 3 h of its due time"
   },
   {
    "id": "20261024-1902-r2-crypto",
