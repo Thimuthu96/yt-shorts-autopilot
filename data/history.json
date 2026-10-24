@@ -2645,6 +2645,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-24T00:55:02+00:00",
+      "brief_date": "2026-10-24",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-24-short_p",
+      "segment": "hook_0",
+      "source_video": "l_7_G-Wm5MI",
+      "hook": "Why did Bitcoin just fall 0.9%?",
+      "topic": "bitcoin fall 0 9",
+      "fingerprint": [
+        "06f8e7e2",
+        "09710c03",
+        "058bd39b",
+        "02404a3e",
+        "003f64ca",
+        "02d11d41",
+        "008a71b0",
+        "04e5519b",
+        "006f5006",
+        "080d33c2",
+        "00cb1804",
+        "00be8f89",
+        "03dbebbb",
+        "02c7f168",
+        "00fbc896",
+        "03df4be3",
+        "0613f682",
+        "09e2f45c",
+        "00862fab",
+        "0172308e",
+        "00ff6951",
+        "01f1dbba",
+        "01393b83",
+        "001e6cc5",
+        "08ae60bd",
+        "0021ab2d",
+        "061cb773",
+        "0445e081",
+        "01639721",
+        "06a41924",
+        "0238d741",
+        "005a63e9"
+      ],
+      "title": "Why did Bitcoin just fall 0.9%?",
+      "video_id": "duMOBe1X9TM",
+      "seconds": 40.9,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1656091509196810",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
