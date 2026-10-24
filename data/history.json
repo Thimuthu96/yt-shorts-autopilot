@@ -2857,6 +2857,25 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-10-24T16:03:08+00:00",
+      "brief_date": "2026-10-24",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN PRICE NEWS",
+      "fb_post_id": "462331040302049_122254568432610202",
+      "headlines": [
+        "Bitcoin price news: BTC falls below $80,000 on renewed Middle East worries"
+      ],
+      "topic": "geopolitics",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
