@@ -2778,6 +2778,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-24T13:02:11+00:00",
+      "brief_date": "2026-10-24",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-24-short_a",
+      "segment": "hook_0",
+      "source_video": "l_7_G-Wm5MI",
+      "hook": "Why did Ethereum just fall 2%?",
+      "topic": "ethereum fall 2",
+      "fingerprint": [
+        "00e89852",
+        "048debd0",
+        "0113f3fe",
+        "055a21a7",
+        "03a6560c",
+        "0900a26f",
+        "03500167",
+        "03908290",
+        "00090b5d",
+        "03f8cfb0",
+        "00ac44af",
+        "04298729",
+        "02a925b9",
+        "03ad2608",
+        "00fbc896",
+        "02ff48e1",
+        "00386a35",
+        "0664a2b9",
+        "01cb4e45",
+        "002c6ff9",
+        "054d7dce",
+        "08186ccb",
+        "000ff3bf",
+        "0234807d",
+        "029f2486",
+        "0081be70",
+        "0107e7c6",
+        "07f4a4d5",
+        "000b9e80",
+        "0a7ce5d3",
+        "00f1b8f2",
+        "00b3e4e6"
+      ],
+      "title": "Why did Ethereum just fall 2%?",
+      "video_id": "cYVdao9I048",
+      "seconds": 41.3,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "29035386176091781",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
