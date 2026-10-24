@@ -2835,6 +2835,28 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-24T15:28:06+00:00",
+      "brief_date": "2026-10-24",
+      "session": "recap",
+      "kind": "recap",
+      "week": "2026-W43",
+      "title": "This Week in Crypto: What Moved and Why",
+      "coins": [
+        "M",
+        "BTW",
+        "NEAR"
+      ],
+      "video_id": "n7kkDpOSs9E",
+      "seconds": 247.1,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "publish_at": "2026-10-24T17:28:06.000Z",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
