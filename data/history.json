@@ -2759,6 +2759,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-24T12:05:22+00:00",
+      "brief_date": "2026-10-24",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "OCC FINALIZES STABLECOIN RULES",
+      "fb_post_id": "462331040302049_122254524926610202",
+      "headlines": [
+        "Crypto Update: OCC Finalizes Stablecoin Rules as Remittix Plans a 20% Supply Cut, With XLM and CRO in Focus"
+      ],
+      "topic": "regulation",
+      "source": "StreetInsider",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
