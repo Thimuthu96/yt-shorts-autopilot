@@ -2876,6 +2876,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-24T21:03:19+00:00",
+      "brief_date": "2026-10-24",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "ISRAEL BANK REJECTS CRYPTO SANCTIONS PLAN",
+      "fb_post_id": "462331040302049_122254621790610202",
+      "headlines": [
+        "Israel central bank rejects Netanyahu’s plan to use crypto to evade sanctions"
+      ],
+      "topic": "geopolitics",
+      "source": "Financial Times",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
