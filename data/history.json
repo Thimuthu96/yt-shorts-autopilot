@@ -2916,6 +2916,63 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-10-25T00:31:34+00:00",
+      "brief_date": "2026-10-25",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-25-short_p",
+      "segment": "hook_0",
+      "source_video": "n7kkDpOSs9E",
+      "hook": "Why did Ethereum just fall 0.7%?",
+      "topic": "ethereum fall 0 7",
+      "fingerprint": [
+        "004b4c57",
+        "00566363",
+        "010a645b",
+        "0c5c791b",
+        "003f64ca",
+        "0228dd6a",
+        "03500167",
+        "011ea281",
+        "004725da",
+        "02a1c449",
+        "02973f40",
+        "00fe5cc3",
+        "00199e72",
+        "0232b81c",
+        "0573a18c",
+        "03cba97e",
+        "018ad026",
+        "043ba048",
+        "0130a189",
+        "002af6f4",
+        "016b4eed",
+        "03a68a39",
+        "0110ee15",
+        "0450fb22",
+        "04844157",
+        "00cd19c7",
+        "0179d1fa",
+        "0096c268",
+        "00c6c26f",
+        "01364932",
+        "0027616b",
+        "0639cfad"
+      ],
+      "title": "Why did Ethereum just fall 0.7%?",
+      "video_id": "kIx8AEiIEuI",
+      "seconds": 41.4,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1487995493145746",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
