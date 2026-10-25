@@ -2973,6 +2973,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-25T01:07:19+00:00",
+      "brief_date": "2026-10-25",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "recap-recap-2026-W43",
+      "segment": "hook_0",
+      "source_video": "n7kkDpOSs9E",
+      "hook": "What moved crypto this week?",
+      "topic": "moved week",
+      "fingerprint": [
+        "04788073",
+        "00acce93",
+        "012870b1",
+        "03c79449",
+        "003f64ca",
+        "00abb69e",
+        "00e84111",
+        "045059da",
+        "01ce5de1",
+        "016db840",
+        "07d7e69f",
+        "0090b3d9",
+        "052f2aea",
+        "01a719ce",
+        "00fbc896",
+        "07d771ae",
+        "028f508b",
+        "033bed00",
+        "00966dfc",
+        "00eec9b2",
+        "039cfae7",
+        "01f1dbba",
+        "00167636",
+        "032a3b24",
+        "037ecc42",
+        "0021ab2d",
+        "010082a5",
+        "01276185",
+        "007f9fe4",
+        "00578152",
+        "00d9bc32",
+        "005ae599"
+      ],
+      "title": "What moved crypto this week?",
+      "video_id": "g7QO1HRVYg8",
+      "seconds": 41.2,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "4485993351689166",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
