@@ -3030,6 +3030,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-25T12:08:24+00:00",
+      "brief_date": "2026-10-25",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "NETANYAHU FLOATS BLOCKCHAIN USE",
+      "fb_post_id": "462331040302049_122254819286610202",
+      "headlines": [
+        "Netanyahu floats use of blockchain as solution to potential financial sanctions"
+      ],
+      "topic": "geopolitics",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
