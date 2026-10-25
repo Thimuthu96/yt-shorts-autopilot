@@ -3125,6 +3125,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-25T21:02:50+00:00",
+      "brief_date": "2026-10-25",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "SEC APPROVES LEVERAGED CRYPTO ETFS",
+      "fb_post_id": "462331040302049_122254877444610202",
+      "headlines": [
+        "SEC Approves Leveraged Bitcoin and Ethereum Funds for Trading. But Are These ETFs Worth Buying?"
+      ],
+      "topic": "regulation",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
