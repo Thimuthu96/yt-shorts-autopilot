@@ -3106,6 +3106,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-25T16:03:41+00:00",
+      "brief_date": "2026-10-25",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "THIS WEEK’S KEY ECONOMIC AND CRYPTO EVENTS",
+      "fb_post_id": "462331040302049_122254841162610202",
+      "headlines": [
+        "This Week’s Key Economic and Crypto Events: Fed Rate Decision Ahead"
+      ],
+      "topic": "rates",
+      "source": "bloomingbit",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
