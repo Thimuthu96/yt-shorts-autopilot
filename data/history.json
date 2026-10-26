@@ -3144,6 +3144,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-26T00:31:42+00:00",
+      "brief_date": "2026-10-26",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-26-short_p",
+      "segment": "hook_1",
+      "source_video": "bDhfaIqSbpo",
+      "hook": "Why is Ethereum down 1%?",
+      "topic": "ethereum down 1",
+      "fingerprint": [
+        "00ea83bf",
+        "00d50c6f",
+        "0335b68a",
+        "020d3a1c",
+        "003f64ca",
+        "02b3003d",
+        "07cddda6",
+        "0573d38f",
+        "00090b5d",
+        "0a223b66",
+        "00990472",
+        "022168a1",
+        "078e1423",
+        "02397195",
+        "00fbc896",
+        "07d771ae",
+        "00285504",
+        "02e4fa43",
+        "08359a71",
+        "02ab72f4",
+        "00ef61c6",
+        "06d376f3",
+        "0224f18b",
+        "0520c511",
+        "0a835b90",
+        "08831509",
+        "0221cab1",
+        "06324ae8",
+        "004eaba9",
+        "02f577d5",
+        "011d8f8c",
+        "0144f4ab"
+      ],
+      "title": "Why is Ethereum down 1%?",
+      "video_id": "OTHYHn9k6gk",
+      "seconds": 41.8,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1460349569354698",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
