@@ -3258,6 +3258,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-26T12:11:54+00:00",
+      "brief_date": "2026-10-26",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN TESTS $80,000 LEVEL",
+      "fb_post_id": "462331040302049_122255110802610202",
+      "headlines": [
+        "Live news: Bitcoin barely holding $80,000 ahead of Fed on Wednesday, tech earnings this week"
+      ],
+      "topic": "central_bank",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
