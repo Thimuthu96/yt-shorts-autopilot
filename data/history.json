@@ -3201,6 +3201,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-26T01:08:10+00:00",
+      "brief_date": "2026-10-26",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "recap-recap-2026-W43",
+      "segment": "hook_1",
+      "source_video": "n7kkDpOSs9E",
+      "hook": "Why did MemeCore rise 31% this week?",
+      "topic": "memecore rise 31 week",
+      "fingerprint": [
+        "02810de7",
+        "017088cb",
+        "02571cf5",
+        "071240b5",
+        "00cd30c1",
+        "01f305f6",
+        "01bb8d2a",
+        "01cfe16e",
+        "00090b5d",
+        "00093cf8",
+        "0101a47e",
+        "0067054c",
+        "032f7eca",
+        "06744ceb",
+        "00fbc896",
+        "0206d82e",
+        "00386a35",
+        "00e40781",
+        "015996b0",
+        "009d3d4e",
+        "000fa25d",
+        "015e4b12",
+        "03589d1e",
+        "016434b5",
+        "05fa1350",
+        "01de1ffa",
+        "03b8aee9",
+        "023d3b30",
+        "01ab5d26",
+        "03ad0fd7",
+        "011d8f8c",
+        "00caaeb1"
+      ],
+      "title": "Why did MemeCore rise 31% this week?",
+      "video_id": "WLleAsMGKB0",
+      "seconds": 41.8,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1444294534512318",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
