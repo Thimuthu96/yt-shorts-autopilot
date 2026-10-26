@@ -3334,6 +3334,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-26T16:17:05+00:00",
+      "brief_date": "2026-10-26",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN SLIPS AHEAD OF FED",
+      "fb_post_id": "462331040302049_122255128154610202",
+      "headlines": [
+        "Bitcoin Slips Ahead Of Fed Week, Big Tech Earnings: Analysts Divided On Where BTC Is Headed Next"
+      ],
+      "topic": "central_bank",
+      "source": "TradingView",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
