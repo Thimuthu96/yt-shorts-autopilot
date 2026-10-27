@@ -3564,6 +3564,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-27T23:02:21+00:00",
+      "brief_date": "2026-10-27",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261024-2344-r4-btc",
+      "segment": "hook_2",
+      "source_video": "bDhfaIqSbpo",
+      "hook": "Why is Bitcoin down 0.4%?",
+      "topic": "bitcoin down 0 4",
+      "fingerprint": [
+        "00278364",
+        "034dffb7",
+        "005575e6",
+        "04ed364e",
+        "003f64ca",
+        "05102a22",
+        "000b197a",
+        "151e54e8",
+        "0230b36f",
+        "04668781",
+        "02bef896",
+        "00be8f89",
+        "001b3f83",
+        "04535b71",
+        "00dff60d",
+        "08c622ea",
+        "0a8c870f",
+        "016d4b97",
+        "004fd77e",
+        "06d6ea9a",
+        "0351fa36",
+        "05bb2b28",
+        "03589d1e",
+        "003e9b32",
+        "01d9e192",
+        "0344de5b",
+        "05b37bd5",
+        "00c7733e",
+        "01639721",
+        "03c5a711",
+        "0ae259f9",
+        "0906dd77"
+      ],
+      "title": "Why is Bitcoin down 0.4%?",
+      "video_id": "3OpyltpwK5A",
+      "seconds": 41.7,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "4141326316166415",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
