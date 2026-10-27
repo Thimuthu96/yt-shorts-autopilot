@@ -3524,6 +3524,27 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-27T16:12:47+00:00",
+      "brief_date": "2026-10-27",
+      "session": "triggered",
+      "kind": "triggered",
+      "trigger_id": "20261027-1602-r4-btc",
+      "title": "What the Hack Means for Bitcoin (What Actually Happened)",
+      "rule": 4,
+      "coins": [
+        "BTC"
+      ],
+      "video_id": "6d8tfI0fRNE",
+      "seconds": 236.4,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "publish_at": "2026-10-27T18:12:47.000Z",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
