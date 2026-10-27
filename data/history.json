@@ -3429,6 +3429,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-27T12:45:59+00:00",
+      "brief_date": "2026-10-27",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN DROPS BELOW $80,000",
+      "fb_post_id": "462331040302049_122255231162610202",
+      "headlines": [
+        "Bitcoin drops below $80,000 as crypto ignores Asian tech rally, Fed meeting begins"
+      ],
+      "topic": "central_bank",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
