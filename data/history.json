@@ -3372,6 +3372,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-27T00:31:36+00:00",
+      "brief_date": "2026-10-27",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-27-short_p",
+      "segment": "hook_0",
+      "source_video": "bDhfaIqSbpo",
+      "hook": "Why did Bitcoin just rise 0.1%?",
+      "topic": "bitcoin rise 0 1",
+      "fingerprint": [
+        "0279ce10",
+        "085c4b5b",
+        "001d8299",
+        "050984b8",
+        "025a3604",
+        "01869a9c",
+        "03500167",
+        "078cc1e7",
+        "02f77bb2",
+        "067fc702",
+        "007f7823",
+        "0025c1c8",
+        "06a09ab6",
+        "0237e8f8",
+        "00fbc896",
+        "089344d0",
+        "0613f682",
+        "03f90079",
+        "00966dfc",
+        "001b1cfa",
+        "07eead45",
+        "0076939d",
+        "009a739b",
+        "044596dd",
+        "0066cc35",
+        "0021ab2d",
+        "03603a36",
+        "01e18318",
+        "015f9a03",
+        "0534e0e8",
+        "0322fb96",
+        "00b3e4e6"
+      ],
+      "title": "Why did Bitcoin just rise 0.1%?",
+      "video_id": "m788_0nyvO4",
+      "seconds": 41.1,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1797748347839191",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
