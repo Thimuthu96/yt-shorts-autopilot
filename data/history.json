@@ -3678,6 +3678,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-28T12:05:47+00:00",
+      "brief_date": "2026-10-28",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN AND S&P 500 OUTLOOK AFTER MIDTERMS",
+      "fb_post_id": "462331040302049_122255331158610202",
+      "headlines": [
+        "Here's how much bitcoin and the S&P 500 could rally after midterms"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
