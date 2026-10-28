@@ -3792,6 +3792,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-28T23:02:09+00:00",
+      "brief_date": "2026-10-28",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261027-1602-r4-btc",
+      "segment": "hook_0",
+      "source_video": "6d8tfI0fRNE",
+      "hook": "Why did Bitcoin just jump 0.4%?",
+      "topic": "bitcoin jump 0 4",
+      "fingerprint": [
+        "039d90d1",
+        "05476178",
+        "012002ca",
+        "02b8df98",
+        "026ccdf7",
+        "0442a368",
+        "02574125",
+        "02e6f7b3",
+        "0a0912b2",
+        "0892ca3a",
+        "07ba55ca",
+        "00aa98dd",
+        "02f834ab",
+        "08d75262",
+        "00fbc896",
+        "057ff833",
+        "0467c97d",
+        "0e07f432",
+        "006edb69",
+        "00cc3c8a",
+        "0fb37340",
+        "087f0c5b",
+        "06244969",
+        "04c5ba51",
+        "08f4421f",
+        "0e0ab441",
+        "061cb773",
+        "02c7ee8f",
+        "0054c405",
+        "02a9be10",
+        "00f1b8f2",
+        "00709c0c"
+      ],
+      "title": "Why did Bitcoin just jump 0.4%?",
+      "video_id": "p746KRhYpFE",
+      "seconds": 41.4,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "976046565556056",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
