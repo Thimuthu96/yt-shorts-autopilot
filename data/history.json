@@ -3773,6 +3773,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-28T21:06:34+00:00",
+      "brief_date": "2026-10-28",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BITCOIN REJECTED AT 50-DAY LINE",
+      "fb_post_id": "462331040302049_122255579834610202",
+      "headlines": [
+        "Bitcoin price bounce rejected at 50-day trend line ahead of FOMC, earnings"
+      ],
+      "topic": "rates",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
