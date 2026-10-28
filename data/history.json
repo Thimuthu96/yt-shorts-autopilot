@@ -3697,6 +3697,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-28T13:02:05+00:00",
+      "brief_date": "2026-10-28",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-28-short_a",
+      "segment": "hook_0",
+      "source_video": "6d8tfI0fRNE",
+      "hook": "Why did Bitcoin just rise 0.5%?",
+      "topic": "bitcoin rise 0 5",
+      "fingerprint": [
+        "00e76100",
+        "00c6d5bf",
+        "031e0909",
+        "083ee759",
+        "00638617",
+        "02f28db5",
+        "01fc230f",
+        "00a3e013",
+        "00090b5d",
+        "075ac28b",
+        "0018691a",
+        "0006d8d7",
+        "04ffccb1",
+        "0180c309",
+        "00fbc896",
+        "02aaa28c",
+        "00386a35",
+        "06e46383",
+        "008f376b",
+        "03ea2883",
+        "0a1a6ec8",
+        "01f1dbba",
+        "0246f3b5",
+        "02f0ff36",
+        "05a6e832",
+        "07f3522e",
+        "001dfe43",
+        "00954dca",
+        "00d2e3cc",
+        "022c5904",
+        "00f1b8f2",
+        "002d2660"
+      ],
+      "title": "Why did Bitcoin just rise 0.5%?",
+      "video_id": "wJ_EJyJcOFc",
+      "seconds": 41.4,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1688823532916263",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
