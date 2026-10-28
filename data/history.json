@@ -3754,6 +3754,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-28T16:04:20+00:00",
+      "brief_date": "2026-10-28",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "U.S. EXPANDS STABLECOIN INTEGRATION",
+      "fb_post_id": "462331040302049_122255500676610202",
+      "headlines": [
+        "“From Ripple to Wall Street’s Biggest Banks”: U.S. Accelerates Stablecoin Integration into Mainstream Finance as Regulatory Reforms and Market Participation Expand"
+      ],
+      "topic": "regulation",
+      "source": "https://economy.ac/",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
