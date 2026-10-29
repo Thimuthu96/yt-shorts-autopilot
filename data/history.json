@@ -4014,6 +4014,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-29T16:05:50+00:00",
+      "brief_date": "2026-10-29",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN JUMPS TO $81.5K",
+      "fb_post_id": "462331040302049_122255667374610202",
+      "headlines": [
+        "Bitcoin price jumps to $81.5K as US GDP data beats expectations"
+      ],
+      "topic": "macro",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
