@@ -3982,6 +3982,38 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-29T15:39:15+00:00",
+      "brief_date": "2026-10-29",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "trendline-liquidity",
+      "track": 1,
+      "title": "What Is Trendline Liquidity? (Crypto Chart Example)",
+      "video_id": "fvWVOyKliMM",
+      "fb_video_id": "1704275267883504",
+      "seconds": 187.9,
+      "examples": [
+        {
+          "asset": "ETH/USD",
+          "timeframe": "4H",
+          "start": "2026-09-21T20:00:00+00:00",
+          "end": "2026-09-28T16:00:00+00:00"
+        },
+        {
+          "asset": "BTC/USD",
+          "timeframe": "4H",
+          "start": "2026-10-05T00:00:00+00:00",
+          "end": "2026-10-20T12:00:00+00:00"
+        }
+      ],
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
