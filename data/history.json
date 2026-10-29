@@ -4052,6 +4052,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-29T23:02:09+00:00",
+      "brief_date": "2026-10-29",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261027-1602-r4-btc",
+      "segment": "hook_2",
+      "source_video": "6d8tfI0fRNE",
+      "hook": "Why is Bitcoin up 0.4%?",
+      "topic": "bitcoin up 0 4",
+      "fingerprint": [
+        "0279ce10",
+        "0a85d1be",
+        "066e77f8",
+        "024f5fbf",
+        "03a6560c",
+        "06fba9e9",
+        "015b9676",
+        "03cf8c82",
+        "0c21efd1",
+        "01e33eb5",
+        "01cc181c",
+        "05dc1466",
+        "002f9d3b",
+        "035db2c2",
+        "0f0ac479",
+        "08c622ea",
+        "0e791f1e",
+        "0279e682",
+        "00abb2f0",
+        "00344e2f",
+        "02dbb85c",
+        "02871409",
+        "05718f9e",
+        "045bc2cd",
+        "04e7624c",
+        "00959ee3",
+        "02a9ee04",
+        "00add8b7",
+        "01bc2fef",
+        "00ea0c9b",
+        "00184905",
+        "08fbe364"
+      ],
+      "title": "Why is Bitcoin up 0.4%?",
+      "video_id": "TJ9KGiAIRN4",
+      "seconds": 40.2,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2344074879700106",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
