@@ -3849,6 +3849,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-29T00:32:50+00:00",
+      "brief_date": "2026-10-29",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-29-short_p",
+      "segment": "hook_0",
+      "source_video": "6d8tfI0fRNE",
+      "hook": "Why did Bitcoin just rise 0.6%?",
+      "topic": "bitcoin rise 0 6",
+      "fingerprint": [
+        "00824415",
+        "00ce78cc",
+        "058c76f4",
+        "038d9e39",
+        "003f64ca",
+        "075bd13d",
+        "00cd9faf",
+        "045a8766",
+        "01dcd092",
+        "01022abb",
+        "0b78289d",
+        "01c896e4",
+        "09c4b5f2",
+        "01e97780",
+        "01c45ca1",
+        "00cc2a63",
+        "03422cbf",
+        "0460090d",
+        "0388586a",
+        "05205f9b",
+        "0501b2fd",
+        "0062152f",
+        "03da1fbb",
+        "0520c511",
+        "02685d56",
+        "149a2b1a",
+        "01d09a0c",
+        "01ed0974",
+        "015a94f5",
+        "01f681da",
+        "00f1b8f2",
+        "01cfd2b5"
+      ],
+      "title": "Why did Bitcoin just rise 0.6%?",
+      "video_id": "1pO0imq3Iz4",
+      "seconds": 41.3,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1328170502654418",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
