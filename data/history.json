@@ -3906,6 +3906,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-29T12:07:46+00:00",
+      "brief_date": "2026-10-29",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN DROPS TO $80,000 LEVEL",
+      "fb_post_id": "462331040302049_122255652848610202",
+      "headlines": [
+        "Bitcoin drops to $80,000 on Fed dissent, Samsung, Alphabet earnings; AI tokens slump"
+      ],
+      "topic": "central_bank",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
