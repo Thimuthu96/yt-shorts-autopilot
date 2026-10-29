@@ -4033,6 +4033,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-29T21:05:52+00:00",
+      "brief_date": "2026-10-29",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "SEC CHARGES BG WEALTH AND DSJ EXCHANGE IN ALLEGED $130 MILLION…",
+      "fb_post_id": "462331040302049_122255684258610202",
+      "headlines": [
+        "SEC Charges BG Wealth and DSJ Exchange in Alleged $130 Million Crypto Fraud"
+      ],
+      "topic": "regulation",
+      "source": "The Defiant",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
