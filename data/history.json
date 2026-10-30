@@ -4185,6 +4185,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-30T13:02:09+00:00",
+      "brief_date": "2026-10-30",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-30-short_a",
+      "segment": "hook_1",
+      "source_video": "fvWVOyKliMM",
+      "hook": "Why is Ethereum down 4%?",
+      "topic": "ethereum down 4",
+      "fingerprint": [
+        "055a30c5",
+        "013167fc",
+        "01f73081",
+        "0349b524",
+        "00efdaf0",
+        "010640e7",
+        "09dd1aec",
+        "0067b785",
+        "0327276c",
+        "00fc0017",
+        "001615d7",
+        "00b9c03b",
+        "0144a880",
+        "04c6e92a",
+        "0054f8bf",
+        "03e67b21",
+        "05455529",
+        "00d4d3ce",
+        "0128e16c",
+        "0134434e",
+        "02d848c1",
+        "03a36582",
+        "019602b1",
+        "028fda79",
+        "09f6096f",
+        "018608d2",
+        "02d6a648",
+        "0b8e1e51",
+        "01639721",
+        "0268bbdd",
+        "000c092d",
+        "062008fa"
+      ],
+      "title": "Why is Ethereum down 4%?",
+      "video_id": "Q_xuRutMXuI",
+      "seconds": 39.1,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1398355909046395",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
