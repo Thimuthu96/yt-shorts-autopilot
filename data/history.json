@@ -4265,6 +4265,25 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-10-30T16:13:02+00:00",
+      "brief_date": "2026-10-30",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "HISTORIC $6.3B HEIST",
+      "fb_post_id": "462331040302049_122255755844610202",
+      "headlines": [
+        "Bitcoin slides after crypto’s nightmare scenario: a historic $6.3 billion heist"
+      ],
+      "topic": "crypto",
+      "source": "MarketWatch",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
