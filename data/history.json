@@ -4109,6 +4109,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-30T00:31:29+00:00",
+      "brief_date": "2026-10-30",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-30-short_p",
+      "segment": "hook_0",
+      "source_video": "fvWVOyKliMM",
+      "hook": "Why did Ethereum just fall 6%?",
+      "topic": "ethereum fall 6",
+      "fingerprint": [
+        "02ed938b",
+        "00aecd77",
+        "00552ce1",
+        "030eb948",
+        "0018207f",
+        "02d11d41",
+        "01db7b31",
+        "07542af3",
+        "01a9e0ab",
+        "0049d252",
+        "08b08393",
+        "00be8f89",
+        "063cf11b",
+        "07bbd8da",
+        "00fbc896",
+        "00deed03",
+        "0184f4d1",
+        "02b9976b",
+        "0088c816",
+        "04485160",
+        "02b2ea59",
+        "021ae796",
+        "01359ab1",
+        "009f0d5c",
+        "03a22a3c",
+        "0021ab2d",
+        "03061425",
+        "0511fce9",
+        "00c6c26f",
+        "02d97f79",
+        "1070c369",
+        "04d6143f"
+      ],
+      "title": "Why did Ethereum just fall 6%?",
+      "video_id": "jdqJ8jwNy9k",
+      "seconds": 41.7,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "28839790732355270",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
