@@ -4242,6 +4242,29 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-30T15:41:51+00:00",
+      "brief_date": "2026-10-30",
+      "session": "triggered",
+      "kind": "triggered",
+      "trigger_id": "20261030-1522-r2-crypto",
+      "title": "Why Crypto Just Dropped 6% (What Actually Happened)",
+      "rule": 2,
+      "coins": [
+        "ETH",
+        "SOL",
+        "BTC"
+      ],
+      "video_id": "k08hSZiq_vY",
+      "seconds": 207.7,
+      "voice": "en-US-BrianMultilingualNeural",
+      "publish_at": "2026-10-30T17:41:51.000Z",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
