@@ -4284,6 +4284,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-30T21:04:11+00:00",
+      "brief_date": "2026-10-30",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BINANCE HACKED FOR $6.3 BILLION BITCOIN DROPS",
+      "fb_post_id": "462331040302049_122255772038610202",
+      "headlines": [
+        "Is your crypto safe? What Binance’s $6.3 billion hack means for bitcoin investors."
+      ],
+      "topic": "crypto",
+      "source": "MarketWatch",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
