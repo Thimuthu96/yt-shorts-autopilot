@@ -4166,6 +4166,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-30T12:07:54+00:00",
+      "brief_date": "2026-10-30",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "HACKER BTC HAUL TOPS COINBASE TREASURY",
+      "fb_post_id": "462331040302049_122255737826610202",
+      "headlines": [
+        "Binance hacker’s Bitcoin haul tops Coinbase’s corporate treasury"
+      ],
+      "topic": "rates",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
