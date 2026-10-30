@@ -4303,6 +4303,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-30T23:02:20+00:00",
+      "brief_date": "2026-10-30",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261030-1522-r2-crypto",
+      "segment": "hook_0",
+      "source_video": "k08hSZiq_vY",
+      "hook": "Why did Crypto just drop 6%?",
+      "topic": "drop 6",
+      "fingerprint": [
+        "0271d403",
+        "0403f915",
+        "006f4531",
+        "013f6cec",
+        "01312087",
+        "020a7c85",
+        "00101d94",
+        "038107c3",
+        "001d670b",
+        "00fc0017",
+        "02eaa316",
+        "03734911",
+        "002ee377",
+        "00463fb6",
+        "00fbc896",
+        "03075040",
+        "0250172e",
+        "02ffa173",
+        "00cbe9ff",
+        "045e2474",
+        "03df1c0d",
+        "061a4d66",
+        "0d5be598",
+        "0520c511",
+        "046f0c04",
+        "0093a59b",
+        "03864b0f",
+        "08273b72",
+        "021c68bc",
+        "05c8a3e0",
+        "00824e45",
+        "004fc512"
+      ],
+      "title": "Why did Crypto just drop 6%?",
+      "video_id": "WCL3e-IKdNI",
+      "seconds": 41.8,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1476917734301341",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
