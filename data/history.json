@@ -4436,6 +4436,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-31T16:07:15+00:00",
+      "brief_date": "2026-10-31",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN HOLDS AFTER HACK",
+      "fb_post_id": "462331040302049_122255936516610202",
+      "headlines": [
+        "Bitcoin held up better than expected after Binance hack, Strive CEO says"
+      ],
+      "topic": "crypto",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
