@@ -4455,6 +4455,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-31T21:05:49+00:00",
+      "brief_date": "2026-10-31",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "SEC CHAIR: MOST CRYPTO NOT SECURITIES",
+      "fb_post_id": "462331040302049_122255962910610202",
+      "headlines": [
+        "The SEC Chair Says Most Crypto Assets Are Not Securities. What Does That Mean for XRP After Its 5-Year Fight?"
+      ],
+      "topic": "regulation",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
