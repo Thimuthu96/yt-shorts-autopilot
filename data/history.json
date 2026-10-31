@@ -4360,6 +4360,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-31T00:31:39+00:00",
+      "brief_date": "2026-10-31",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-10-31-short_p",
+      "segment": "hook_0",
+      "source_video": "k08hSZiq_vY",
+      "hook": "Why did Ethereum just rise 1%?",
+      "topic": "ethereum rise 1",
+      "fingerprint": [
+        "01202fde",
+        "077388fb",
+        "008f64f0",
+        "013d3770",
+        "00330eb8",
+        "01c896bf",
+        "00ddc8ef",
+        "0083fee3",
+        "018e997b",
+        "0053616f",
+        "0042dd82",
+        "01fc473c",
+        "0144a880",
+        "03419e2d",
+        "01a1d13a",
+        "01163605",
+        "00f29ca0",
+        "00df6a6a",
+        "0163842e",
+        "009d3d4e",
+        "06dac266",
+        "01b566bc",
+        "042a0a14",
+        "01a7238d",
+        "0237edfe",
+        "02609619",
+        "0771dc26",
+        "00d29772",
+        "01bbe15c",
+        "017f250c",
+        "002336c1",
+        "00c967dc"
+      ],
+      "title": "Why did Ethereum just rise 1%?",
+      "video_id": "4kXW5sAX35k",
+      "seconds": 41.3,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2637812213336793",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
