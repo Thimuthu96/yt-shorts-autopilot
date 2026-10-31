@@ -4474,6 +4474,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-10-31T23:03:18+00:00",
+      "brief_date": "2026-10-31",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261030-1522-r2-crypto",
+      "segment": "hook_1",
+      "source_video": "k08hSZiq_vY",
+      "hook": "What really moved Crypto?",
+      "topic": "moved",
+      "fingerprint": [
+        "000f8453",
+        "00280322",
+        "03894811",
+        "03ee26a0",
+        "0001d06f",
+        "02baf919",
+        "0d083bcc",
+        "004fd1f8",
+        "018f25da",
+        "004f7cfe",
+        "022e228e",
+        "0107e7a5",
+        "010d4151",
+        "0227f30e",
+        "00fbc896",
+        "04ded7f8",
+        "01794161",
+        "027dcc8f",
+        "0541cb07",
+        "022be23b",
+        "07848e63",
+        "074a07c9",
+        "0d5be598",
+        "01b6baa8",
+        "0187face",
+        "06c8972d",
+        "01ec6b39",
+        "0141d5ea",
+        "00358176",
+        "006b6b09",
+        "00155efe",
+        "0357ce98"
+      ],
+      "title": "What really moved Crypto?",
+      "video_id": "OSLQGrLKx5g",
+      "seconds": 35.1,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1638020671384244",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
