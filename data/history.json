@@ -4588,6 +4588,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-01T12:05:00+00:00",
+      "brief_date": "2026-11-01",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BINANCE COVERS 90% OF STOLEN $6.3B FUNDS",
+      "fb_post_id": "462331040302049_122256049856610202",
+      "headlines": [
+        "Binance Says It Has Replaced 90% of $6,300,000,000 Stolen in Record Crypto Hack"
+      ],
+      "topic": "crypto",
+      "source": "The Daily Hodl",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
