@@ -4683,6 +4683,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-01T21:05:38+00:00",
+      "brief_date": "2026-11-01",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "INVESTORS PULL BILLIONS AFTER $6.3B HACK",
+      "fb_post_id": "462331040302049_122256108758610202",
+      "headlines": [
+        "Investors pull billions in funds from Binance after record $6.3bn hack"
+      ],
+      "topic": "markets",
+      "source": "The Guardian",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
