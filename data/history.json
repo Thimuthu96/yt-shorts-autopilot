@@ -4664,6 +4664,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-01T16:10:34+00:00",
+      "brief_date": "2026-11-01",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BINANCE HACK LINKED TO NORTH KOREA",
+      "fb_post_id": "462331040302049_122256077174610202",
+      "headlines": [
+        "Binance hack spotlights North Korea’s multibillion-dollar crypto theft operation"
+      ],
+      "topic": "crypto",
+      "source": "NBC News",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
