@@ -4531,6 +4531,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-01T00:32:26+00:00",
+      "brief_date": "2026-11-01",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-trendline-liquidity",
+      "segment": "point_1",
+      "source_video": "fvWVOyKliMM",
+      "hook": "What is trendline liquidity?",
+      "topic": "trendline liquidity",
+      "fingerprint": [
+        "01add52e",
+        "00f4366e",
+        "02d6b547",
+        "03ba1abc",
+        "00145849",
+        "00e74e61",
+        "06681082",
+        "004b083b",
+        "00f33e5b",
+        "01388dca",
+        "00e86015",
+        "032024d1",
+        "06052f64",
+        "07750c7d",
+        "063b3ae4",
+        "00696735",
+        "0056cb53",
+        "00e3bc96",
+        "029c5681",
+        "0d03932a",
+        "00e1a5c8",
+        "0683bce8",
+        "00945c06",
+        "04349521",
+        "0077d3d9",
+        "013af327",
+        "08fe4303",
+        "0191eec9",
+        "03360ab4",
+        "00f2b56a",
+        "022e6135",
+        "097f6cdf"
+      ],
+      "title": "What is trendline liquidity?",
+      "video_id": "-JmZ6CYhVps",
+      "seconds": 32.5,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1067703802952960",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
