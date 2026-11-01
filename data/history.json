@@ -4702,6 +4702,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-01T23:02:19+00:00",
+      "brief_date": "2026-11-01",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-bos-vs-choch",
+      "segment": "point_3",
+      "source_video": "xB0EKBFEn8U",
+      "hook": "How do swing points define a break?",
+      "topic": "swing point",
+      "fingerprint": [
+        "01d9bda0",
+        "00f4366e",
+        "00d0d0e7",
+        "01e3f0f4",
+        "0101c024",
+        "00300f6f",
+        "00f44beb",
+        "0506e928",
+        "0223b548",
+        "0259d4dc",
+        "01131ce4",
+        "04c13d24",
+        "06052f64",
+        "073925fe",
+        "00a253da",
+        "026fb8ba",
+        "02e478fb",
+        "00e3bc96",
+        "00ec5d45",
+        "00c9d7af",
+        "03d11777",
+        "01fcdb7e",
+        "00945c06",
+        "02387aa5",
+        "01c8aec8",
+        "006f23cb",
+        "03ee1234",
+        "00299b78",
+        "01e8c9a3",
+        "00f2b56a",
+        "051708e0",
+        "01873073"
+      ],
+      "title": "How do swing points define a break?",
+      "video_id": "B4U6XJe9Epk",
+      "seconds": 32.7,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1117156797784817",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
