@@ -4607,6 +4607,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-01T13:01:58+00:00",
+      "brief_date": "2026-11-01",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-01-short_a",
+      "segment": "hook_1",
+      "source_video": "k08hSZiq_vY",
+      "hook": "Why is Bitcoin up 0.5%?",
+      "topic": "bitcoin up 0 5",
+      "fingerprint": [
+        "07f1e165",
+        "00ff4809",
+        "012002ca",
+        "0183ffda",
+        "0425e1f3",
+        "026d6a82",
+        "03500167",
+        "044a2315",
+        "00090b5d",
+        "0512437e",
+        "0417ebd8",
+        "00aa7dff",
+        "00004f4c",
+        "038d0fd3",
+        "00ab70c3",
+        "06a8cf79",
+        "00386a35",
+        "0279e682",
+        "00abb2f0",
+        "009d3d4e",
+        "03faae41",
+        "012783fc",
+        "0028a1e3",
+        "0257892a",
+        "026de1e2",
+        "05ddc14b",
+        "027adf75",
+        "04706f2f",
+        "06c75031",
+        "0c1de45e",
+        "00f1b8f2",
+        "025f4146"
+      ],
+      "title": "Why is Bitcoin up 0.5%?",
+      "video_id": "CIWC1kQuTFo",
+      "seconds": 41.4,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1494086555899415",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
