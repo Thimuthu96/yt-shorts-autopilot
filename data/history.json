@@ -4835,6 +4835,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-02T13:02:03+00:00",
+      "brief_date": "2026-11-02",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-02-short_a",
+      "segment": "hook_1",
+      "source_video": "k08hSZiq_vY",
+      "hook": "Why is Ethereum up 1%?",
+      "topic": "ethereum up 1",
+      "fingerprint": [
+        "0064ec47",
+        "10fc090d",
+        "014cb06d",
+        "03276c9a",
+        "03a6560c",
+        "01c15600",
+        "02989cff",
+        "051d0c69",
+        "02cea40f",
+        "03427ab6",
+        "0246ca7d",
+        "01b454bf",
+        "08cab125",
+        "03ad2608",
+        "00fbc896",
+        "006ec00c",
+        "022056b7",
+        "029da891",
+        "0163842e",
+        "002af6f4",
+        "0581556e",
+        "00537a62",
+        "01359ab1",
+        "00b778e3",
+        "0881290c",
+        "01c85c7c",
+        "03864b0f",
+        "00d29772",
+        "01caf689",
+        "09ee50e6",
+        "00f1b8f2",
+        "05b59589"
+      ],
+      "title": "Why is Ethereum up 1%?",
+      "video_id": "nQRNsHBkgXo",
+      "seconds": 41.3,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1625276545725078",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
