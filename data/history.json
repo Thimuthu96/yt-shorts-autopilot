@@ -4911,6 +4911,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-02T21:04:49+00:00",
+      "brief_date": "2026-11-02",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "CFTC PRESSES FOR CRYPTO EXCHANGE OVERSIGHT",
+      "fb_post_id": "462331040302049_122256328880610202",
+      "headlines": [
+        "CFTC’s Selig Uses Binance Theft to Press for Federal Crypto Exchange Oversight"
+      ],
+      "topic": "regulation",
+      "source": "PYMNTS.com",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
