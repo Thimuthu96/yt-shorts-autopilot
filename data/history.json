@@ -4892,6 +4892,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-02T16:07:04+00:00",
+      "brief_date": "2026-11-02",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BINANCE TAPS SAFU WALLET",
+      "fb_post_id": "462331040302049_122256302168610202",
+      "headlines": [
+        "Binance taps half its SAFU Bitcoin holdings, releases reserve proof"
+      ],
+      "topic": "crypto",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
