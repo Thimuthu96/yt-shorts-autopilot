@@ -4759,6 +4759,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-02T00:31:42+00:00",
+      "brief_date": "2026-11-02",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-02-short_p",
+      "segment": "hook_1",
+      "source_video": "k08hSZiq_vY",
+      "hook": "Why is Bitcoin up 0.6%?",
+      "topic": "bitcoin up 0 6",
+      "fingerprint": [
+        "00824415",
+        "00ff4809",
+        "012002ca",
+        "02db1bd1",
+        "003f64ca",
+        "0027c2a9",
+        "0af67e0e",
+        "005df602",
+        "0024f6b7",
+        "00dd8971",
+        "091ad962",
+        "00be8f89",
+        "002f9d3b",
+        "038d0fd3",
+        "00fbc896",
+        "0799a789",
+        "037af55b",
+        "014933cc",
+        "00abb2f0",
+        "00e33d04",
+        "03faae41",
+        "000a68c6",
+        "03282ae4",
+        "00089288",
+        "06bc99ef",
+        "00eade10",
+        "02ff72e6",
+        "07464851",
+        "00140fb6",
+        "0084facf",
+        "00f1b8f2",
+        "0202b5b4"
+      ],
+      "title": "Why is Bitcoin up 0.6%?",
+      "video_id": "q-cweFG4UT4",
+      "seconds": 37.1,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2024148738231030",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
