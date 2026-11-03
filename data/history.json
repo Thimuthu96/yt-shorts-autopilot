@@ -5025,6 +5025,27 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-03T23:39:07+00:00",
+      "brief_date": "2026-11-03",
+      "session": "triggered",
+      "kind": "triggered",
+      "trigger_id": "20261103-2324-r4-btc",
+      "title": "Why Bitcoin Just Jumped 2% (What Actually Happened)",
+      "rule": 4,
+      "coins": [
+        "BTC"
+      ],
+      "video_id": "DevqGs9S1To",
+      "seconds": 191.5,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "publish_at": "2026-11-04T01:39:07.000Z",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
