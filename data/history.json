@@ -4930,6 +4930,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-03T00:31:31+00:00",
+      "brief_date": "2026-11-03",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-03-short_p",
+      "segment": "hook_0",
+      "source_video": "k08hSZiq_vY",
+      "hook": "Why did Bitcoin just fall 1%?",
+      "topic": "bitcoin fall 1",
+      "fingerprint": [
+        "022f8362",
+        "026108a9",
+        "00c67811",
+        "0203100b",
+        "003f64ca",
+        "016bff11",
+        "03500167",
+        "03f5f50d",
+        "00090b5d",
+        "016e0575",
+        "00bf6e57",
+        "04298729",
+        "06a09ab6",
+        "03127af9",
+        "00fbc896",
+        "0f743cb6",
+        "00386a35",
+        "01c7b7e6",
+        "00a6bdb8",
+        "04fe7439",
+        "0180d9a1",
+        "00537a62",
+        "0094be9f",
+        "040eadda",
+        "07a07c5b",
+        "0021ab2d",
+        "0335757c",
+        "0445e081",
+        "01aa8e00",
+        "00a723fb",
+        "03d17bdd",
+        "0092d72a"
+      ],
+      "title": "Why did Bitcoin just fall 1%?",
+      "video_id": "2vSN9WjVjt8",
+      "seconds": 40.8,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "3860861334057046",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
