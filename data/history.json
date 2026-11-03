@@ -4987,6 +4987,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-03T16:04:51+00:00",
+      "brief_date": "2026-11-03",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN ETFS LOSE $1 BILLION",
+      "fb_post_id": "462331040302049_122256557096610202",
+      "headlines": [
+        "Bitcoin ETFs Lose $1 Billion as Midterms, Binance Hack Weigh on Sentiment"
+      ],
+      "topic": "crypto",
+      "source": "Bloomberg.com",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
