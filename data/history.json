@@ -5006,6 +5006,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-03T21:03:06+00:00",
+      "brief_date": "2026-11-03",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "CFTC CLEARS STOCK PERPETUALS",
+      "fb_post_id": "462331040302049_122256656588610202",
+      "headlines": [
+        "CFTC clears perpetual futures on stocks, bringing crypto trading model to Wall Street"
+      ],
+      "topic": "regulation",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
