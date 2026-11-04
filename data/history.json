@@ -5046,6 +5046,25 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-04T12:15:21+00:00",
+      "brief_date": "2026-11-04",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN BOUNCES",
+      "fb_post_id": "462331040302049_122256837620610202",
+      "headlines": [
+        "Bitcoin bounces from 7-week low under $76K as Democrats sweep Congress"
+      ],
+      "topic": "regulation",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
