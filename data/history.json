@@ -5122,6 +5122,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-04T16:12:15+00:00",
+      "brief_date": "2026-11-04",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN REACHES $80.5K IN RALLY AFTER MIDTERMS",
+      "fb_post_id": "462331040302049_122256855494610202",
+      "headlines": [
+        "Bitcoin hits $80.5K as US stocks rally on midterm election results"
+      ],
+      "topic": "crypto",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
