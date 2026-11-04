@@ -5065,6 +5065,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-04T13:03:35+00:00",
+      "brief_date": "2026-11-04",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-04-short_a",
+      "segment": "hook_2",
+      "source_video": "DevqGs9S1To",
+      "hook": "What really moved Ethereum?",
+      "topic": "moved ethereum",
+      "fingerprint": [
+        "00015da9",
+        "006e2e08",
+        "014cb06d",
+        "05e34b84",
+        "03a6560c",
+        "01aeda50",
+        "0180778e",
+        "017163d8",
+        "00090b5d",
+        "01e99786",
+        "060ec174",
+        "04298729",
+        "0103eef4",
+        "03ad2608",
+        "00fbc896",
+        "070a022d",
+        "00386a35",
+        "021702f9",
+        "044779d5",
+        "04a0fd67",
+        "00130fca",
+        "03b8b76d",
+        "02eca46b",
+        "00432b4f",
+        "003b58f7",
+        "06e6f5d2",
+        "028af331",
+        "07497fc2",
+        "01892b3b",
+        "0105b21c",
+        "00469ca8",
+        "0011e5f3"
+      ],
+      "title": "What really moved Ethereum?",
+      "video_id": "NnP9L-seyW8",
+      "seconds": 41.1,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1589867052889570",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
