@@ -5141,6 +5141,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-04T21:31:43+00:00",
+      "brief_date": "2026-11-04",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "HOUSE DEMS EYE NEW CRYPTO BILL WITH BIGGER SEC",
+      "fb_post_id": "462331040302049_122256887090610202",
+      "headlines": [
+        "House Democrats Eye Their Own Crypto Market Structure Bill With a Bigger SEC Role After Sweep"
+      ],
+      "topic": "regulation",
+      "source": "Bitcoin Magazine",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
