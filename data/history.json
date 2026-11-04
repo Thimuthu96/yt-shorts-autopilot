@@ -5160,6 +5160,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-04T23:29:01+00:00",
+      "brief_date": "2026-11-04",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261103-2324-r4-btc",
+      "segment": "hook_0",
+      "source_video": "DevqGs9S1To",
+      "hook": "Why did Bitcoin just jump 2%?",
+      "topic": "bitcoin jump 2",
+      "fingerprint": [
+        "00c78e58",
+        "04a3c2ec",
+        "01fab04e",
+        "043f1943",
+        "03a6560c",
+        "02d11d41",
+        "03500167",
+        "013e85b2",
+        "095e1a61",
+        "06920f08",
+        "06fa97a3",
+        "00be8f89",
+        "0cb2b909",
+        "03ad2608",
+        "00cc21e2",
+        "015d9211",
+        "02dd81ff",
+        "01907ba3",
+        "0536ac05",
+        "00201fc7",
+        "045bcc71",
+        "01f1dbba",
+        "024bc1bb",
+        "0122ca01",
+        "04bd7881",
+        "0021ab2d",
+        "02ff18b6",
+        "000e627f",
+        "01639721",
+        "02a9be10",
+        "01d8c77b",
+        "0234b928"
+      ],
+      "title": "Why did Bitcoin just jump 2%?",
+      "video_id": "q9f3iRD2b3s",
+      "seconds": 37.3,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1496505002419995",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
