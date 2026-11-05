@@ -5293,6 +5293,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-05T13:02:09+00:00",
+      "brief_date": "2026-11-05",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-05-short_a",
+      "segment": "hook_0",
+      "source_video": "DevqGs9S1To",
+      "hook": "Why did Ethereum just rise 3%?",
+      "topic": "ethereum rise 3",
+      "fingerprint": [
+        "0279ce10",
+        "04637bc2",
+        "019df900",
+        "000cf7dc",
+        "003f64ca",
+        "003e1650",
+        "04336cbf",
+        "01cebcd9",
+        "00090b5d",
+        "0248ae8f",
+        "00491f2c",
+        "00b1d2ee",
+        "019881d8",
+        "03ad2608",
+        "00fbc896",
+        "06b564ca",
+        "00386a35",
+        "07c41afc",
+        "0682eb1e",
+        "05702e92",
+        "00d415da",
+        "038b414f",
+        "037b4e2f",
+        "012b0585",
+        "0451d7fd",
+        "0292fe4d",
+        "03864b0f",
+        "07a42239",
+        "08aabbf4",
+        "09783d97",
+        "02234605",
+        "02024a35"
+      ],
+      "title": "Why did Ethereum just rise 3%?",
+      "video_id": "od8otLt009M",
+      "seconds": 40.2,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "4058098984494299",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
