@@ -5274,6 +5274,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-05T12:05:13+00:00",
+      "brief_date": "2026-11-05",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "MERCADO BITCOIN HACK CONTINUED AFTER STATEMENT",
+      "fb_post_id": "462331040302049_122257114430610202",
+      "headlines": [
+        "Mercado Bitcoin hack continued hours after exchange said attack was contained, report finds"
+      ],
+      "topic": "geopolitics",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
