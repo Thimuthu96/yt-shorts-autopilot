@@ -5217,6 +5217,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-05T00:54:09+00:00",
+      "brief_date": "2026-11-05",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-05-short_p",
+      "segment": "hook_0",
+      "source_video": "DevqGs9S1To",
+      "hook": "Why did Ethereum just rise 7%?",
+      "topic": "ethereum rise 7",
+      "fingerprint": [
+        "02428bd5",
+        "00fe0ecb",
+        "019df900",
+        "092c3729",
+        "06b844d4",
+        "01c15600",
+        "0174912d",
+        "014f8393",
+        "0141c96d",
+        "04bae4b4",
+        "0bba15fa",
+        "01dd02c4",
+        "01a30d92",
+        "00746e83",
+        "00fbc896",
+        "063e566d",
+        "02ab293e",
+        "035fa5ac",
+        "038af6a9",
+        "03cd40fd",
+        "020566bd",
+        "01873d55",
+        "03589d1e",
+        "017d6bc4",
+        "01adef6a",
+        "0b1c88a9",
+        "0221cab1",
+        "00814a42",
+        "001501ad",
+        "02c92cb0",
+        "027720c5",
+        "02024a35"
+      ],
+      "title": "Why did Ethereum just rise 7%?",
+      "video_id": "0A4_BTHj1Gg",
+      "seconds": 41.3,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1782903599644941",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
