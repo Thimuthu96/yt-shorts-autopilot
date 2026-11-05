@@ -5350,6 +5350,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-05T21:06:47+00:00",
+      "brief_date": "2026-11-05",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "FED CHECKS BANKS OVER BINANCE HACK",
+      "fb_post_id": "462331040302049_122257177490610202",
+      "headlines": [
+        "Fed, OCC check US banks after Binance hack as experts flag security risks"
+      ],
+      "topic": "central_bank",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
