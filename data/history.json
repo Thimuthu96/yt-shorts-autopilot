@@ -5369,6 +5369,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-05T23:01:52+00:00",
+      "brief_date": "2026-11-05",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261103-2324-r4-btc",
+      "segment": "hook_2",
+      "source_video": "DevqGs9S1To",
+      "hook": "Why is Bitcoin up 2%?",
+      "topic": "bitcoin up 2",
+      "fingerprint": [
+        "0279ce10",
+        "0090b109",
+        "05a14be7",
+        "07f431ee",
+        "01312087",
+        "00d9ed1f",
+        "0086cabe",
+        "0575def9",
+        "0558aa4e",
+        "0238d0c7",
+        "0349e0e6",
+        "001a0f9f",
+        "002dea9e",
+        "029860f4",
+        "00fbc896",
+        "015d9211",
+        "02d004b3",
+        "0279e682",
+        "048badb6",
+        "009d3d4e",
+        "037e6c95",
+        "056a372e",
+        "06b75344",
+        "0520c511",
+        "011a4b9c",
+        "069d034c",
+        "008b13e3",
+        "04fa107c",
+        "018ddfe3",
+        "09783d97",
+        "011d8f8c",
+        "043e571a"
+      ],
+      "title": "Why is Bitcoin up 2%?",
+      "video_id": "0GnXraHC8eM",
+      "seconds": 40.3,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1871500394006683",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
