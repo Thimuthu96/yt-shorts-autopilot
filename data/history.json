@@ -5578,6 +5578,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-06T21:05:00+00:00",
+      "brief_date": "2026-11-06",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BITCOIN DIPS UNDER $75K ON FED BETS",
+      "fb_post_id": "462331040302049_122257414874610202",
+      "headlines": [
+        "Bitcoin price dips under $75K as crypto markets miss tech-stock rebound"
+      ],
+      "topic": "rates",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
