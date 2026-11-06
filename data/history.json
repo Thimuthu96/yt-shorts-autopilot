@@ -5502,6 +5502,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-06T13:01:52+00:00",
+      "brief_date": "2026-11-06",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-06-short_a",
+      "segment": "hook_1",
+      "source_video": "DevqGs9S1To",
+      "hook": "Why is Ethereum down 6%?",
+      "topic": "ethereum down 6",
+      "fingerprint": [
+        "0020992c",
+        "03f85261",
+        "062c1e6c",
+        "09254a95",
+        "03a6560c",
+        "0103e266",
+        "03500167",
+        "018a7d3a",
+        "01cb4d6b",
+        "053ccd8a",
+        "008a9839",
+        "002c0ce1",
+        "0a8219fa",
+        "03ad2608",
+        "00fbc896",
+        "05dd258c",
+        "00285504",
+        "0086943b",
+        "07cda3b7",
+        "0204c652",
+        "04511cec",
+        "027515c6",
+        "03bfa91b",
+        "03608d2e",
+        "0451d7fd",
+        "0021ab2d",
+        "01752a41",
+        "06ca4009",
+        "004eaba9",
+        "00ddd1c9",
+        "00228713",
+        "054c1b2b"
+      ],
+      "title": "Why is Ethereum down 6%?",
+      "video_id": "AAprHkuhvOw",
+      "seconds": 41.2,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1440250344225621",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
