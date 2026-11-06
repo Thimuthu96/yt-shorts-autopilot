@@ -5426,6 +5426,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-06T00:31:33+00:00",
+      "brief_date": "2026-11-06",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-06-short_p",
+      "segment": "hook_0",
+      "source_video": "DevqGs9S1To",
+      "hook": "Why did Ethereum just fall 8%?",
+      "topic": "ethereum fall 8",
+      "fingerprint": [
+        "0064ec47",
+        "01932258",
+        "01521858",
+        "032546e5",
+        "01312087",
+        "02b17a4c",
+        "03930378",
+        "03e7a63e",
+        "02fcf5fb",
+        "01e9e1a8",
+        "00e1fce0",
+        "00287009",
+        "03e783fb",
+        "02d0c89a",
+        "00fbc896",
+        "01237005",
+        "022056b7",
+        "038a4daf",
+        "0043a084",
+        "009d3d4e",
+        "06d8e734",
+        "007595a8",
+        "0222be37",
+        "0197946c",
+        "000189d7",
+        "04971849",
+        "0221cab1",
+        "006a81e4",
+        "004eaba9",
+        "00ddd1c9",
+        "08fac8b8",
+        "06d958a3"
+      ],
+      "title": "Why did Ethereum just fall 8%?",
+      "video_id": "VhUXVRF_hxU",
+      "seconds": 42.0,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "2628668444272312",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
