@@ -5483,6 +5483,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-06T12:10:04+00:00",
+      "brief_date": "2026-11-06",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN HOLDS 75K KOSPI HALTED",
+      "fb_post_id": "462331040302049_122257330640610202",
+      "headlines": [
+        "Bitcoin holds $75K as AI regulation fears see KOSPI halted after 8% crash"
+      ],
+      "topic": "regulation",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
