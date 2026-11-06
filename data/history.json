@@ -5559,6 +5559,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-06T16:10:46+00:00",
+      "brief_date": "2026-11-06",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "FORBES WARNS OF FED PRICE SHOCK",
+      "fb_post_id": "462331040302049_122257377572610202",
+      "headlines": [
+        "‘Biggest Bloodbaths In History’—Bitcoin Suddenly Braced For Fed Price Shock After Serious Gold And Silver Crash Warning"
+      ],
+      "topic": "central_bank",
+      "source": "Forbes",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
