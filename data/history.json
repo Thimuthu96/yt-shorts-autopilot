@@ -5597,6 +5597,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-06T23:02:07+00:00",
+      "brief_date": "2026-11-06",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-valid-trendlines",
+      "segment": "point_2",
+      "source_video": "7xiuZEJL6t8",
+      "hook": "What Is a Valid Trendline?",
+      "topic": "valid trendline",
+      "fingerprint": [
+        "01d9bda0",
+        "011afd30",
+        "01bc42e9",
+        "036d6f6a",
+        "01f4a178",
+        "00300f6f",
+        "080e8094",
+        "00c437f4",
+        "00f33e5b",
+        "0a39f0f6",
+        "06ee22fb",
+        "04c13d24",
+        "047da4f9",
+        "07598a56",
+        "02464df5",
+        "0d9db9ce",
+        "0121ec99",
+        "009b3d0d",
+        "0032e2e2",
+        "06cae71b",
+        "072fb800",
+        "0072d0d4",
+        "00945c06",
+        "03864b3e",
+        "008154b1",
+        "070dc8f1",
+        "01146318",
+        "006ea89f",
+        "007392ed",
+        "007716cf",
+        "0139c946",
+        "0a24505f"
+      ],
+      "title": "What Is a Valid Trendline?",
+      "video_id": "jj_R7I1uajM",
+      "seconds": 28.2,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1193910346428105",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
