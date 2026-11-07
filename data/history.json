@@ -5879,6 +5879,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-07T23:02:02+00:00",
+      "brief_date": "2026-11-07",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261107-2014-r4-btc",
+      "segment": "hook_0",
+      "source_video": "t-HtJytaUeA",
+      "hook": "Why did Bitcoin just drop 0.1%?",
+      "topic": "bitcoin drop 0 1",
+      "fingerprint": [
+        "00278364",
+        "047dcb8d",
+        "01bbabe0",
+        "04d23192",
+        "01312087",
+        "02d11d41",
+        "033a66ff",
+        "0276ca7e",
+        "00090b5d",
+        "02d8dd6e",
+        "00f2b117",
+        "039be14a",
+        "000a8464",
+        "006a9588",
+        "00fbc896",
+        "03c647a7",
+        "00386a35",
+        "02f91f33",
+        "03dfe2bc",
+        "050272f1",
+        "06d34be8",
+        "0da4e78a",
+        "01c2e763",
+        "0520c511",
+        "05b72582",
+        "0021ab2d",
+        "0295b04b",
+        "01cfb9a5",
+        "04af88a4",
+        "00ad9936",
+        "02066267",
+        "051e06c6"
+      ],
+      "title": "Why did Bitcoin just drop 0.1%?",
+      "video_id": "LaGG-hiD81U",
+      "seconds": 41.3,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "974436345348021",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
