@@ -5654,6 +5654,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-07T00:31:33+00:00",
+      "brief_date": "2026-11-07",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-07-short_p",
+      "segment": "hook_0",
+      "source_video": "DevqGs9S1To",
+      "hook": "Why did Bitcoin just fall 0.5%?",
+      "topic": "bitcoin fall 0 5",
+      "fingerprint": [
+        "0279ce10",
+        "002368d2",
+        "00be79d9",
+        "0331323c",
+        "03a6560c",
+        "0390d5d8",
+        "03500167",
+        "01e05e74",
+        "00090b5d",
+        "03eb6c89",
+        "00ab66d5",
+        "06b453fc",
+        "053ececc",
+        "0336bcaa",
+        "00507796",
+        "010efd3a",
+        "03e28c4a",
+        "01fe64da",
+        "004b2d76",
+        "016a9126",
+        "0301a1df",
+        "04b41083",
+        "0113135f",
+        "00b6d722",
+        "0451d7fd",
+        "0380ede5",
+        "02ab7f67",
+        "017e84cc",
+        "01d43f63",
+        "039be702",
+        "00f1b8f2",
+        "02929f7c"
+      ],
+      "title": "Why did Bitcoin just fall 0.5%?",
+      "video_id": "7SztSNNv0Ow",
+      "seconds": 41.3,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1102231659316496",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
