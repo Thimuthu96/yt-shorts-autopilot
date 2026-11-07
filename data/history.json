@@ -5860,6 +5860,25 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-07T21:04:49+00:00",
+      "brief_date": "2026-11-07",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BITCOIN ETFS SHED $1.3B IN ONE WEEK",
+      "fb_post_id": "462331040302049_122257651106610202",
+      "headlines": [
+        "Bitcoin ETFs Shed $1.3 Billion in a Week and XRP ETFs Saw Zero Inflows. Is Wall Street Done Buying Crypto for 2026?"
+      ],
+      "topic": "crypto",
+      "source": "24/7 Wall St.",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
