@@ -5787,6 +5787,39 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-07T15:29:56+00:00",
+      "brief_date": "2026-11-07",
+      "session": "recap",
+      "kind": "lesson",
+      "episode": "bsl-ssl",
+      "track": 2,
+      "title": "What Is Buy-Side and Sell-Side Liquidity? (Crypto Chart Example)",
+      "video_id": "J_ZoC7_mU5A",
+      "fb_video_id": "1821449985662962",
+      "seconds": 295.2,
+      "examples": [
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1D",
+          "start": "2026-08-11T00:00:00+00:00",
+          "end": "2026-11-06T00:00:00+00:00"
+        },
+        {
+          "asset": "BTC/USD",
+          "timeframe": "1H",
+          "start": "2026-10-30T06:00:00+00:00",
+          "end": "2026-11-01T19:00:00+00:00"
+        }
+      ],
+      "evergreen": true,
+      "trigger": "topup",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
