@@ -5711,6 +5711,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-07T12:05:16+00:00",
+      "brief_date": "2026-11-07",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "RUSSIA APPROVES BTC, ETH, USDT FOR RETAIL",
+      "fb_post_id": "462331040302049_122257555064610202",
+      "headlines": [
+        "Russia Approves Bitcoin, Ether and USDT for Retail Investors"
+      ],
+      "topic": "geopolitics",
+      "source": "Digital Watch Observatory",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
