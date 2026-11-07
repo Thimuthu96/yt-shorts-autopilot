@@ -5820,6 +5820,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-07T16:09:52+00:00",
+      "brief_date": "2026-11-07",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "MOTLEY FOOL CRYPTO REPORT",
+      "fb_post_id": "462331040302049_122257586168610202",
+      "headlines": [
+        "In 5 Years, One of These Cryptocurrencies Could Be Worth More Than Bitcoin"
+      ],
+      "topic": "crypto",
+      "source": "The Motley Fool",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
