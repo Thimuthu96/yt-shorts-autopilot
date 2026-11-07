@@ -58122,8 +58122,9 @@
    ],
    "key": "r4:BTC:gnosis-pay-breach-exposes-card-details-p",
    "category": "hack",
-   "status": "dispatched",
-   "dispatched_utc": "2026-11-06T22:24:54+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-11-06T22:24:54+00:00",
+   "reason": "not published within 3 h of its due time"
   }
  ]
 }
