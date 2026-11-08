@@ -6012,6 +6012,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-08T13:01:48+00:00",
+      "brief_date": "2026-11-08",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-08-short_a",
+      "segment": "hook_0",
+      "source_video": "t-HtJytaUeA",
+      "hook": "Why did Ethereum just fall 0.3%?",
+      "topic": "ethereum fall 0 3",
+      "fingerprint": [
+        "0279ce10",
+        "03c5cb2f",
+        "007b47a9",
+        "0394ef59",
+        "003f64ca",
+        "015003ff",
+        "04e81d8d",
+        "00efbd08",
+        "029bee25",
+        "02f8870e",
+        "06e6e2c4",
+        "01a80e38",
+        "04709863",
+        "00a251a0",
+        "00fbc896",
+        "066488d3",
+        "00285504",
+        "00115a91",
+        "02ccd771",
+        "04e23048",
+        "024dfa3c",
+        "03a36582",
+        "001789bf",
+        "0156119c",
+        "0254b5fe",
+        "04971849",
+        "03864b0f",
+        "00ad6c8b",
+        "00c6c26f",
+        "0254c57e",
+        "011d8f8c",
+        "0316a4d9"
+      ],
+      "title": "Why did Ethereum just fall 0.3%?",
+      "video_id": "zoj33VrRRdo",
+      "seconds": 41.2,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1109048855097171",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
