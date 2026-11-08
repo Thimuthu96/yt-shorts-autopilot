@@ -6069,6 +6069,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-08T16:11:04+00:00",
+      "brief_date": "2026-11-08",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BITCOIN QUANTUM DEFENSE PROPOSED",
+      "fb_post_id": "462331040302049_122257846580610202",
+      "headlines": [
+        "This Bitcoin Developer’s Idea Would Make Quantum Attacks a Losing Bet"
+      ],
+      "topic": "geopolitics",
+      "source": "Decrypt",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
