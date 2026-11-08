@@ -6107,6 +6107,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-08T23:01:54+00:00",
+      "brief_date": "2026-11-08",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "market",
+      "material": "triggered-20261107-2014-r4-btc",
+      "segment": "hook_2",
+      "source_video": "t-HtJytaUeA",
+      "hook": "Why is Bitcoin down 0.1%?",
+      "topic": "bitcoin down 0 1",
+      "fingerprint": [
+        "0279ce10",
+        "05674c25",
+        "01bbabe0",
+        "00075c53",
+        "003f64ca",
+        "01a0d461",
+        "03500167",
+        "05d72450",
+        "00090b5d",
+        "05f8a6e6",
+        "04bd9869",
+        "039be14a",
+        "002f9d3b",
+        "0357080e",
+        "00fbc896",
+        "0cf4b83c",
+        "00386a35",
+        "00917b7c",
+        "0083dc7a",
+        "02772856",
+        "02b59d35",
+        "0bd62f63",
+        "04245eda",
+        "0520c511",
+        "06242851",
+        "03c363ec",
+        "013bfaa7",
+        "0402b5a5",
+        "0328ee22",
+        "00421863",
+        "070e384d",
+        "03f34466"
+      ],
+      "title": "Why is Bitcoin down 0.1%?",
+      "video_id": "A-ckgg9WeZc",
+      "seconds": 37.7,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2241950603018001",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
