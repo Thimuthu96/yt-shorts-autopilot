@@ -5993,6 +5993,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-08T12:10:02+00:00",
+      "brief_date": "2026-11-08",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN HOLDS BELOW $76K",
+      "fb_post_id": "462331040302049_122257822340610202",
+      "headlines": [
+        "Bitcoin holds below $76K as Binance EU closures add to crypto market pressure"
+      ],
+      "topic": "crypto",
+      "source": "Investing.com",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
