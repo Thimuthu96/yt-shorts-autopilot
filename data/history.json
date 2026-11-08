@@ -5936,6 +5936,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-08T00:31:32+00:00",
+      "brief_date": "2026-11-08",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-08-short_p",
+      "segment": "hook_0",
+      "source_video": "t-HtJytaUeA",
+      "hook": "Why did Bitcoin just fall 0.2%?",
+      "topic": "bitcoin fall 0 2",
+      "fingerprint": [
+        "00278364",
+        "052a1632",
+        "008591d5",
+        "00c5e44c",
+        "0143c74f",
+        "0733a565",
+        "03500167",
+        "00380853",
+        "00090b5d",
+        "060d8856",
+        "0003f488",
+        "03199729",
+        "0638d5b1",
+        "02f3a4f4",
+        "00fbc896",
+        "020e9c5d",
+        "00386a35",
+        "010f76a0",
+        "02daa7bf",
+        "05ae1c6f",
+        "00101851",
+        "03a68a39",
+        "01555f02",
+        "019dfdec",
+        "026de1e2",
+        "01e09498",
+        "00faa4d8",
+        "038a7718",
+        "051234b1",
+        "00fa46c0",
+        "00228713",
+        "0253ae92"
+      ],
+      "title": "Why did Bitcoin just fall 0.2%?",
+      "video_id": "L3xHBv7f9Nw",
+      "seconds": 42.0,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1800739377647866",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
