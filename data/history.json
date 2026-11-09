@@ -6164,6 +6164,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-09T00:31:35+00:00",
+      "brief_date": "2026-11-09",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-bsl-ssl",
+      "segment": "point_1",
+      "source_video": "J_ZoC7_mU5A",
+      "hook": "What is buy-side liquidity (BSL)?",
+      "topic": "buy side liquidity",
+      "fingerprint": [
+        "00e1a720",
+        "0194f5cd",
+        "0019b20e",
+        "04b01505",
+        "00145849",
+        "00300f6f",
+        "042acbc9",
+        "13e478ef",
+        "0167260f",
+        "0487f49a",
+        "052d2d9e",
+        "0237fa7c",
+        "024e165e",
+        "00977d71",
+        "0020a460",
+        "00b670b3",
+        "02e478fb",
+        "00e3bc96",
+        "02c98805",
+        "06cae71b",
+        "05a9c6af",
+        "048f9203",
+        "00945c06",
+        "025a16b4",
+        "0685bdae",
+        "11085707",
+        "0169dc40",
+        "03c8ec7f",
+        "01cb1e2b",
+        "00f2b56a",
+        "0eb0b9ac",
+        "02043502"
+      ],
+      "title": "What is buy-side liquidity (BSL)?",
+      "video_id": "kt2RIdruidE",
+      "seconds": 30.5,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1169433455425458",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
