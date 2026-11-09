@@ -6297,6 +6297,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-09T16:19:02+00:00",
+      "brief_date": "2026-11-09",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "COINBASE GAINS US TRUST CHARTER",
+      "fb_post_id": "462331040302049_122257981280610202",
+      "headlines": [
+        "Coinbase Gains OCC Trust Bank Charter for Crypto Custody"
+      ],
+      "topic": "crypto",
+      "source": "FinTech Magazine",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
