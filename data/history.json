@@ -6316,6 +6316,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-09T21:12:08+00:00",
+      "brief_date": "2026-11-09",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "HACKERS CREATE MEMECOINS TO LAUNDER FUNDS",
+      "fb_post_id": "462331040302049_122258006588610202",
+      "headlines": [
+        "North Korean hackers create memecoins to launder funds from Binance hack: Elliptic"
+      ],
+      "topic": "markets",
+      "source": "Cointelegraph",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
