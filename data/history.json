@@ -6221,6 +6221,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-09T12:12:50+00:00",
+      "brief_date": "2026-11-09",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "NVIDIA SLIDES BITCOIN HOVERS",
+      "fb_post_id": "462331040302049_122257958498610202",
+      "headlines": [
+        "Live news: Nvidia slides on CEO allegations as bitcoin hovers just above its 200-day average"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
