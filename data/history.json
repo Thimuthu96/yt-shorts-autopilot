@@ -6468,6 +6468,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-10T13:01:47+00:00",
+      "brief_date": "2026-11-10",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-trendline-liquidity",
+      "segment": "point_3",
+      "source_video": "fvWVOyKliMM",
+      "hook": "Can a candle grab liquidity without breaking a line?",
+      "topic": "trendline liquidity",
+      "fingerprint": [
+        "0017e4a8",
+        "01a79d2a",
+        "0079982e",
+        "005d740c",
+        "018ef56f",
+        "02a34583",
+        "08beb764",
+        "01e20794",
+        "00f33e5b",
+        "078a8661",
+        "06683eca",
+        "084f9b23",
+        "01458187",
+        "1098c26f",
+        "014b5260",
+        "036ddfa2",
+        "009827bc",
+        "0498225b",
+        "080a63f1",
+        "067c2d7e",
+        "00cb6f6b",
+        "05ac0ab0",
+        "02fe3e8e",
+        "0247cdb5",
+        "001dad7a",
+        "04d992e7",
+        "001e5cce",
+        "083fabb9",
+        "001adfd7",
+        "008cbab4",
+        "0272c695",
+        "054f5560"
+      ],
+      "title": "Can a candle grab liquidity without breaking a line?",
+      "video_id": "GzKGI6AELBY",
+      "seconds": 26.7,
+      "voice": "en_US-ryan-high",
+      "fb_reel_id": "2220601488812401",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
