@@ -6449,6 +6449,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-10T12:21:57+00:00",
+      "brief_date": "2026-11-10",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN SLIPS AHEAD OF US CPI",
+      "fb_post_id": "462331040302049_122258151362610202",
+      "headlines": [
+        "Bitcoin slips before U.S. inflation report as traders price in Fed rate increase"
+      ],
+      "topic": "central_bank",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
