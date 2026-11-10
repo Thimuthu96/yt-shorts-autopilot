@@ -6544,6 +6544,25 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-10T21:06:38+00:00",
+      "brief_date": "2026-11-10",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BITCOIN DROPS BELOW $74,000",
+      "fb_post_id": "462331040302049_122258194832610202",
+      "headlines": [
+        "Bitcoin slides below $74,000 after hotter-than-expected CPI as analysts warn of drop to $70k"
+      ],
+      "topic": "macro",
+      "source": "The Block",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
