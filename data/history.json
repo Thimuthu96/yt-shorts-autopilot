@@ -6525,6 +6525,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-10T16:07:14+00:00",
+      "brief_date": "2026-11-10",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "LIVE NEWS: BITCOIN FALLS TO NEARLY THREE-MONTH LOW",
+      "fb_post_id": "462331040302049_122258171450610202",
+      "headlines": [
+        "Live news: Bitcoin falls to nearly three-month low after disappointing inflation data"
+      ],
+      "topic": "macro",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
