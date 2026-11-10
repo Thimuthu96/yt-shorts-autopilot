@@ -6563,6 +6563,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-10T23:02:00+00:00",
+      "brief_date": "2026-11-10",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-bos-vs-choch",
+      "segment": "point_4",
+      "source_video": "xB0EKBFEn8U",
+      "hook": "What Is a Break of Structure?",
+      "topic": "break structure",
+      "fingerprint": [
+        "00b8a865",
+        "01c1567e",
+        "01bf0c97",
+        "0887b8c6",
+        "01f4a178",
+        "02744cd1",
+        "0378289e",
+        "0260519c",
+        "03b7a4b8",
+        "023c30a8",
+        "042f7ebb",
+        "00525c69",
+        "06052f64",
+        "01fc99fb",
+        "00644e35",
+        "032d471e",
+        "00669b3f",
+        "00e3bc96",
+        "026c4b16",
+        "03e00e59",
+        "011d2a2a",
+        "00ced713",
+        "00945c06",
+        "007b42a4",
+        "03550add",
+        "08afed46",
+        "01afdcf8",
+        "02c8f941",
+        "02a48f13",
+        "00f2b56a",
+        "06273eae",
+        "0149af60"
+      ],
+      "title": "What Is a Break of Structure?",
+      "video_id": "Qg0REB70bwM",
+      "seconds": 40.0,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1106486985632968",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
