@@ -69498,8 +69498,9 @@
    ],
    "key": "r4:BTC:binance-hack-reveals-crypto-s-uphill-bat",
    "category": "hack",
-   "status": "dispatched",
-   "dispatched_utc": "2026-11-11T15:37:49+00:00"
+   "status": "dropped",
+   "dispatched_utc": "2026-11-11T15:37:49+00:00",
+   "reason": "not published within 3 h of its due time"
   }
  ]
 }
