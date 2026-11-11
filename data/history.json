@@ -6677,6 +6677,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-11T12:06:35+00:00",
+      "brief_date": "2026-11-11",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "STONEX WEIGHS IN ON ETF OUTFLOWS",
+      "fb_post_id": "462331040302049_122258359280610202",
+      "headlines": [
+        "What Bitcoin ETF Outflows Say About Crypto After the Midterm Sweep"
+      ],
+      "topic": "crypto",
+      "source": "StoneX",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
