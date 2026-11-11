@@ -6620,6 +6620,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-11T00:31:36+00:00",
+      "brief_date": "2026-11-11",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-bsl-ssl",
+      "segment": "point_2",
+      "source_video": "J_ZoC7_mU5A",
+      "hook": "What is sell-side liquidity?",
+      "topic": "sell side liquidity",
+      "fingerprint": [
+        "00964187",
+        "01c1567e",
+        "01d107f1",
+        "00530c5e",
+        "07b8bc03",
+        "08cc9c0c",
+        "0179025b",
+        "0198295c",
+        "0673751c",
+        "0c47b0cc",
+        "00e43cbe",
+        "04fb941d",
+        "01b92b6f",
+        "01656cf1",
+        "04ef8c7c",
+        "017ba52e",
+        "014d0809",
+        "0098c167",
+        "07e3b211",
+        "02ced803",
+        "00e67435",
+        "009eeb89",
+        "0379889c",
+        "0b3d0832",
+        "0d241bb1",
+        "00a6e2ac",
+        "0581ba21",
+        "07fcac95",
+        "03fec965",
+        "00fa8f2f",
+        "03700052",
+        "001d8a16"
+      ],
+      "title": "What is sell-side liquidity?",
+      "video_id": "W1j8yOU7ItQ",
+      "seconds": 31.8,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2307663256746289",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
