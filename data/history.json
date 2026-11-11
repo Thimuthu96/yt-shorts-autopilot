@@ -6696,6 +6696,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-11T13:02:51+00:00",
+      "brief_date": "2026-11-11",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-11-short_a",
+      "segment": "hook_0",
+      "source_video": "t-HtJytaUeA",
+      "hook": "Why did Zcash just fall 15%?",
+      "topic": "zcash fall 15",
+      "fingerprint": [
+        "00278364",
+        "004c9065",
+        "012002ca",
+        "0100b222",
+        "003f64ca",
+        "016a74ed",
+        "02164e4c",
+        "004ba365",
+        "04ff6570",
+        "049d0cd4",
+        "07636a1a",
+        "00be8f89",
+        "004c2d5f",
+        "00f4f3c2",
+        "00898459",
+        "0997e868",
+        "02956955",
+        "00cfcea2",
+        "081120e8",
+        "02370e44",
+        "0301a1df",
+        "014d1a29",
+        "03282ae4",
+        "0039579b",
+        "00018d5f",
+        "00ec2dd1",
+        "01ec8f8a",
+        "0327a24a",
+        "00fb2429",
+        "00723f48",
+        "00f1b8f2",
+        "03377493"
+      ],
+      "title": "Why did Zcash just fall 15%?",
+      "video_id": "QY_ggIQpjhk",
+      "seconds": 40.8,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "1764357707970650",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
