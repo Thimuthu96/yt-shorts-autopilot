@@ -6772,6 +6772,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-11T23:02:07+00:00",
+      "brief_date": "2026-11-11",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-trendline-breaks",
+      "segment": "concept_fakeout",
+      "source_video": "l_7_G-Wm5MI",
+      "hook": "What defines a chart fakeout?",
+      "topic": "fakeout",
+      "fingerprint": [
+        "05cc5502",
+        "005deabf",
+        "07c28ed8",
+        "0349bb0f",
+        "0b829f21",
+        "00300f6f",
+        "03b7ad6b",
+        "00dae7fb",
+        "04aa778a",
+        "058cf82a",
+        "0373a39f",
+        "040f2bc9",
+        "06ce5afc",
+        "0129244c",
+        "0351519d",
+        "00162d90",
+        "0a9d62b7",
+        "015f0e79",
+        "016ded1e",
+        "01ac849d",
+        "03fda14f",
+        "00728b5d",
+        "0081dcef",
+        "02b34bde",
+        "005e8eb2",
+        "0066894e",
+        "027cd501",
+        "048d64a3",
+        "0018418a",
+        "010d696a",
+        "0128cd35",
+        "00cd140a"
+      ],
+      "title": "What defines a chart fakeout?",
+      "video_id": "eeuhqyOmnMs",
+      "seconds": 32.7,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "2237442756819041",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
