@@ -6753,6 +6753,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-11T21:12:47+00:00",
+      "brief_date": "2026-11-11",
+      "session": "news_evening",
+      "kind": "post",
+      "title": "BANKS LAUNCH NEW STABLECOIN",
+      "fb_post_id": "462331040302049_122258403146610202",
+      "headlines": [
+        "Goldman, Citi, and 19 Top Financial Firms Are Launching a Stablecoin"
+      ],
+      "topic": "regulation",
+      "source": "Yahoo Finance",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
