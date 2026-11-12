@@ -95,7 +95,22 @@
     "pop"
   ],
   "fx": [],
-  "cam_moves": [],
+  "cam_moves": [
+    "static",
+    "push",
+    "pull",
+    "panL",
+    "panR",
+    "orbitL",
+    "orbitR",
+    "rise",
+    "drop",
+    "tiltUp",
+    "lowSweep",
+    "flyOver",
+    "follow",
+    "closeUp"
+  ],
   "sign_styles": [],
   "transitions": [
     "iris",
@@ -154,5 +169,35 @@
     "crackle",
     "creak"
   ],
-  "frame_half_width": 0.22
+  "frame_half_width": 0.22,
+  "hats": [
+    "cap",
+    "tricorn",
+    "captain",
+    "bowler",
+    "top",
+    "hardhat",
+    "chef",
+    "straw",
+    "beret",
+    "sailor",
+    "beanie"
+  ],
+  "glasses": [
+    "round",
+    "square",
+    "goggles"
+  ],
+  "held_props": [
+    "wrench",
+    "flask",
+    "clipboard",
+    "sword",
+    "pitchfork",
+    "ladle",
+    "scepter",
+    "spyglass",
+    "book",
+    "hammer"
+  ]
 }

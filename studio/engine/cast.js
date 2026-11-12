@@ -614,7 +614,7 @@ export class Char {
     this.phase = hash(seed) * 10;
     this.blinkEvery = 2.8 + hash(seed + 1) * 2.2;
     // born: first appearance (enter, visibility); beatStart: the current beat (motions restart each beat)
-    this.born = 0; this.beatStart = null; this.from = null; this.moveStart = 0; this.key = "";
+    this.born = 0; this.beatStart = null; this.from = null; this.moveStart = 0; this.key = ""; this.spec = null;
     // sprite plane: canvas y = FOOT sits on y = 0
     const h = HEIGHT * CH / (FOOT - (HY - HRY)), w = h * (CW / CH);
     const geom = new THREE.PlaneGeometry(w, h);
@@ -692,16 +692,45 @@ export class Char {
     this.plane.scale.set(state.sx, state.sy, 1);
     this.shadow.scale.set(1 / (1 + state.y * 0.4), 0.45 / (1 + state.y * 0.4), 1);
     this.shadow.position.y = 0.02 - state.y;
-    // redraw only on change; animated poses and Gus's scarf tick at a capped rate
+    // redraw only on change; animated poses and Gus's scarf tick at a capped rate and draw at their bucket's
+    // time, so a frame looks the same whether it was reached by seeking or by stepping
     if (this.canvas && state.visible) {
-      const anim = pose === "wave" || pose === "run" || pose === "fall" ? Math.round(t * 15) : this.look.gus ? Math.round(t * 10) : 0;
+      const rate = pose === "wave" || pose === "run" || pose === "fall" ? 15 : this.look.gus ? 10 : 0;
+      const anim = rate ? Math.round(t * rate) : 0;
       const key = `${pose}|${expr}|${facing}|${talk}|${state.blink}|${anim}`;
       if (key !== this.key) {
-        drawChar(this.ctx, this.look, { ...state, t: anim ? t : 0 });
-        this.tex.needsUpdate = true; this.key = key;
+        this.draw({ ...state, t: rate ? anim / rate : 0 });
+        this.key = key;
       }
     }
     return state;
+  }
+
+  draw(state) {
+    drawChar(this.ctx, this.look, state);
+    this.tex.needsUpdate = true;
+  }
+
+  // A beat lists this character again (kept): returns the spec to frame with. A spec without `pos` keeps the
+  // last one; a new pos is walked to (0.8 s) from where the character stood when this beat started.
+  keep(spec, start) {
+    const prev = this.spec;
+    const next = { ...spec, pos: spec.pos || (prev && prev.pos) || [0, 0, 0] };
+    this.beatStart = start;
+    if (prev) {
+      const at = this.basePos(start);
+      if (next.pos.some((v, k) => v !== at[k])) { this.from = at; this.moveStart = start; } else this.from = null;
+    }
+    this.spec = next;
+    return next;
+  }
+
+  // the spec position (walk included, motions and enters not) at time t
+  basePos(t) {
+    const to = (this.spec && this.spec.pos) || [0, 0, 0];
+    if (!this.from) return [...to];
+    const e = easeIO(clamp01((t - this.moveStart) / 0.8));
+    return to.map((v, k) => this.from[k] + (v - this.from[k]) * e);
   }
 
   faceCamera(camera) {
@@ -720,5 +749,6 @@ export function catalog() {
   return {
     poses: Object.keys(POSES), exprs: [...EXPRS], motions: Object.keys(MOTIONS), enters: Object.keys(ENTERS),
     costume_keys: [...COSTUME_KEYS], costumes: Object.keys(COSTUMES), looks: ["gus"],
+    hats: [...HATS], glasses: [...GLASSES], held_props: [...HELD],
   };
 }

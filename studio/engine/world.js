@@ -961,6 +961,24 @@ export const ANIMS = {
 
 const popIn = (age) => (age >= 0.3 ? 1 : 1 + Math.sin((age / 0.3) * PI) * 0.18 - (1 - easeIO(age / 0.3)) * 1);
 
+// base pose + anim for `age` seconds after the prop appeared
+function placeProp(o, spec, age) {
+  o.position.set(...(spec.pos || [0, 0, 0]));
+  o.rotation.set(...(spec.rot || [0, 0, 0]).map(deg));
+  o.scale.setScalar((spec.scale || 1) * Math.max(0.01, spec.anim === "drop" || spec.anim === "fly" ? 1 : popIn(age)));
+  if (spec.anim) ANIMS[spec.anim](o, age, spec);
+}
+
+// Where a prop spawned at `t` is at `now` (its spawn position before it appears); no geometry is built.
+// The camera's `follow` move uses it.
+export function propPosAt(spec, t, now) {
+  const age = now - (t + (spec.delay || 0));
+  if (age < 0) return [...(spec.pos || [0, 0, 0])];
+  const o = new THREE.Object3D();
+  placeProp(o, spec, age);
+  return [o.position.x, o.position.y, o.position.z];
+}
+
 export function spawnProp(spec, t = 0) {
   const make = PROPS[spec.type];
   if (!make) throw new Error(`unknown prop: ${spec.type}`);
@@ -970,7 +988,6 @@ export function spawnProp(spec, t = 0) {
   const root = new THREE.Group();
   root.name = spec.id || spec.type;
   root.add(model);
-  const pos = spec.pos || [0, 0, 0], rot = (spec.rot || [0, 0, 0]).map(deg), scale = spec.scale || 1;
   const born = t + (spec.delay || 0);
   root.userData = {
     spec, born,
@@ -978,10 +995,7 @@ export function spawnProp(spec, t = 0) {
       const age = now - born;
       root.visible = age >= 0;
       if (!root.visible) return;
-      root.position.set(...pos);
-      root.rotation.set(...rot);
-      root.scale.setScalar(scale * Math.max(0.01, spec.anim === "drop" || spec.anim === "fly" ? 1 : popIn(age)));
-      if (spec.anim) ANIMS[spec.anim](root, age, spec);
+      placeProp(root, spec, age);
       root.traverse((k) => { if (k.userData.flame) k.scale.y = 1 + 0.12 * Math.sin(now * 13 + k.id); });
     },
   };

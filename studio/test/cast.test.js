@@ -106,6 +106,46 @@ test("enters and motions move the sprite", async () => {
   assert.ok(Math.abs(kept.frame({ id: "x", pos: [0, 0, 0], motion: "fall_over" }, 5.05, 0).tilt) < 0.2, "a kept char's motion restarts with the beat");
 });
 
+test("the sprite is drawn at its cache bucket's time, so seeking and stepping match", async () => {
+  const C = await cast();
+  const drawnAt = (look, spec, times) => {
+    const c = new C.Char("x", look);
+    const drawn = [];
+    c.canvas = {}; // pretend there is a canvas; record what would be drawn
+    c.draw = (st) => drawn.push(st.t);
+    for (const t of times) c.frame({ id: "x", pos: [0, 0, 0], ...spec }, t, 0);
+    return drawn[drawn.length - 1];
+  };
+  // wave redraws at 15 fps: 0.19 and 0.21 share bucket 3 (t = 0.2)
+  const stepped = drawnAt({ costume: "plain" }, { pose: "wave" }, [0.19, 0.21]);
+  const seeked = drawnAt({ costume: "plain" }, { pose: "wave" }, [0.21]);
+  assert.strictEqual(stepped, seeked);
+  assert.ok(Math.abs(seeked - 0.2) < 1e-9, `${seeked}`);
+  // Gus's scarf redraws at 10 fps: 0.26 and 0.33 share bucket 3 (t = 0.3)
+  assert.strictEqual(drawnAt("gus", {}, [0.26, 0.33]), drawnAt("gus", {}, [0.33]));
+  // a still pose draws at t = 0
+  assert.strictEqual(drawnAt({ costume: "plain" }, { pose: "point" }, [1.37]), 0);
+});
+
+test("a kept character without a new pos stays where it was", async () => {
+  const C = await cast();
+  const c = new C.Char("x", { costume: "plain" });
+  c.keep({ id: "x", pos: [2, 0, 1] }, 0); // the beat that brings it in
+  const spec = c.keep({ id: "x", pose: "point" }, 2); // a kept beat that omits pos
+  assert.deepStrictEqual(spec.pos, [2, 0, 1]);
+  const s = c.frame(spec, 2.4, 0);
+  assert.ok(Math.abs(s.x - 2) < 1e-9 && s.z === 1, `at ${s.x}, ${s.z}`);
+  assert.strictEqual(s.pose, "point");
+  // the same pos again: no walk, so an idle pose stays idle
+  const still = c.keep({ id: "x", pos: [2, 0, 1] }, 3);
+  assert.strictEqual(c.frame(still, 3.2, 0).pose, "idle");
+  // a new pos: walks there from the old one
+  const moved = c.keep({ id: "x", pos: [-2, 0, 1] }, 4);
+  const w = c.frame(moved, 4.4, 0);
+  assert.ok(w.x < 2 && w.x > -2 && w.pose === "run", `walking: ${w.x} ${w.pose}`);
+  assert.ok(Math.abs(c.frame(moved, 5, 0).x + 2) < 1e-9);
+});
+
 test("node studio/catalog.js exports the cast names", () => {
   const r = spawnSync("node", [path.join(STUDIO, "catalog.js")], { encoding: "utf8" });
   assert.strictEqual(r.status, 0, r.stderr);
