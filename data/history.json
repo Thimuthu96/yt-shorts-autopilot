@@ -7032,6 +7032,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-12T23:02:04+00:00",
+      "brief_date": "2026-11-12",
+      "session": "short_b",
+      "kind": "short",
+      "short_kind": "concept",
+      "material": "lesson-equal-highs-lows",
+      "segment": "point_1",
+      "source_video": "k1JhtdA6J4o",
+      "hook": "What Are Equal Highs in Crypto?",
+      "topic": "equal high equal low",
+      "fingerprint": [
+        "078fa8af",
+        "00f4366e",
+        "02d6b547",
+        "04287368",
+        "004a44c0",
+        "00300f6f",
+        "018a9f6b",
+        "046ac87b",
+        "00f33e5b",
+        "03ef8a01",
+        "074296dc",
+        "0304d526",
+        "00573e43",
+        "057f7c77",
+        "00b35da3",
+        "01d449ab",
+        "0060ea46",
+        "03421864",
+        "04852319",
+        "00065496",
+        "013bc029",
+        "046f442e",
+        "01346a13",
+        "006abc62",
+        "057685c6",
+        "04e5a827",
+        "01a024cd",
+        "01af1d5d",
+        "0188a41a",
+        "059e33a0",
+        "00850fed",
+        "0143c7e4"
+      ],
+      "title": "What Are Equal Highs in Crypto?",
+      "video_id": "jrP9hSWRQf8",
+      "seconds": 28.7,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "4735380946743348",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
