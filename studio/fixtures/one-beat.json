@@ -1,0 +1,19 @@
+{
+  "slug": "one-beat-test",
+  "title": "One Beat Test",
+  "category": "engineering",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": { "gus": { "look": "gus" } },
+  "beats": [{
+    "text": "Every lighthouse blinks in its own secret code.",
+    "set": { "type": "test", "mood": "day" },
+    "keep": false, "remove": [], "props": [],
+    "chars": [], "signs": [], "fx": [], "sfx": [],
+    "cam": { "target": [0, 2, 0], "dist": 9, "height": 1.2, "angle": 0, "move": "push", "cut": false, "follow": null },
+    "transition": null
+  }],
+  "sources": [],
+  "summary": "A one-beat fixture for the render harness.",
+  "hashtags": ["#test"]
+}

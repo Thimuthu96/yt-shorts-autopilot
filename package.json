@@ -1,0 +1,8 @@
+{
+  "name": "gus-explains-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gus Explains render studio (Three.js in headless Chromium, ffmpeg)",
+  "scripts": { "test": "node --test studio/test/" },
+  "dependencies": { "playwright": "1.63.0", "three": "0.170.0" }
+}

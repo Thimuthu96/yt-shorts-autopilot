@@ -4,4 +4,5 @@ __pycache__/
 client_secret*.json
 token*.json
 .env
-.venv/
+.venv/node_modules/
+build/
