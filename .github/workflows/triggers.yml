@@ -6,8 +6,6 @@ run-name: "${{ github.event_name == 'schedule' && 'Poll' || 'Manual poll' }}"
 # due and triggers.enabled is true, dispatch the Shorts autopilot's `triggered` edition with its id.
 # While triggers.enabled is false it only evaluates and logs. Public repo: Actions minutes are free.
 on:
-  schedule:
-    - cron: "13,43 * * * *"
   workflow_dispatch:
 
 permissions:
