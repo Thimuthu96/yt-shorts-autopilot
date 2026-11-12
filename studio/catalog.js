@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
 
-const REGISTRIES = ["engine/world.js", "engine/cast.js", "engine/camera.js"];
+const REGISTRIES = ["engine/world.js", "engine/cast.js", "engine/camera.js", "engine/fx.js", "engine/signs.js"];
 
 // Keys no registry owns yet stay empty; the constants below are owned here.
 const BASE = {

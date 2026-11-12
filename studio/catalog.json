@@ -94,7 +94,20 @@
     "drop",
     "pop"
   ],
-  "fx": [],
+  "fx": [
+    "smoke",
+    "fire",
+    "splinters",
+    "sparks",
+    "explosion",
+    "splash",
+    "steam",
+    "glow",
+    "flash",
+    "debris",
+    "bubbles",
+    "question"
+  ],
   "cam_moves": [
     "static",
     "push",
@@ -111,7 +124,14 @@
     "follow",
     "closeUp"
   ],
-  "sign_styles": [],
+  "sign_styles": [
+    "plank",
+    "barrel_label",
+    "banner",
+    "chalk",
+    "metal",
+    "paper"
+  ],
   "transitions": [
     "iris",
     "cut"

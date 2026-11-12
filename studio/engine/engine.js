@@ -1,11 +1,14 @@
 // Gus Explains engine: window.setup(story, timeline), then window.renderAt(t) per frame.
 // Registries live in their own modules (world.js: sets, props, moods; cast.js: characters; camera.js: camera moves,
-// iris); FX and captions later.
+// iris; fx.js: effects; signs.js: in-world signs; captions.js: the one-word caption).
 import * as THREE from "three";
 import { clamp01 } from "./core.js";
 import { buildSet, spawnProp, propPosAt } from "./world.js";
 import { Char } from "./cast.js";
 import { camPose, handoff, irisMask } from "./camera.js";
+import { makeFx, updateFx } from "./fx.js";
+import { spawnSign } from "./signs.js";
+import { captionWord, drawCaption } from "./captions.js";
 
 const W = 1080, H = 1920;
 const Q = Object.fromEntries(new URLSearchParams(location.search));
@@ -26,13 +29,22 @@ const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 1000);
 const stage = document.getElementById("stage"), ring = document.getElementById("iris");
 const IRIS = 0.45, HALF_DIAG = Math.hypot(W, H) / 2;
 
+// captions: a 2D canvas over the 3D view, inside #stage so the iris clips it too
+const capCanvas = document.getElementById("cap");
+capCanvas.width = Math.round(W * RS); capCanvas.height = Math.round(H * RS);
+const capCtx = capCanvas.getContext("2d");
+capCtx.scale(RS, RS);
+let capWord = null;
+
 // ---------- beats ----------
 // The set (with its mood's sky, lights and fog) is rebuilt when a beat's `set` changes; props are
 // cleared each beat unless `keep`, when only the ids in `remove` go. Characters follow the same rule; a kept
-// character given a new `pos` walks there, one without `pos` stays put.
+// character given a new `pos` walks there, one without `pos` stays put. FX and signs have no ids: they are cleared
+// each beat unless `keep`; an effect's local time runs from its beat's start + delay, so it is stateless per t.
 let STORY = null, TL = null, beatIdx = -1, setGroup = null, setKey = null;
 const props = new Map();
 const chars = new Map(); // id -> {c: Char, spec}
+let fxs = [], signs = []; // fxs: {g, born}; signs: roots with userData.tick
 
 function dispose(obj) {
   obj.traverse((k) => k.geometry && k.geometry.dispose());
@@ -40,6 +52,36 @@ function dispose(obj) {
 function drop(id) {
   const o = props.get(id);
   if (o) { scene.remove(o); dispose(o); props.delete(id); }
+}
+
+// FX sprites share one geometry and cached textures: only their own materials go. A sign owns its geometry and its
+// painted face (material + texture); its side material is a shared cached one.
+function dropFx({ g }) {
+  scene.remove(g);
+  g.traverse((k) => k.isSprite && k.material.dispose());
+}
+function dropSign(o) {
+  scene.remove(o);
+  dispose(o);
+  o.traverse((k) => k.isMesh && [].concat(k.material).forEach((m) => { if (m.map) { m.map.dispose(); m.dispose(); } }));
+}
+
+function applyFxAndSigns(b, start) {
+  if (!b.keep) {
+    fxs.forEach(dropFx);
+    signs.forEach(dropSign);
+    fxs = []; signs = [];
+  }
+  (b.fx || []).forEach((spec) => {
+    const g = makeFx(spec.type, spec.at || [0, 0, 0], null, spec.scale || 1);
+    scene.add(g);
+    fxs.push({ g, born: start + (spec.delay || 0) });
+  });
+  (b.signs || []).forEach((spec) => {
+    const o = spawnSign(spec, start);
+    scene.add(o);
+    signs.push(o);
+  });
 }
 
 function dropChar(id) {
@@ -85,6 +127,7 @@ function applyBeat(i) {
     props.set(id, o);
   });
   applyChars(b, start);
+  applyFxAndSigns(b, start);
 }
 
 // ---------- camera ----------
@@ -132,7 +175,7 @@ function applyIris(r) {
 }
 
 window.setup = async (story, timeline) => {
-  STORY = story; TL = timeline; beatIdx = -1;
+  STORY = story; TL = timeline; beatIdx = -1; capWord = null;
   await document.fonts.load("700 80px Fredoka");
   await document.fonts.ready;
   return true;
@@ -143,11 +186,15 @@ window.renderAt = (t) => {
   if (i < 0) i = TL.beats.length - 1;
   if (i !== beatIdx) { beatIdx = i; applyBeat(i); }
   props.forEach((o) => o.userData.tick(t));
+  fxs.forEach(({ g, born }) => updateFx(g, t - born));
+  signs.forEach((o) => o.userData.tick(t));
   const pose = poseAt(i, t);
   camera.position.set(...pose.pos);
   if (camera.fov !== pose.fov) { camera.fov = pose.fov; camera.updateProjectionMatrix(); }
   camera.lookAt(...pose.look);
   applyIris(irisAt(t));
+  const word = captionWord(TL, t);
+  if (word !== capWord) { capWord = word; drawCaption(capCtx, word, W, H); }
   const mouth = (TL.mouth || [])[Math.round(t * (TL.fps || 30))] || 0;
   chars.forEach(({ c, spec }) => { c.frame(spec, t, mouth); c.faceCamera(camera); });
   renderer.render(scene, camera);
