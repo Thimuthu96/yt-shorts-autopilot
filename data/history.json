@@ -6905,6 +6905,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-12T13:01:57+00:00",
+      "brief_date": "2026-11-12",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-12-short_a",
+      "segment": "hook_1",
+      "source_video": "t-HtJytaUeA",
+      "hook": "Why is Ethereum down 2%?",
+      "topic": "ethereum down 2",
+      "fingerprint": [
+        "077ab258",
+        "06037732",
+        "01b274f6",
+        "0494aa9d",
+        "0ab4afdb",
+        "02cebe70",
+        "0340b44c",
+        "002366f9",
+        "00090b5d",
+        "053debe0",
+        "0235a20a",
+        "01c5d08f",
+        "05a579e2",
+        "0444c756",
+        "000fd6c7",
+        "092d76b5",
+        "00285504",
+        "01722975",
+        "00966dfc",
+        "009d3d4e",
+        "00514042",
+        "01f1dbba",
+        "03589d1e",
+        "044596dd",
+        "06356b86",
+        "0021ab2d",
+        "0107e7c6",
+        "08ac73b1",
+        "002405b3",
+        "026d345b",
+        "00bee49f",
+        "02d5ac09"
+      ],
+      "title": "Why is Ethereum down 2%?",
+      "video_id": "jf7iSw2E9lc",
+      "seconds": 41.1,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "2171006033821161",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
