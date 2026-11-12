@@ -1,8 +1,9 @@
 // Gus Explains engine: window.setup(story, timeline), then window.renderAt(t) per frame.
-// Registries live in their own modules (world.js: sets, props, moods); characters, FX, camera, captions later.
+// Registries live in their own modules (world.js: sets, props, moods; cast.js: characters); FX, camera, captions later.
 import * as THREE from "three";
 import { clamp01 } from "./core.js";
 import { buildSet, spawnProp } from "./world.js";
+import { Char } from "./cast.js";
 
 const W = 1080, H = 1920;
 const Q = Object.fromEntries(new URLSearchParams(location.search));
@@ -21,9 +22,11 @@ const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 1000);
 
 // ---------- beats ----------
 // The set (with its mood's sky, lights and fog) is rebuilt when a beat's `set` changes; props are
-// cleared each beat unless `keep`, when only the ids in `remove` go.
+// cleared each beat unless `keep`, when only the ids in `remove` go. Characters follow the same rule; a kept
+// character given a new `pos` walks there.
 let STORY = null, TL = null, beatIdx = -1, setGroup = null, setKey = null;
 const props = new Map();
+const chars = new Map(); // id -> {c: Char, spec}
 
 function dispose(obj) {
   obj.traverse((k) => k.geometry && k.geometry.dispose());
@@ -31,6 +34,34 @@ function dispose(obj) {
 function drop(id) {
   const o = props.get(id);
   if (o) { scene.remove(o); dispose(o); props.delete(id); }
+}
+
+function dropChar(id) {
+  const ch = chars.get(id);
+  if (ch) { scene.remove(ch.c.group); ch.c.dispose(); chars.delete(id); }
+}
+
+function applyChars(b, start) {
+  if (!b.keep) [...chars.keys()].forEach(dropChar);
+  (b.remove || []).forEach(dropChar);
+  (b.chars || []).forEach((spec) => {
+    const prev = chars.get(spec.id);
+    if (prev) {
+      prev.c.from = [...(prev.spec.pos || [0, 0, 0])];
+      prev.c.moveStart = start;
+      prev.c.beatStart = start;
+      prev.spec = spec;
+      return;
+    }
+    const entry = STORY.cast && STORY.cast[spec.id];
+    if (!entry) throw new Error(`char ${spec.id} not in cast`);
+    const c = new Char(spec.id, entry.look);
+    c.born = start;
+    scene.add(c.group);
+    chars.set(spec.id, { c, spec });
+  });
+  const mood = setGroup ? setGroup.userData.mood : "day";
+  chars.forEach(({ c }) => c.setTint(mood));
 }
 
 function applyBeat(i) {
@@ -53,6 +84,7 @@ function applyBeat(i) {
     scene.add(o);
     props.set(id, o);
   });
+  applyChars(b, start);
 }
 
 window.setup = async (story, timeline) => {
@@ -75,6 +107,8 @@ window.renderAt = (t) => {
   const ang = ((cam.angle || 0) * Math.PI) / 180;
   camera.position.set(target.x + Math.sin(ang) * dist, target.y + (cam.height ?? 1.2), target.z + Math.cos(ang) * dist);
   camera.lookAt(target);
+  const mouth = (TL.mouth || [])[Math.round(t * (TL.fps || 30))] || 0;
+  chars.forEach(({ c, spec }) => { c.frame(spec, t, mouth); c.faceCamera(camera); });
   renderer.render(scene, camera);
   return true;
 };
