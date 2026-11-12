@@ -6994,6 +6994,25 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-12T16:04:34+00:00",
+      "brief_date": "2026-11-12",
+      "session": "news_midday",
+      "kind": "post",
+      "title": "BANKS COMMIT $270M TO FARO STABLECOIN",
+      "fb_post_id": "462331040302049_122258503250610202",
+      "headlines": [
+        "Banks pour $270 million into Project Faro stablecoin"
+      ],
+      "topic": "regulation",
+      "source": "American Banker",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
