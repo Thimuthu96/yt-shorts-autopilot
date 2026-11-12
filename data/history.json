@@ -6962,6 +6962,38 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-12T15:24:27+00:00",
+      "brief_date": "2026-11-12",
+      "session": "lesson",
+      "kind": "lesson",
+      "episode": "equal-highs-lows",
+      "track": 2,
+      "title": "What Are Equal Highs and Equal Lows? (Crypto Chart Example)",
+      "video_id": "k1JhtdA6J4o",
+      "fb_video_id": "2273515009873848",
+      "seconds": 267.2,
+      "examples": [
+        {
+          "asset": "BTC/USD",
+          "timeframe": "4H",
+          "start": "2026-11-07T08:00:00+00:00",
+          "end": "2026-11-08T12:00:00+00:00"
+        },
+        {
+          "asset": "ETH/USD",
+          "timeframe": "1H",
+          "start": "2026-11-06T00:00:00+00:00",
+          "end": "2026-11-06T12:00:00+00:00"
+        }
+      ],
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
