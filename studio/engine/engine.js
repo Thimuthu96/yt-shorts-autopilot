@@ -1,7 +1,8 @@
 // Gus Explains engine: window.setup(story, timeline), then window.renderAt(t) per frame.
-// Registries (SETS now; characters, FX, camera, captions later) are plain objects keyed by type.
+// Registries live in their own modules (world.js: sets, props, moods); characters, FX, camera, captions later.
 import * as THREE from "three";
-import { toonMat, inked, clamp01 } from "./core.js";
+import { clamp01 } from "./core.js";
+import { buildSet, spawnProp } from "./world.js";
 
 const W = 1080, H = 1920;
 const Q = Object.fromEntries(new URLSearchParams(location.search));
@@ -16,50 +17,42 @@ canvas.style.height = H + "px";
 renderer.shadowMap.enabled = true;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 400);
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb9a98a, 1.5));
-const sun = new THREE.DirectionalLight(0xfff3dc, 2.1);
-sun.position.set(-8, 16, 10);
-scene.add(sun);
-
-// ---------- registries ----------
-// A set builds its backdrop into `group` for a beat's `set` ({type, mood}).
-function skyTex(top, bottom) {
-  const c = document.createElement("canvas");
-  c.width = 4; c.height = 256;
-  const x = c.getContext("2d");
-  const g = x.createLinearGradient(0, 0, 0, 256);
-  g.addColorStop(0, top); g.addColorStop(1, bottom);
-  x.fillStyle = g; x.fillRect(0, 0, 4, 256);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-const SETS = {
-  test(group, set) {
-    const night = set.mood === "night";
-    scene.background = skyTex(night ? "#101a3a" : "#4aa8f0", night ? "#3a4a8a" : "#bfe6ff");
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), toonMat("#6ccf73"));
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    group.add(ground);
-    const block = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), toonMat("#ffd84a"));
-    block.position.y = 0.6;
-    group.add(inked(block));
-  },
-};
+const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 1000);
 
 // ---------- beats ----------
-let STORY = null, TL = null, beatIdx = -1, setGroup = null;
+// The set (with its mood's sky, lights and fog) is rebuilt when a beat's `set` changes; props are
+// cleared each beat unless `keep`, when only the ids in `remove` go.
+let STORY = null, TL = null, beatIdx = -1, setGroup = null, setKey = null;
+const props = new Map();
+
+function dispose(obj) {
+  obj.traverse((k) => k.geometry && k.geometry.dispose());
+}
+function drop(id) {
+  const o = props.get(id);
+  if (o) { scene.remove(o); dispose(o); props.delete(id); }
+}
 
 function applyBeat(i) {
-  const set = STORY.beats[i].set || {};
-  const build = SETS[set.type];
-  if (!build) throw new Error(`unknown set: ${set.type}`);
-  if (setGroup) scene.remove(setGroup);
-  setGroup = new THREE.Group();
-  scene.add(setGroup);
-  build(setGroup, set);
+  const b = STORY.beats[i], start = TL.beats[i].start;
+  const set = b.set || {};
+  const key = JSON.stringify(set);
+  if (key !== setKey) {
+    const g = buildSet(set);
+    if (setGroup) { scene.remove(setGroup); dispose(setGroup); }
+    setGroup = g; setKey = key;
+    scene.add(g);
+    scene.fog = g.userData.fog;
+  }
+  if (!b.keep) [...props.keys()].forEach(drop);
+  (b.remove || []).forEach(drop);
+  (b.props || []).forEach((spec, k) => {
+    const id = spec.id || `${spec.type}${k}`;
+    drop(id);
+    const o = spawnProp({ ...spec, id }, start);
+    scene.add(o);
+    props.set(id, o);
+  });
 }
 
 window.setup = async (story, timeline) => {
@@ -74,11 +67,13 @@ window.renderAt = (t) => {
   if (i < 0) i = TL.beats.length - 1;
   if (i !== beatIdx) { beatIdx = i; applyBeat(i); }
   const b = STORY.beats[i];
+  props.forEach((o) => o.userData.tick(t));
   const cam = b.cam || {};
   const f = clamp01((t - TL.beats[i].start) / Math.max(0.5, TL.beats[i].end - TL.beats[i].start));
   const target = new THREE.Vector3(...(cam.target || [0, 2, 0]));
   const dist = (cam.dist || 9) * (cam.move === "push" ? 1 - 0.08 * f : 1);
-  camera.position.set(target.x, target.y + (cam.height || 1.2), target.z + dist);
+  const ang = ((cam.angle || 0) * Math.PI) / 180;
+  camera.position.set(target.x + Math.sin(ang) * dist, target.y + (cam.height ?? 1.2), target.z + Math.cos(ang) * dist);
   camera.lookAt(target);
   renderer.render(scene, camera);
   return true;
