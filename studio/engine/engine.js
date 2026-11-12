@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { clamp01 } from "./core.js";
 import { buildSet, spawnProp, propPosAt } from "./world.js";
 import { Char } from "./cast.js";
-import { camPose, irisMask } from "./camera.js";
+import { camPose, handoff, irisMask } from "./camera.js";
 
 const W = 1080, H = 1920;
 const Q = Object.fromEntries(new URLSearchParams(location.search));
@@ -104,13 +104,14 @@ function followPos(k, t) {
   throw new Error(`camera follow: no prop ${cam.follow} in beat ${k}`);
 }
 
-const progress = (k, t) => clamp01((t - TL.beats[k].start) / Math.max(1e-3, TL.beats[k].end - TL.beats[k].start));
+const dur = (k) => Math.max(1e-3, TL.beats[k].end - TL.beats[k].start);
+const progress = (k, t) => clamp01((t - TL.beats[k].start) / dur(k));
 
 function poseAt(k, t) {
   const cam = { ...(STORY.beats[k].cam || {}), cut: cutsInto(k) };
-  // a beat's last pose does not depend on the one before it, so the previous beat's end is one call
-  const prev = cam.cut ? null : camPose({ ...(STORY.beats[k - 1].cam || {}), cut: true }, null, 1,
-    { follow: followPos(k - 1, TL.beats[k - 1].end) });
+  // a beat's last pose (and speed) does not depend on the one before it, so the previous beat's end is one call
+  const prev = cam.cut ? null : handoff(STORY.beats[k - 1].cam || {}, dur(k - 1), dur(k),
+    (p) => ({ follow: followPos(k - 1, TL.beats[k - 1].start + p * dur(k - 1)) }));
   return camPose(cam, prev, progress(k, t), { follow: followPos(k, t) });
 }
 

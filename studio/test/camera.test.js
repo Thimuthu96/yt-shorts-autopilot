@@ -50,6 +50,27 @@ test("the blend into the beat's framing ends at 25 % of the beat", async () => {
   assert.ok(len(sub(mid.look, PREV.look)) > 0.1 && len(sub(mid.look, CAM.target)) > 0.1);
 });
 
+test("static is a slow push (about 3 %) toward the target", async () => {
+  const C = await camera();
+  const d = (p) => len(sub(C.camPose({ ...CAM, move: "static", cut: true }, null, p).pos, CAM.target));
+  assert.ok(Math.abs(d(1) / d(0) - 0.97) < 0.01, `${d(1) / d(0)}`);
+});
+
+test("the camera keeps moving through a boundary between two continuous beats", async () => {
+  const C = await camera();
+  const A = { ...CAM, move: "push" }, durA = 2.5, durB = 3;
+  const frame = 1 / 30;
+  for (const move of ["orbitR", "static", "panL", "lowSweep", "push"]) {
+    const B = { ...CAM, target: [1, 1.5, -1], dist: 7, angle: 20, move };
+    const prev = C.handoff(A, durA, durB);
+    nearPose(C.camPose(B, prev, 0), { pos: prev.pos, look: prev.look, fov: prev.fov });
+    const lastA = len(sub(C.camPose(A, null, 1).pos, C.camPose(A, null, 1 - frame / durA).pos));
+    const firstB = len(sub(C.camPose(B, prev, frame / durB).pos, C.camPose(B, prev, 0).pos));
+    assert.ok(lastA > 1e-3 && firstB > 1e-3, `${move}: ${lastA} ${firstB}`);
+    assert.ok(firstB / lastA > 0.6 && firstB / lastA < 1.6, `${move}: last frame of A ${lastA}, first of B ${firstB}`);
+  }
+});
+
 test("push closes in on the target from p=0.3 to p=1", async () => {
   const C = await camera();
   let last = Infinity;
@@ -62,14 +83,15 @@ test("push closes in on the target from p=0.3 to p=1", async () => {
   assert.ok(pull(1) > pull(0.3));
 });
 
-test("every move gives a finite pose that changes over the beat (except static)", async () => {
+test("every move gives a finite pose that changes over the beat; static drifts slowly", async () => {
   const C = await camera();
   for (const move of MOVES) {
     const cam = { ...CAM, move, cut: true, follow: move === "follow" ? "ball" : null };
     const a = C.camPose(cam, null, 0.3, { follow: [0, 2, 0] }), b = C.camPose(cam, null, 1, { follow: [0, 2, 0] });
     for (const v of [...a.pos, ...a.look, ...b.pos, ...b.look, a.fov]) assert.ok(Number.isFinite(v), move);
     const moved = len(sub(a.pos, b.pos)) + len(sub(a.look, b.look));
-    if (move === "static" || move === "follow") assert.ok(moved < 1e-9, move);
+    if (move === "follow") assert.ok(moved < 1e-9, move); // the prop moves, not the camera on its own
+    else if (move === "static") assert.ok(moved > 0.05 && moved < 0.4, `static drift ${moved}`);
     else assert.ok(moved > 0.2, `${move} barely moves (${moved})`);
   }
 });
