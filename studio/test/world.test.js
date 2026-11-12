@@ -82,3 +82,16 @@ test("a delayed prop stays hidden until it is born; anims move it", async () => 
     assert.notDeepStrictEqual(a, b, anim);
   }
 });
+
+test("a prop with no delay is there in full when its beat opens; a delayed one pops in", async () => {
+  const W = await world();
+  const now = W.spawnProp({ type: "crate", pos: [0, 0, 0], scale: 1.2 }, 5);
+  now.userData.tick(5);
+  assert.strictEqual(now.visible, true);
+  assert.ok(Math.abs(now.scale.x - 1.2) < 1e-9, `scale at the cut: ${now.scale.x}`);
+  const late = W.spawnProp({ type: "crate", pos: [0, 0, 0], delay: 0.5 }, 5);
+  late.userData.tick(5.55);
+  assert.ok(late.scale.x < 0.9, `a delayed prop starts small: ${late.scale.x}`);
+  late.userData.tick(6);
+  assert.ok(Math.abs(late.scale.x - 1) < 1e-9);
+});

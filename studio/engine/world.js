@@ -961,11 +961,13 @@ export const ANIMS = {
 
 const popIn = (age) => (age >= 0.3 ? 1 : 1 + Math.sin((age / 0.3) * PI) * 0.18 - (1 - easeIO(age / 0.3)) * 1);
 
-// base pose + anim for `age` seconds after the prop appeared
+// base pose + anim for `age` seconds after the prop appeared. Only a delayed prop pops in: one with no delay is
+// already standing there when its beat opens (a cut never lands on an empty set).
 function placeProp(o, spec, age) {
   o.position.set(...(spec.pos || [0, 0, 0]));
   o.rotation.set(...(spec.rot || [0, 0, 0]).map(deg));
-  o.scale.setScalar((spec.scale || 1) * Math.max(0.01, spec.anim === "drop" || spec.anim === "fly" ? 1 : popIn(age)));
+  const pops = (spec.delay || 0) > 0 && spec.anim !== "drop" && spec.anim !== "fly";
+  o.scale.setScalar((spec.scale || 1) * Math.max(0.01, pops ? popIn(age) : 1));
   if (spec.anim) ANIMS[spec.anim](o, age, spec);
 }
 
