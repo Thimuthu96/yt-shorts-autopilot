@@ -6829,6 +6829,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-12T00:31:54+00:00",
+      "brief_date": "2026-11-12",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-12-short_p",
+      "segment": "hook_0",
+      "source_video": "t-HtJytaUeA",
+      "hook": "Why did Bitcoin just rise 0.8%?",
+      "topic": "bitcoin rise 0 8",
+      "fingerprint": [
+        "00db4588",
+        "01d55eb0",
+        "01c34adb",
+        "04d97d0c",
+        "025a3604",
+        "04148bd9",
+        "0d0d7602",
+        "09825db0",
+        "00090b5d",
+        "011652a6",
+        "070a4f9d",
+        "0244a061",
+        "06bfd316",
+        "01f88200",
+        "00fbc896",
+        "07d771ae",
+        "00386a35",
+        "0279e682",
+        "03d05cad",
+        "074a001c",
+        "000063fa",
+        "000a6255",
+        "0262bbd1",
+        "019dfdec",
+        "0044adeb",
+        "02de99b8",
+        "00dcc01b",
+        "02115e51",
+        "02040971",
+        "04a0a226",
+        "011b9e17",
+        "010b8a21"
+      ],
+      "title": "Why did Bitcoin just rise 0.8%?",
+      "video_id": "csgJJZR3S5k",
+      "seconds": 32.0,
+      "voice": "en-US-AndrewMultilingualNeural",
+      "fb_reel_id": "2024100471636446",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
