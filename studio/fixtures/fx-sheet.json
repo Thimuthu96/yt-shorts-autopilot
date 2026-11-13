@@ -1,0 +1,767 @@
+{
+ "slug": "fx-sheet-test",
+ "title": "FX Sheet Test",
+ "category": "history",
+ "format": "explainer",
+ "music_mood": "curious",
+ "cast": {
+  "gus": {
+   "look": "gus"
+  }
+ },
+ "beats": [
+  {
+   "text": "smoke",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "smoke",
+     "at": [
+      0,
+      0.3,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "fire",
+   "set": {
+    "type": "field",
+    "mood": "sunset"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "fire",
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "splinters",
+   "set": {
+    "type": "ship_deck",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "splinters",
+     "at": [
+      0,
+      1.2,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "sparks",
+   "set": {
+    "type": "furnace_room",
+    "mood": "interior_glow"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "sparks",
+     "at": [
+      0,
+      1.0,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "explosion",
+   "set": {
+    "type": "open_sea",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "explosion",
+     "at": [
+      0,
+      0.2,
+      -1
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "splash",
+   "set": {
+    "type": "open_sea",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "splash",
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "steam",
+   "set": {
+    "type": "lab",
+    "mood": "steel"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "steam",
+     "at": [
+      0,
+      0.9,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "glow",
+   "set": {
+    "type": "coast",
+    "mood": "night"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "glow",
+     "at": [
+      0,
+      1.3,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "flash",
+   "set": {
+    "type": "castle_yard",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "flash",
+     "at": [
+      0,
+      1.4,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "debris",
+   "set": {
+    "type": "castle_yard",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "debris",
+     "at": [
+      0,
+      1.2,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "bubbles",
+   "set": {
+    "type": "cutaway",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [],
+   "signs": [],
+   "fx": [
+    {
+     "type": "bubbles",
+     "at": [
+      0,
+      0.4,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "question",
+   "set": {
+    "type": "room",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "brl",
+     "type": "barrel",
+     "pos": [
+      -2.0,
+      0,
+      -0.6
+     ]
+    }
+   ],
+   "chars": [
+    {
+     "id": "gus",
+     "pos": [
+      -0.4,
+      0,
+      0.4
+     ],
+     "facing": "right",
+     "pose": "think",
+     "expr": "worried",
+     "talk": false
+    }
+   ],
+   "signs": [],
+   "fx": [
+    {
+     "type": "question",
+     "at": [
+      0.6,
+      2.3,
+      0
+     ],
+     "delay": 0.1
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "signs",
+   "set": {
+    "type": "ship_deck",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [],
+   "signs": [
+    {
+     "text": "HOT SHOT",
+     "pos": [
+      -0.8,
+      2.9,
+      0
+     ],
+     "style": "plank",
+     "delay": 0.0
+    },
+    {
+     "text": "LANGRAGE",
+     "pos": [
+      0.8,
+      2.9,
+      0
+     ],
+     "style": "barrel_label",
+     "delay": 0.05
+    },
+    {
+     "text": "LEVEL 3",
+     "pos": [
+      -0.8,
+      2.15,
+      0
+     ],
+     "style": "banner",
+     "delay": 0.1
+    },
+    {
+     "text": "1000 LBS",
+     "pos": [
+      0.8,
+      2.15,
+      0
+     ],
+     "style": "chalk",
+     "delay": 0.15000000000000002
+    },
+    {
+     "text": "BOILER 2",
+     "pos": [
+      -0.8,
+      1.4,
+      0
+     ],
+     "style": "metal",
+     "delay": 0.2
+    },
+    {
+     "text": "KEEP FROM\nFLAME",
+     "pos": [
+      0.8,
+      1.4,
+      0
+     ],
+     "style": "paper",
+     "delay": 0.25
+    }
+   ],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     2.1,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "Carcass shot was kept far from the flame.",
+   "set": {
+    "type": "ship_deck",
+    "mood": "sunset"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "b1",
+     "type": "barrel",
+     "pos": [
+      -1.3,
+      0,
+      0
+     ]
+    },
+    {
+     "id": "t",
+     "type": "torch",
+     "pos": [
+      1.6,
+      0,
+      -1.4
+     ]
+    }
+   ],
+   "chars": [
+    {
+     "id": "gus",
+     "pos": [
+      0.6,
+      0,
+      0.6
+     ],
+     "facing": "left",
+     "pose": "present",
+     "expr": "happy",
+     "talk": true
+    }
+   ],
+   "signs": [
+    {
+     "text": "CARCASS",
+     "pos": [
+      -1.3,
+      0.62,
+      0.45
+     ],
+     "style": "barrel_label",
+     "delay": 0
+    },
+    {
+     "text": "KEEP FROM FLAME",
+     "pos": [
+      -0.7,
+      2.0,
+      -0.6
+     ],
+     "style": "plank",
+     "delay": 0.2
+    }
+   ],
+   "fx": [
+    {
+     "type": "fire",
+     "at": [
+      1.4,
+      0,
+      -2.2
+     ],
+     "delay": 0
+    },
+    {
+     "type": "smoke",
+     "at": [
+      1.4,
+      1.2,
+      -2.2
+     ],
+     "delay": 0
+    }
+   ],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.3,
+     0
+    ],
+    "dist": 8.0,
+    "height": 1.0,
+    "angle": 0,
+    "move": "static",
+    "cut": true,
+    "follow": null
+   },
+   "transition": null
+  }
+ ],
+ "sources": [],
+ "summary": "Every effect, every sign style and a caption.",
+ "hashtags": [
+  "#test"
+ ]
+}

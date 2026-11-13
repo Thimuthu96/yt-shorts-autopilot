@@ -561,3 +561,56 @@ Release checklist in README (owner, in order): 1) merge pause branch + run cron 
 - [ ] **Step 1:** Write both docs; every file path they mention exists (`grep -o '`[a-z_/.]*\.\(py\|js\|yaml\|json\)`' CLAUDE.md | …` check by hand).
 - [ ] **Step 2:** `pytest -q && node --test studio/test/ && python tests/test_offline.py` → all PASS.
 - [ ] **Step 3:** Commit `docs: Gus Explains CLAUDE.md and README`.
+
+---
+
+## Improvement round (owner review 2026-11-13; spec §11) — run after Task 8, before Task 9
+
+Story format v2 (supersedes the beat fields where they differ; `beats` keeps its name, each beat is now a **shot**):
+
+```json
+{ "text": "hit by a cannonball,",                       // 2–8 words, 0.6–2.5 s spoken
+  "set": {"type": "ship_deck", "mood": "day"}, "keep": true, "remove": [],
+  "props": [...], "chars": [...], "signs": [...], "fx": [...], "sfx": [...],      // as before (spawn at shot start)
+  "events": [ {"at_word": 1, "do": "fire", "who": "cannon1", "projectile": "ball1", "to": [0,1,-30]},
+              {"at_word": 2, "do": "expr", "who": "pirate", "expr": "shocked"},
+              {"at_word": 3, "do": "shake", "amount": 0.4} ],
+  "cam": {"frame": "low_hero", "subject": "cannon1", "fov": 60, "roll": -8, "move": "push", "follow": null, "cut": false},
+  "transition": null | "whipL" | "whipR" | "whipU" | "iris" | "cut" }
+```
+`at_word` = index into this shot's `text.split()`; event time = that word's start in timeline.json (+ optional `delay`).
+`cam` may give `frame`+`subject` (preset computes target/dist/height/angle) or the explicit v1 fields.
+
+### Task 8A: Shot events (word-anchored)
+**Files:** Create `studio/engine/events.js`, `studio/test/events.test.js`; Modify `engine.js`, `catalog.js`.
+**Interfaces:** `EVENT_TYPES` registry; `eventTimes(shot, tlBeat) -> [{event, t}]` (pure; at_word → word.s + delay; out-of-range at_word → throws `beat N: at_word K out of range`); `applyEvents(state, shotIndex, t)` stateless per t (each event's effect is a function of `t - eventT`, so seeking == stepping). Built-in event types now: `expr`, `pose`, `motion`, `fx`, `sign`, `sfx_mark` (no-op in engine, read by Python), `shake` (camera shake, decays 0.4 s). Catalog key `events`.
+- [ ] Tests: eventTimes maps at_word to the word's start; delay adds; out-of-range throws; an `expr` event changes the character's expression exactly from its time on, and a seek to after it equals stepping; shake displacement decays to 0 by 0.4 s.
+- [ ] Implement, `npm test` green, commit `feat(studio): word-anchored shot events`.
+
+### Task 8B: Action library
+**Files:** Create `studio/engine/actions.js`, `studio/test/actions.test.js`; Modify `cast.js`, `world.js`, `fx.js`, `events.js`, `catalog.js`.
+**Interfaces:** event types `fire` (who = cannon/gun prop: recoil 0.25 s, muzzle flash + smoke fx at muzzle; optional `projectile` id + `to` launches it), `launch` (projectile prop from its pos to `to` on a ballistic arc over `dur` (default by distance), `impact` on arrival: `splinters`|`splash`|`debris`|`explosion` chosen by `surface`), `impact`, `fly_off` (prop tumbles away along `dir`), character `act` events: `hold` (held prop attaches to hand), `drink`, `throw` (held prop → launch), `duck`, `cower`, `grab`, `run_to` (pos), `point_at` (id), `look_at` (id), `jump`, `fall`; squash & stretch on characters hit by `impact` within 1.5 units. `world.propPosAt` must include launched/flying positions so `cam.follow` rides projectiles. All stateless per t.
+- [ ] Tests: launch position at t0 = from, at arrival = to, apex above both; impact fx spawns at arrival time; fire recoil returns to rest by 0.25 s; `run_to` ends at pos; throw hands the prop to launch; follow camera target equals projectile position mid-flight; seek == step for a 5-event shot.
+- [ ] Implement (look at reference 1–8 s and 22–30 s), stills sheet `task-8b-actions.png`, commit `feat(studio): action library`.
+
+### Task 8C: Camera v2
+**Files:** Modify `camera.js`, `engine.js`, `catalog.js`, `studio/test/camera.test.js`.
+**Interfaces:** `FRAMES` presets (`close` head+shoulders, `medium` waist up, `two_shot`, `ots` over-the-shoulder of subject toward `look_at`, `low_hero` camera ≈ 0.4 high looking up, `wide`, `pov` from subject's eye along its facing) → `{target, dist, height, angle}` from subject position/height; `fov` default 60 (framing rule half-width becomes ≈ 0.33 × dist — update catalog `frame_half_width`); `roll` degrees (dutch); transitions `whipL|whipR|whipU`: last 0.12 s of previous shot + first 0.12 s of next rotate fast in that direction with a directional motion blur (render-side: accumulate 4 sub-frames or a CSS/canvas blur) — the set change happens at the blur peak; the old camera handoff still applies within a set.
+- [ ] Tests: each preset puts the subject's head inside the frame centre third; `low_hero` camera y < subject head y; roll applied; whip transition: blur amount peaks at the boundary and is 0 outside ±0.12 s; fov 60 framing test.
+- [ ] Implement, render the camera fixture again, commit `feat(studio): framing presets, dutch angles, whip pans`.
+
+### Task 8D: Look v2
+**Files:** Modify `cast.js`, `world.js`, `fx.js`, `signs.js`, tests.
+- Characters default height +30 % (re-check framing presets); characters keep white heads in every mood (mood applies only a subtle rim/ambient, max 10 % tint); `night` mood brighter (moonlit blue-teal sky, readable sets); `day` warmer; richer surface textures on wood/stone/sea (painted strokes, AO-style darkening at bases).
+- New prop `fresnel_lens` (stacked glass rings, glowing core) and FX `beam` (sweeping light cone from a point, `period` param); signs render text exactly as written (no forced uppercase).
+- [ ] Tests: character tint in `night` ≤ 10 % from white; `beam` deterministic (seek == step); sign text case preserved; catalog has `fresnel_lens` and `beam`.
+- [ ] Stills: same cast/set sheet as Tasks 4/5 for before/after, commit `feat(studio): look v2`.
+
+### Task 8E: Sample v2 + OWNER CHECKPOINT
+- Rewrite `stories/sample/lighthouse.json` in format v2 with a strong hook (spec §11 rule 1; e.g. "If your ship's captain picked the wrong lighthouse, you'd be on the rocks by morning."), 25–35 shots, events on words, presets/roll/whips, actions, beam FX, lens prop; 130–170 words; true facts + ≥ 2 sources.
+- Voice + timeline via the scratch edge-tts script (Ruling R10), render, mux `preview.mp4`; side-by-side first-8-seconds sheets (4 fps) of reference and sample; copy everything to `~/Desktop/Gus Explains sample v2/`.
+- [ ] Commit `feat(studio): sample story v2`. STOP: owner reviews before Task 9.
+
+### Changes to later tasks from this round
+- Task 9 validator: format v2 — 15–40 shots, 2–8 words per shot (hook shot may be up to 10), every shot has ≥ 1 event or a moving camera, `at_word` in range, event `do` in catalog `events`, `who`/`subject`/`follow` ids exist, transitions in catalog; `cut` used at most 2 times per video.
+- Task 13 writer: prompt carries the hook formula (spec §11.1) with the reference's opening as a pattern example (structure only), the shot-list rules, event and action vocabulary, framing presets; a hook check (Gemini self-score + rules: 2nd person or concrete stakes/number in shot 0–1, ≤ 18 words) → redraft once if it fails.

@@ -1,0 +1,1013 @@
+{
+ "slug": "cast-sheet",
+ "title": "Cast Sheet",
+ "category": "engineering",
+ "format": "explainer",
+ "music_mood": "curious",
+ "cast": {
+  "gus": {
+   "look": "gus"
+  },
+  "g00": {
+   "look": "gus"
+  },
+  "g01": {
+   "look": "gus"
+  },
+  "g02": {
+   "look": "gus"
+  },
+  "g10": {
+   "look": "gus"
+  },
+  "g11": {
+   "look": "gus"
+  },
+  "g12": {
+   "look": "gus"
+  },
+  "g20": {
+   "look": "gus"
+  },
+  "g21": {
+   "look": "gus"
+  },
+  "g22": {
+   "look": "gus"
+  },
+  "g30": {
+   "look": "gus"
+  },
+  "g31": {
+   "look": "gus"
+  },
+  "g32": {
+   "look": "gus"
+  },
+  "c00": {
+   "look": {
+    "costume": "sailor"
+   }
+  },
+  "c01": {
+   "look": {
+    "costume": "pirate"
+   }
+  },
+  "c02": {
+   "look": {
+    "costume": "officer"
+   }
+  },
+  "c10": {
+   "look": {
+    "costume": "worker"
+   }
+  },
+  "c11": {
+   "look": {
+    "costume": "scientist"
+   }
+  },
+  "c12": {
+   "look": {
+    "costume": "suit"
+   }
+  },
+  "c20": {
+   "look": {
+    "costume": "king"
+   }
+  },
+  "c21": {
+   "look": {
+    "costume": "knight"
+   }
+  },
+  "c22": {
+   "look": {
+    "costume": "farmer"
+   }
+  },
+  "c30": {
+   "look": {
+    "costume": "chef"
+   }
+  },
+  "c31": {
+   "look": {
+    "costume": "doctor"
+   }
+  },
+  "c32": {
+   "look": {
+    "costume": "plain"
+   }
+  },
+  "c40": {
+   "look": {
+    "costume": "plain",
+    "hat": "bowler",
+    "mustache": true,
+    "shirt": "#6A4C93"
+   }
+  },
+  "c41": {
+   "look": {
+    "costume": "worker",
+    "hat": "beanie",
+    "prop": "hammer",
+    "shirt": "#3E9B45"
+   }
+  },
+  "c42": {
+   "look": "gus"
+  },
+  "pirate": {
+   "look": {
+    "costume": "pirate"
+   }
+  },
+  "sailor": {
+   "look": {
+    "costume": "sailor"
+   }
+  },
+  "m1": {
+   "look": {
+    "costume": "worker"
+   }
+  },
+  "m2": {
+   "look": {
+    "costume": "chef"
+   }
+  },
+  "m3": {
+   "look": {
+    "costume": "knight"
+   }
+  }
+ },
+ "beats": [
+  {
+   "text": "Gus hero",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "id": "gus",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "facing": "right",
+     "pose": "wave",
+     "expr": "happy",
+     "talk": true,
+     "enter": null,
+     "motion": null
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1.15,
+     0
+    ],
+    "dist": 4.6,
+    "height": 0.3,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "Gus neutral happy excited",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "idle",
+     "expr": "neutral",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g00",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "front",
+     "pose": "idle",
+     "expr": "happy",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g01",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "idle",
+     "expr": "excited",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g02",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "Gus smug sly shocked",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "idle",
+     "expr": "smug",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g10",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "front",
+     "pose": "idle",
+     "expr": "sly",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g11",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "idle",
+     "expr": "shocked",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g12",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "Gus scared sad worried",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "idle",
+     "expr": "scared",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g20",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "front",
+     "pose": "idle",
+     "expr": "sad",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g21",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "idle",
+     "expr": "worried",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g22",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "Gus angry pain neutral",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "idle",
+     "expr": "angry",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g30",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "front",
+     "pose": "idle",
+     "expr": "pain",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "g31",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "idle",
+     "expr": "neutral",
+     "talk": true,
+     "enter": null,
+     "motion": null,
+     "id": "g32",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "costumes 0",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "point",
+     "expr": "smug",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c00",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "right",
+     "pose": "wave",
+     "expr": "happy",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c01",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "armsUp",
+     "expr": "excited",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c02",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "costumes 1",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "shrug",
+     "expr": "worried",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c10",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "right",
+     "pose": "think",
+     "expr": "sly",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c11",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "hold",
+     "expr": "neutral",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c12",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "costumes 2",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "cross",
+     "expr": "smug",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c20",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "right",
+     "pose": "facepalm",
+     "expr": "pain",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c21",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "present",
+     "expr": "happy",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c22",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "costumes 3",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "scared",
+     "expr": "scared",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c30",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "right",
+     "pose": "run",
+     "expr": "shocked",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c31",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "fall",
+     "expr": "shocked",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c32",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "costumes 4",
+   "set": {
+    "type": "field",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "facing": "right",
+     "pose": "idle",
+     "expr": "angry",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c40",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "right",
+     "pose": "hold",
+     "expr": "sad",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c41",
+     "pos": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "facing": "left",
+     "pose": "cheer",
+     "expr": "excited",
+     "talk": false,
+     "enter": null,
+     "motion": null,
+     "id": "c42",
+     "pos": [
+      1.6,
+      0,
+      0
+     ]
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "On deck",
+   "set": {
+    "type": "ship_deck",
+    "mood": "day"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [
+    {
+     "id": "cn",
+     "type": "cannon",
+     "pos": [
+      2.6,
+      0,
+      -1.2
+     ],
+     "rot": [
+      0,
+      -30,
+      0
+     ],
+     "scale": 1
+    }
+   ],
+   "chars": [
+    {
+     "id": "gus",
+     "pos": [
+      -1.2,
+      0,
+      1.4
+     ],
+     "facing": "right",
+     "pose": "present",
+     "expr": "happy",
+     "talk": true,
+     "enter": null,
+     "motion": null
+    },
+    {
+     "id": "pirate",
+     "pos": [
+      0.2,
+      0,
+      0.6
+     ],
+     "facing": "left",
+     "pose": "cross",
+     "expr": "smug",
+     "talk": false,
+     "enter": null,
+     "motion": null
+    },
+    {
+     "id": "sailor",
+     "pos": [
+      1.4,
+      0,
+      1.1
+     ],
+     "facing": "left",
+     "pose": "scared",
+     "expr": "scared",
+     "talk": false,
+     "enter": null,
+     "motion": null
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0.1,
+     1.3,
+     1
+    ],
+    "dist": 8.5,
+    "height": 0.9,
+    "angle": 6,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  },
+  {
+   "text": "Motions",
+   "set": {
+    "type": "field",
+    "mood": "sunset"
+   },
+   "keep": false,
+   "remove": [],
+   "props": [],
+   "chars": [
+    {
+     "id": "gus",
+     "pos": [
+      0,
+      0,
+      0
+     ],
+     "facing": "right",
+     "pose": "idle",
+     "expr": "excited",
+     "talk": false,
+     "enter": "drop",
+     "motion": "hop"
+    },
+    {
+     "id": "m1",
+     "pos": [
+      -1.6,
+      0,
+      0
+     ],
+     "facing": "right",
+     "pose": "idle",
+     "expr": "shocked",
+     "talk": false,
+     "enter": "left",
+     "motion": null
+    },
+    {
+     "id": "m2",
+     "pos": [
+      1.6,
+      0,
+      0
+     ],
+     "facing": "left",
+     "pose": "idle",
+     "expr": "pain",
+     "talk": false,
+     "enter": "pop",
+     "motion": "fall_over"
+    },
+    {
+     "id": "m3",
+     "pos": [
+      0,
+      0,
+      -1.5
+     ],
+     "facing": "right",
+     "pose": "idle",
+     "expr": "scared",
+     "talk": false,
+     "enter": null,
+     "motion": "run_across"
+    }
+   ],
+   "signs": [],
+   "fx": [],
+   "sfx": [],
+   "cam": {
+    "target": [
+     0,
+     1,
+     0
+    ],
+    "dist": 10,
+    "height": 0.4,
+    "angle": 0,
+    "move": null,
+    "cut": false,
+    "follow": null
+   },
+   "transition": null
+  }
+ ],
+ "sources": [],
+ "summary": "Every expression, pose and costume, plus Gus.",
+ "hashtags": [
+  "#test"
+ ]
+}

@@ -1,0 +1,1025 @@
+{
+  "slug": "why-lighthouses-flash",
+  "title": "Why Lighthouses Flash in Patterns",
+  "category": "engineering",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "captain": {
+      "look": {
+        "costume": "officer",
+        "prop": "spyglass"
+      }
+    },
+    "keeper": {
+      "look": {
+        "costume": "worker",
+        "hat": "beanie",
+        "hatColor": "#2F6FD6",
+        "prop": "wrench"
+      }
+    }
+  },
+  "beats": [
+    {
+      "text": "Every lighthouse blinks in its own code, and sailors bet their lives on reading it.",
+      "set": {
+        "type": "coast",
+        "mood": "night"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "lh",
+          "type": "lighthouse",
+          "pos": [
+            1.6,
+            0,
+            -5.5
+          ],
+          "scale": 0.7
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.0,
+            0,
+            0.5
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": "hop"
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            1.6,
+            5.21,
+            -4.87
+          ],
+          "delay": 0.25,
+          "scale": 0.55
+        },
+        {
+          "type": "flash",
+          "at": [
+            1.6,
+            5.21,
+            -4.87
+          ],
+          "delay": 0.85,
+          "scale": 0.55
+        },
+        {
+          "type": "flash",
+          "at": [
+            1.6,
+            5.21,
+            -4.87
+          ],
+          "delay": 3.25,
+          "scale": 0.55
+        },
+        {
+          "type": "flash",
+          "at": [
+            1.6,
+            5.21,
+            -4.87
+          ],
+          "delay": 3.85,
+          "scale": 0.55
+        }
+      ],
+      "sfx": [
+        {
+          "type": "ding",
+          "at": 0.25
+        },
+        {
+          "type": "ding",
+          "at": 0.85
+        }
+      ],
+      "cam": {
+        "target": [
+          0.7,
+          2.4,
+          -0.5
+        ],
+        "dist": 8.5,
+        "height": 0.4,
+        "angle": 4,
+        "move": "lowSweep",
+        "cut": false,
+        "follow": null
+      },
+      "transition": null
+    },
+    {
+      "text": "Picture a captain at night. The coast is pitch black, and all he sees is one light.",
+      "set": {
+        "type": "ship_deck",
+        "mood": "night"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "captain",
+          "pos": [
+            0.0,
+            0,
+            -3.3
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "worried",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            9,
+            2.2,
+            -40
+          ],
+          "delay": 0.6,
+          "scale": 2.5
+        },
+        {
+          "type": "flash",
+          "at": [
+            9,
+            2.2,
+            -40
+          ],
+          "delay": 1.2,
+          "scale": 2.5
+        },
+        {
+          "type": "flash",
+          "at": [
+            9,
+            2.2,
+            -40
+          ],
+          "delay": 3.6,
+          "scale": 2.5
+        },
+        {
+          "type": "flash",
+          "at": [
+            9,
+            2.2,
+            -40
+          ],
+          "delay": 4.2,
+          "scale": 2.5
+        }
+      ],
+      "sfx": [
+        {
+          "type": "creak",
+          "at": 0.2
+        }
+      ],
+      "cam": {
+        "target": [
+          0.5,
+          1.6,
+          -3.2
+        ],
+        "dist": 7,
+        "height": 0.7,
+        "angle": -12,
+        "move": "push",
+        "cut": true,
+        "follow": null
+      },
+      "transition": null
+    },
+    {
+      "text": "But which lighthouse is it? Steer for the wrong one, and the ship hits the rocks.",
+      "set": {
+        "type": "ship_deck",
+        "mood": "night"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "captain",
+          "facing": "right",
+          "pose": "scared",
+          "expr": "scared",
+          "talk": false,
+          "motion": "shake"
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            9,
+            2.2,
+            -40
+          ],
+          "delay": 0.3,
+          "scale": 2.5
+        },
+        {
+          "type": "flash",
+          "at": [
+            9,
+            2.2,
+            -40
+          ],
+          "delay": 0.9,
+          "scale": 2.5
+        },
+        {
+          "type": "flash",
+          "at": [
+            -7,
+            2.0,
+            -38
+          ],
+          "delay": 1.6,
+          "scale": 2.5
+        },
+        {
+          "type": "question",
+          "at": [
+            0.0,
+            2.5,
+            -3.3
+          ],
+          "delay": 0.3
+        }
+      ],
+      "sfx": [
+        {
+          "type": "pop",
+          "at": 0.3
+        }
+      ],
+      "cam": {
+        "target": [
+          0.0,
+          1.6,
+          -3.3
+        ],
+        "dist": 4.6,
+        "height": 0.9,
+        "angle": 8,
+        "move": "closeUp",
+        "cut": false,
+        "follow": null
+      },
+      "transition": null
+    },
+    {
+      "text": "So each lighthouse got its own pattern, its characteristic. One flashes once, the next twice, the next three times.",
+      "set": {
+        "type": "coast",
+        "mood": "night"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "lh1",
+          "type": "lighthouse",
+          "pos": [
+            -2.1,
+            0,
+            -7
+          ],
+          "scale": 0.45
+        },
+        {
+          "id": "lh2",
+          "type": "lighthouse",
+          "pos": [
+            0.0,
+            0,
+            -7
+          ],
+          "scale": 0.45
+        },
+        {
+          "id": "lh3",
+          "type": "lighthouse",
+          "pos": [
+            2.1,
+            0,
+            -7
+          ],
+          "scale": 0.45
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.75,
+            0,
+            0.4
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "happy",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [
+        {
+          "text": "FL 5s",
+          "pos": [
+            -2.1,
+            2.7,
+            -6.45
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ],
+          "style": "plank",
+          "delay": 0.4
+        },
+        {
+          "text": "FL(2) 10s",
+          "pos": [
+            0.0,
+            2.7,
+            -6.45
+          ],
+          "style": "plank",
+          "delay": 0.7
+        },
+        {
+          "text": "FL(3) 15s",
+          "pos": [
+            2.1,
+            2.7,
+            -6.45
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ],
+          "style": "plank",
+          "delay": 1.0
+        }
+      ],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            -2.1,
+            3.35,
+            -6.595
+          ],
+          "delay": 0.6,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            -2.1,
+            3.35,
+            -6.595
+          ],
+          "delay": 3.6,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            0,
+            3.35,
+            -6.595
+          ],
+          "delay": 1.2,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            0,
+            3.35,
+            -6.595
+          ],
+          "delay": 1.7,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            0,
+            3.35,
+            -6.595
+          ],
+          "delay": 5.1,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            0,
+            3.35,
+            -6.595
+          ],
+          "delay": 5.6,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            2.1,
+            3.35,
+            -6.595
+          ],
+          "delay": 2.0,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            2.1,
+            3.35,
+            -6.595
+          ],
+          "delay": 2.45,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            2.1,
+            3.35,
+            -6.595
+          ],
+          "delay": 2.9,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            2.1,
+            3.35,
+            -6.595
+          ],
+          "delay": 5.9,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            2.1,
+            3.35,
+            -6.595
+          ],
+          "delay": 6.35,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            2.1,
+            3.35,
+            -6.595
+          ],
+          "delay": 6.8,
+          "scale": 0.45
+        }
+      ],
+      "sfx": [
+        {
+          "type": "whoosh",
+          "at": 0.0
+        }
+      ],
+      "cam": {
+        "target": [
+          0.0,
+          2.2,
+          -3.8
+        ],
+        "dist": 11,
+        "height": 0.6,
+        "angle": 0,
+        "move": "static",
+        "cut": false,
+        "follow": null
+      },
+      "transition": "iris"
+    },
+    {
+      "text": "The trick was the Fresnel lens. Rings of glass bend the lamp into bright beams, and the lens turns.",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "lens",
+          "type": "lighthouse",
+          "pos": [
+            0.9,
+            -2.6,
+            -1.4
+          ],
+          "scale": 0.75,
+          "anim": "spin"
+        },
+        {
+          "id": "cog",
+          "type": "gear",
+          "pos": [
+            -0.4,
+            0,
+            -2.4
+          ],
+          "scale": 0.8,
+          "rot": [
+            0,
+            30,
+            0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "keeper",
+          "pos": [
+            -0.7,
+            0,
+            0.6
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "happy",
+          "talk": false,
+          "enter": "left",
+          "motion": null
+        }
+      ],
+      "signs": [
+        {
+          "text": "FRESNEL LENS",
+          "pos": [
+            0.9,
+            4.3,
+            -1.6
+          ],
+          "style": "metal",
+          "delay": 0.4
+        }
+      ],
+      "fx": [
+        {
+          "type": "glow",
+          "at": [
+            0.9,
+            3.0,
+            -1.0
+          ],
+          "delay": 0.8,
+          "scale": 0.9
+        }
+      ],
+      "sfx": [
+        {
+          "type": "whoosh",
+          "at": 0.0
+        }
+      ],
+      "cam": {
+        "target": [
+          0.1,
+          2.2,
+          -0.6
+        ],
+        "dist": 9,
+        "height": 0.9,
+        "angle": -20,
+        "move": "orbitR",
+        "cut": true,
+        "follow": null
+      },
+      "transition": null
+    },
+    {
+      "text": "Clockwork kept it turning at a steady speed, so each beam sweeps past the ship as a flash, right on time.",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "keeper",
+          "facing": "right",
+          "pose": "hold",
+          "expr": "excited",
+          "talk": false,
+          "motion": "bob"
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            0.9,
+            3.0,
+            -0.8
+          ],
+          "delay": 2.5,
+          "scale": 0.45
+        },
+        {
+          "type": "flash",
+          "at": [
+            0.9,
+            3.0,
+            -0.8
+          ],
+          "delay": 4.4,
+          "scale": 0.45
+        }
+      ],
+      "sfx": [
+        {
+          "type": "creak",
+          "at": 0.1
+        },
+        {
+          "type": "ding",
+          "at": 4.4
+        }
+      ],
+      "cam": {
+        "target": [
+          0.2,
+          2.0,
+          -0.4
+        ],
+        "dist": 8.5,
+        "height": 1.0,
+        "angle": 6,
+        "move": "push",
+        "cut": false,
+        "follow": null
+      },
+      "transition": null
+    },
+    {
+      "text": "Every pattern is printed on nautical charts, like two flashes every ten seconds, and neighbouring lights get different ones.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            2.4,
+            0,
+            -2.6
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.75,
+            0,
+            0.4
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "smug",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "captain",
+          "pos": [
+            0.95,
+            0,
+            0.1
+          ],
+          "facing": "left",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [
+        {
+          "text": "LIGHT LIST",
+          "pos": [
+            -0.2,
+            3.9,
+            -4.75
+          ],
+          "style": "chalk",
+          "delay": 0.2
+        },
+        {
+          "text": "FL(2) 10s",
+          "pos": [
+            -0.2,
+            2.9,
+            -4.75
+          ],
+          "style": "paper",
+          "delay": 2.6
+        }
+      ],
+      "fx": [],
+      "sfx": [
+        {
+          "type": "whoosh",
+          "at": 0.0
+        },
+        {
+          "type": "pop",
+          "at": 2.6
+        }
+      ],
+      "cam": {
+        "target": [
+          0.0,
+          2.2,
+          -1.2
+        ],
+        "dist": 9.5,
+        "height": 0.6,
+        "angle": 14,
+        "move": "orbitL",
+        "cut": true,
+        "follow": null
+      },
+      "transition": null
+    },
+    {
+      "text": "So the captain counts. Flash, flash, darkness. He checks his chart, and knows exactly where he is.",
+      "set": {
+        "type": "ship_deck",
+        "mood": "night"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "box",
+          "type": "crate",
+          "pos": [
+            -0.75,
+            0,
+            -4.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "captain",
+          "pos": [
+            0.35,
+            0,
+            -3.3
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "excited",
+          "talk": false,
+          "enter": null,
+          "motion": "hop"
+        }
+      ],
+      "signs": [
+        {
+          "text": "FL(2) 10s",
+          "pos": [
+            -0.75,
+            1.25,
+            -3.75
+          ],
+          "style": "paper",
+          "rot": [
+            0,
+            15,
+            0
+          ],
+          "delay": 0.2
+        }
+      ],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            9,
+            2.2,
+            -40
+          ],
+          "delay": 1.4,
+          "scale": 2.5
+        },
+        {
+          "type": "flash",
+          "at": [
+            9,
+            2.2,
+            -40
+          ],
+          "delay": 2.05,
+          "scale": 2.5
+        }
+      ],
+      "sfx": [
+        {
+          "type": "ding",
+          "at": 1.4
+        },
+        {
+          "type": "ding",
+          "at": 2.05
+        }
+      ],
+      "cam": {
+        "target": [
+          0.0,
+          1.6,
+          -3.5
+        ],
+        "dist": 7.5,
+        "height": 0.6,
+        "angle": -22,
+        "move": "orbitR",
+        "cut": true,
+        "follow": null
+      },
+      "transition": null
+    },
+    {
+      "text": "That blinking isn't decoration. Every lighthouse is spelling out its own name in light.",
+      "set": {
+        "type": "coast",
+        "mood": "sunset"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "lh",
+          "type": "lighthouse",
+          "pos": [
+            1.5,
+            0,
+            -6
+          ],
+          "scale": 0.7
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.3,
+            0,
+            0.5
+          ],
+          "facing": "front",
+          "pose": "cheer",
+          "expr": "happy",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            1.5,
+            5.21,
+            -5.37
+          ],
+          "delay": 0.4,
+          "scale": 0.55
+        },
+        {
+          "type": "flash",
+          "at": [
+            1.5,
+            5.21,
+            -5.37
+          ],
+          "delay": 1.0,
+          "scale": 0.55
+        },
+        {
+          "type": "flash",
+          "at": [
+            1.5,
+            5.21,
+            -5.37
+          ],
+          "delay": 3.4,
+          "scale": 0.55
+        },
+        {
+          "type": "flash",
+          "at": [
+            1.5,
+            5.21,
+            -5.37
+          ],
+          "delay": 4.0,
+          "scale": 0.55
+        }
+      ],
+      "sfx": [
+        {
+          "type": "whoosh",
+          "at": 0.0
+        }
+      ],
+      "cam": {
+        "target": [
+          0.3,
+          1.9,
+          -0.5
+        ],
+        "dist": 7.5,
+        "height": 0.3,
+        "angle": -6,
+        "move": "push",
+        "cut": true,
+        "follow": null
+      },
+      "transition": null
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://en.wikipedia.org/wiki/Light_characteristic",
+      "title": "Light characteristic (Wikipedia)"
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Fresnel_lens",
+      "title": "Fresnel lens (Wikipedia)"
+    },
+    {
+      "url": "https://nauticalcharts.noaa.gov/publications/us-chart-1.html",
+      "title": "U.S. Chart No. 1: chart symbols and abbreviations (NOAA)"
+    }
+  ],
+  "summary": "Every lighthouse has its own light characteristic: a flash pattern and period printed on nautical charts, such as two flashes every ten seconds. A rotating Fresnel lens turns the lamp into sweeping beams, so a sailor can count the flashes at night and know exactly which lighthouse they are looking at.",
+  "hashtags": [
+    "#lighthouse",
+    "#engineering",
+    "#sailing",
+    "#history"
+  ]
+}

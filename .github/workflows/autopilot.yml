@@ -1,32 +1,24 @@
-name: Shorts autopilot
-run-name: "${{ github.event_name == 'schedule' && 'Backup schedule' || (github.event.inputs.scheduled == 'true' && 'Timer' || 'Manual') }} · ${{ github.event_name == 'schedule' && github.event.schedule || inputs.session }}${{ inputs.slot && format(' · slot {0}', inputs.slot) || '' }}${{ inputs.trigger && format(' · trigger {0}', inputs.trigger) || '' }}"
+name: Gus Explains autopilot
+run-name: "${{ github.event_name == 'schedule' && 'Backup schedule' || (github.event.inputs.scheduled == 'true' && 'Timer' || 'Manual') }} · ${{ github.event_name == 'schedule' && github.event.schedule || inputs.session }}${{ inputs.no_upload && ' · no upload' || '' }}"
 
 on:
-  # The main trigger is an outside timer (cron-job.org) calling workflow_dispatch on time with
-  # scheduled=true; see CLAUDE.md. GitHub's own schedule is unreliable (runs hours late or
-  # never), so these crons are only a backup, 17 min after each edition's start time.
-  # Times are UTC. Sri Lanka time = UTC + 5:30.
-  # If you change a cron line, change the same string in EDITION below and in concurrency.group.
+  # The main trigger is an outside timer (cron-job.org, setup_cronjobs.py) calling workflow_dispatch at each
+  # edition's start_utc with scheduled=true. GitHub's own schedule is unreliable (runs hours late or never), so
+  # these crons are only a backup, 17 min after the start time. Times are UTC (Sri Lanka = UTC + 5:30).
+  # If you change a cron line, change the same string in EDITION below and in concurrency.group
+  # (tests/test_workflow.py checks the three places agree with config.yaml).
   schedule:
-    - cron: "47 0 * * *"    # Short P        (market pulse, due 00:30 UTC → 06:00 Sri Lanka); timed runs skip while pulse.enabled is false
-    - cron: "17 12 * * *"   # Morning News   (Facebook post, due 12:00 UTC → 17:30 Sri Lanka)
-    - cron: "17 13 * * *"   # Short A        (due 13:00 UTC → 18:30 Sri Lanka)
-    - cron: "17 15 * * 3"   # Crypto Basics  (due 15:00 UTC → 20:30 Sri Lanka), Wednesday
-    - cron: "17 15 * * 4"   # Trading Lesson (due 15:00 UTC → 20:30 Sri Lanka), Thursday
-    - cron: "17 15 * * 6"   # Weekly Recap   (due 15:00 UTC → 20:30 Sri Lanka), Saturday; else the top-up
-    - cron: "17 15 * * 0"   # Sunday top-up  (due 15:00 UTC → 20:30 Sri Lanka), only when the week is short
-    - cron: "17 16 * * *"   # Midday News    (Facebook post, due 16:00 UTC → 21:30 Sri Lanka)
-    - cron: "17 21 * * *"   # Evening News   (Facebook post, due 21:00 UTC → 02:30 Sri Lanka)
-    - cron: "17 23 * * *"   # Short B        (due 23:00 UTC → 04:30 Sri Lanka)
-  workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
+    - cron: "42 16 * * *"   # Short A (due 16:25 UTC, publishes ~17:00 UTC → 22:30 Sri Lanka)
+    - cron: "42 22 * * *"   # Short B (due 22:25 UTC, publishes ~23:00 UTC → 04:30 Sri Lanka)
+  workflow_dispatch:          # the "Run workflow" button (manual runs make and publish unless no_upload)
     inputs:
       session:
-        description: "Edition to make (short_a / short_b = standalone Short, short_p = market-pulse Short (timed runs skip while pulse.enabled is false), news_* = Facebook news image post, lesson = trading lesson, basics = Crypto Basics, evergreen = top-up of `slot`, triggered = why crypto moved for `trigger`, recap = Saturday recap, topup_sun = Sunday weekly-floor top-up)"
+        description: "Edition to make"
         type: choice
-        options: [short_a, short_b, short_p, news_morning, news_midday, news_evening, basics, lesson, recap, topup_sun, evergreen, triggered]
+        options: [short_a, short_b]
         default: short_a
       platforms:
-        description: "Where to publish (limited to the edition's own platforms)"
+        description: "Where to publish"
         type: choice
         options: [all, youtube, facebook]
         default: all
@@ -38,44 +30,37 @@ on:
         description: "Timed run (for the outside timer only)"
         type: boolean
         default: false
-      slot:
-        description: "Top-up only: fill this edition's slot today (a config.yaml session key; session lesson or evergreen); once per slot"
+      story:
+        description: "Optional: render this story JSON (repo path, e.g. stories/sample/lighthouse.json) instead of writing one"
         type: string
         default: ""
-      trigger:
-        description: "Triggered edition only: the trigger id (data/triggers.json; the trigger poll passes it)"
+      topic:
+        description: "Optional: write about this topic instead of the backlog's next one"
         type: string
         default: ""
+      no_upload:
+        description: "Make it only, publish nowhere (the video is in the run's artifacts)"
+        type: boolean
+        default: false
 
 permissions:
-  contents: write             # lets the job save data/history.json back to the repo
+  contents: write             # lets the job save data/history.json, topics/backlog.yaml and stories/published/
 
 jobs:
   make-and-upload:
     runs-on: ubuntu-latest
-    # a lesson renders two videos (16:9 + 9:16) and waits for Facebook to process its video
+    # research + render (headless Chromium, every frame) + Facebook processing
     timeout-minutes: 90
-    # Timed runs of the same edition (timer + backup) queue one after the other, so the second sees
-    # the first's upload and stops. Top-ups (`slot`) queue in their own group per slot (topup-<slot>), so a
-    # slot's backup cron never cancels a waiting top-up; main.py's history check stops a second one.
-    # Triggered runs (dispatched by the trigger poll, triggers.yml) queue in their own `triggered` group.
-    # Manual runs get their own group: they never wait or cancel anything.
+    # Timed runs of the same edition (timer + backup) queue one after the other, so the second sees the first's
+    # upload and stops. Manual runs get their own group: they never wait for or cancel anything.
     concurrency:
-      group: "${{ inputs.slot && format('topup-{0}', inputs.slot) || inputs.session == 'triggered' && 'triggered' || (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'short_p' || github.event.schedule == '17 12 * * *' && 'news_morning' || github.event.schedule == '17 13 * * *' && 'short_a' || github.event.schedule == '17 15 * * 3' && 'basics' || github.event.schedule == '17 15 * * 4' && 'lesson' || github.event.schedule == '17 15 * * 6' && 'recap' || github.event.schedule == '17 15 * * 0' && 'topup_sun' || github.event.schedule == '17 16 * * *' && 'news_midday' || github.event.schedule == '17 21 * * *' && 'news_evening' || github.event.schedule == '17 23 * * *' && 'short_b' || '') || inputs.session) || format('manual-{0}', github.run_id) }}"
+      group: "${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && format('timed-{0}', github.event_name == 'schedule' && (github.event.schedule == '42 16 * * *' && 'short_a' || github.event.schedule == '42 22 * * *' && 'short_b' || '') || inputs.session) || format('manual-{0}', github.run_id) }}"
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install ffmpeg and fonts
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
-
-      - name: Install Python packages
-        run: pip install -r requirements.txt
+      - name: Set up Node, Chromium, Python and ffmpeg
+        uses: ./.github/actions/setup
 
       - name: Make and publish
         env:
@@ -86,39 +71,45 @@ jobs:
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
           # which edition: from the backup cron that fired, or from the timer's / manual run's choice
-          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '47 0 * * *' && 'short_p' || github.event.schedule == '17 12 * * *' && 'news_morning' || github.event.schedule == '17 13 * * *' && 'short_a' || github.event.schedule == '17 15 * * 3' && 'basics' || github.event.schedule == '17 15 * * 4' && 'lesson' || github.event.schedule == '17 15 * * 6' && 'recap' || github.event.schedule == '17 15 * * 0' && 'topup_sun' || github.event.schedule == '17 16 * * *' && 'news_midday' || github.event.schedule == '17 21 * * *' && 'news_evening' || github.event.schedule == '17 23 * * *' && 'short_b' || '') || inputs.session || '' }}"
-          SCHEDULED: ${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && '--scheduled' || '' }}
-          AS_EDITION: ${{ inputs.as_edition && '--as-edition' || '' }}
+          EDITION: "${{ github.event_name == 'schedule' && (github.event.schedule == '42 16 * * *' && 'short_a' || github.event.schedule == '42 22 * * *' && 'short_b' || '') || inputs.session || '' }}"
+          SCHEDULED: ${{ (github.event_name == 'schedule' || github.event.inputs.scheduled == 'true') && 'true' || '' }}
+          AS_EDITION: ${{ inputs.as_edition && 'true' || '' }}
+          NO_UPLOAD: ${{ inputs.no_upload && 'true' || '' }}
           PLATFORMS: ${{ inputs.platforms || 'all' }}
-          # top-up into another edition's slot (crypto-pivot weekly floor); main.py checks the name
-          SLOT: ${{ inputs.slot && format('--slot={0}', inputs.slot) || '' }}
-          # the trigger a triggered run answers (main.py reads it through triggers.load)
-          TRIGGER: ${{ inputs.trigger && format('--trigger={0}', inputs.trigger) || '' }}
-        run: python main.py --session "$EDITION" --platforms "$PLATFORMS" $SCHEDULED $AS_EDITION ${SLOT:+"$SLOT"} ${TRIGGER:+"$TRIGGER"}
+          STORY: ${{ inputs.story }}
+          TOPIC: ${{ inputs.topic }}
+        run: |
+          args=(--session "$EDITION" --platforms "$PLATFORMS")
+          [ -n "$SCHEDULED" ] && args+=(--scheduled)
+          [ -n "$AS_EDITION" ] && args+=(--as-edition)
+          [ -n "$NO_UPLOAD" ] && args+=(--no-upload)
+          [ -n "$STORY" ] && args+=(--story "$STORY")
+          [ -n "$TOPIC" ] && args+=(--topic "$TOPIC")
+          python main.py "${args[@]}"
 
       - name: Save history
         if: always()
         run: |
           shopt -s nullglob
-          entries=(output/*/history_entry.json)
-          materials=(output/*/material.json)   # Shorts material of long videos + a pulse Short's pulse material (data/material/)
-          if [ ${#entries[@]} -eq 0 ]; then echo "Nothing published, nothing to log"; exit 0; fi
-          git config user.name "shorts-autopilot"
+          entries=(output/*/history_entry.json)      # a run that published anywhere
+          changes=(output/*/backlog_changes.json)    # topics marked used / failed, refill (publishing runs only)
+          if [ ${#entries[@]} -eq 0 ] && [ ${#changes[@]} -eq 0 ]; then echo "Nothing published, nothing to log"; exit 0; fi
+          git config user.name "gus-explains-autopilot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Other runs may have pushed meanwhile: start from the latest history and add our entry.
+          # Other runs may have pushed meanwhile: start from the latest main and re-apply this run's changes.
           for attempt in 1 2 3 4 5; do
             git fetch -q origin "$GITHUB_REF_NAME"
             git reset -q --hard "origin/$GITHUB_REF_NAME"
-            python -m autopilot.history add "${entries[@]}"
-            if [ ${#materials[@]} -gt 0 ]; then
-              python -m autopilot.material add "${materials[@]}" || echo "::warning::Shorts material not merged"
+            if [ ${#entries[@]} -gt 0 ]; then
+              python -m autopilot.history add "${entries[@]}"
+              python -m autopilot.history stories "${entries[@]}"
             fi
-            git add data/history.json
-            if [ -d data/material ]; then git add data/material/; fi
+            if [ ${#changes[@]} -gt 0 ]; then
+              python -m autopilot.topics apply "${changes[@]}"
+            fi
+            git add data/history.json topics/backlog.yaml
+            if [ -d stories/published ]; then git add stories/published/; fi
             if git diff --cached --quiet; then echo "History already up to date"; exit 0; fi
             git commit -qm "Log published edition"
             if git push -q origin "HEAD:$GITHUB_REF_NAME"; then echo "History saved"; exit 0; fi
@@ -128,25 +119,19 @@ jobs:
           echo "::error::Could not save data/history.json"
           exit 1
 
-      - name: Keep the video / post / lesson and logs for 7 days
+      - name: Keep the video and logs for 7 days
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: short-${{ github.run_number }}
           path: |
             output/*/short.mp4
-            output/*/lesson_*.mp4
-            output/*/basics_*.mp4
-            output/*/triggered_*.mp4
-            output/*/recap_*.mp4
-            output/*/trigger.json
-            output/*/package.json
-            output/*/material.json
-            output/*/metadata.json
-            output/*/data.json
+            output/*/short_fb.mp4
             output/*/thumbnail.jpg
-            output/*/post.jpg
-            output/*/post.json
-            output/*/caption_fb.txt
+            output/*/metadata.json
+            output/*/story.json
+            output/*/timeline.json
+            output/*/history_entry.json
+            output/*/backlog_changes.json
           retention-days: 7
           if-no-files-found: ignore
