@@ -7089,6 +7089,63 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-13T00:31:45+00:00",
+      "brief_date": "2026-11-13",
+      "session": "short_p",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-13-short_p",
+      "segment": "hook_0",
+      "source_video": "k1JhtdA6J4o",
+      "hook": "Why did Bitcoin just fall 4%?",
+      "topic": "bitcoin fall 4",
+      "fingerprint": [
+        "0279ce10",
+        "00790718",
+        "0ac1bb9e",
+        "040e9b6a",
+        "0254ab58",
+        "0243a1f0",
+        "0042373e",
+        "045441dd",
+        "0047010e",
+        "0498a7e4",
+        "011a6b8c",
+        "014f3d19",
+        "03065359",
+        "00141c88",
+        "03f69cb0",
+        "0430e161",
+        "0043bf5b",
+        "037e100c",
+        "045ce076",
+        "00025db4",
+        "015678fb",
+        "04b41083",
+        "03c858fb",
+        "00dc28e0",
+        "00d9825b",
+        "0796d858",
+        "004f9ed2",
+        "0445e081",
+        "00dd4c28",
+        "01b87b44",
+        "04faf63b",
+        "02c161ae"
+      ],
+      "title": "Why did Bitcoin just fall 4%?",
+      "video_id": "QX8Mg1E1WR4",
+      "seconds": 38.9,
+      "voice": "en-US-BrianMultilingualNeural",
+      "fb_reel_id": "1117154611188709",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
