@@ -172,6 +172,11 @@ const FRAMES = ["close", "medium", "two_shot", "ots", "low_hero", "wide", "pov"]
 const SUBJ = { pos: [0.5, 0, 0.3], height: 1.8, head: 1.4, facing: "right" };
 const OTHER = { pos: [2.1, 0, -0.5], height: 1.8, head: 1.4, facing: "left" };
 const ENV = { subject: SUBJ, other: OTHER };
+// the same two at the cast's real size (look v2: 30 % taller), heads at cast.HEAD_AT
+async function castEnv() {
+  const { CHAR_HEIGHT: h, HEAD_AT } = await import(pathToFileURL(path.join(STUDIO, "engine", "cast.js")).href);
+  return { subject: { ...SUBJ, height: h, head: HEAD_AT * h }, other: { ...OTHER, height: h, head: HEAD_AT * h } };
+}
 const headOf = (s) => [s.pos[0], s.head, s.pos[2]];
 
 // the pose on a real 9:16 three.js camera (placeCamera is what the engine uses); returns the camera
@@ -193,17 +198,26 @@ test("FRAMES lists the presets", async () => {
   assert.deepStrictEqual(Object.keys(C.FRAMES), FRAMES);
 });
 
-test("each preset puts the framed head inside the centre third of the frame", async () => {
+test("each preset puts the framed head inside the centre third of the frame (1.8 tall and the cast's height)", async () => {
   const C = await camera();
-  for (const frame of FRAMES) {
+  for (const env of [ENV, await castEnv()]) for (const frame of FRAMES) {
     for (const move of ["static", "push"]) {
       const cam = { frame, subject: "a", look_at: "b", move, cut: true };
-      const pose = C.camPose(cam, null, 0, ENV);
+      const pose = C.camPose(cam, null, 0, env);
       const c = await placed(pose);
       // ots and pov frame the one being looked at; the others frame the subject
-      const framed = frame === "ots" || frame === "pov" ? OTHER : SUBJ;
+      const framed = frame === "ots" || frame === "pov" ? env.other : env.subject;
       const [x, y, z] = await ndc(c, headOf(framed));
-      assert.ok(Math.abs(x) <= 1 / 3 && Math.abs(y) <= 1 / 3 && z < 1, `${frame}/${move}: head at ${x.toFixed(2)}, ${y.toFixed(2)}`);
+      const tag = `${frame}/${move} h ${env.subject.height}`;
+      assert.ok(Math.abs(x) <= 1 / 3 && Math.abs(y) <= 1 / 3 && z < 1, `${tag}: head at ${x.toFixed(2)}, ${y.toFixed(2)}`);
+      if (frame === "two_shot") for (const s of [env.subject, env.other]) {
+        const [hx, hy] = await ndc(c, headOf(s));
+        assert.ok(Math.abs(hx) < 0.9 && Math.abs(hy) < 0.9, `${tag}: both heads in frame`);
+      }
+      if (frame === "close" || frame === "medium") { // the whole head is in frame: its top below the frame's top edge
+        const [, ty] = await ndc(c, [env.subject.pos[0], env.subject.pos[1] + env.subject.height, env.subject.pos[2]]);
+        assert.ok(ty < 1, `${tag}: head top at ${ty.toFixed(2)}`);
+      }
     }
   }
 });

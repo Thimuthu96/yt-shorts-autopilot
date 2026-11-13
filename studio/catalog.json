@@ -31,6 +31,7 @@
     "lantern",
     "ship",
     "lighthouse",
+    "fresnel_lens",
     "sign_post",
     "table",
     "chair",
@@ -117,7 +118,8 @@
     "debris",
     "bubbles",
     "question",
-    "gunsmoke"
+    "gunsmoke",
+    "beam"
   ],
   "cam_moves": [
     "static",
@@ -241,7 +243,8 @@
       ],
       "opt": [
         "at",
-        "scale"
+        "scale",
+        "period"
       ]
     },
     "sign": {

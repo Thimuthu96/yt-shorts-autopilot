@@ -88,7 +88,7 @@ function applyFxAndSigns(b, start, events) {
     actFx.clear();
   }
   (b.fx || []).forEach((spec) => {
-    const g = makeFx(spec.type, spec.at || [0, 0, 0], null, spec.scale || 1);
+    const g = makeFx(spec.type, spec.at || [0, 0, 0], null, spec.scale || 1, { period: spec.period });
     scene.add(g);
     fxs.push({ g, born: start + (spec.delay || 0) });
   });
@@ -164,7 +164,9 @@ const propSizes = new Map();
 function propSize(spec) {
   const key = JSON.stringify([spec.type, spec.scale ?? 1, spec.rot || null]);
   if (!propSizes.has(key)) {
-    const o = spawnProp({ ...spec, pos: [0, 0, 0] }, 0), box = new THREE.Box3().setFromObject(o);
+    const o = spawnProp({ ...spec, pos: [0, 0, 0] }, 0), ao = o.getObjectByName("contact");
+    if (ao) { ao.removeFromParent(); ao.geometry.dispose(); } // the ground shadow is not part of the prop's size
+    const box = new THREE.Box3().setFromObject(o);
     dispose(o);
     const h = Math.max(0.2, box.max.y - box.min.y);
     propSizes.set(key, { height: h, size: Math.max(h, box.max.x - box.min.x, box.max.z - box.min.z), head: box.min.y + 0.65 * h });

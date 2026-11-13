@@ -7,7 +7,7 @@
 //   propPosAt(spec, t, now), muzzle(spec, now) / muzzleAt   positions for the camera follow and the actions
 //   propFace(obj, expr)                              (cartoon face on a prop's front, +z)
 // Conventions: ground at y = 0, the action stays near the origin, a prop's front faces +z,
-// story rotations are degrees, a character is about 1.8 units tall.
+// story rotations are degrees, a character is about 2.34 units tall (cast.CHAR_HEIGHT).
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { toonMat, inked, canvasTex, hash, clamp01, easeIO, INK } from "./core.js";
@@ -25,15 +25,18 @@ const C = {
 };
 
 // ---------- moods ----------
-// sun: key light (shadows); ambient: hemisphere sky/ground; fog: depth haze; tint: bounce fill
-// light from the side opposite the sun (furnace orange, sunset purple, moon blue).
+// sky: dome gradient bottom -> (mid, optional) -> top; sun: key light (shadows); ambient: hemisphere sky/ground;
+// fog: depth haze; tint: bounce fill light from the side opposite the sun (furnace orange, sunset purple, moon teal).
+// Look v2 (spec §11): warm bright day; night is moonlit and readable (blue-teal sky, sets lit, not navy); sunset is
+// purple over gold with the ground clearly darker and redder than the low sky. Characters are not lit by these
+// (cast.SPRITE_TINT: at most a 10 % hint), so heads stay white in every mood.
 export const MOODS = {
   day: {
-    skyTop: "#3D9BE9", skyBottom: "#F7E6C6",
-    sun: { color: "#FFF4DE", intensity: 2.6, pos: [-9, 16, 11] },
-    ambient: { sky: "#E8F4FF", ground: "#B79F7C", intensity: 1.55 },
-    fog: { color: "#D9EAF2", near: 70, far: 420 },
-    tint: { color: "#FFD9A8", intensity: 0.6 },
+    skyTop: "#3A96EA", skyMid: "#86C9F2", skyBottom: "#EAF4E6",
+    sun: { color: "#FFEDCC", intensity: 3.0, pos: [-9, 16, 11] },
+    ambient: { sky: "#F2F4EE", ground: "#C79A66", intensity: 1.3 },
+    fog: { color: "#E4ECE6", near: 80, far: 440 },
+    tint: { color: "#FFC583", intensity: 0.6 },
   },
   interior_glow: {
     skyTop: "#4A2414", skyBottom: "#E0813A",
@@ -43,18 +46,18 @@ export const MOODS = {
     tint: { color: "#FF7A2A", intensity: 1.2 },
   },
   sunset: {
-    skyTop: "#4E3C96", skyBottom: "#FF9C55",
-    sun: { color: "#FFB46E", intensity: 2.3, pos: [12, 7, 6] },
-    ambient: { sky: "#D9A9E6", ground: "#6B4466", intensity: 1.3 },
-    fog: { color: "#E7957D", near: 60, far: 380 },
-    tint: { color: "#A774E8", intensity: 0.9 },
+    skyTop: "#3F2F8C", skyMid: "#B95A9C", skyBottom: "#FFC05E",
+    sun: { color: "#FFB067", intensity: 2.6, pos: [12, 7, 6] },
+    ambient: { sky: "#C59AE0", ground: "#5A2F52", intensity: 1.05 },
+    fog: { color: "#F1A27C", near: 90, far: 460 },
+    tint: { color: "#9A6BE6", intensity: 0.85 },
   },
   night: {
-    skyTop: "#0B1240", skyBottom: "#3B4E92",
-    sun: { color: "#B8C9FF", intensity: 1.0, pos: [-8, 14, 8] },
-    ambient: { sky: "#7C8FD6", ground: "#20244A", intensity: 0.8 },
-    fog: { color: "#1F2C5C", near: 50, far: 320 },
-    tint: { color: "#4D6CE0", intensity: 0.7 },
+    skyTop: "#18346E", skyMid: "#2C6496", skyBottom: "#58AEB6",
+    sun: { color: "#D2E8FF", intensity: 2.0, pos: [-8, 14, 8] },
+    ambient: { sky: "#A9C8EE", ground: "#3A4C72", intensity: 1.45 },
+    fog: { color: "#3F7896", near: 70, far: 420 },
+    tint: { color: "#62C9D2", intensity: 0.7 },
   },
   steel: {
     skyTop: "#5E6C7C", skyBottom: "#BCC6D0",
@@ -139,121 +142,221 @@ function at(obj, pos, rotY = 0, scale = 1) {
 }
 
 // ---------- painted textures ----------
+// Look v2: surfaces are painted, not flat: each board / stone / brick has a lit top edge and a shaded lower one,
+// translucent brush streaks, grain or speckle, worn light chips on its edges and soft darkening (AO) into its seams.
+// Line widths scale with the canvas (k = canvas width / 512), so a texture can be painted at any size.
+
+// translucent brush streaks inside a box: light and dark, along x (a painted, not flat, fill)
+function streaks(x, R, X, Y, W, H, n, dark, k, alpha = 0.09) {
+  x.lineCap = "round";
+  for (let i = 0; i < n; i++) {
+    const y = Y + H * (0.1 + R() * 0.8), x0 = X + R() * W * 0.5, L = W * (0.2 + R() * 0.6), ph = R() * 6;
+    x.strokeStyle = rgba(R() < 0.5 ? "#FFF6E0" : dark, alpha * (0.6 + R() * 0.8));
+    x.lineWidth = (3 + R() * 7) * k;
+    x.beginPath();
+    for (let j = 0; j <= 6; j++) x.lineTo(x0 + (L * j) / 6, y + Math.sin(j * 0.8 + ph) * 1.5 * k);
+    x.stroke();
+  }
+}
+// small light chips worn into an edge from (X, Y) along W
+function chips(x, R, X, Y, W, n, k, color = "#FFF1D6", alpha = 0.45) {
+  x.fillStyle = rgba(color, alpha);
+  for (let i = 0; i < n; i++) {
+    const cx = X + R() * W, cw = (4 + R() * 12) * k, ch = (1.5 + R() * 2.5) * k;
+    x.beginPath(); x.ellipse(cx, Y, cw / 2, ch, 0, 0, 2 * PI); x.fill();
+  }
+}
+// grit: tiny dark and light dots
+function speckle(x, R, w, h, n, k, dark = "#3a2212", alpha = 0.18) {
+  for (let i = 0; i < n; i++) {
+    x.fillStyle = rgba(R() < 0.6 ? dark : "#FFFFFF", alpha * (0.5 + R()));
+    const r = (0.8 + R() * 1.8) * k;
+    x.beginPath(); x.arc(R() * w, R() * h, r, 0, 2 * PI); x.fill();
+  }
+}
+// a box shaded top-lit: lighter top band, darker bottom band
+function litBox(x, X, Y, W, H, c, top = 0.14, bottom = -0.22) {
+  const g = x.createLinearGradient(0, Y, 0, Y + H);
+  g.addColorStop(0, shade(c, top)); g.addColorStop(0.18, c); g.addColorStop(0.75, c); g.addColorStop(1, shade(c, bottom));
+  x.fillStyle = g;
+}
+
 function drawPlanks(x, w, h, { base = C.wood, dark = C.woodDark, rows = 8, seed = 1, vertical = false } = {}) {
   const R = rng(seed);
   if (vertical) { x.translate(w, 0); x.rotate(PI / 2); [w, h] = [h, w]; }
-  const bh = h / rows;
+  const bh = h / rows, k = Math.max(w, h) / 512, seam = "#3a2212";
   for (let r = 0; r < rows; r++) {
+    const y0 = r * bh;
     let px = -R() * w * 0.4;
     while (px < w) {
-      const len = w * (0.35 + R() * 0.45);
-      x.fillStyle = shade(base, (R() - 0.5) * 0.16);
-      x.fillRect(px, r * bh, len, bh);
-      x.fillStyle = rgba("#ffffff", 0.09);
-      x.fillRect(px, r * bh + 3, len, bh * 0.22);
-      x.strokeStyle = rgba(dark, 0.45);
-      x.lineWidth = 1.6;
-      for (let k = 0; k < 3; k++) {
-        const gy = r * bh + bh * (0.25 + R() * 0.55), ph = R() * 6;
+      const len = w * (0.35 + R() * 0.45), c = shade(base, (R() - 0.5) * 0.2);
+      litBox(x, px, y0, len, bh, c);
+      x.fillRect(px, y0, len, bh);
+      streaks(x, R, px, y0, len, bh, 7, dark, k);
+      x.strokeStyle = rgba(dark, 0.55); // grain: long wavy lines, some bending round a knot
+      x.lineCap = "round";
+      const knotX = R() < 0.45 ? px + len * (0.2 + R() * 0.6) : null, knotY = y0 + bh * (0.35 + R() * 0.3);
+      for (let g = 0; g < 4; g++) {
+        const gy = y0 + bh * (0.18 + g * 0.2 + R() * 0.08), ph = R() * 6;
+        x.lineWidth = (1 + R() * 1.4) * k;
         x.beginPath();
-        for (let s = 0; s <= 10; s++) x.lineTo(px + (len * s) / 10, gy + Math.sin(s * 0.9 + ph) * 2.2);
+        for (let st = 0; st <= 16; st++) {
+          const X = px + (len * st) / 16;
+          let Y = gy + Math.sin(st * 0.7 + ph) * 1.6 * k;
+          if (knotX != null) { const d = (X - knotX) / (bh * 0.9); Y += Math.sign(gy - knotY || 1) * bh * 0.16 * Math.exp(-d * d); }
+          x.lineTo(X, Y);
+        }
         x.stroke();
       }
-      if (R() < 0.35) { // knot
-        x.strokeStyle = rgba(dark, 0.6);
-        x.beginPath(); x.ellipse(px + len * (0.2 + R() * 0.6), r * bh + bh / 2, 7, 4, 0, 0, 2 * PI); x.stroke();
+      if (knotX != null) {
+        x.fillStyle = rgba(seam, 0.55);
+        x.beginPath(); x.ellipse(knotX, knotY, 6 * k, 3.4 * k, 0, 0, 2 * PI); x.fill();
+        x.strokeStyle = rgba(dark, 0.6); x.lineWidth = 1.2 * k;
+        x.beginPath(); x.ellipse(knotX, knotY, 10 * k, 5.5 * k, 0, 0, 2 * PI); x.stroke();
       }
-      x.fillStyle = rgba("#3a2212", 0.8);
-      x.fillRect(px + len - 2, r * bh, 3, bh);
-      for (const ny of [0.28, 0.72]) { x.beginPath(); x.arc(px + len - 10, r * bh + bh * ny, 2.6, 0, 2 * PI); x.fill(); }
+      chips(x, R, px, y0 + 4 * k, len, 4, k); // worn top edge
+      chips(x, R, px, y0 + bh - 4 * k, len, 3, k, seam, 0.35); // dented lower edge
+      const ao = x.createLinearGradient(px + len - 16 * k, 0, px + len, 0); // the end butts into the next board
+      ao.addColorStop(0, rgba(seam, 0)); ao.addColorStop(1, rgba(seam, 0.35));
+      x.fillStyle = ao; x.fillRect(px + len - 16 * k, y0, 16 * k, bh);
+      x.fillStyle = rgba(seam, 0.85);
+      x.fillRect(px + len - 1.5 * k, y0, 3 * k, bh);
+      for (const ny of [0.28, 0.72]) {
+        x.fillStyle = rgba(seam, 0.85); x.beginPath(); x.arc(px + len - 10 * k, y0 + bh * ny, 2.8 * k, 0, 2 * PI); x.fill();
+        x.fillStyle = rgba("#FFFFFF", 0.35); x.beginPath(); x.arc(px + len - 10.8 * k, y0 + bh * ny - 0.8 * k, 1 * k, 0, 2 * PI); x.fill();
+      }
       px += len;
     }
-    x.fillStyle = rgba("#3a2212", 0.9);
-    x.fillRect(0, r * bh, w, 3);
+    x.fillStyle = rgba(seam, 0.9); // the gap between rows, with a soft shadow under the board above
+    x.fillRect(0, y0, w, 3 * k);
+    const sh = x.createLinearGradient(0, y0 + 3 * k, 0, y0 + 12 * k);
+    sh.addColorStop(0, rgba(seam, 0.3)); sh.addColorStop(1, rgba(seam, 0));
+    x.fillStyle = sh; x.fillRect(0, y0 + 3 * k, w, 9 * k);
   }
-  x.fillStyle = rgba("#3a2212", 0.8);
-  x.fillRect(0, 0, 3, h);
+  x.fillStyle = rgba(seam, 0.8);
+  x.fillRect(0, 0, 3 * k, h);
 }
 function drawBricks(x, w, h, { base = C.brick, mortar = "#F0D8B8", rows = 12, cols = 4, seed = 2 } = {}) {
-  const R = rng(seed);
+  const R = rng(seed), k = w / 512;
   x.fillStyle = mortar; x.fillRect(0, 0, w, h);
+  speckle(x, R, w, h, 300, k, "#8A6A4A", 0.25);
   const bh = h / rows, bw = w / cols;
   for (let r = 0; r < rows; r++) for (let c = -1; c <= cols; c++) {
-    const X = c * bw + (r % 2 ? bw / 2 : 0);
-    x.fillStyle = shade(base, (R() - 0.5) * 0.22);
-    x.beginPath(); x.roundRect(X + 3, r * bh + 3, bw - 6, bh - 6, 5); x.fill();
-    x.fillStyle = rgba("#ffffff", 0.12);
-    x.fillRect(X + 6, r * bh + 5, bw - 14, 4);
-    x.fillStyle = rgba("#000000", 0.1);
-    x.fillRect(X + 4, r * bh + bh - 9, bw - 8, 5);
+    const X = c * bw + (r % 2 ? bw / 2 : 0), Y = r * bh, col = shade(base, (R() - 0.5) * 0.24);
+    x.fillStyle = rgba("#3a1a0a", 0.28); // shadow the brick throws on the mortar under it
+    x.beginPath(); x.roundRect(X + 4 * k, Y + 6 * k, bw - 6 * k, bh - 6 * k, 5 * k); x.fill();
+    litBox(x, X, Y + 3 * k, bw, bh - 6 * k, col, 0.16, -0.2);
+    x.beginPath(); x.roundRect(X + 3 * k, Y + 3 * k, bw - 6 * k, bh - 6 * k, 5 * k); x.fill();
+    x.save(); x.beginPath(); x.roundRect(X + 3 * k, Y + 3 * k, bw - 6 * k, bh - 6 * k, 5 * k); x.clip();
+    streaks(x, R, X, Y, bw, bh, 4, "#5A1E0C", k, 0.12);
+    for (let i = 0; i < 10; i++) { x.fillStyle = rgba(R() < 0.5 ? "#3a1a0a" : "#FFE2C8", 0.25); x.fillRect(X + R() * bw, Y + R() * bh, 2 * k, 2 * k); }
+    x.restore();
+    chips(x, R, X + 6 * k, Y + 6 * k, bw - 14 * k, 2, k, "#FFE6CC", 0.4);
   }
 }
 function drawFlags(x, w, h, { base = C.stone, line = "#7E7568", rows = 4, cols = 4, seed = 3, round = 14 } = {}) {
-  const R = rng(seed);
+  const R = rng(seed), k = w / 512;
   x.fillStyle = line; x.fillRect(0, 0, w, h);
-  const th = h / rows, tw = w / cols;
+  const th = h / rows, tw = w / cols, rr = round * k;
   for (let r = 0; r < rows; r++) for (let c = -1; c <= cols; c++) {
-    const X = c * tw + (r % 2 ? tw / 2 : 0);
-    x.fillStyle = shade(base, (R() - 0.5) * 0.14);
-    x.beginPath(); x.roundRect(X + 5, r * th + 5, tw - 10, th - 10, round); x.fill();
-    x.fillStyle = rgba("#ffffff", 0.18);
-    x.beginPath(); x.roundRect(X + 10, r * th + 9, tw - 22, th * 0.25, round / 2); x.fill();
+    const X = c * tw + (r % 2 ? tw / 2 : 0), Y = r * th, col = shade(base, (R() - 0.5) * 0.16);
+    const shape = () => { x.beginPath(); x.roundRect(X + 5 * k, Y + 5 * k, tw - 10 * k, th - 10 * k, rr); };
+    litBox(x, X, Y + 5 * k, tw, th - 10 * k, col, 0.12, -0.2);
+    shape(); x.fill();
+    x.save(); shape(); x.clip();
+    streaks(x, R, X, Y, tw, th, 5, "#5E564A", k, 0.1);
+    for (let i = 0; i < 26; i++) { // grit
+      x.fillStyle = rgba(R() < 0.6 ? "#4E473D" : "#FFFFFF", 0.22);
+      x.beginPath(); x.arc(X + R() * tw, Y + R() * th, (0.8 + R() * 1.6) * k, 0, 2 * PI); x.fill();
+    }
+    if (R() < 0.4) { // a hairline crack
+      x.strokeStyle = rgba("#4E473D", 0.5); x.lineWidth = 1.4 * k; x.beginPath();
+      let cx = X + tw * (0.2 + R() * 0.6), cy = Y + 6 * k;
+      x.moveTo(cx, cy);
+      for (let i = 0; i < 5; i++) { cx += (R() - 0.5) * tw * 0.18; cy += th * 0.12; x.lineTo(cx, cy); }
+      x.stroke();
+    }
+    const ao = x.createLinearGradient(0, Y + th - 22 * k, 0, Y + th - 5 * k); // soft dark into the joint below
+    ao.addColorStop(0, rgba("#2E2820", 0)); ao.addColorStop(1, rgba("#2E2820", 0.28));
+    x.fillStyle = ao; x.fillRect(X, Y + th - 22 * k, tw, 17 * k);
+    x.restore();
+    x.fillStyle = rgba("#FFFFFF", 0.22); // worn lit lip
+    x.beginPath(); x.roundRect(X + 10 * k, Y + 8 * k, tw - 22 * k, 5 * k, 3 * k); x.fill();
+    chips(x, R, X + 8 * k, Y + 8 * k, tw - 16 * k, 3, k, "#FFFFFF", 0.35);
   }
 }
 function drawCobbles(x, w, h, { base = "#B9AE9C", line = "#6F665A", seed = 4 } = {}) {
-  const R = rng(seed);
+  const R = rng(seed), k = w / 512;
   x.fillStyle = line; x.fillRect(0, 0, w, h);
   const n = 9, s = w / n;
   for (let r = 0; r < n; r++) for (let c = -1; c <= n; c++) {
-    const X = c * s + (r % 2 ? s / 2 : 0) + (R() - 0.5) * 6, Y = r * s + (R() - 0.5) * 6;
-    x.fillStyle = shade(base, (R() - 0.5) * 0.2);
-    x.beginPath(); x.ellipse(X + s / 2, Y + s / 2, s * 0.44, s * 0.4, R(), 0, 2 * PI); x.fill();
-    x.fillStyle = rgba("#ffffff", 0.2);
-    x.beginPath(); x.ellipse(X + s / 2 - 4, Y + s / 2 - 6, s * 0.22, s * 0.12, 0, 0, 2 * PI); x.fill();
+    const X = c * s + (r % 2 ? s / 2 : 0) + (R() - 0.5) * 6 * k, Y = r * s + (R() - 0.5) * 6 * k, rot = R();
+    const cx = X + s / 2, cy = Y + s / 2, col = shade(base, (R() - 0.5) * 0.22);
+    x.fillStyle = rgba("#2E2820", 0.35); // contact shadow
+    x.beginPath(); x.ellipse(cx + 2 * k, cy + 4 * k, s * 0.45, s * 0.41, rot, 0, 2 * PI); x.fill();
+    const g = x.createRadialGradient(cx - s * 0.15, cy - s * 0.18, s * 0.05, cx, cy, s * 0.5);
+    g.addColorStop(0, shade(col, 0.22)); g.addColorStop(0.6, col); g.addColorStop(1, shade(col, -0.25));
+    x.fillStyle = g;
+    x.beginPath(); x.ellipse(cx, cy, s * 0.44, s * 0.4, rot, 0, 2 * PI); x.fill();
+    for (let i = 0; i < 6; i++) { x.fillStyle = rgba(R() < 0.6 ? "#3E372E" : "#FFFFFF", 0.22); x.fillRect(cx + (R() - 0.5) * s * 0.6, cy + (R() - 0.5) * s * 0.5, 2 * k, 2 * k); }
   }
 }
 function drawSea(x, w, h, { base = C.sea, seed = 5 } = {}) {
-  const R = rng(seed);
+  const R = rng(seed), k = w / 512;
   x.fillStyle = base; x.fillRect(0, 0, w, h);
-  for (let i = 0; i < 40; i++) {
-    x.fillStyle = rgba(i % 2 ? "#178DB3" : "#3BB7D8", 0.35);
-    x.beginPath(); x.ellipse(R() * w, R() * h, 30 + R() * 60, 8 + R() * 14, 0, 0, 2 * PI); x.fill();
+  for (let i = 0; i < 60; i++) { // painted swells: deep and bright patches
+    const deep = i % 3 === 0;
+    x.fillStyle = rgba(deep ? "#0F7FA8" : i % 3 === 1 ? "#3BBEDF" : "#1694BF", deep ? 0.4 : 0.32);
+    x.beginPath(); x.ellipse(R() * w, R() * h, (30 + R() * 70) * k, (8 + R() * 16) * k, (R() - 0.5) * 0.2, 0, 2 * PI); x.fill();
   }
-  x.strokeStyle = rgba("#BFF0FA", 0.85); x.lineCap = "round";
-  for (let i = 0; i < 70; i++) {
-    const X = R() * w, Y = R() * h, L = 10 + R() * 22;
-    x.lineWidth = 2 + R() * 2.5;
-    x.beginPath(); x.moveTo(X - L, Y); x.quadraticCurveTo(X, Y - 6, X + L, Y); x.stroke();
+  x.lineCap = "round";
+  for (let i = 0; i < 46; i++) { // swirl strokes in a darker blue
+    const X = R() * w, Y = R() * h, L = (20 + R() * 40) * k;
+    x.strokeStyle = rgba("#0B6E96", 0.35); x.lineWidth = (2 + R() * 2) * k;
+    x.beginPath(); x.moveTo(X - L, Y); x.bezierCurveTo(X - L / 3, Y - 8 * k, X + L / 3, Y + 8 * k, X + L, Y); x.stroke();
+  }
+  for (let i = 0; i < 80; i++) { // white wave arcs (the reference's little cupped crests)
+    const X = R() * w, Y = R() * h, L = (8 + R() * 18) * k;
+    x.strokeStyle = rgba("#E9FBFF", 0.75 + R() * 0.25); x.lineWidth = (2 + R() * 2.5) * k;
+    x.beginPath(); x.moveTo(X - L, Y - 3 * k); x.quadraticCurveTo(X, Y + 6 * k, X + L, Y - 5 * k); x.stroke();
   }
 }
 function drawGrass(x, w, h, { base = C.grass, seed = 6, flowers = false } = {}) {
-  const R = rng(seed);
+  const R = rng(seed), k = w / 512;
   x.fillStyle = base; x.fillRect(0, 0, w, h);
-  for (let i = 0; i < 50; i++) {
-    x.fillStyle = rgba(i % 2 ? "#4FA83C" : "#8BD65E", 0.35);
-    x.beginPath(); x.ellipse(R() * w, R() * h, 20 + R() * 50, 12 + R() * 30, R() * 3, 0, 2 * PI); x.fill();
+  for (let i = 0; i < 70; i++) {
+    x.fillStyle = rgba(i % 3 === 0 ? "#3F9431" : i % 3 === 1 ? "#8BD65E" : "#5DB43F", 0.35);
+    x.beginPath(); x.ellipse(R() * w, R() * h, (20 + R() * 50) * k, (12 + R() * 30) * k, R() * 3, 0, 2 * PI); x.fill();
   }
-  x.strokeStyle = rgba("#3F8F33", 0.55); x.lineWidth = 2;
-  for (let i = 0; i < 260; i++) {
-    const X = R() * w, Y = R() * h;
-    x.beginPath(); x.moveTo(X, Y); x.lineTo(X + (R() - 0.5) * 6, Y - 7 - R() * 6); x.stroke();
+  x.lineCap = "round";
+  for (let i = 0; i < 420; i++) { // tufts: a dark blade with a light one beside it
+    const X = R() * w, Y = R() * h, L = (7 + R() * 7) * k, lean = (R() - 0.5) * 6 * k;
+    x.strokeStyle = rgba("#2F7A27", 0.55); x.lineWidth = 2 * k;
+    x.beginPath(); x.moveTo(X, Y); x.lineTo(X + lean, Y - L); x.stroke();
+    if (i % 2) { x.strokeStyle = rgba("#B4EC7C", 0.5); x.beginPath(); x.moveTo(X + 3 * k, Y); x.lineTo(X + 3 * k + lean, Y - L * 0.7); x.stroke(); }
   }
   if (flowers) for (let i = 0; i < 26; i++) {
     x.fillStyle = ["#FFF6D8", "#FFD84A", "#FF8FB1"][i % 3];
-    x.beginPath(); x.arc(R() * w, R() * h, 3 + R() * 2, 0, 2 * PI); x.fill();
+    x.beginPath(); x.arc(R() * w, R() * h, (3 + R() * 2) * k, 0, 2 * PI); x.fill();
   }
 }
 function drawSand(x, w, h, { base = C.sand, seed = 7 } = {}) {
-  const R = rng(seed);
+  const R = rng(seed), k = w / 512;
   x.fillStyle = base; x.fillRect(0, 0, w, h);
-  for (let i = 0; i < 40; i++) {
-    x.fillStyle = rgba(i % 2 ? "#E2C27E" : "#FFF0C4", 0.4);
-    x.beginPath(); x.ellipse(R() * w, R() * h, 20 + R() * 40, 8 + R() * 14, 0, 0, 2 * PI); x.fill();
+  for (let i = 0; i < 50; i++) {
+    x.fillStyle = rgba(i % 2 ? "#DDB874" : "#FFF0C4", 0.4);
+    x.beginPath(); x.ellipse(R() * w, R() * h, (20 + R() * 40) * k, (8 + R() * 14) * k, 0, 0, 2 * PI); x.fill();
   }
-  for (let i = 0; i < 300; i++) {
-    x.fillStyle = rgba("#B8955A", 0.35);
-    x.fillRect(R() * w, R() * h, 2, 2);
+  x.lineCap = "round";
+  for (let i = 0; i < 40; i++) { // wind ripples: a shaded line with a lit one above it
+    const X = R() * w, Y = R() * h, L = (20 + R() * 40) * k;
+    x.lineWidth = 2 * k;
+    x.strokeStyle = rgba("#C49A58", 0.45);
+    x.beginPath(); x.moveTo(X - L, Y); x.quadraticCurveTo(X, Y - 5 * k, X + L, Y); x.stroke();
+    x.strokeStyle = rgba("#FFF6DA", 0.5);
+    x.beginPath(); x.moveTo(X - L, Y - 3 * k); x.quadraticCurveTo(X, Y - 8 * k, X + L, Y - 3 * k); x.stroke();
   }
+  speckle(x, R, w, h, 400, k, "#9C7A44", 0.3);
 }
 function drawRock(x, w, h, { base = C.rock, seed = 8 } = {}) {
   const g = x.createLinearGradient(0, 0, 0, h);
@@ -305,10 +408,19 @@ function rockFeatures(x, w, h, R) {
 function drawStaves(x, w, h, { base = C.wood, dark = C.woodDark, n = 14, seed = 9 } = {}) {
   const R = rng(seed), sw = w / n;
   for (let i = 0; i < n; i++) {
-    x.fillStyle = shade(base, (R() - 0.5) * 0.18); x.fillRect(i * sw, 0, sw, h);
-    x.strokeStyle = rgba(dark, 0.4); x.lineWidth = 1.5;
-    for (let k = 0; k < 2; k++) { const X = i * sw + sw * (0.3 + R() * 0.4); x.beginPath(); x.moveTo(X, 0); x.lineTo(X + 2, h); x.stroke(); }
+    const g = x.createLinearGradient(i * sw, 0, (i + 1) * sw, 0), c = shade(base, (R() - 0.5) * 0.2);
+    g.addColorStop(0, shade(c, 0.1)); g.addColorStop(0.5, c); g.addColorStop(1, shade(c, -0.16));
+    x.fillStyle = g; x.fillRect(i * sw, 0, sw, h);
+    x.strokeStyle = rgba(dark, 0.45); x.lineWidth = 1.5;
+    for (let k = 0; k < 3; k++) { const X = i * sw + sw * (0.2 + R() * 0.6); x.beginPath(); x.moveTo(X, 0); x.quadraticCurveTo(X + (R() - 0.5) * 6, h / 2, X + 2, h); x.stroke(); }
+    x.fillStyle = rgba("#FFF1D6", 0.3);
+    for (let k = 0; k < 3; k++) x.fillRect(i * sw + 2, R() * h, sw * 0.3, 2);
     x.fillStyle = rgba("#3a2212", 0.75); x.fillRect(i * sw, 0, 2.5, h);
+  }
+  for (const [y0, y1] of [[0, 0.16], [1, 0.84]]) { // darker toward the rims (soft AO under the hoops and lids)
+    const g = x.createLinearGradient(0, y0 * h, 0, y1 * h);
+    g.addColorStop(0, rgba("#2a160a", 0.4)); g.addColorStop(1, rgba("#2a160a", 0));
+    x.fillStyle = g; x.fillRect(0, Math.min(y0, y1) * h, w, Math.abs(y1 - y0) * h);
   }
 }
 function drawStripes(x, w, h, { a, b, n = 6, horizontal = true }) {
@@ -339,11 +451,11 @@ function drawSail(x, w, h) {
 
 // Textured materials (cached textures, per-use repeat).
 const T = {
-  planks: (rep, o = {}) => texMat(paint(`planks${JSON.stringify(o)}`, 512, 512, (x, w, h) => drawPlanks(x, w, h, o), rep)),
-  bricks: (rep, o = {}) => texMat(paint(`bricks${JSON.stringify(o)}`, 512, 512, (x, w, h) => drawBricks(x, w, h, o), rep)),
-  flags: (rep, o = {}) => texMat(paint(`flags${JSON.stringify(o)}`, 512, 512, (x, w, h) => drawFlags(x, w, h, o), rep)),
+  planks: (rep, o = {}) => texMat(paint(`planks${JSON.stringify(o)}`, 1024, 1024, (x, w, h) => drawPlanks(x, w, h, o), rep)),
+  bricks: (rep, o = {}) => texMat(paint(`bricks${JSON.stringify(o)}`, 1024, 1024, (x, w, h) => drawBricks(x, w, h, o), rep)),
+  flags: (rep, o = {}) => texMat(paint(`flags${JSON.stringify(o)}`, 1024, 1024, (x, w, h) => drawFlags(x, w, h, o), rep)),
   cobbles: (rep) => texMat(paint("cobbles", 512, 512, drawCobbles, rep)),
-  sea: (rep) => texMat(paint("sea", 512, 512, drawSea, rep)),
+  sea: (rep) => texMat(paint("sea", 1024, 1024, drawSea, rep)),
   grass: (rep, o = {}) => texMat(paint(`grass${JSON.stringify(o)}`, 512, 512, (x, w, h) => drawGrass(x, w, h, o), rep)),
   sand: (rep) => texMat(paint("sand", 512, 512, drawSand, rep)),
   rock: (seed) => texMat(paint(`rock${seed % 3}`, 256, 512, (x, w, h) => drawRock(x, w, h, { seed: seed % 3 + 8 }))),
@@ -578,6 +690,44 @@ P.lighthouse = () => {
   g.add(cyl(0.05, 0.85, 0.75, "#D2463C", { pos: [0, 8.3, 0], ink: 0.05 }));
   g.add(sph(0.12, "#2E3440", { pos: [0, 8.72, 0] }));
   g.add(rbox(0.5, 0.9, 0.1, "#3A6EA5", { pos: [0, 0.8, 1.18] }));
+  return g;
+};
+
+// a lighthouse's Fresnel lens: a beehive of stacked glass prism rings on a brass drum, a glowing lamp at its core
+// (about 1.9 tall; o.glow === false leaves the lamp dark). Pair it with the `beam` FX at [0, 1.05, 0] above its origin.
+P.fresnel_lens = (o) => {
+  const g = new THREE.Group(), brass = "#A87A2C", lit = o.glow !== false;
+  g.add(cyl(0.62, 0.7, 0.22, brass, { pos: [0, 0.11, 0], ink: true }));
+  g.add(cyl(0.5, 0.56, 0.12, shade(brass, -0.2), { pos: [0, 0.28, 0] }));
+  // cyan prism glass, lit a little from inside; the rings round the lamp catch its light
+  const glass = toonMat("#8FDDF2", { transparent: true, opacity: 0.62, emissive: new THREE.Color(lit ? "#2F7F9A" : "#000000") });
+  const rim = toonMat(lit ? "#FFE9A6" : "#E9FBFF", { transparent: true, opacity: 0.9 });
+  const core = 1.05, n = 11; // rings bulge out at the lamp's height and close in at the top and bottom
+  for (let i = 0; i < n; i++) {
+    const u = i / (n - 1), y = 0.38 + u * 1.32, r = 0.24 + 0.36 * Math.sin(PI * (0.08 + 0.84 * u));
+    const ring = mesh(new THREE.TorusGeometry(r, 0.065, 8, 40), Math.abs(y - core) < 0.2 ? rim : glass,
+      { pos: [0, y, 0], rot: [PI / 2, 0, 0], scale: [1, 1, 1.6], cast: false, ink: 0.015 });
+    g.add(ring);
+  }
+  g.add(cyl(0.5, 0.5, 0.3, toonMat("#CFF3FB", { transparent: true, opacity: 0.3, depthWrite: false }),
+    { pos: [0, core, 0], cast: false, seg: 28 })); // the bull's-eye drum
+  for (let i = 0; i < 8; i++) { // brass frame ribs
+    const a = (i / 8) * 2 * PI;
+    g.add(beam([Math.cos(a) * 0.3, 0.36, Math.sin(a) * 0.3], [Math.cos(a) * 0.62, core, Math.sin(a) * 0.62], 0.018, brass, { cast: false }));
+    g.add(beam([Math.cos(a) * 0.62, core, Math.sin(a) * 0.62], [Math.cos(a) * 0.26, 1.72, Math.sin(a) * 0.26], 0.018, brass, { cast: false }));
+  }
+  g.add(cyl(0.12, 0.26, 0.12, brass, { pos: [0, 1.78, 0], ink: true }));
+  g.add(sph(0.07, shade(brass, 0.2), { pos: [0, 1.88, 0] }));
+  const lamp = sph(0.16, lit ? glowMat("#FFF6C8") : "#9FB7C9", { pos: [0, core, 0], cast: false });
+  g.add(lamp);
+  if (lit) {
+    const halo = sph(0.26, new THREE.MeshBasicMaterial({ color: "#FFD86A", transparent: true, opacity: 0.4, depthWrite: false, fog: false }),
+      { pos: [0, core, 0], cast: false });
+    g.add(halo);
+    const l = new THREE.PointLight("#FFE29A", 3, 6, 1.3); // inside the glass: it lights the room, not the rings' fronts
+    l.position.set(0, core, 0);
+    g.add(l);
+  }
   return g;
 };
 
@@ -918,11 +1068,16 @@ function drawFace(x, w, h, expr) {
       x.fillStyle = INK; x.beginPath(); x.arc(X, ey + 3, 8, 0, 2 * PI); x.fill();
       continue;
     }
+    if (expr === "smug" || expr === "sly") { // heavy lids: only the lower half of the eye shows under a lid line
+      x.save(); x.beginPath(); x.rect(X - 30, ey - 2, 60, 40); x.clip();
+      x.fillStyle = INK; x.beginPath(); x.arc(X, ey, 15, 0, 2 * PI); x.fill();
+      x.fillStyle = "#ffffff"; x.beginPath(); x.arc(X - 5, ey + 4, 4, 0, 2 * PI); x.fill();
+      x.restore();
+      x.beginPath(); x.moveTo(X - 21, ey - 1 + (expr === "sly" ? (k ? 4 : -4) : 0)); x.lineTo(X + 21, ey - 1 - (expr === "sly" ? (k ? 4 : -4) : 0)); x.stroke();
+      continue;
+    }
     x.fillStyle = INK; x.beginPath(); x.arc(X, ey, 15, 0, 2 * PI); x.fill();
     x.fillStyle = "#ffffff"; x.beginPath(); x.arc(X - 5, ey - 6, 5, 0, 2 * PI); x.fill();
-    if (expr === "smug" || expr === "sly") { // heavy lids
-      x.fillStyle = "#00000000"; x.beginPath(); x.moveTo(X - 22, ey - 4); x.lineTo(X + 22, ey - 4); x.stroke();
-    }
   }
   const brow = (X, tilt, lift = 0) => {
     x.beginPath(); x.moveTo(X - 22, ey - 40 - lift + tilt); x.lineTo(X + 22, ey - 40 - lift - tilt); x.stroke();
@@ -930,7 +1085,7 @@ function drawFace(x, w, h, expr) {
   const tilts = { angry: 9, sad: -8, worried: -8, scared: -6, shocked: 0, smug: 0, sly: 4 };
   if (expr in tilts) {
     brow(ex[0], tilts[expr], expr === "shocked" ? 10 : 0);
-    brow(ex[1], -tilts[expr] + (expr === "smug" ? 0 : 0), expr === "shocked" ? 10 : expr === "smug" ? 10 : 0);
+    brow(ex[1], -tilts[expr], expr === "shocked" ? 10 : expr === "smug" ? 10 : 0); // smug: one raised brow
   }
   const my = 182;
   x.beginPath();
@@ -1048,6 +1203,8 @@ export function spawnProp(spec, t = 0) {
   const root = new THREE.Group();
   root.name = spec.id || spec.type;
   root.add(model);
+  const contact = NO_CONTACT.has(spec.type) ? null : contactShadow(model);
+  if (contact) root.add(contact);
   const born = t + (spec.delay || 0);
   root.userData = {
     spec, born, spawnT: t,
@@ -1057,6 +1214,8 @@ export function spawnProp(spec, t = 0) {
       root.visible = age >= 0;
       if (!root.visible) return;
       root.visible = placeProp(root, cur, age, now);
+      // the contact shadow belongs on the ground: gone while the prop is carried, flying or off its base height
+      if (contact) contact.visible = !(cur.track && cur.track(now)) && Math.abs(root.position.y - (cur.pos || [0, 0, 0])[1]) < 0.05;
       root.traverse((k) => { if (k.userData.flame) k.scale.y = 1 + 0.12 * Math.sin(now * 13 + k.id); });
     },
   };
@@ -1064,14 +1223,49 @@ export function spawnProp(spec, t = 0) {
   return root;
 }
 
+// ---------- ambient occlusion (soft dark at bases) ----------
+// a dark gradient fading upward (or, sideways, along x) from its lower edge: wall bases, corners
+function aoMat(sideways = false) {
+  const map = paint(`ao${sideways}`, 64, 64, (x, w, h) => {
+    const g = sideways ? x.createLinearGradient(0, 0, w, 0) : x.createLinearGradient(0, h, 0, 0);
+    g.addColorStop(0, "rgba(20,10,4,0.55)"); g.addColorStop(0.35, "rgba(20,10,4,0.22)"); g.addColorStop(1, "rgba(20,10,4,0)");
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+  });
+  return new THREE.MeshBasicMaterial({ map, color: map ? "#ffffff" : "#000000", transparent: true, opacity: map ? 1 : 0.2, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -2, fog: false });
+}
+// a soft dark blob on the ground under a prop's footprint (a painted contact shadow), named "contact"
+const NO_CONTACT = new Set(["cloud", "ship", "mug", "pistol", "pillar_rock", "flag"]);
+function contactShadow(model) {
+  const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3());
+  const map = paint("contact", 128, 128, (x, w) => {
+    const g = x.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    g.addColorStop(0, "rgba(20,10,4,0.6)"); g.addColorStop(0.55, "rgba(20,10,4,0.32)"); g.addColorStop(1, "rgba(20,10,4,0)");
+    x.fillStyle = g; x.fillRect(0, 0, w, w);
+  });
+  const m = new THREE.MeshBasicMaterial({ map, color: map ? "#ffffff" : "#000000", transparent: true, opacity: map ? 1 : 0.25,
+    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const c = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), m);
+  c.rotation.x = -PI / 2;
+  c.scale.set(Math.max(0.3, size.x * 1.25), Math.max(0.3, size.z * 1.25), 1);
+  c.position.set((box.min.x + box.max.x) / 2, 0.012, (box.min.z + box.max.z) / 2);
+  c.name = "contact";
+  c.renderOrder = 1;
+  return c;
+}
+
 // ---------- set pieces ----------
-function skyDome(top, bottom) {
+// gradient dome: bottom at the horizon, through `mid` (when given) at a third of the way up, to top
+function skyDome(top, bottom, mid = null) {
   const m = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new THREE.Color(top) }, bottom: { value: new THREE.Color(bottom) } },
+    uniforms: { top: { value: new THREE.Color(top) }, bottom: { value: new THREE.Color(bottom) },
+      mid: { value: new THREE.Color(mid || bottom) }, hasMid: { value: mid ? 1 : 0 } },
     vertexShader: "varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-    fragmentShader: "uniform vec3 top; uniform vec3 bottom; varying vec3 vP;\n" +
-      "void main(){ float h = clamp(vP.y * 1.5 + 0.03, 0.0, 1.0); gl_FragColor = vec4(mix(bottom, top, pow(h, 0.55)), 1.0);\n#include <colorspace_fragment>\n}",
+    fragmentShader: "uniform vec3 top; uniform vec3 bottom; uniform vec3 mid; uniform float hasMid; varying vec3 vP;\n" +
+      "void main(){ float h = pow(clamp(vP.y * 1.5 + 0.03, 0.0, 1.0), 0.55);\n" +
+      "  vec3 c = hasMid > 0.5 ? (h < 0.42 ? mix(bottom, mid, smoothstep(0.0, 0.42, h)) : mix(mid, top, smoothstep(0.42, 1.0, h))) : mix(bottom, top, h);\n" +
+      "  gl_FragColor = vec4(c, 1.0);\n#include <colorspace_fragment>\n}",
   });
   const d = new THREE.Mesh(new THREE.SphereGeometry(450, 32, 16), m);
   d.renderOrder = -1;
@@ -1145,6 +1339,14 @@ function room(g, { w = 14, d = 12, hgt = 7.5, wall, floorMat, back = -5, ceiling
     for (let x = -w / 2 + 1; x < w / 2; x += 2.4) g.add(rbox(0.35, 0.4, d, C.woodDark, { pos: [x, hgt - 0.2, back + d / 2], cast: false }));
   }
   g.add(rbox(w, 0.3, 0.12, C.woodDark, { pos: [0, 0.15, back + 0.06], cast: false }));
+  // soft darkening where the walls meet the floor (AO), on the walls and on the floor
+  const ao = aoMat();
+  g.add(plane(w, 1.4, ao, { pos: [0, 0.7, back + 0.13], cast: false, receive: false }));
+  g.add(floor(w, 1.2, ao, { pos: [0, 0.01, back + 0.6], rot: [-PI / 2, 0, PI], cast: false, receive: false }));
+  for (const sx of [-1, 1]) {
+    g.add(plane(d, 1.4, ao, { pos: [sx * (w / 2 - 0.02), 0.7, back + d / 2], rot: [0, -sx * PI / 2, 0], cast: false, receive: false }));
+    g.add(floor(1.2, d, aoMat(true), { pos: [sx * (w / 2 - 0.6), 0.012, back + d / 2], rot: [-PI / 2, 0, sx > 0 ? PI : 0], cast: false, receive: false }));
+  }
 }
 function windowPane(w, h, sky = "#8FD4F5") {
   const g = new THREE.Group();
@@ -1458,7 +1660,7 @@ export function buildSet(spec = {}) {
   if (!m) throw new Error(`unknown mood: ${moodName}`);
   const g = new THREE.Group();
   g.name = `set:${spec.type}`;
-  if (spec.type !== "cutaway") g.add(skyDome(m.skyTop, m.skyBottom));
+  if (spec.type !== "cutaway") g.add(skyDome(m.skyTop, m.skyBottom, m.skyMid));
   if (moodName === "night") g.add(stars(7));
   lights(g, m);
   build(g, spec);

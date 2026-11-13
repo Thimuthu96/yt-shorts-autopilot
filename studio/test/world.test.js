@@ -14,7 +14,7 @@ const SET_NAMES = ["ship_deck", "open_sea", "harbour", "coast", "furnace_room", 
 const MOOD_NAMES = ["day", "interior_glow", "sunset", "night", "steel"];
 const PROP_NAMES = ["cannon", "cannonball", "barrel", "crate", "rope_coil", "lantern", "ship", "lighthouse", "sign_post",
   "table", "chair", "bed", "door", "bell", "coffin", "jar", "coin", "lever", "gear", "train_car", "rail", "flag", "torch",
-  "tongs", "furnace", "pillar_rock", "palm", "cloud"];
+  "tongs", "furnace", "pillar_rock", "palm", "cloud", "fresnel_lens"];
 const ANIM_NAMES = ["spin", "float", "drop", "wobble", "fly", "sink"];
 
 test("node studio/catalog.js writes every set, mood, prop and anim", () => {
@@ -95,3 +95,16 @@ test("a prop with no delay is there in full when its beat opens; a delayed one p
   late.userData.tick(6);
   assert.ok(Math.abs(late.scale.x - 1) < 1e-9);
 });
+
+test("props stand in a soft contact shadow (darker at their base)", async () => {
+  const W = await world();
+  for (const type of ["barrel", "crate", "cannon", "fresnel_lens"]) {
+    const o = W.spawnProp({ type, pos: [0, 0, 0] }, 0);
+    const ao = o.getObjectByName("contact");
+    assert.ok(ao, `${type} has a contact shadow`);
+    assert.ok(Math.abs(ao.position.y) < 0.05, `${type} contact shadow on the ground`);
+  }
+  // floating and sky props have none
+  for (const type of ["cloud", "ship"]) assert.ok(!W.spawnProp({ type, pos: [0, 0, 0] }, 0).getObjectByName("contact"), type);
+});
+

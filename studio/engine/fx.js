@@ -1,11 +1,12 @@
 // Cartoon effects: puffy, chunky, ink-outlined sprites (no realistic particles).
 // Pure registry module: nothing touches the DOM at import time; painted textures are made on first use when a
 // document exists, so plain node can build and step every effect (tests, catalog.js).
-//   makeFx(type, at, seed?, scale = 1) -> THREE.Group   (seed defaults to a hash of type + at)
+//   makeFx(type, at, seed?, scale = 1, opts = {}) -> THREE.Group   (seed defaults to a hash of type + at;
+//                                                   opts.period: beam's seconds per full sweep, default 4)
 //   updateFx(g, localT)                                 (poses every sprite for the effect's local time)
 // Stateless per t: a sprite's state at localT is a function of (seed, sprite, localT) alone, so seeking == stepping
 // and a re-render is identical. localT < 0 hides the effect. Continuous effects (smoke, fire, sparks, steam, glow,
-// bubbles, question) run for as long as they exist; bursts (splinters, explosion, splash, flash, debris, gunsmoke) end on
+// bubbles, question, beam) run for as long as they exist; bursts (splinters, explosion, splash, flash, debris, gunsmoke) end on
 // their own, and splinters / debris come to rest on the ground (world y = 0).
 import * as THREE from "three";
 import { canvasTex, hash, clamp01, easeOut, INK } from "./core.js";
@@ -356,14 +357,48 @@ export const FX = {
     ],
     light: { color: "#FFC070", dist: 6, i: (lt) => (lt < 0 ? 0 : 10 * Math.exp(-lt * 14)) },
   },
+  // a lighthouse beam: a soft cone of light from its point (local +x at the start), sweeping round the vertical axis
+  // once per `period` seconds (opts.period, default 4), with a glowing core at the source
+  beam: {
+    layers: [
+      { tex: "glow", n: 1, blend: "add", part: (lt) => ({ p: [0, 0, 0.02], s: 1.2 * (1 + 0.05 * Math.sin(lt * 5)), op: 0.75, c: "#FFE28A" }) },
+      { tex: "glow", n: 1, blend: "add", part: (lt) => ({ p: [0, 0, 0.03], s: 0.5 * (1 + 0.04 * Math.sin(lt * 7 + 1)), op: 1, c: "#FFFFFF" }) },
+    ],
+    cone: { length: 26, radius: 2.4, color: "#FFF0B0", strength: 0.5 },
+    light: { color: "#FFE9A8", dist: 9, i: (lt) => (lt < 0 ? 0 : 3) },
+  },
 };
+
+// the beam's cone: narrow at the origin, opening along +x; brightest along its axis and near its source, soft at its
+// silhouette (additive, so it brightens what it crosses and never hides it)
+function beamCone({ length, radius, color, strength }) {
+  const geo = new THREE.CylinderGeometry(0.1, radius, length, 40, 8, true);
+  geo.translate(0, -length / 2, 0); // the narrow end (uv.y = 1) at the origin
+  geo.rotateZ(PI / 2); // opens along +x
+  const m = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+    uniforms: { color: { value: new THREE.Color(color) }, strength: { value: strength } },
+    vertexShader: "varying vec2 vUv; varying vec3 vN; varying vec3 vV;\n" +
+      "void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz);\n" +
+      "  gl_Position = projectionMatrix * mv; }",
+    fragmentShader: "uniform vec3 color; uniform float strength; varying vec2 vUv; varying vec3 vN; varying vec3 vV;\n" +
+      "void main(){ float along = pow(vUv.y, 2.0); float edge = pow(abs(dot(normalize(vN), normalize(vV))), 2.6);\n" +
+      "  gl_FragColor = vec4(color * strength * along * edge, 1.0);\n#include <colorspace_fragment>\n}",
+  });
+  const cone = new THREE.Mesh(geo, m);
+  cone.name = "beam-cone";
+  cone.renderOrder = 2;
+  return cone;
+}
 
 // ---------- build and pose ----------
 const typeSeed = (type, at) => [...type].reduce((s, ch) => s + ch.charCodeAt(0) * 31, 0) + at[0] * 7.13 + at[1] * 3.31 + at[2] * 5.77;
 
-export function makeFx(type, at = [0, 0, 0], seed = null, scale = 1) {
+export function makeFx(type, at = [0, 0, 0], seed = null, scale = 1, opts = {}) {
   const def = FX[type];
   if (!def) throw new Error(`unknown fx: ${type}`);
+  const period = (opts && opts.period) ?? 4;
+  if (def.cone && !(period > 0)) throw new Error(`beam period must be > 0 (got ${period})`);
   const g = new THREE.Group();
   g.name = `fx:${type}`;
   g.position.set(...at);
@@ -388,15 +423,22 @@ export function makeFx(type, at = [0, 0, 0], seed = null, scale = 1) {
     light.position.set(0, 0.6, 0.4);
     g.add(light);
   }
-  g.userData = { type, seed: seed ?? typeSeed(type, at), parts, light, floor: Math.min(0, -at[1] / scale) };
+  let beam = null; // the cone's pivot: turned about y by updateFx
+  if (def.cone) {
+    beam = new THREE.Group();
+    beam.add(beamCone(def.cone));
+    g.add(beam);
+  }
+  g.userData = { type, seed: seed ?? typeSeed(type, at), parts, light, beam, period, floor: Math.min(0, -at[1] / scale) };
   return g;
 }
 
 export function updateFx(g, lt) {
-  const { type, seed, parts, light, floor } = g.userData;
+  const { type, seed, parts, light, floor, beam, period } = g.userData;
   const def = FX[type];
   g.visible = lt >= 0;
   if (light) light.intensity = lt >= 0 ? def.light.i(lt) : 0;
+  if (beam) beam.rotation.y = lt >= 0 ? (TAU * lt) / period : 0;
   if (!g.visible) return g;
   const env = { floor };
   for (const s of parts) {

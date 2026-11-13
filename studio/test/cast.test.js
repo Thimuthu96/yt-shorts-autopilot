@@ -158,3 +158,22 @@ test("node studio/catalog.js exports the cast names", () => {
   assert.deepStrictEqual(cat.costumes, COSTUMES);
   assert.deepStrictEqual(cat.looks, ["gus"]);
 });
+
+test("characters are 30 % taller than v1 (1.8 -> 2.34) and the head sits at the same fraction", async () => {
+  const C = await cast();
+  assert.ok(Math.abs(C.CHAR_HEIGHT - 1.8 * 1.3) < 1e-9, `height ${C.CHAR_HEIGHT}`);
+  assert.ok(C.HEAD_AT > 0.7 && C.HEAD_AT < 0.85);
+});
+
+test("faces stay white in every mood: the mood tints the sprite at most 10 % from white", async () => {
+  const C = await cast();
+  const { MOODS } = await import(pathToFileURL(path.join(STUDIO, "engine", "world.js")).href);
+  for (const mood of Object.keys(MOODS)) {
+    const hex = C.SPRITE_TINT[mood];
+    assert.ok(hex, `tint for ${mood}`);
+    const n = parseInt(hex.slice(1), 16), rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    for (const v of rgb) assert.ok((255 - v) / 255 <= 0.1, `${mood} ${hex} is within 10 % of white`);
+  }
+  assert.strictEqual(C.SPRITE_TINT.day, "#FFFFFF");
+});
+

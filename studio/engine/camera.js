@@ -115,7 +115,7 @@ export const FRAMES = {
     const v = side.map((x, i) => x - look[i]), l = Math.hypot(...v);
     return aim(side.map((x, i) => x + (v[i] / l) * back), look);
   },
-  // the hero shot: camera about 0.4 above the floor (for a 1.8 tall subject), looking up at the head
+  // the hero shot: camera 0.22 of its height above the floor, looking up at the head
   low_hero: (s, o, k) => {
     const look = at(s, s.head - 0.05 * s.height);
     return { target: look, dist: 1.35 * size(s) * k, height: s.pos[1] + 0.22 * s.height - look[1], angle: -18 };

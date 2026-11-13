@@ -76,7 +76,7 @@ export const EVENT_TYPES = {
     scope: "scene",
     validate: (ev) => oneOf(ev, "type", Object.keys(FX), "fx"),
     apply: noop,
-    spawn: (ev, t) => ({ kind: "fx", obj: makeFx(ev.type, ev.at || [0, 0, 0], null, ev.scale || 1), born: t }),
+    spawn: (ev, t) => ({ kind: "fx", obj: makeFx(ev.type, ev.at || [0, 0, 0], null, ev.scale || 1, { period: ev.period }), born: t }),
   },
   sign: {
     scope: "scene",
@@ -179,7 +179,7 @@ export function followPosAt(state, k, id, t) {
 // need = required, opt = optional. The action events' fields come from actions.js.
 const FIELDS = {
   expr: { need: ["who", "expr"] }, pose: { need: ["who", "pose"] }, motion: { need: ["who", "motion"] },
-  fx: { need: ["type"], opt: ["at", "scale"] }, sign: { need: ["text"], opt: ["style", "pos", "rot"] },
+  fx: { need: ["type"], opt: ["at", "scale", "period"] }, sign: { need: ["text"], opt: ["style", "pos", "rot"] },
   sfx_mark: { need: ["sfx"] }, shake: { opt: ["amount"] },
   ...ACTION_FIELDS,
 };

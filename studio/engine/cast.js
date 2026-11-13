@@ -21,7 +21,7 @@ const PI = Math.PI;
 
 // design space (canvas pixels before the resolution scale); feet rest on y = FOOT
 export const CW = 640, CH = 800;
-const RES = 1.6, FOOT = 762, HEIGHT = 1.8; // world units from sole to the top of the head
+const RES = 1.6, FOOT = 762, HEIGHT = 2.34; // world units from sole to the top of the head (look v2: 1.8 + 30 %)
 const cx = CW / 2, HX = cx, HY = 212, HR = 165, HRY = 158;
 const TOP = 362, BOT = 566; // torso
 const HEAD = "#FFFDF8", MOUTH = "#6B1E2E", TONGUE = "#F27A86", BLUSH = "rgba(255,112,124,0.32)", SHOE = "#2B2633";
@@ -617,8 +617,9 @@ export const MOTIONS = {
   spin: (lt) => ({ spin: 2 * PI * easeIO(lt / 0.7) }),
 };
 
-// mood → sprite tint (the sprite is unlit, so it takes the light colour by hand)
-export const SPRITE_TINT = { day: "#FFFFFF", interior_glow: "#FFE3C8", sunset: "#FFD9D2", night: "#9FB1DC", steel: "#E1E5EC" };
+// mood → sprite tint. The sprite is unlit, so it takes the mood's light by hand, but only as a hint: heads stay white in
+// every light (look v2: at most 10 % from white per channel, the reference keeps faces white even at night)
+export const SPRITE_TINT = { day: "#FFFFFF", interior_glow: "#FFF2E8", sunset: "#FFEEEA", night: "#EAF1FC", steel: "#F3F5F8" };
 
 // ---------- positions for actions (actions.js) ----------
 // world units per design pixel: the sprite's CH pixels span its plane height

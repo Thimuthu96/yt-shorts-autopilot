@@ -10,7 +10,7 @@ const STUDIO = path.join(__dirname, "..");
 const load = (name) => import(pathToFileURL(path.join(STUDIO, "engine", name)).href);
 
 const FX_NAMES = ["smoke", "fire", "splinters", "sparks", "explosion", "splash", "steam", "glow", "flash", "debris",
-  "bubbles", "question", "gunsmoke"];
+  "bubbles", "question", "gunsmoke", "beam"];
 const SIGN_STYLES = ["plank", "barrel_label", "banner", "chalk", "metal", "paper"];
 
 // two beats; beat 0 has a pause between "lighthouse" and "blinks" and ends 0.4 s after its last word
@@ -112,6 +112,35 @@ test("FX before their start show nothing; bursts end; splinters land on the grou
   F.updateFx(g, 2.5);
   const ys = g.userData.parts.filter((s) => s.visible).map((s) => g.position.y + s.position.y * g.scale.y);
   assert.ok(ys.length > 5 && ys.every((y) => y >= 0 && y < 0.2), `landed: ${ys.map((y) => y.toFixed(2))}`);
+});
+
+test("beam: a light cone sweeps around its point once per period; seeking equals stepping", async () => {
+  const F = await load("fx.js");
+  const yaw = (g) => ((g.userData.beam.rotation.y % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const near = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) < 1e-9;
+  const a = F.makeFx("beam", [0, 5, 0], null, 1, { period: 3 }), b = F.makeFx("beam", [0, 5, 0], null, 1, { period: 3 });
+  F.updateFx(a, 1.1);
+  for (let t = 0; t < 4; t += 1 / 30) F.updateFx(b, t);
+  F.updateFx(b, 1.1);
+  assert.deepStrictEqual(snapshot(b), snapshot(a));
+  assert.strictEqual(yaw(b), yaw(a));
+  // a full period later it points the same way; a quarter period later it has turned 90 degrees
+  const at = (t, period) => { const g = F.makeFx("beam", [0, 5, 0], null, 1, period ? { period } : {}); F.updateFx(g, t); return yaw(g); };
+  assert.ok(near(at(1.1, 3), at(4.1, 3)));
+  assert.ok(near(at(1.85, 3) - at(1.1, 3), Math.PI / 2));
+  // the default period is 4 s, and a different period sweeps at a different speed
+  assert.ok(near(at(1, null) - at(0, null), Math.PI / 2));
+  assert.ok(!near(at(1, 2), at(1, 4)));
+  F.updateFx(a, -0.1);
+  assert.ok(!a.visible);
+  assert.throws(() => F.makeFx("beam", [0, 0, 0], null, 1, { period: 0 }), /beam period must be > 0/);
+});
+
+test("signs keep the text's own case", async () => {
+  const S = await load("signs.js");
+  assert.deepStrictEqual(S.signLines("Hot Shot"), ["Hot Shot"]);
+  assert.deepStrictEqual(S.signLines("Keep from\nflame"), ["Keep from", "flame"]);
+  assert.deepStrictEqual(S.signLines("1 flash every 5 sec"), ["1 flash every 5", "sec"]);
 });
 
 test("signs: every style builds a readable plane; unknown style fails; spawnSign pops in after its delay", async () => {

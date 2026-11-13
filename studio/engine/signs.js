@@ -1,5 +1,5 @@
 // In-world signs: names and numbers painted onto things in the scene (a plank, a barrel label, a banner, a
-// chalkboard, a metal plate, a pinned paper), never screen overlays. Uppercase, heavy Fredoka.
+// chalkboard, a metal plate, a pinned paper), never screen overlays. Heavy Fredoka, the text as written (its own case).
 // Pure registry module: nothing touches the DOM at import time; without a document the sign keeps its size and
 // shape but no painted texture (plain node: tests, catalog.js).
 //   signPlane(text, style) -> THREE.Group      (centred on its origin, facing +z; userData.size = {w, h} in units)
@@ -160,10 +160,10 @@ export const SIGN_STYLES = {
   },
 };
 
-// uppercase lines: "\n" breaks a line, and a line longer than WRAP characters wraps at a space
+// lines as written (the text keeps its own case): "\n" breaks a line, and a line longer than WRAP characters wraps at a space
 export function signLines(text) {
   const out = [];
-  for (const raw of String(text).toUpperCase().split("\n")) {
+  for (const raw of String(text).split("\n")) {
     let cur = "";
     for (const word of raw.trim().split(/\s+/)) {
       if (cur && (cur + " " + word).length > WRAP) { out.push(cur); cur = word; } else cur = cur ? cur + " " + word : word;
