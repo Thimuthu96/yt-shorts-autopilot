@@ -9,10 +9,9 @@ const REGISTRIES = ["engine/world.js", "engine/cast.js", "engine/camera.js", "en
 
 // Keys no registry owns yet stay empty; the constants below are owned here.
 const BASE = {
-  sets: [], moods: [], props: [], poses: [], exprs: [], motions: [], enters: [], fx: [], cam_moves: [], sign_styles: [],
-  transitions: ["iris", "cut"], looks: [], costume_keys: [], costumes: [], anims: [], events: [], event_fields: {}, acts: [], act_fields: {}, surfaces: [],
+  sets: [], moods: [], props: [], poses: [], exprs: [], motions: [], enters: [], fx: [], cam_moves: [], sign_styles: [], cam_frames: [],
+  transitions: [], looks: [], costume_keys: [], costumes: [], anims: [], events: [], event_fields: {}, acts: [], act_fields: {}, surfaces: [],
   sfx: ["whoosh", "boom", "splash", "impact", "pop", "ding", "crackle", "creak"],
-  frame_half_width: 0.22,
 };
 
 async function build() {

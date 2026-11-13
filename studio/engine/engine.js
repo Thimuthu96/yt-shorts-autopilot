@@ -1,11 +1,11 @@
 // Gus Explains engine: window.setup(story, timeline), then window.renderAt(t) per frame.
 // Registries live in their own modules (world.js: sets, props, moods; cast.js: characters; camera.js: camera moves,
-// iris; fx.js: effects; signs.js: in-world signs; captions.js: the one-word caption; events.js: word-anchored shot events).
+// iris, whips; fx.js: effects; signs.js: in-world signs; captions.js: the one-word caption; events.js: word-anchored shot events).
 import * as THREE from "three";
 import { clamp01 } from "./core.js";
 import { buildSet, spawnProp } from "./world.js";
-import { Char } from "./cast.js";
-import { camPose, handoff, irisMask } from "./camera.js";
+import { Char, CHAR_HEIGHT, HEAD_AT, charPosAt } from "./cast.js";
+import { camPose, handoff, irisMask, placeCamera, whipAt, cutsAt } from "./camera.js";
 import { makeFx, updateFx } from "./fx.js";
 import { spawnSign } from "./signs.js";
 import { captionWord, drawCaption } from "./captions.js";
@@ -29,6 +29,13 @@ const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 1000);
 // iris: #stage is clipped to a circle (black outside) with a white ring on its edge
 const stage = document.getElementById("stage"), ring = document.getElementById("iris");
 const IRIS = 0.45, HALF_DIAG = Math.hypot(W, H) / 2;
+
+// whip motion blur: a 2D canvas over the 3D view (under the captions) holding a directional smear of it
+const blurCanvas = document.getElementById("blur"), blurTmp = document.createElement("canvas");
+blurCanvas.width = blurTmp.width = canvas.width; blurCanvas.height = blurTmp.height = canvas.height;
+const blurCtx = blurCanvas.getContext("2d"), tmpCtx = blurTmp.getContext("2d");
+const BLUR_MAX = 0.35; // smear length at the whip's peak, as a fraction of the frame along the smear
+const TAPS = 12;
 
 // captions: a 2D canvas over the 3D view, inside #stage so the iris clips it too
 const capCanvas = document.getElementById("cap");
@@ -146,14 +153,47 @@ function applyBeat(i) {
 }
 
 // ---------- camera ----------
-// Each beat continues from where the last one ended unless it cuts (cam.cut, transition "cut" or "iris", first beat).
-const cutsInto = (k) => k === 0 || !!(STORY.beats[k].cam || {}).cut || ["cut", "iris"].includes(STORY.beats[k].transition);
+// Each beat continues from where the last one ended unless it cuts (cam.cut, a "cut" / "iris" / whip transition,
+// first beat). A whip turns the camera fast across the boundary (the set changes at its peak), so the next beat
+// starts on its own framing.
+const cutsInto = (k) => k === 0 || !!(STORY.beats[k].cam || {}).cut || cutsAt(STORY.beats[k].transition);
 
-// the followed prop's position at t in beat k, its events included (a launched ball, a held mug)
-function followPos(k, t) {
-  const cam = STORY.beats[k].cam || {};
-  if (cam.move !== "follow" || !cam.follow) return null;
-  return followPosAt({ story: STORY, timeline: TL, events: EVENTS, roster: ROSTER, stages: STAGES }, k, cam.follow, t);
+// prop extents for framing presets: {height, size (its largest extent), head (y of its upper part above its origin)},
+// by type / scale / rot
+const propSizes = new Map();
+function propSize(spec) {
+  const key = JSON.stringify([spec.type, spec.scale ?? 1, spec.rot || null]);
+  if (!propSizes.has(key)) {
+    const o = spawnProp({ ...spec, pos: [0, 0, 0] }, 0), box = new THREE.Box3().setFromObject(o);
+    dispose(o);
+    const h = Math.max(0.2, box.max.y - box.min.y);
+    propSizes.set(key, { height: h, size: Math.max(h, box.max.x - box.min.x, box.max.z - box.min.z), head: box.min.y + 0.65 * h });
+  }
+  return propSizes.get(key);
+}
+
+// what the camera of beat k needs at t (env of camPose): the followed prop's position, the framed subject and look_at
+// as {pos, height, head, facing}. Everything comes from the story and events at t, so it is stateless.
+function camEnv(k, t) {
+  const cam = STORY.beats[k].cam || {}, follows = cam.move === "follow" && cam.follow;
+  if (!follows && !cam.frame) return {};
+  const state = { story: STORY, timeline: TL, events: EVENTS, roster: ROSTER, stages: STAGES }, env = {};
+  if (follows) env.follow = followPosAt(state, k, cam.follow, t);
+  if (!cam.frame) return env;
+  const now = applyEvents({ ...state, ...STAGES[k] }, k, t);
+  const thing = (id, role) => {
+    const c = now.chars.get(id);
+    if (c) {
+      const pos = charPosAt(c, t);
+      return { pos, height: CHAR_HEIGHT, head: pos[1] + HEAD_AT * CHAR_HEIGHT, facing: c.facing || "right" };
+    }
+    const p = now.props.get(id);
+    if (p) { const pos = p.pos || [0, 0, 0], z = propSize(p); return { pos, height: z.height, size: z.size, head: pos[1] + z.head, facing: "right" }; }
+    throw new Error(`camera frame: no ${role} ${id} in beat ${k}`);
+  };
+  if (cam.subject) env.subject = thing(cam.subject, "subject");
+  if (cam.look_at) env.other = thing(cam.look_at, "look_at");
+  return env;
 }
 
 // the first beat whose action fx still show in beat i: the last one that did not keep
@@ -185,12 +225,44 @@ function drawActFx(list, i, t) {
 const dur = (k) => Math.max(1e-3, TL.beats[k].end - TL.beats[k].start);
 const progress = (k, t) => clamp01((t - TL.beats[k].start) / dur(k));
 
+// the story's version rides along on the cam: a version 2 story gets the v2 lens (camera.js)
+const camOf = (k) => ({ ...(STORY.beats[k].cam || {}), version: STORY.version });
+
 function poseAt(k, t) {
-  const cam = { ...(STORY.beats[k].cam || {}), cut: cutsInto(k) };
+  const cam = { ...camOf(k), cut: cutsInto(k) };
   // a beat's last pose (and speed) does not depend on the one before it, so the previous beat's end is one call
-  const prev = cam.cut ? null : handoff(STORY.beats[k - 1].cam || {}, dur(k - 1), dur(k),
-    (p) => ({ follow: followPos(k - 1, TL.beats[k - 1].start + p * dur(k - 1)) }));
-  return camPose(cam, prev, progress(k, t), { follow: followPos(k, t) });
+  const prev = cam.cut ? null : handoff(camOf(k - 1), dur(k - 1), dur(k),
+    (p) => camEnv(k - 1, TL.beats[k - 1].start + p * dur(k - 1)));
+  return camPose(cam, prev, progress(k, t), camEnv(k, t));
+}
+
+// the whip around t, if any: {yaw, pitch, blur, dir} (camera.whipAt) for the boundary of a beat entered by a whip
+function whipNow(t) {
+  for (let k = 1; k < STORY.beats.length; k++) {
+    const edge = TL.beats[k].start, w = whipAt(t - edge, STORY.beats[k].transition);
+    if (w.blur > 0) return w;
+  }
+  return null;
+}
+
+// directional motion blur: the frame averaged over TAPS copies shifted along dir across `len` canvas pixels; done
+// twice (the second pass spreads each tap over one step), so the smear is smooth, not strobed copies
+function smear(ctx, src, dir, len) {
+  ctx.globalCompositeOperation = "source-over";
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  for (let j = 0; j < TAPS; j++) {
+    const off = len * (j / (TAPS - 1) - 0.5);
+    ctx.globalAlpha = 1 / (j + 1); // running mean
+    ctx.drawImage(src, dir[0] * off, dir[1] * off);
+  }
+  ctx.globalAlpha = 1;
+}
+function drawBlur(w) {
+  if (!w) { blurCanvas.style.display = "none"; return; }
+  const len = w.blur * BLUR_MAX * (w.dir[0] ? canvas.width : canvas.height);
+  smear(tmpCtx, canvas, w.dir, len);
+  smear(blurCtx, blurTmp, w.dir, len / TAPS);
+  blurCanvas.style.display = "block";
 }
 
 function irisAt(t) {
@@ -232,23 +304,16 @@ window.renderAt = (t) => {
   fxs.forEach(({ g, born }) => updateFx(g, t - born));
   drawActFx(now.fx, i, t);
   signs.forEach((o) => o.userData.tick(t));
-  const pose = poseAt(i, t);
-  camera.position.set(...pose.pos);
-  if (camera.fov !== pose.fov) { camera.fov = pose.fov; camera.updateProjectionMatrix(); }
-  camera.lookAt(...pose.look);
-  // shake: [right, up] in the camera's own axes, added on top of the move (position and aim together)
-  const [sx, sy] = now.shake;
-  if (sx || sy) {
-    const off = new THREE.Vector3(sx, sy, 0).applyQuaternion(camera.quaternion);
-    camera.position.add(off);
-    camera.lookAt(new THREE.Vector3(...pose.look).add(off));
-  }
+  // the move's pose, then the shake ([right, up] in the camera's own axes), the whip turn and the roll (camera.js)
+  const whip = whipNow(t);
+  placeCamera(camera, poseAt(i, t), { shake: now.shake, whip });
   applyIris(irisAt(t));
   const word = captionWord(TL, t);
   if (word !== capWord) { capWord = word; drawCaption(capCtx, word, W, H); }
   const mouth = (TL.mouth || [])[Math.round(t * (TL.fps || 30))] || 0;
   chars.forEach(({ c }, id) => { c.frame(now.chars.get(id), t, mouth); c.faceCamera(camera); });
   renderer.render(scene, camera);
+  drawBlur(whip);
   return true;
 };
 

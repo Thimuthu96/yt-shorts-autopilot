@@ -7,6 +7,7 @@
 //   spec.act / spec.squash / spec.runs / spec.holding (set by actions.js acts): offsets {x, y, sx, sy, tilt} for t, run_to
 //   paths, and "a 3D prop is in the hand" (the look's own held prop is then not drawn)
 //   handAt(spec, t), charPosAt(spec, t), runAt(runs, t): positions for actions (a held prop rides handAt)
+//   CHAR_HEIGHT (sole to head top, world units), HEAD_AT (head centre height / CHAR_HEIGHT): the camera's framing presets
 //   c.faceCamera(camera)   yaw-only billboard
 //   drawChar(ctx, look, state)   the sprite, in a CW x CH design space scaled to the canvas
 // Design: big white round head (~45 % of the height) with ink outline, dot eyes with a glint, line brows that carry
@@ -622,6 +623,8 @@ export const SPRITE_TINT = { day: "#FFFFFF", interior_glow: "#FFE3C8", sunset: "
 // ---------- positions for actions (actions.js) ----------
 // world units per design pixel: the sprite's CH pixels span its plane height
 export const UNIT = HEIGHT / (FOOT - (HY - HRY));
+export const CHAR_HEIGHT = HEIGHT;
+export const HEAD_AT = ((FOOT - HY) * UNIT) / HEIGHT;
 
 // spec.runs = [{t0, from, to, dur}] (run_to acts, in time order): the latest run started by t sets the position
 export function runAt(runs, t) {

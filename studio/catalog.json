@@ -143,9 +143,21 @@
     "metal",
     "paper"
   ],
+  "cam_frames": [
+    "close",
+    "medium",
+    "two_shot",
+    "ots",
+    "low_hero",
+    "wide",
+    "pov"
+  ],
   "transitions": [
     "iris",
-    "cut"
+    "cut",
+    "whipL",
+    "whipR",
+    "whipU"
   ],
   "looks": [
     "gus"
@@ -397,7 +409,6 @@
     "crackle",
     "creak"
   ],
-  "frame_half_width": 0.22,
   "hats": [
     "cap",
     "tricorn",
@@ -427,5 +438,6 @@
     "spyglass",
     "book",
     "hammer"
-  ]
+  ],
+  "frame_half_width": 0.325
 }
