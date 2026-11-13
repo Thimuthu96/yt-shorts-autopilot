@@ -1059,6 +1059,9 @@ def main(argv: list[str] | None = None) -> int:
     if session_key not in cfg.get("sessions", {}):
         log(f"Unknown edition '{session_key}'. Choose one of: {', '.join(cfg.get('sessions', {}))}")
         return 1
+    if cfg.get("paused") and args.scheduled:
+        log("Channel paused for the Gus Explains switch; timed runs skip.")
+        return 0
     session = cfg["sessions"][session_key]
     label = session["label"]
     kind = session.get("kind", "market")
