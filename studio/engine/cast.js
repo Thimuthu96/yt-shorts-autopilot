@@ -22,6 +22,10 @@ const PI = Math.PI;
 // design space (canvas pixels before the resolution scale); feet rest on y = FOOT
 export const CW = 640, CH = 800;
 const RES = 1.6, FOOT = 762, HEIGHT = 2.34; // world units from sole to the top of the head (look v2: 1.8 + 30 %)
+// the character's size against the v1 cast (1.8 tall): motion distances and action offsets were tuned at 1.8 and
+// scale with it, so a hop or a run_across looks the same relative to the body
+export const CHAR_SCALE = HEIGHT / 1.8;
+const K = CHAR_SCALE;
 const cx = CW / 2, HX = cx, HY = 212, HR = 165, HRY = 158;
 const TOP = 362, BOT = 566; // torso
 const HEAD = "#FFFDF8", MOUTH = "#6B1E2E", TONGUE = "#F27A86", BLUSH = "rgba(255,112,124,0.32)", SHOE = "#2B2633";
@@ -590,25 +594,25 @@ const easeOutBack = (v) => { const c = 1.9; v = clamp01(v) - 1; return 1 + (c + 
 const dirOf = (facing) => (facing === "left" ? -1 : 1);
 
 export const ENTERS = {
-  left: (lt) => ({ x: -6 * (1 - easeOut(lt / 0.8)), walking: lt < 0.8 }),
-  right: (lt) => ({ x: 6 * (1 - easeOut(lt / 0.8)), walking: lt < 0.8 }),
+  left: (lt) => ({ x: -6 * K * (1 - easeOut(lt / 0.8)), walking: lt < 0.8 }),
+  right: (lt) => ({ x: 6 * K * (1 - easeOut(lt / 0.8)), walking: lt < 0.8 }),
   drop: (lt) => {
     const f = clamp01(lt / 0.45);
     const land = lt > 0.45 && lt < 0.65 ? Math.sin(((lt - 0.45) / 0.2) * PI) : 0;
-    return { y: 5 * (1 - f * f), sy: 1 - 0.18 * land, sx: 1 + 0.14 * land };
+    return { y: 5 * K * (1 - f * f), sy: 1 - 0.18 * land, sx: 1 + 0.14 * land };
   },
   pop: (lt) => ({ scale: Math.max(0.001, easeOutBack(lt / 0.4)) }),
 };
 
 export const MOTIONS = {
-  bob: (lt, t) => ({ y: (Math.sin(t * 6) * 0.5 + 0.5) * 0.12 }),
-  hop: (lt) => ({ y: Math.abs(Math.sin(lt * 7)) * 0.38 }),
-  shake: (lt, t) => ({ x: Math.sin(t * 55) * 0.05 }),
+  bob: (lt, t) => ({ y: (Math.sin(t * 6) * 0.5 + 0.5) * 0.12 * K }),
+  hop: (lt) => ({ y: Math.abs(Math.sin(lt * 7)) * 0.38 * K }),
+  shake: (lt, t) => ({ x: Math.sin(t * 55) * 0.05 * K }),
   flinch: (lt, t, dir) => {
     const f = clamp01(lt / 0.4), k = Math.sin(f * PI);
-    return { x: -dir * 0.3 * k, tilt: dir * 0.18 * k, sy: 1 - 0.1 * k };
+    return { x: -dir * 0.3 * K * k, tilt: dir * 0.18 * k, sy: 1 - 0.1 * k };
   },
-  run_across: (lt, t, dir) => ({ x: dir * (-4 + lt * 3.4), y: Math.abs(Math.sin(lt * 11)) * 0.08, walking: true }),
+  run_across: (lt, t, dir) => ({ x: dir * (-4 + lt * 3.4) * K, y: Math.abs(Math.sin(lt * 11)) * 0.08 * K, walking: true }),
   fall_over: (lt, t, dir) => {
     const f = clamp01((lt - 0.1) / 0.45);
     const bounce = lt > 0.55 && lt < 0.8 ? Math.sin(((lt - 0.55) / 0.25) * PI) * 0.06 : 0;
@@ -727,7 +731,7 @@ export class Char {
     let pose = pose0;
     if ((pose === "idle" && walking) || (run && run.moving)) pose = "run"; // a run_to shows the run over any act pose
     if (pose === "idle" && m.falling) pose = "fall";
-    if (walking) m.y += Math.abs(Math.sin(t * 11)) * 0.1;
+    if (walking) m.y += Math.abs(Math.sin(t * 11)) * 0.1 * K;
     const talk = spec.talk ? Math.round(clamp01(mouth) * 3) / 3 : 0;
     const breathe = Math.sin(t * 3.1 + this.phase) * 0.012 + talk * 0.025;
     const state = {

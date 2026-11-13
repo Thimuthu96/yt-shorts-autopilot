@@ -177,3 +177,15 @@ test("faces stay white in every mood: the mood tints the sprite at most 10 % fro
   assert.strictEqual(C.SPRITE_TINT.day, "#FFFFFF");
 });
 
+test("motion and enter distances scale with the character (tuned at 1.8 tall)", async () => {
+  const C = await cast();
+  const K = C.CHAR_SCALE;
+  assert.ok(Math.abs(K - 1.3) < 1e-9);
+  const dir = 1;
+  assert.ok(Math.abs(C.MOTIONS.run_across(1, 0, dir).x - C.MOTIONS.run_across(0, 0, dir).x - 3.4 * K) < 1e-9, "run_across speed");
+  assert.ok(Math.abs(C.MOTIONS.run_across(0, 0, dir).x + 4 * K) < 1e-9, "run_across start");
+  const hop = Math.max(...Array.from({ length: 200 }, (_, i) => C.MOTIONS.hop(i / 200).y));
+  assert.ok(Math.abs(hop - 0.38 * K) < 0.01, `hop peak ${hop}`);
+  assert.ok(Math.abs(C.ENTERS.left(0).x + 6 * K) < 1e-9 && Math.abs(C.ENTERS.drop(0).y - 5 * K) < 1e-9);
+});
+

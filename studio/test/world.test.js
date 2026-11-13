@@ -60,6 +60,8 @@ test("every prop spawns, takes a face and animates; unknown props fail", async (
     o.userData.tick(1);
     assert.ok(o.visible, type);
     assert.deepStrictEqual(o.position.toArray(), [1, 0, -2]);
+    // the built model is in the root (not only its ground shadow)
+    assert.ok(o.children.some((k) => k.name !== "contact" && k.children.length + (k.isMesh ? 1 : 0) > 0), `${type} model in its root`);
   }
   assert.throws(() => W.spawnProp({ type: "nope" }, 0), /unknown prop: nope/);
   assert.throws(() => W.spawnProp({ type: "barrel", anim: "dance" }, 0), /unknown anim: dance/);
@@ -96,15 +98,40 @@ test("a prop with no delay is there in full when its beat opens; a delayed one p
   assert.ok(Math.abs(late.scale.x - 1) < 1e-9);
 });
 
-test("props stand in a soft contact shadow (darker at their base)", async () => {
+test("props resting on the ground stand in a soft contact shadow, flat on the ground, sized after their rot", async () => {
   const W = await world();
+  const contactOf = (spec, t = 1) => { const o = W.spawnProp(spec, 0); o.userData.tick(t); o.updateMatrixWorld(true); return o.getObjectByName("contact"); };
   for (const type of ["barrel", "crate", "cannon", "fresnel_lens"]) {
-    const o = W.spawnProp({ type, pos: [0, 0, 0] }, 0);
-    const ao = o.getObjectByName("contact");
-    assert.ok(ao, `${type} has a contact shadow`);
-    assert.ok(Math.abs(ao.position.y) < 0.05, `${type} contact shadow on the ground`);
+    const ao = contactOf({ type, pos: [1, 0, -2] });
+    assert.ok(ao && ao.visible, `${type} has a contact shadow`);
+    const p = new (await import("three")).Vector3().setFromMatrixPosition(ao.matrixWorld);
+    assert.ok(Math.abs(p.y - 0.012) < 1e-6, `${type} contact shadow on the ground: ${p.y}`);
   }
-  // floating and sky props have none
-  for (const type of ["cloud", "ship"]) assert.ok(!W.spawnProp({ type, pos: [0, 0, 0] }, 0).getObjectByName("contact"), type);
+  // sky, water and hand props have none, nor does a prop hung or floating above the ground
+  for (const type of ["cloud", "ship", "mug"]) assert.ok(!contactOf({ type, pos: [0, 0, 0] }), type);
+  assert.ok(!contactOf({ type: "lantern", pos: [0, 2.2, 0] }), "a hung lantern");
+  // a barrel lying on its side (rot z 90): the footprint follows the rot, and the shadow stays flat on the ground
+  const up = contactOf({ type: "barrel", pos: [0, 0, 0] }).userData.size;
+  const lying = contactOf({ type: "barrel", pos: [0, 0, 0], rot: [0, 0, 90] });
+  assert.ok(lying.userData.size[0] > up[0] * 1.15, `lying footprint ${lying.userData.size} vs ${up}`);
+  const T = await import("three"), n = new T.Vector3(0, 0, 1).transformDirection(lying.matrixWorld);
+  assert.ok(n.y > 0.999, `flat on the ground: normal ${n.toArray()}`);
+  // every contact shadow shares one cached material (nothing per prop to free but its geometry)
+  assert.strictEqual(contactOf({ type: "crate", pos: [0, 0, 0] }).material, contactOf({ type: "barrel", pos: [0, 0, 0] }).material);
 });
 
+test("props sized against a person fit the 30 % taller cast", async () => {
+  const W = await world();
+  const { CHAR_HEIGHT: H } = await import(pathToFileURL(path.join(STUDIO, "engine", "cast.js")).href);
+  const T = await import("three");
+  const box = (type) => new T.Box3().setFromObject(W.PROPS[type]({}));
+  assert.ok(box("door").max.y >= 1.25 * H, `door ${box("door").max.y} vs character ${H}`);
+  const top = box("table").max.y;
+  assert.ok(top >= 0.35 * H && top <= 0.5 * H, `table top ${top} = ${(top / H).toFixed(2)} of a character`);
+  const bed = box("bed").getSize(new T.Vector3());
+  assert.ok(Math.max(bed.x, bed.z) >= 1.15 * H, `a character fits the bed: ${bed.toArray()}`);
+  assert.ok(box("coffin").getSize(new T.Vector3()).z >= 1.15 * H, "a character fits the coffin");
+  assert.ok(box("bell").max.y >= 1.25 * H, "the bell frame stands over a character");
+  // the grip props grow with the hand, and their muzzle / rest constants with them
+  assert.ok(Math.abs(W.MUZZLES.pistol[0] - 0.53 * W.PROP_SIZE.pistol) < 1e-9);
+});

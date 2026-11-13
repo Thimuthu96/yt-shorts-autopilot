@@ -59,19 +59,24 @@ const chars = new Map(); // id -> {c: Char, spec}
 let fxs = [], signs = []; // fxs: {g, born}; signs: roots with userData.tick
 const actFx = new Map(); // ctx.fx key -> fx group
 
+// frees the geometry an object owns; sprites share three's one sprite geometry, so theirs stays
 function dispose(obj) {
-  obj.traverse((k) => k.geometry && k.geometry.dispose());
+  obj.traverse((k) => k.geometry && !k.isSprite && k.geometry.dispose());
 }
 function drop(id) {
   const o = props.get(id);
   if (o) { scene.remove(o); dispose(o); props.delete(id); }
 }
 
-// FX sprites share one geometry and cached textures: only their own materials go. A sign owns its geometry and its
-// painted face (material + texture); its side material is a shared cached one.
+// FX sprites share one geometry and cached textures: only their own materials go; a beam's cone owns its geometry
+// and shader material. A sign owns its geometry and its painted face (material + texture); its side material is a
+// shared cached one.
 function dropFx({ g }) {
   scene.remove(g);
-  g.traverse((k) => k.isSprite && k.material.dispose());
+  g.traverse((k) => {
+    if (k.isSprite) k.material.dispose();
+    else if (k.isMesh) { k.geometry.dispose(); k.material.dispose(); }
+  });
 }
 function dropSign(o) {
   scene.remove(o);
@@ -165,7 +170,7 @@ function propSize(spec) {
   const key = JSON.stringify([spec.type, spec.scale ?? 1, spec.rot || null]);
   if (!propSizes.has(key)) {
     const o = spawnProp({ ...spec, pos: [0, 0, 0] }, 0), ao = o.getObjectByName("contact");
-    if (ao) { ao.removeFromParent(); ao.geometry.dispose(); } // the ground shadow is not part of the prop's size
+    if (ao) { ao.removeFromParent(); ao.geometry.dispose(); } // the ground shadow is not part of the prop's size (its material is shared)
     const box = new THREE.Box3().setFromObject(o);
     dispose(o);
     const h = Math.max(0.2, box.max.y - box.min.y);

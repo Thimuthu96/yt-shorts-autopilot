@@ -133,7 +133,24 @@ test("beam: a light cone sweeps around its point once per period; seeking equals
   assert.ok(!near(at(1, 2), at(1, 4)));
   F.updateFx(a, -0.1);
   assert.ok(!a.visible);
-  assert.throws(() => F.makeFx("beam", [0, 0, 0], null, 1, { period: 0 }), /beam period must be > 0/);
+  assert.throws(() => F.makeFx("beam", [0, 0, 0], null, 1, { period: 0 }), /beam period must be a number > 0/);
+  assert.throws(() => F.makeFx("beam", [0, 0, 0], null, 1, { period: "4" }), /beam period must be a number > 0/);
+  assert.throws(() => F.makeFx("smoke", [0, 0, 0], null, 1, { period: 2 }), /period is only for beam, not smoke/);
+});
+
+test("fx period is validated up front: beat fx and fx events, beam only, a number > 0", async () => {
+  const E = await load("events.js");
+  const tl = { fps: 30, duration: 1, beats: [{ i: 0, start: 0, end: 1, words: [{ w: "light", s: 0.1, e: 0.5 }] }] };
+  const story = (shot) => ({ beats: [{ chars: [], props: [], ...shot }] });
+  assert.doesNotThrow(() => E.shotEvents(story({ fx: [{ type: "beam", at: [0, 7, 0], period: 3 }] }), tl));
+  assert.doesNotThrow(() => E.shotEvents(story({ fx: [{ type: "beam" }] }), tl));
+  assert.throws(() => E.shotEvents(story({ fx: [{ type: "beam", period: 0 }] }), tl), /beat 0: fx 0: beam period must be a number > 0/);
+  assert.throws(() => E.shotEvents(story({ fx: [{ type: "smoke", period: 2 }] }), tl), /beat 0: fx 0: period is only for beam/);
+  assert.throws(() => E.shotEvents(story({ fx: [{ type: "rainbow" }] }), tl), /beat 0: fx 0: unknown fx: rainbow/);
+  const ev = (e) => story({ events: [{ at_word: 0, do: "fx", ...e }] });
+  assert.doesNotThrow(() => E.shotEvents(ev({ type: "beam", period: 2 }), tl));
+  assert.throws(() => E.shotEvents(ev({ type: "beam", period: -1 }), tl), /beat 0: fx: beam period must be a number > 0/);
+  assert.throws(() => E.shotEvents(ev({ type: "fire", period: 2 }), tl), /beat 0: fx: period is only for beam/);
 });
 
 test("signs keep the text's own case", async () => {

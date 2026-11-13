@@ -14,14 +14,15 @@
 //   prop spec: track(now) / kick(now) (world.js placeProp), chained by time so any past moment can be asked for;
 //   char spec: acts [{t0, fn}] folded by actState(); pose / facing / act (offsets) / holding / runs / squash for t;
 //   ctx.fx: [{key, shot, type, at, born, scale, rotY?}] fx the engine draws, each hidden until its `born`.
-import { EXPRS, handAt, charPosAt } from "./cast.js";
+import { EXPRS, handAt, charPosAt, CHAR_SCALE } from "./cast.js";
 import { propPosAt, muzzle, restHeight } from "./world.js";
 import { clamp01, easeOut } from "./core.js";
 
 export const RECOIL = 0.25; // seconds for a gun to kick back and settle
 export const RELEASE = 0.18; // seconds from a throw's word to the prop leaving the hand
 export const SQUASH_R = 1.5, SQUASH_DUR = 0.45;
-const RUN_SPEED = 4, GRAVITY = 9.8, PI = Math.PI;
+// character offsets and the run speed were tuned for the v1 cast (1.8 tall) and scale with the character (CHAR_SCALE)
+const RUN_SPEED = 4 * CHAR_SCALE, GRAVITY = 9.8, PI = Math.PI;
 export const SURFACES = { wood: "splinters", water: "splash", stone: "debris", ground: "debris", powder: "explosion" };
 const IMPACTS = ["splinters", "splash", "debris", "explosion", "none"];
 
@@ -178,7 +179,7 @@ export const ACTS = {
     opt: ["prop"], expr: "happy",
     apply: (ctx, ev, dt, s, t0) => {
       if (ev.prop) holdProp(ctx, s, ev.prop, t0);
-      pushAct(s, t0, (u) => ({ pose: "toast", off: { y: 0.07 * Math.abs(Math.sin(u * 10)) * Math.exp(-u * 3) } }));
+      pushAct(s, t0, (u) => ({ pose: "toast", off: { y: 0.07 * CHAR_SCALE * Math.abs(Math.sin(u * 10)) * Math.exp(-u * 3) } }));
     },
   },
   throw: {
@@ -202,7 +203,7 @@ export const ACTS = {
   },
   cower: {
     expr: "scared",
-    apply: (ctx, ev, dt, s, t0) => pushAct(s, t0, (u) => ({ pose: "cower", off: { sy: 1 - 0.1 * easeOut(u / 0.1), x: 0.025 * Math.sin(u * 47) } })),
+    apply: (ctx, ev, dt, s, t0) => pushAct(s, t0, (u) => ({ pose: "cower", off: { sy: 1 - 0.1 * easeOut(u / 0.1), x: 0.025 * CHAR_SCALE * Math.sin(u * 47) } })),
   },
   grab: {
     need: ["prop"],
@@ -235,7 +236,7 @@ export const ACTS = {
     expr: "excited",
     apply: (ctx, ev, dt, s, t0) => pushAct(s, t0, (u) => {
       if (u < 0.08) return { off: { sy: 1 - 0.15 * Math.sin((u / 0.08) * (PI / 2)), sx: 1.06 } };
-      if (u < 0.63) { const v = (u - 0.08) / 0.55; return { pose: "armsUp", off: { y: 2.8 * v * (1 - v), sy: 1.06, sx: 0.96 } }; }
+      if (u < 0.63) { const v = (u - 0.08) / 0.55; return { pose: "armsUp", off: { y: 2.8 * CHAR_SCALE * v * (1 - v), sy: 1.06, sx: 0.96 } }; }
       if (u < 0.8) return { off: { sy: 1 - 0.15 * Math.sin(((u - 0.63) / 0.17) * PI), sx: 1.06 } };
       return {}; // landed: back to whatever came before
     }),

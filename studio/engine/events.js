@@ -7,7 +7,7 @@
 //     spawn (fx, sign) makes the object at setup time, hidden until its event time: {kind: "fx"|"sign", obj, born}
 //   SCOPES[name] = {view, listed(shot) -> [ids]}   the things events act on; a new scope is one more entry
 //   eventTimes(shot, tlBeat) -> [{event, t}]   t = the at_word-th word's start (timeline seconds) + delay, by time
-//   shotEvents(story, timeline) -> [[{event, t}] per shot]   (every event checked; the engine calls it in setup)
+//   shotEvents(story, timeline) -> [[{event, t}] per shot]   (every event and beat fx checked; the engine calls it in setup)
 //   shotRoster(story) -> [{scope: Set(ids listed in that shot)} per shot]
 //   applyEvents(state, shotIndex, t) -> ctx = {t, shake: [right, up], <view>: Map(id -> spec at t) per scope}
 //     state = {story, timeline, <view>: Map(id -> base spec) per scope (a missing view is empty),
@@ -23,7 +23,7 @@
 // a later shot lists its `who` again (a new base spec) or once its `who` has left the stage; scene events never are.
 // Nothing accumulates across frames, so seeking to t gives exactly the frame that stepping to t gives.
 import { EXPRS, POSES, MOTIONS } from "./cast.js";
-import { FX, makeFx } from "./fx.js";
+import { FX, makeFx, checkFxPeriod } from "./fx.js";
 import { SIGN_STYLES, spawnSign } from "./signs.js";
 import { propPosAt } from "./world.js";
 import { ACTION_TYPES, ACTION_FIELDS, pushAct, refresh } from "./actions.js";
@@ -74,7 +74,7 @@ export const EVENT_TYPES = {
   },
   fx: {
     scope: "scene",
-    validate: (ev) => oneOf(ev, "type", Object.keys(FX), "fx"),
+    validate: (ev) => { oneOf(ev, "type", Object.keys(FX), "fx"); checkFxPeriod(ev.type, ev.period); },
     apply: noop,
     spawn: (ev, t) => ({ kind: "fx", obj: makeFx(ev.type, ev.at || [0, 0, 0], null, ev.scale || 1, { period: ev.period }), born: t }),
   },
@@ -115,7 +115,18 @@ export function eventTimes(shot, tlBeat) {
   }).sort((a, b) => a.t - b.t);
 }
 
-export const shotEvents = (story, timeline) => story.beats.map((shot, k) => eventTimes(shot, { i: k, ...timeline.beats[k] }));
+// a beat's own fx list: known types, and `period` only for beam (> 0); "beat N: fx M: ..." otherwise
+export function checkBeatFx(shot, n) {
+  (shot.fx || []).forEach((f, m) => {
+    try { if (!FX[f.type]) throw new Error(`unknown fx: ${f.type}`); checkFxPeriod(f.type, f.period); }
+    catch (e) { throw new Error(`beat ${n}: fx ${m}: ${e.message}`); }
+  });
+}
+
+export const shotEvents = (story, timeline) => story.beats.map((shot, k) => {
+  checkBeatFx(shot, k);
+  return eventTimes(shot, { i: k, ...timeline.beats[k] });
+});
 
 export const shotRoster = (story) => story.beats.map((shot) =>
   Object.fromEntries(Object.entries(SCOPES).map(([name, sc]) => [name, new Set(sc.listed(shot))])));

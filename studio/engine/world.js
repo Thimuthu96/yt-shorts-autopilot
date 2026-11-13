@@ -519,9 +519,16 @@ P.pistol = () => {
 };
 
 // where a prop that can `fire` shoots from, in its own frame (the barrel points along +x)
-export const MUZZLES = { cannon: [1.25, 0.99, 0], pistol: [0.53, 0.07, 0] };
+// Look v2: the cast is 30 % taller (cast.CHAR_HEIGHT 2.34), so props sized against a person grow with it: a door
+// stays taller than a character, a bed fits one, a mug or pistol fits the bigger hand. The builders below keep their
+// v1 numbers; PROP_SIZE scales what they build (x, y, z), and the muzzle / grip constants are scaled to match.
+// Barrels, crates, cannons, tables and chairs were checked beside a 2.34 character and keep their size.
+export const PROP_SIZE = { door: 1.3, bed: 1.3, bell: 1.3, coffin: 1.25, train_car: 1.3, rail: [1, 1.3, 1.3], mug: 1.3, pistol: 1.3 };
+const sizeOf = (type) => [].concat(PROP_SIZE[type] ?? 1).flatMap((v, i, a) => (a.length === 1 ? [v, v, v] : [v]));
+const sized = (type, v) => v.map((x, i) => x * sizeOf(type)[i]);
+export const MUZZLES = { cannon: [1.25, 0.99, 0], pistol: sized("pistol", [0.53, 0.07, 0]) };
 // height of a grip-origin prop's origin above the ground it rests on (others stand on their origin)
-const GRIP_REST = { mug: 0.18, pistol: 0.06 };
+const GRIP_REST = { mug: 0.18 * sizeOf("mug")[1], pistol: 0.06 * sizeOf("pistol")[1] };
 export const restHeight = (spec) => (GRIP_REST[spec.type] || 0) * (spec.scale || 1);
 
 P.barrel = (o) => {
@@ -695,22 +702,36 @@ P.lighthouse = () => {
 
 // a lighthouse's Fresnel lens: a beehive of stacked glass prism rings on a brass drum, a glowing lamp at its core
 // (about 1.9 tall; o.glow === false leaves the lamp dark). Pair it with the `beam` FX at [0, 1.05, 0] above its origin.
+// the lens's shared materials (made on first use, kept like the toon cache, so a dropped lens frees only geometry)
+let LENS = null;
+function lensMats() {
+  if (LENS) return LENS;
+  const map = paint("lens_halo", 128, 128, (x, w) => {
+    const r = x.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    r.addColorStop(0, "rgba(255,248,214,1)"); r.addColorStop(0.25, "rgba(255,220,120,0.75)"); r.addColorStop(1, "rgba(255,190,80,0)");
+    x.fillStyle = r; x.fillRect(0, 0, w, w);
+  });
+  LENS = {
+    edge: new THREE.MeshBasicMaterial({ color: "#F4FFFF", transparent: true, opacity: 0.9, depthWrite: false, fog: false }),
+    halo: new THREE.SpriteMaterial({ map, color: map ? "#ffffff" : "#FFD86A", transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, fog: false }),
+  };
+  return LENS;
+}
 P.fresnel_lens = (o) => {
   const g = new THREE.Group(), brass = "#A87A2C", lit = o.glow !== false;
   g.add(cyl(0.62, 0.7, 0.22, brass, { pos: [0, 0.11, 0], ink: true }));
   g.add(cyl(0.5, 0.56, 0.12, shade(brass, -0.2), { pos: [0, 0.28, 0] }));
-  // cyan prism glass, lit a little from inside; the rings round the lamp catch its light
-  const glass = toonMat("#8FDDF2", { transparent: true, opacity: 0.62, emissive: new THREE.Color(lit ? "#2F7F9A" : "#000000") });
-  const rim = toonMat(lit ? "#FFE9A6" : "#E9FBFF", { transparent: true, opacity: 0.9 });
+  // cyan-tinted see-through prism rings, each with a bright glass edge (a thin light rim along its top); the lamp
+  // shows through them
+  const glass = toonMat("#7FD6EE", { transparent: true, opacity: 0.38, depthWrite: false });
+  const edge = lensMats().edge;
   const core = 1.05, n = 11; // rings bulge out at the lamp's height and close in at the top and bottom
   for (let i = 0; i < n; i++) {
     const u = i / (n - 1), y = 0.38 + u * 1.32, r = 0.24 + 0.36 * Math.sin(PI * (0.08 + 0.84 * u));
-    const ring = mesh(new THREE.TorusGeometry(r, 0.065, 8, 40), Math.abs(y - core) < 0.2 ? rim : glass,
-      { pos: [0, y, 0], rot: [PI / 2, 0, 0], scale: [1, 1, 1.6], cast: false, ink: 0.015 });
-    g.add(ring);
+    g.add(mesh(new THREE.TorusGeometry(r, 0.065, 8, 40), glass, { pos: [0, y, 0], rot: [PI / 2, 0, 0], scale: [1, 1, 1.6], cast: false, receive: false }));
+    g.add(mesh(new THREE.TorusGeometry(r + 0.02, 0.016, 5, 48), edge, { pos: [0, y + 0.07, 0], rot: [PI / 2, 0, 0], cast: false, receive: false }));
   }
-  g.add(cyl(0.5, 0.5, 0.3, toonMat("#CFF3FB", { transparent: true, opacity: 0.3, depthWrite: false }),
-    { pos: [0, core, 0], cast: false, seg: 28 })); // the bull's-eye drum
   for (let i = 0; i < 8; i++) { // brass frame ribs
     const a = (i / 8) * 2 * PI;
     g.add(beam([Math.cos(a) * 0.3, 0.36, Math.sin(a) * 0.3], [Math.cos(a) * 0.62, core, Math.sin(a) * 0.62], 0.018, brass, { cast: false }));
@@ -718,11 +739,14 @@ P.fresnel_lens = (o) => {
   }
   g.add(cyl(0.12, 0.26, 0.12, brass, { pos: [0, 1.78, 0], ink: true }));
   g.add(sph(0.07, shade(brass, 0.2), { pos: [0, 1.88, 0] }));
-  const lamp = sph(0.16, lit ? glowMat("#FFF6C8") : "#9FB7C9", { pos: [0, core, 0], cast: false });
-  g.add(lamp);
+  g.add(cyl(0.05, 0.08, core - 0.34, "#5A4A3A", { pos: [0, 0.34 + (core - 0.34) / 2 - 0.1, 0], cast: false })); // the lamp's stand
+  // the bulb: a bright ball with a soft glow round it (a sprite, so the see-through glass never hides it)
+  g.add(sph(0.2, lit ? glowMat("#FFF8DC") : "#9FB7C9", { pos: [0, core, 0], cast: false, ink: lit ? false : 0.015 }));
   if (lit) {
-    const halo = sph(0.26, new THREE.MeshBasicMaterial({ color: "#FFD86A", transparent: true, opacity: 0.4, depthWrite: false, fog: false }),
-      { pos: [0, core, 0], cast: false });
+    const halo = new THREE.Sprite(lensMats().halo);
+    halo.position.set(0, core, 0);
+    halo.scale.setScalar(1.1);
+    halo.name = "bulb_glow";
     g.add(halo);
     const l = new THREE.PointLight("#FFE29A", 3, 6, 1.3); // inside the glass: it lights the room, not the rings' fronts
     l.position.set(0, core, 0);
@@ -1049,6 +1073,16 @@ P.cloud = (o) => {
   return g;
 };
 
+// apply PROP_SIZE: the builder's model inside a scaled group
+for (const type of Object.keys(PROP_SIZE)) {
+  const make = P[type];
+  P[type] = (o) => {
+    const m = make(o);
+    m.scale.multiply(new THREE.Vector3(...sizeOf(type)));
+    return group(m);
+  };
+}
+
 // ---------- prop faces ----------
 const FACE_EXPRS = ["neutral", "happy", "excited", "smug", "sly", "shocked", "scared", "sad", "worried", "angry", "pain"];
 function drawFace(x, w, h, expr) {
@@ -1202,8 +1236,8 @@ export function spawnProp(spec, t = 0) {
   if (spec.face) propFace(model, spec.face);
   const root = new THREE.Group();
   root.name = spec.id || spec.type;
+  const contact = contactShadow(model, spec); // measured on its own before the model joins the root
   root.add(model);
-  const contact = NO_CONTACT.has(spec.type) ? null : contactShadow(model);
   if (contact) root.add(contact);
   const born = t + (spec.delay || 0);
   root.userData = {
@@ -1214,8 +1248,11 @@ export function spawnProp(spec, t = 0) {
       root.visible = age >= 0;
       if (!root.visible) return;
       root.visible = placeProp(root, cur, age, now);
-      // the contact shadow belongs on the ground: gone while the prop is carried, flying or off its base height
-      if (contact) contact.visible = !(cur.track && cur.track(now)) && Math.abs(root.position.y - (cur.pos || [0, 0, 0])[1]) < 0.05;
+      // the contact shadow belongs on the ground: gone while the prop is carried, flying or lifted off it
+      if (contact) {
+        contact.visible = !(cur.track && cur.track(now)) && Math.abs(root.position.y) < ON_GROUND;
+        if (contact.visible) poseContact(contact, root);
+      }
       root.traverse((k) => { if (k.userData.flame) k.scale.y = 1 + 0.12 * Math.sin(now * 13 + k.id); });
     },
   };
@@ -1224,34 +1261,62 @@ export function spawnProp(spec, t = 0) {
 }
 
 // ---------- ambient occlusion (soft dark at bases) ----------
-// a dark gradient fading upward (or, sideways, along x) from its lower edge: wall bases, corners
-function aoMat(sideways = false) {
-  const map = paint(`ao${sideways}`, 64, 64, (x, w, h) => {
-    const g = sideways ? x.createLinearGradient(0, 0, w, 0) : x.createLinearGradient(0, h, 0, 0);
-    g.addColorStop(0, "rgba(20,10,4,0.55)"); g.addColorStop(0.35, "rgba(20,10,4,0.22)"); g.addColorStop(1, "rgba(20,10,4,0)");
-    x.fillStyle = g; x.fillRect(0, 0, w, h);
-  });
-  return new THREE.MeshBasicMaterial({ map, color: map ? "#ffffff" : "#000000", transparent: true, opacity: map ? 1 : 0.2, depthWrite: false,
-    polygonOffset: true, polygonOffsetFactor: -2, fog: false });
+// Materials here are shared and cached (like core.toonMat), so a dropped prop or set only frees its own geometry.
+const aoCache = new Map();
+function shadowMat(key, draw, fallbackOpacity) {
+  if (!aoCache.has(key)) {
+    const map = paint(key, 64, 64, draw);
+    aoCache.set(key, new THREE.MeshBasicMaterial({ map, color: map ? "#ffffff" : "#000000", transparent: true,
+      opacity: map ? 1 : fallbackOpacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, fog: false }));
+  }
+  return aoCache.get(key);
 }
-// a soft dark blob on the ground under a prop's footprint (a painted contact shadow), named "contact"
+// a dark gradient fading upward (or, sideways, along x) from its lower edge: wall bases, corners
+const aoMat = (sideways = false) => shadowMat(`ao${sideways}`, (x, w, h) => {
+  const g = sideways ? x.createLinearGradient(0, 0, w, 0) : x.createLinearGradient(0, h, 0, 0);
+  g.addColorStop(0, "rgba(20,10,4,0.55)"); g.addColorStop(0.35, "rgba(20,10,4,0.22)"); g.addColorStop(1, "rgba(20,10,4,0)");
+  x.fillStyle = g; x.fillRect(0, 0, w, h);
+}, 0.2);
+const contactMat = () => shadowMat("contact", (x, w) => {
+  const g = x.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+  g.addColorStop(0, "rgba(20,10,4,0.6)"); g.addColorStop(0.55, "rgba(20,10,4,0.32)"); g.addColorStop(1, "rgba(20,10,4,0)");
+  x.fillStyle = g; x.fillRect(0, 0, w, w);
+}, 0.25);
+
+// A soft dark blob on the ground under a prop resting there (a painted contact shadow), named "contact". Only for a
+// prop standing at ground level (pos y ~ 0, not hung or floating), not for sky / water / hand props. Its footprint is
+// measured after the story's rot and scale, and it stays flat on the ground however the prop is turned (posed per
+// tick by poseContact). userData.size = [x, z] footprint in world units.
 const NO_CONTACT = new Set(["cloud", "ship", "mug", "pistol", "pillar_rock", "flag"]);
-function contactShadow(model) {
+const ON_GROUND = 0.05;
+function contactShadow(model, spec) {
+  if (NO_CONTACT.has(spec.type) || Math.abs((spec.pos || [0, 0, 0])[1]) > ON_GROUND) return null;
+  const probe = new THREE.Group();
+  probe.rotation.set(...(spec.rot || [0, 0, 0]).map(deg));
+  probe.scale.setScalar(spec.scale || 1);
+  probe.add(model);
+  probe.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3());
-  const map = paint("contact", 128, 128, (x, w) => {
-    const g = x.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-    g.addColorStop(0, "rgba(20,10,4,0.6)"); g.addColorStop(0.55, "rgba(20,10,4,0.32)"); g.addColorStop(1, "rgba(20,10,4,0)");
-    x.fillStyle = g; x.fillRect(0, 0, w, w);
-  });
-  const m = new THREE.MeshBasicMaterial({ map, color: map ? "#ffffff" : "#000000", transparent: true, opacity: map ? 1 : 0.25,
-    depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  const c = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), m);
-  c.rotation.x = -PI / 2;
-  c.scale.set(Math.max(0.3, size.x * 1.25), Math.max(0.3, size.z * 1.25), 1);
-  c.position.set((box.min.x + box.max.x) / 2, 0.012, (box.min.z + box.max.z) / 2);
+  probe.remove(model); // (the model has no parent yet: spawnProp adds it to its root afterwards)
+  const c = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), contactMat());
   c.name = "contact";
   c.renderOrder = 1;
+  c.matrixAutoUpdate = false;
+  c.userData.size = [Math.max(0.3, size.x * 1.25), Math.max(0.3, size.z * 1.25)];
+  c.userData.center = [(box.min.x + box.max.x) / 2, (box.min.z + box.max.z) / 2];
+  c.userData.scale = spec.scale || 1;
   return c;
+}
+// the contact's local matrix inside a root at its current rotation / scale: flat on the ground under the footprint
+// (it grows with a pop-in)
+const _m = new THREE.Matrix4(), _w = new THREE.Matrix4(), _q = new THREE.Quaternion(), _flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -PI / 2);
+function poseContact(c, root) {
+  const k = root.scale.x / c.userData.scale, [cx, cz] = c.userData.center, [sx, sz] = c.userData.size;
+  _w.compose(new THREE.Vector3(cx * k, 0.012 - root.position.y, cz * k), _flat, // world offset from the root: on the ground
+    new THREE.Vector3(sx * k, sz * k, 1));
+  _m.compose(new THREE.Vector3(), _q.copy(root.quaternion), root.scale).invert();
+  c.matrix.multiplyMatrices(_m, _w);
+  c.matrixWorldNeedsUpdate = true;
 }
 
 // ---------- set pieces ----------

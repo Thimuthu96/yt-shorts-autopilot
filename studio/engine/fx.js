@@ -394,11 +394,18 @@ function beamCone({ length, radius, color, strength }) {
 // ---------- build and pose ----------
 const typeSeed = (type, at) => [...type].reduce((s, ch) => s + ch.charCodeAt(0) * 31, 0) + at[0] * 7.13 + at[1] * 3.31 + at[2] * 5.77;
 
+// an fx spec's `period` (beat fx and fx events): only for beam, a number > 0 (seconds per sweep); absent = default
+export function checkFxPeriod(type, period) {
+  if (period == null) return;
+  if (!(FX[type] && FX[type].cone)) throw new Error(`period is only for beam, not ${type}`);
+  if (!(typeof period === "number" && period > 0)) throw new Error(`beam period must be a number > 0 (got ${period})`);
+}
+
 export function makeFx(type, at = [0, 0, 0], seed = null, scale = 1, opts = {}) {
   const def = FX[type];
   if (!def) throw new Error(`unknown fx: ${type}`);
+  checkFxPeriod(type, opts && opts.period);
   const period = (opts && opts.period) ?? 4;
-  if (def.cone && !(period > 0)) throw new Error(`beam period must be > 0 (got ${period})`);
   const g = new THREE.Group();
   g.name = `fx:${type}`;
   g.position.set(...at);
