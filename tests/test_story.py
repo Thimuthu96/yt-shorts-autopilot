@@ -200,3 +200,11 @@ def test_malformed_shapes_never_raise(bad):
         s = bad
     p = S.validate(s, CAT)
     assert p and all(isinstance(x, str) for x in p)
+
+
+@pytest.mark.parametrize("sources", [None, 5, "https://a.example", {"url": "https://a.example"}])
+def test_sources_of_the_wrong_type_are_a_problem_not_a_crash(sources):
+    s = copy.deepcopy(V2)
+    s["sources"] = sources
+    assert "sources must be a list" in S._shape(s)
+    assert "sources must be a list" in S.validate(s, CAT)

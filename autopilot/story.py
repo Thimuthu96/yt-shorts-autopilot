@@ -136,7 +136,8 @@ def _shape(story) -> list[str]:
     for k in ("sources", "hashtags"):
         if not isinstance(story.get(k, []), list):
             p.append(f"{k} must be a list")
-    if any(not isinstance(x, dict) for x in story.get("sources", []) if isinstance(story.get("sources"), list)):
+    sources = story.get("sources", [])
+    if isinstance(sources, list) and any(not isinstance(x, dict) for x in sources):  # checked as a list first
         p.append("sources must be objects {url, title}")
     for k in ("title", "summary", "slug"):
         if k in story and not isinstance(story[k], str):
