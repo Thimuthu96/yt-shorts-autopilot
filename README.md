@@ -165,6 +165,10 @@ python scripts/delete_old_content.py                 # dry run: lists everything
 python scripts/delete_old_content.py --youtube       # only YouTube (or --facebook); --before YYYY-MM-DD to choose the date
 python scripts/delete_old_content.py --confirm       # deletes exactly the planned items (same options as the dry run)
 ```
+
+**Run `git pull` first** (so `data/history.json` lists every Gus upload) and don't pass a `--before` later than
+`gus.cutover` — the defaults already cover all crypto content.
+
 `--before` defaults to `gus.cutover` in `config.yaml` (2026-11-13, the day the crypto channel stopped), never
 "today", and every Gus upload in `data/history.json` (`video_id`, `fb_reel_id`) is always left out, whatever
 `--before` says. `--confirm` lists again first and refuses if anything new appeared ("plan out of date"); every id
