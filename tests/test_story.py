@@ -165,3 +165,17 @@ def test_narration_rules():
         s["beats"][3]["text"] = "I think so too"
     has(mut(f), "narration: first person")
 
+
+
+def test_levels_v2_counts_levels_not_shots():
+    def lv(s):
+        s["format"] = "levels"
+        for k, i in enumerate((0, 6, 12, 18, 24)):
+            s["beats"][i]["level"] = k + 1
+    assert not [x for x in mut(lv) if "level" in x]
+
+
+def test_two_shot_needs_look_at():
+    def f(s):
+        s["beats"][5]["cam"] = {"frame": "two_shot", "subject": "captain", "move": "push"}
+    has(mut(f), "needs look_at")

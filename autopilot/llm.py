@@ -1,4 +1,9 @@
-"""Minimal Gemini client (REST) that returns parsed JSON."""
+"""Minimal Gemini client (REST).
+
+    generate_json(prompt, models, temperature=0.9) -> dict
+    generate_text(prompt, models, tools=None, temperature=0.7, rounds=2) -> (text, groundingMetadata)
+        tools=[{"google_search": {}}] grounds the answer with Google Search (free tier); no JSON mime type then.
+"""
 import json
 import os
 import time
@@ -32,24 +37,57 @@ def generate_json(prompt: str, models, temperature: float = 0.9, retries: int = 
             "responseMimeType": "application/json",
         },
     }
+    return _run(models, key, body, retries, _parse_json, 2)
+
+
+def generate_text(prompt: str, models, tools=None, temperature: float = 0.7, retries: int = 4,
+                  rounds: int = 2) -> tuple[str, dict]:
+    """Plain text + the candidate's groundingMetadata ({} when not grounded). Same retry / fallback rules as
+    generate_json; `rounds=1` skips the 60 s wait and second round (e.g. a grounded call that has a fallback)."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY is not set")
+    if isinstance(models, str):
+        models = [models]
+    body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": temperature}}
+    if tools:
+        body["tools"] = tools
+    return _run(models, key, body, retries, _parse_text, rounds)
+
+
+def _run(models, key, body, retries, parse, rounds):
     errors = []
-    for round_no in range(2):
+    for round_no in range(rounds):
         if round_no:
             print("All Gemini models busy, waiting 60s before one more round", flush=True)
             time.sleep(60)
         for model in [m for m in models if m not in _unavailable]:
-            result, error = _try_model(model, key, body, retries)
+            result, error = _try_model(model, key, body, retries, parse)
             if result is not None:
                 return result
             errors.append(f"{model}: {error}")
     raise RuntimeError("All Gemini models failed — " + " | ".join(errors[-6:] or ["no models left to try"]))
 
 
+def _parse_json(text: str, cand: dict):
+    try:
+        return json.loads(_strip_fences(text))
+    except json.JSONDecodeError:
+        raise ValueError(f"invalid JSON: {text[:200]}")
+
+
+def _parse_text(text: str, cand: dict):
+    if not text.strip():
+        raise ValueError("empty text")
+    return text, cand.get("groundingMetadata") or {}
+
+
 def _log(msg: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}]   gemini: {msg}", flush=True)
 
 
-def _try_model(model: str, key: str, body: dict, retries: int):
+def _try_model(model: str, key: str, body: dict, retries: int, parse=_parse_json):
     last_error = ""
     for attempt in range(retries):
         started = time.time()
@@ -94,16 +132,17 @@ def _try_model(model: str, key: str, body: dict, retries: int):
             raise RuntimeError(f"Gemini error {r.status_code} for {model}: {r.text[:500]}")
         data = r.json()
         try:
-            parts = data["candidates"][0]["content"]["parts"]
+            cand = data["candidates"][0]
+            parts = cand["content"]["parts"]
         except (KeyError, IndexError):
             last_error = f"empty response: {json.dumps(data)[:200]}"
             time.sleep(5)
             continue
         text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
         try:
-            return json.loads(_strip_fences(text)), ""
-        except json.JSONDecodeError:
-            last_error = f"invalid JSON: {text[:200]}"
+            return parse(text, cand), ""
+        except ValueError as e:
+            last_error = str(e)
             continue
     return None, last_error
 

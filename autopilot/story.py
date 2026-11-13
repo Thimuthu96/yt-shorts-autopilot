@@ -154,7 +154,9 @@ def validate(story: dict, catalog: dict) -> list[str]:
         p.append(f"{len(beats)} shots (need {lo}-{hi})")
     if story["format"] == "levels":
         lv = [b.get("level") for b in beats if "level" in b]
-        if not 4 <= len(beats) <= 7:
+        if v2 and not 4 <= len(lv) <= 7:  # v2: shots carry `level` on the shot that opens each level
+            p.append("levels story needs 4-7 levels")
+        elif not v2 and not 4 <= len(beats) <= 7:
             p.append("levels story needs 4-7 beats")
         if not lv or any(not isinstance(x, int) for x in lv) or lv[0] != 1 or any(b <= a for a, b in zip(lv, lv[1:])):
             p.append("levels: `level` ints must start at 1 and strictly increase")
@@ -234,7 +236,9 @@ def validate(story: dict, catalog: dict) -> list[str]:
             _in(p, "cam frame", fr, cat["cam_frames"], L)
             if cam.get("subject") is None:
                 p.append(f"{L}: cam frame needs a subject")
-        for key in ("subject", "follow"):
+        if fr in ("two_shot", "ots") and cam.get("look_at") is None:
+            p.append(f"{L}: cam frame {fr} needs look_at")
+        for key in ("subject", "follow", "look_at"):
             if cam.get(key) is not None and cam[key] not in ids:
                 p.append(f"{L}: unknown cam {key} {cam[key]!r}")
         if fr == "ots" and mv in ("push", "closeUp"):
