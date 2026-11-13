@@ -1,0 +1,446 @@
+{
+  "sets": [
+    "ship_deck",
+    "open_sea",
+    "harbour",
+    "coast",
+    "furnace_room",
+    "town_street",
+    "room",
+    "office",
+    "lab",
+    "field",
+    "castle_yard",
+    "cutaway"
+  ],
+  "moods": [
+    "day",
+    "interior_glow",
+    "sunset",
+    "night",
+    "steel"
+  ],
+  "props": [
+    "cannonball",
+    "cannon",
+    "mug",
+    "pistol",
+    "barrel",
+    "crate",
+    "rope_coil",
+    "lantern",
+    "ship",
+    "lighthouse",
+    "fresnel_lens",
+    "sign_post",
+    "table",
+    "chair",
+    "bed",
+    "door",
+    "bell",
+    "coffin",
+    "jar",
+    "coin",
+    "lever",
+    "gear",
+    "rail",
+    "train_car",
+    "flag",
+    "torch",
+    "tongs",
+    "furnace",
+    "pillar_rock",
+    "palm",
+    "cloud"
+  ],
+  "poses": [
+    "idle",
+    "point",
+    "wave",
+    "armsUp",
+    "shrug",
+    "think",
+    "hold",
+    "cross",
+    "facepalm",
+    "present",
+    "scared",
+    "run",
+    "fall",
+    "cheer",
+    "carry",
+    "drink",
+    "toast",
+    "throw_wind",
+    "throw",
+    "duck",
+    "cower",
+    "grab"
+  ],
+  "exprs": [
+    "neutral",
+    "happy",
+    "excited",
+    "smug",
+    "sly",
+    "shocked",
+    "scared",
+    "sad",
+    "worried",
+    "angry",
+    "pain"
+  ],
+  "motions": [
+    "bob",
+    "hop",
+    "shake",
+    "flinch",
+    "run_across",
+    "fall_over",
+    "spin"
+  ],
+  "enters": [
+    "left",
+    "right",
+    "drop",
+    "pop"
+  ],
+  "fx": [
+    "smoke",
+    "fire",
+    "splinters",
+    "sparks",
+    "explosion",
+    "splash",
+    "steam",
+    "glow",
+    "flash",
+    "debris",
+    "bubbles",
+    "question",
+    "gunsmoke",
+    "beam"
+  ],
+  "cam_moves": [
+    "static",
+    "push",
+    "pull",
+    "panL",
+    "panR",
+    "orbitL",
+    "orbitR",
+    "rise",
+    "drop",
+    "tiltUp",
+    "lowSweep",
+    "flyOver",
+    "follow",
+    "closeUp"
+  ],
+  "sign_styles": [
+    "plank",
+    "barrel_label",
+    "banner",
+    "chalk",
+    "metal",
+    "paper"
+  ],
+  "cam_frames": [
+    "close",
+    "medium",
+    "two_shot",
+    "ots",
+    "low_hero",
+    "wide",
+    "pov"
+  ],
+  "transitions": [
+    "iris",
+    "cut",
+    "whipL",
+    "whipR",
+    "whipU"
+  ],
+  "looks": [
+    "gus"
+  ],
+  "costume_keys": [
+    "costume",
+    "shirt",
+    "stripes",
+    "pants",
+    "hat",
+    "hatColor",
+    "bandana",
+    "coat",
+    "apron",
+    "crown",
+    "helmet",
+    "glasses",
+    "mustache",
+    "beard",
+    "badge",
+    "prop"
+  ],
+  "costumes": [
+    "sailor",
+    "pirate",
+    "officer",
+    "worker",
+    "scientist",
+    "suit",
+    "king",
+    "knight",
+    "farmer",
+    "chef",
+    "doctor",
+    "plain"
+  ],
+  "anims": [
+    "spin",
+    "float",
+    "drop",
+    "wobble",
+    "fly",
+    "sink"
+  ],
+  "events": [
+    "expr",
+    "pose",
+    "motion",
+    "fx",
+    "sign",
+    "sfx_mark",
+    "shake",
+    "fire",
+    "launch",
+    "impact",
+    "fly_off",
+    "act"
+  ],
+  "event_fields": {
+    "expr": {
+      "need": [
+        "who",
+        "expr"
+      ]
+    },
+    "pose": {
+      "need": [
+        "who",
+        "pose"
+      ]
+    },
+    "motion": {
+      "need": [
+        "who",
+        "motion"
+      ]
+    },
+    "fx": {
+      "need": [
+        "type"
+      ],
+      "opt": [
+        "at",
+        "scale",
+        "period"
+      ]
+    },
+    "sign": {
+      "need": [
+        "text"
+      ],
+      "opt": [
+        "style",
+        "pos",
+        "rot"
+      ]
+    },
+    "sfx_mark": {
+      "need": [
+        "sfx"
+      ]
+    },
+    "shake": {
+      "opt": [
+        "amount"
+      ]
+    },
+    "fire": {
+      "need": [
+        "who"
+      ],
+      "opt": [
+        "projectile",
+        "to",
+        "dur",
+        "surface",
+        "impact",
+        "stay",
+        "scale"
+      ]
+    },
+    "launch": {
+      "need": [
+        "who",
+        "to"
+      ],
+      "opt": [
+        "dur",
+        "surface",
+        "impact",
+        "stay",
+        "scale"
+      ]
+    },
+    "impact": {
+      "need": [
+        "at"
+      ],
+      "opt": [
+        "surface",
+        "impact",
+        "scale"
+      ]
+    },
+    "fly_off": {
+      "need": [
+        "who",
+        "dir"
+      ],
+      "opt": [
+        "dist",
+        "dur"
+      ]
+    },
+    "act": {
+      "need": [
+        "who",
+        "act"
+      ],
+      "opt": [
+        "expr"
+      ]
+    }
+  },
+  "acts": [
+    "hold",
+    "drink",
+    "toast",
+    "throw",
+    "duck",
+    "cower",
+    "grab",
+    "run_to",
+    "point_at",
+    "look_at",
+    "jump",
+    "fall"
+  ],
+  "act_fields": {
+    "hold": {
+      "need": [
+        "prop"
+      ]
+    },
+    "drink": {
+      "opt": [
+        "prop"
+      ]
+    },
+    "toast": {
+      "opt": [
+        "prop"
+      ]
+    },
+    "throw": {
+      "need": [
+        "to"
+      ],
+      "opt": [
+        "prop",
+        "dur",
+        "surface",
+        "impact",
+        "stay",
+        "scale"
+      ]
+    },
+    "duck": {},
+    "cower": {},
+    "grab": {
+      "need": [
+        "prop"
+      ]
+    },
+    "run_to": {
+      "need": [
+        "pos"
+      ],
+      "opt": [
+        "speed"
+      ]
+    },
+    "point_at": {
+      "need": [
+        "id"
+      ]
+    },
+    "look_at": {
+      "need": [
+        "id"
+      ]
+    },
+    "jump": {},
+    "fall": {}
+  },
+  "surfaces": [
+    "wood",
+    "water",
+    "stone",
+    "ground",
+    "powder"
+  ],
+  "sfx": [
+    "whoosh",
+    "boom",
+    "splash",
+    "impact",
+    "pop",
+    "ding",
+    "crackle",
+    "creak"
+  ],
+  "hats": [
+    "cap",
+    "tricorn",
+    "captain",
+    "bowler",
+    "top",
+    "hardhat",
+    "chef",
+    "straw",
+    "beret",
+    "sailor",
+    "beanie"
+  ],
+  "glasses": [
+    "round",
+    "square",
+    "goggles"
+  ],
+  "held_props": [
+    "wrench",
+    "flask",
+    "clipboard",
+    "sword",
+    "pitchfork",
+    "ladle",
+    "scepter",
+    "spyglass",
+    "book",
+    "hammer"
+  ],
+  "frame_half_width": 0.325
+}
