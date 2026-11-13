@@ -278,3 +278,57 @@ test("seeking equals stepping for a five-event shot", async () => {
   show(seeked, 3.8); // jump past T first, then back: still the same frame
   assert.deepStrictEqual(show(seeked, T), last);
 });
+
+test("an action whose other prop or character has left the stage in a later shot is a no-op there", async () => {
+  const later = (events, removed) => ({ beats: [shot(events), { text: "boom", keep: true, remove: removed }] });
+  // fire + projectile, ball removed: the cannon's own event goes on (no crash), the ball is simply gone
+  const fire = await rig(later([{ at_word: 1, do: "fire", who: "cannon1", projectile: "ball1", to: [9, 0, -9] }], ["ball1"]));
+  assert.doesNotThrow(() => fire.at(4.3, 1));
+  assert.strictEqual(fire.at(4.3, 1).props.has("ball1"), false);
+  // hold then throw, mug removed
+  const thr = await rig(later([{ at_word: 0, do: "act", who: "pirate", act: "hold", prop: "mug1" },
+    { at_word: 2, do: "act", who: "pirate", act: "throw", to: [6, 0, 0] }], ["mug1"]));
+  assert.doesNotThrow(() => thr.at(4.3, 1));
+  assert.strictEqual(thr.at(4.3, 1).chars.get("pirate").pose, "idle", "the throw itself still plays");
+  // grab, mug removed
+  const grab = await rig(later([{ at_word: 0, do: "act", who: "pirate", act: "grab", prop: "mug1" }], ["mug1"]));
+  assert.doesNotThrow(() => grab.at(4.3, 1));
+  // point_at / look_at a character that has left: the act is skipped, the facing stays
+  const look = await rig(later([{ at_word: 0, do: "act", who: "pirate", act: "look_at", id: "gus" },
+    { at_word: 1, do: "act", who: "pirate", act: "point_at", id: "cannon1" }], ["gus", "cannon1"]));
+  const p = look.at(4.3, 1).chars.get("pirate");
+  assert.strictEqual(p.facing, "right");
+  assert.notStrictEqual(p.pose, "point");
+  // in the action's own shot a missing id is still a story error
+  const bad = await rig(one([{ at_word: 0, do: "act", who: "pirate", act: "point_at", id: "ghost" }]));
+  assert.throws(() => bad.at(1.0), /beat 0: act: no character or prop ghost on stage/);
+  const noBall = await rig(one([{ at_word: 0, do: "fire", who: "cannon1", projectile: "nope", to: [1, 1, 1] }]));
+  assert.throws(() => noBall.at(1.0), /beat 0: fire: no prop nope on stage/);
+});
+
+test("fire without a projectile rejects flight fields; act fields come from the acts", async () => {
+  const { E, A } = await load();
+  const bad = (ev) => () => E.eventTimes({ events: [{ at_word: 0, ...ev }] }, TL.beats[1]);
+  assert.throws(bad({ do: "fire", who: "cannon1", to: [1, 2, 3] }), /beat 1: fire: to needs a projectile/);
+  assert.throws(bad({ do: "fire", who: "cannon1", surface: "wood" }), /beat 1: fire: surface needs a projectile/);
+  assert.throws(bad({ do: "fire", who: "cannon1", impact: "splash" }), /beat 1: fire: impact needs a projectile/);
+  assert.doesNotThrow(bad({ do: "fire", who: "cannon1" }));
+  assert.throws(bad({ do: "act", who: "pirate", act: "grab" }), /beat 1: act: grab needs prop/);
+  const cat = A.catalog().act_fields;
+  for (const [name, a] of Object.entries(A.ACTS)) {
+    assert.deepStrictEqual(cat[name].need, a.need, name);
+    assert.deepStrictEqual(cat[name].opt, a.opt, name);
+  }
+  assert.deepStrictEqual(cat.run_to, { need: ["pos"], opt: ["speed"] });
+});
+
+test("run_to shows the run pose over an act pose; the held prop rides the running hand", async () => {
+  const r = await rig(one([{ at_word: 0, do: "act", who: "pirate", act: "hold", prop: "mug1" },
+    { at_word: 1, do: "act", who: "pirate", act: "run_to", pos: [6, 0, 1] }]));
+  const c = new r.C.Char("pirate", { costume: "pirate" });
+  c.born = 0.5; c.keep(shot([]).chars[0], 0.5);
+  assert.strictEqual(c.frame(r.at(1.3).chars.get("pirate"), 1.3, 0).pose, "run");
+  assert.strictEqual(c.frame(r.at(3.9).chars.get("pirate"), 3.9, 0).pose, "carry", "back to the act pose once there");
+  const s = r.at(1.3).chars.get("pirate");
+  assertNear(r.propPos("mug1", 1.3), r.C.handAt({ ...s, pose: "run" }, 1.3), "in the running hand");
+});

@@ -39,12 +39,16 @@ function landing(ev) {
   positive(ev, "dur"); positive(ev, "scale");
 }
 const impactType = (ev) => ev.impact ?? SURFACES[ev.surface ?? "ground"];
+const LANDING = ["dur", "surface", "impact", "stay", "scale"]; // a flight's optional fields
+const VEC_FIELDS = ["to", "pos", "at", "dir"]; // fields that must be [x, y, z]
 
 // ---------- ctx helpers ----------
+// A thing an action names besides its `who` (a projectile, a held prop, a target): missing in the action's own shot is a
+// story error; missing in a later shot (removed since, ctx.past) makes that part of the action a silent no-op.
 function propOf(ctx, id) {
   const p = ctx.props.get(id);
-  if (!p) throw new Error(`no prop ${id} on stage`);
-  return p;
+  if (!p && !ctx.past) throw new Error(`no prop ${id} on stage`);
+  return p || null;
 }
 function charOf(ctx, id) {
   const s = ctx.chars.get(id);
@@ -55,6 +59,7 @@ const posOf = (p, now) => propPosAt(p, p.spawnT || 0, now);
 function targetPos(ctx, id, t) {
   if (ctx.chars.has(id)) return charPosAt(ctx.chars.get(id), t);
   if (ctx.props.has(id)) return posOf(ctx.props.get(id), t);
+  if (ctx.past) return null;
   throw new Error(`no character or prop ${id} on stage`);
 }
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
@@ -138,7 +143,9 @@ function heldRot(s, now, r0) {
 }
 // prop `id` rides s's hand from t0 (+ reach: it stays put, then flies to the hand over 0.15 s)
 function holdProp(ctx, s, id, t0, reach = 0) {
-  const p = propOf(ctx, id), start = posOf(p, t0), r0 = rad(p.rot);
+  const p = propOf(ctx, id);
+  if (!p) return;
+  const start = posOf(p, t0), r0 = rad(p.rot);
   p.track = chain(p.track, t0, (now) => {
     const k = clamp01((now - t0 - reach) / 0.15);
     if (reach && k <= 0) return { pos: start };
@@ -147,37 +154,42 @@ function holdProp(ctx, s, id, t0, reach = 0) {
   });
   if (ctx.t - t0 >= reach) s.holding = id;
 }
-const facingTo = (ctx, s, id, t0) => (targetPos(ctx, id, t0)[0] < charPosAt(s, t0)[0] ? "left" : "right");
+// the facing toward `id` (null when it has left the stage since)
+function facingTo(ctx, s, id, t0) {
+  const p = targetPos(ctx, id, t0);
+  return p && (p[0] < charPosAt(s, t0)[0] ? "left" : "right");
+}
 
-// ACTS[name] = {expr?: default expression, validate?(ev), apply(ctx, ev, dt, s, t0)}; s = the character's spec
+// ACTS[name] = {need?, opt?: field names, expr?: default expression, validate?(ev): extra checks,
+//              apply(ctx, ev, dt, s, t0)}; s = the character's spec. `need` / `opt` are checked and go to the catalog.
 export const ACTS = {
   hold: {
-    validate: (ev) => need(ev, "prop", "hold"),
+    need: ["prop"],
     apply: (ctx, ev, dt, s, t0) => { holdProp(ctx, s, ev.prop, t0); pushAct(s, t0, () => ({ pose: "carry", off: null })); },
   },
   drink: {
-    expr: "happy",
+    opt: ["prop"], expr: "happy",
     apply: (ctx, ev, dt, s, t0) => {
       if (ev.prop) holdProp(ctx, s, ev.prop, t0);
       pushAct(s, t0, (u, st) => (u >= 0.15 && u < 1.3 ? { pose: "drink", off: { tilt: 0.08 * dirOf(st.facing) } } : { pose: "carry", off: null }));
     },
   },
   toast: {
-    expr: "happy",
+    opt: ["prop"], expr: "happy",
     apply: (ctx, ev, dt, s, t0) => {
       if (ev.prop) holdProp(ctx, s, ev.prop, t0);
       pushAct(s, t0, (u) => ({ pose: "toast", off: { y: 0.07 * Math.abs(Math.sin(u * 10)) * Math.exp(-u * 3) } }));
     },
   },
   throw: {
-    validate: (ev) => { vec(ev, "to", "throw"); landing(ev); },
+    need: ["to"], opt: ["prop", ...LANDING], validate: landing,
     apply: (ctx, ev, dt, s, t0) => {
       const id = ev.prop || s.holding;
-      if (!id) throw new Error("throw needs prop (or a held one)");
-      if (s.holding !== id) holdProp(ctx, s, id, t0);
+      if (!id && !ctx.past) throw new Error("throw needs prop (or a held one)");
+      if (id && s.holding !== id) holdProp(ctx, s, id, t0);
       pushAct(s, t0, (u) => ({ pose: u < RELEASE ? "throw_wind" : u < 0.7 ? "throw" : "idle", off: null }));
-      const rel = t0 + RELEASE;
-      launchProp(ctx, propOf(ctx, id), heldPos(s, rel), rel, ev, 0);
+      const rel = t0 + RELEASE, p = id && propOf(ctx, id);
+      if (p) launchProp(ctx, p, heldPos(s, rel), rel, ev, 0);
       if (ctx.t >= rel) delete s.holding;
     },
   },
@@ -193,14 +205,14 @@ export const ACTS = {
     apply: (ctx, ev, dt, s, t0) => pushAct(s, t0, (u) => ({ pose: "cower", off: { sy: 1 - 0.1 * easeOut(u / 0.1), x: 0.025 * Math.sin(u * 47) } })),
   },
   grab: {
-    validate: (ev) => need(ev, "prop", "grab"),
+    need: ["prop"],
     apply: (ctx, ev, dt, s, t0) => {
       holdProp(ctx, s, ev.prop, t0, 0.12);
       pushAct(s, t0, (u) => ({ pose: u < 0.3 ? "grab" : "carry", off: null }));
     },
   },
   run_to: {
-    validate: (ev) => { vec(ev, "pos", "run_to"); positive(ev, "speed"); },
+    need: ["pos"], opt: ["speed"], validate: (ev) => positive(ev, "speed"),
     apply: (ctx, ev, dt, s, t0) => {
       const from = charPosAt(s, t0);
       s.runs = [...(s.runs || []), { t0, from, to: [...ev.pos], dur: Math.max(0.25, dist(from, ev.pos) / (ev.speed ?? RUN_SPEED)) }];
@@ -209,12 +221,15 @@ export const ACTS = {
     },
   },
   point_at: {
-    validate: (ev) => need(ev, "id", "point_at"),
-    apply: (ctx, ev, dt, s, t0) => { const facing = facingTo(ctx, s, ev.id, t0); pushAct(s, t0, () => ({ pose: "point", facing, off: null })); },
+    need: ["id"],
+    apply: (ctx, ev, dt, s, t0) => {
+      const facing = facingTo(ctx, s, ev.id, t0);
+      if (facing) pushAct(s, t0, () => ({ pose: "point", facing, off: null }));
+    },
   },
   look_at: {
-    validate: (ev) => need(ev, "id", "look_at"),
-    apply: (ctx, ev, dt, s, t0) => { const facing = facingTo(ctx, s, ev.id, t0); pushAct(s, t0, () => ({ facing })); },
+    need: ["id"],
+    apply: (ctx, ev, dt, s, t0) => { const facing = facingTo(ctx, s, ev.id, t0); if (facing) pushAct(s, t0, () => ({ facing })); },
   },
   jump: {
     expr: "excited",
@@ -239,7 +254,11 @@ export const ACTS = {
 export const ACTION_TYPES = {
   fire: {
     scope: "prop",
-    validate: (ev) => { need(ev, "who"); if (ev.projectile != null) { vec(ev, "to"); landing(ev); } },
+    validate: (ev) => {
+      need(ev, "who");
+      if (ev.projectile != null) { vec(ev, "to"); landing(ev); return; }
+      for (const k of ["to", ...LANDING]) if (ev[k] != null) throw new Error(`${k} needs a projectile`);
+    },
     apply: (ctx, ev, dt) => {
       const p = propOf(ctx, ev.who), t0 = ctx.t - dt, m = muzzle(p, t0), k = p.scale || 1;
       const prev = p.kick;
@@ -251,7 +270,8 @@ export const ACTION_TYPES = {
       };
       const rotY = Math.atan2(-m.dir[2], m.dir[0]);
       ctx.fx.push({ key: `${ctx.key}:0`, shot: ctx.shot, type: "gunsmoke", at: m.pos, born: t0, scale: k, rotY });
-      if (ev.projectile != null) launchProp(ctx, propOf(ctx, ev.projectile), m.pos, t0, ev, 2);
+      const ball = ev.projectile != null && propOf(ctx, ev.projectile);
+      if (ball) launchProp(ctx, ball, m.pos, t0, ev, 2);
     },
   },
   launch: {
@@ -289,6 +309,8 @@ export const ACTION_TYPES = {
       const a = ACTS[ev.act];
       if (!a) throw new Error(`unknown act: ${ev.act}`);
       if (ev.expr != null && !EXPRS.includes(ev.expr)) throw new Error(`unknown expr: ${ev.expr}`);
+      for (const k of a.need || []) (VEC_FIELDS.includes(k) ? vec(ev, k, ev.act) : need(ev, k, ev.act));
+      for (const k of a.opt || []) if (ev[k] != null && VEC_FIELDS.includes(k)) vec(ev, k, ev.act);
       if (a.validate) a.validate(ev);
     },
     apply: (ctx, ev, dt) => {
@@ -302,7 +324,6 @@ export const ACTION_TYPES = {
 };
 
 // Fields per event / act for the catalog (need = required, opt = optional); events.js adds ACTION_FIELDS to its own.
-const LANDING = ["dur", "surface", "impact", "stay", "scale"];
 export const ACTION_FIELDS = {
   fire: { need: ["who"], opt: ["projectile", "to", ...LANDING] }, // `to` is required with a projectile
   launch: { need: ["who", "to"], opt: LANDING },
@@ -310,11 +331,8 @@ export const ACTION_FIELDS = {
   fly_off: { need: ["who", "dir"], opt: ["dist", "dur"] },
   act: { need: ["who", "act"], opt: ["expr"] }, // plus the act's own fields (act_fields)
 };
-const ACT_FIELDS = {
-  hold: { need: ["prop"] }, drink: { opt: ["prop"] }, toast: { opt: ["prop"] }, throw: { need: ["to"], opt: ["prop", ...LANDING] },
-  duck: {}, cower: {}, grab: { need: ["prop"] }, run_to: { need: ["pos"], opt: ["speed"] },
-  point_at: { need: ["id"] }, look_at: { need: ["id"] }, jump: {}, fall: {},
-};
+const ACT_FIELDS = Object.fromEntries(Object.entries(ACTS).map(([name, a]) =>
+  [name, { ...(a.need ? { need: a.need } : {}), ...(a.opt ? { opt: a.opt } : {}) }]));
 
 // Names this registry adds to studio/catalog.json (events.js lists the event types).
 export function catalog() {

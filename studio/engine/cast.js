@@ -642,7 +642,8 @@ export function charPosAt(spec, t) {
 // when it holds with both); x follows the facing (the sprite is drawn facing right), a little in front of the sprite.
 // spec.act offsets ({x, y, sx, sy}) are included; lean and motions are not.
 export function handAt(spec, t) {
-  const pose = POSES[spec.pose || "idle"](t), arms = pose.arms;
+  const run = runAt(spec.runs, t);
+  const pose = POSES[run && run.moving ? "run" : spec.pose || "idle"](t), arms = pose.arms;
   const hand = pose.both ? [(arms[0][2] + arms[1][2]) / 2, (arms[0][3] + arms[1][3]) / 2] : pose.busy ? arms[0].slice(2, 4) : arms[1].slice(2, 4);
   const dir = dirOf(spec.facing), a = spec.act || {}, [x, y, z] = charPosAt(spec, t);
   return [x + (a.x || 0) + dir * hand[0] * UNIT * (a.sx ?? 1), y + (a.y || 0) + (FOOT - hand[1]) * UNIT * (a.sy ?? 1), z + 0.12];
@@ -720,7 +721,7 @@ export class Char {
     if (spec.act) add(spec.act); // the current act's offsets (actions.js), already for time t
     if (spec.squash) add(spec.squash); // squash & stretch from a nearby impact
     let pose = pose0;
-    if (pose === "idle" && walking) pose = "run";
+    if ((pose === "idle" && walking) || (run && run.moving)) pose = "run"; // a run_to shows the run over any act pose
     if (pose === "idle" && m.falling) pose = "fall";
     if (walking) m.y += Math.abs(Math.sin(t * 11)) * 0.1;
     const talk = spec.talk ? Math.round(clamp01(mouth) * 3) / 3 : 0;

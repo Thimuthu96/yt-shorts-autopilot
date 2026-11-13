@@ -140,10 +140,11 @@ export function applyEvents(state, shotIndex, t) {
         if (relisted) continue;
       }
       ctx.shot = k; ctx.key = `${k}.${n}`; // fx made by this event are keyed by it
+      ctx.past = k < shotIndex; // an earlier shot's action skips things that have left the stage since
       try { type.apply(ctx, event, t - at); } catch (e) { throw new Error(`beat ${k}: ${event.do}: ${e.message}`); }
     }
   }
-  delete ctx.shot; delete ctx.key;
+  delete ctx.shot; delete ctx.key; delete ctx.past;
   return ctx;
 }
 
