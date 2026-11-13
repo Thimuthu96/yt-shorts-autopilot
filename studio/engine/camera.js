@@ -7,7 +7,8 @@
 //   handoff(cam, durA, durB, envAt) -> shot A's last pose + its velocity, the `prev` of the shot after it
 //   placeCamera(camera, pose, {shake, whip}) poses a three.js camera: lookAt, shake, whip turn, then roll
 //   irisMask(t, dur)              -> visible radius 0..1 (1 = whole frame) across an iris boundary
-//   whipAt(dt, kind)              -> {yaw, pitch, blur, dir} across a whip boundary (dt = t - boundary)
+//   whipAt(dt, kind, max?)        -> {yaw, pitch, blur, rate, dir} across a whip boundary (dt = t - boundary)
+//   whipLimit(pose, kind)         -> the whip's peak turn (rad) for the incoming shot's first pose (whipU keeps the horizon)
 //   cutsAt(transition)            -> true when a shot entered by this transition starts on its own framing
 // The camera never stops at a shot boundary: moves run at a steady speed through the shot, and a continuous shot
 // starts on the previous shot's last pose, carrying on at its velocity while it eases into its own move.
@@ -131,6 +132,10 @@ export const FRAMES = {
 };
 const OTS_BACK = 1.0, OTS_ANGLE = 17; // ots: camera distance behind the subject's head (x size), its head's angle
 const NEEDS_OTHER = new Set(["two_shot", "ots"]);
+// moves that would drive an ots / pov camera through the subject (ots: forward past its shoulder; pov: back through
+// its head) play as `static` instead (the Task 9 validator should reject them)
+const UNSAFE = { ots: ["push", "closeUp"], pov: ["pull", "flyOver", "lowSweep"] };
+export const safeMove = (frame, move) => ((UNSAFE[frame] || []).includes(move) ? "static" : move);
 
 function preset(cam, env, fov) {
   const fr = FRAMES[cam.frame];
@@ -146,8 +151,9 @@ function preset(cam, env, fov) {
 const isV2 = (cam) => !!cam.frame || cam.version >= 2;
 
 function base(cam, env) {
-  const move = cam.move || "static";
-  if (!CAM_MOVES[move]) throw new Error(`unknown camera move: ${move}`);
+  const asked = cam.move || "static";
+  if (!CAM_MOVES[asked]) throw new Error(`unknown camera move: ${asked}`);
+  const move = cam.frame ? safeMove(cam.frame, asked) : asked;
   const fov = cam.fov ?? (isV2(cam) ? FOV2 : FOV);
   if (cam.frame) return { move, fov, ...preset(cam, env, fov) };
   return {
@@ -232,17 +238,30 @@ export function irisMask(t, dur = 0.45) {
 // Over the last WHIP s of the old shot the camera turns ever faster in the whip's direction (0 -> +MAX, quadratic in
 // time); the new shot comes in from the other side and settles (-MAX -> 0): the turn speed is the same on both sides
 // of the boundary and peaks there, where the set changes. blur = turn speed / its peak (0..1); dir = the screen axis the
-// image smears along. whipL turns left (+yaw), whipR right, whipU up (+pitch). Stateless: a function of dt alone.
+// image smears along; rate = the turn speed in rad/s (sets the engine's smear length). whipL turns left (+yaw), whipR right, whipU up (+pitch). Stateless: a function of dt alone.
 export const WHIP = 0.12; // seconds each side of the boundary
-const WHIP_MAX = { yaw: 60 / DEG, pitch: 50 / DEG };
+const WHIP_MAX = { yaw: 60 / DEG, pitch: 35 / DEG };
+const HORIZON = 8 / DEG, PITCH_MIN = 10 / DEG; // whipU: the horizon stays this far inside the top edge (cap >= 10 deg)
 const WHIPS = { whipL: ["yaw", 1], whipR: ["yaw", -1], whipU: ["pitch", 1] };
-export function whipAt(dt, kind) {
-  const w = WHIPS[kind], out = { yaw: 0, pitch: 0, blur: 0, dir: kind === "whipU" ? [0, 1] : [1, 0] };
+// The peak turn for a whip into a shot whose first pose is `pose`. whipU comes in tilted down, so its cap keeps the
+// horizon in frame: pitch of the view + half the vertical fov - HORIZON (a low camera looking up may tilt further than
+// one looking down), clamped to 10..35 deg. The same cap serves both sides of the boundary (the speeds still match).
+export function whipLimit(pose, kind) {
+  const w = WHIPS[kind];
+  if (!w) return 0;
+  if (w[0] !== "pitch") return WHIP_MAX[w[0]];
+  const d = pose.look.map((v, i) => v - pose.pos[i]), pitch = Math.atan2(d[1], Math.hypot(d[0], d[2]));
+  return Math.max(PITCH_MIN, Math.min(WHIP_MAX.pitch, pitch + (pose.fov / 2) * RAD - HORIZON));
+}
+
+export function whipAt(dt, kind, max) {
+  const w = WHIPS[kind], out = { yaw: 0, pitch: 0, blur: 0, rate: 0, dir: kind === "whipU" ? [0, 1] : [1, 0] };
   if (!w || !(Math.abs(dt) < WHIP)) return out;
   const [axis, sign] = w, u = dt / WHIP; // -1..1
   // t = boundary is the new shot's first frame (the engine switches shots there), so it takes the incoming side
-  out[axis] = sign * WHIP_MAX[axis] * (u < 0 ? (1 + u) ** 2 : -((1 - u) ** 2));
+  out[axis] = sign * (max ?? WHIP_MAX[axis]) * (u < 0 ? (1 + u) ** 2 : -((1 - u) ** 2));
   out.blur = 1 - Math.abs(u);
+  out.rate = (2 * (max ?? WHIP_MAX[axis]) / WHIP) * out.blur; // turn speed, rad/s
   return out;
 }
 

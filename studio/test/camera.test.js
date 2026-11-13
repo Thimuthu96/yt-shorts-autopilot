@@ -352,3 +352,53 @@ test("whips count as cuts: the shot after a whip starts on its own framing", asy
   for (const tr of ["cut", "iris", "whipL", "whipR", "whipU"]) assert.ok(C.cutsAt(tr), tr);
   assert.ok(!C.cutsAt(null) && !C.cutsAt(undefined));
 });
+
+// ---------- fix round 1 ----------
+test("whipU keeps the horizon in frame at the peak: incoming low_hero / close / wide shots", async () => {
+  const C = await camera();
+  const T = await THREE();
+  for (const frame of ["low_hero", "close", "wide", "medium"]) {
+    const incoming = C.camPose({ frame, subject: "a", cut: true }, null, 0, ENV);
+    const max = C.whipLimit(incoming, "whipU");
+    assert.ok(max <= (35 * Math.PI) / 180 + 1e-9, `${frame}: cap ${max}`);
+    for (const dt of [0, 0.02, 0.05]) {
+      const c = await placed(incoming, { whip: C.whipAt(dt, "whipU", max) });
+      // the ray through the top-centre of the frame points above the horizon (the ground plane is not the whole frame)
+      const top = new T.Vector3(0, 1, 0.5).unproject(c).sub(c.position).normalize();
+      assert.ok(top.y > Math.sin((4 * Math.PI) / 180), `${frame} dt ${dt}: top ray y ${top.y.toFixed(3)}`);
+    }
+  }
+  // the cap is used on both sides of the boundary, so the turn speed still matches and peaks there
+  const w = (dt) => C.whipAt(dt, "whipU", 0.3).pitch;
+  assert.ok(Math.abs(w(-1e-9) - 0.3) < 1e-6 && Math.abs(w(0) + 0.3) < 1e-6);
+  // rate: the turn speed, peaking at 2 x max / 0.12 s at the boundary, 0 outside
+  assert.ok(Math.abs(C.whipAt(0, "whipU", 0.3).rate - (2 * 0.3) / 0.12) < 1e-9);
+  assert.strictEqual(C.whipAt(0.2, "whipU", 0.3).rate, 0);
+  assert.ok(C.whipAt(0.06, "whipL").rate < C.whipAt(0.01, "whipL").rate);
+  // whipL / whipR keep their yaw (60 deg); the limit only changes pitch
+  assert.ok(Math.abs(C.whipLimit({ pos: [0, 0.4, 3], look: [0, 1.3, 0], fov: 60 }, "whipL") - Math.PI / 3) < 1e-9);
+});
+
+test("ots and pov ignore moves that would drive the camera through the subject", async () => {
+  const C = await camera();
+  for (const move of ["push", "closeUp"]) {
+    const a = C.camPose({ frame: "ots", subject: "a", look_at: "b", move, cut: true }, null, 1, ENV);
+    const b = C.camPose({ frame: "ots", subject: "a", look_at: "b", move: "static", cut: true }, null, 1, ENV);
+    nearPose(a, b);
+  }
+  for (const move of ["pull", "flyOver", "lowSweep"]) {
+    for (const p of [0, 0.5, 1]) {
+      const q = C.camPose({ frame: "pov", subject: "a", look_at: "b", move, cut: true }, null, p, ENV);
+      const ahead = sub(q.look, q.pos), back = sub(q.pos, headOf(SUBJ));
+      // the camera stays in front of the subject's head, toward what it looks at
+      assert.ok(back[0] * ahead[0] + back[2] * ahead[2] > 0, `pov ${move} p=${p}`);
+    }
+  }
+  // the ots camera stays behind the subject through the whole shot for every other move
+  for (const move of MOVES.filter((m) => m !== "follow")) {
+    for (const p of [0, 1]) {
+      const q = C.camPose({ frame: "ots", subject: "a", look_at: "b", move, cut: true }, null, p, ENV);
+      assert.ok(len(sub(q.pos, headOf(OTHER))) > len(sub(headOf(SUBJ), headOf(OTHER))) + 0.3, `ots ${move} p=${p}`);
+    }
+  }
+});

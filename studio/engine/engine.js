@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { clamp01 } from "./core.js";
 import { buildSet, spawnProp } from "./world.js";
 import { Char, CHAR_HEIGHT, HEAD_AT, charPosAt } from "./cast.js";
-import { camPose, handoff, irisMask, placeCamera, whipAt, cutsAt } from "./camera.js";
+import { camPose, handoff, irisMask, placeCamera, whipAt, whipLimit, cutsAt } from "./camera.js";
 import { makeFx, updateFx } from "./fx.js";
 import { spawnSign } from "./signs.js";
 import { captionWord, drawCaption } from "./captions.js";
@@ -34,7 +34,7 @@ const IRIS = 0.45, HALF_DIAG = Math.hypot(W, H) / 2;
 const blurCanvas = document.getElementById("blur"), blurTmp = document.createElement("canvas");
 blurCanvas.width = blurTmp.width = canvas.width; blurCanvas.height = blurTmp.height = canvas.height;
 const blurCtx = blurCanvas.getContext("2d"), tmpCtx = blurTmp.getContext("2d");
-const BLUR_MAX = 0.35; // smear length at the whip's peak, as a fraction of the frame along the smear
+const SHUTTER = 0.5; // the smear covers the turn during half a frame (a 180 degree shutter)
 const TAPS = 12;
 
 // captions: a 2D canvas over the 3D view, inside #stage so the iris clips it too
@@ -236,11 +236,13 @@ function poseAt(k, t) {
   return camPose(cam, prev, progress(k, t), camEnv(k, t));
 }
 
-// the whip around t, if any: {yaw, pitch, blur, dir} (camera.whipAt) for the boundary of a beat entered by a whip
+// the whip around t, if any: {yaw, pitch, blur, dir} (camera.whipAt) for the boundary of a beat entered by a whip;
+// its peak turn comes from the incoming beat's first pose (whipLimit), the same on both sides of the boundary
 function whipNow(t) {
   for (let k = 1; k < STORY.beats.length; k++) {
-    const edge = TL.beats[k].start, w = whipAt(t - edge, STORY.beats[k].transition);
-    if (w.blur > 0) return w;
+    const edge = TL.beats[k].start, kind = STORY.beats[k].transition;
+    if (whipAt(t - edge, kind).blur <= 0) continue;
+    return whipAt(t - edge, kind, whipLimit(poseAt(k, edge), kind));
   }
   return null;
 }
@@ -259,7 +261,9 @@ function smear(ctx, src, dir, len) {
 }
 function drawBlur(w) {
   if (!w) { blurCanvas.style.display = "none"; return; }
-  const len = w.blur * BLUR_MAX * (w.dir[0] ? canvas.width : canvas.height);
+  // the angle turned while the shutter is open, as a fraction of the field of view along the smear, in pixels
+  const fovV = camera.fov * Math.PI / 180, fovH = 2 * Math.atan(Math.tan(fovV / 2) * camera.aspect);
+  const len = (SHUTTER * w.rate / (TL.fps || 30)) / (w.dir[0] ? fovH : fovV) * (w.dir[0] ? canvas.width : canvas.height);
   smear(tmpCtx, canvas, w.dir, len);
   smear(blurCtx, blurTmp, w.dir, len / TAPS);
   blurCanvas.style.display = "block";
