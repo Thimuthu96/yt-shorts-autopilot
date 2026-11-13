@@ -35,7 +35,7 @@ topics/backlog.yaml → topics.next_topic()   first queued topic whose category 
                         studio/engine/ → video.mp4 (silent); a crash = RenderError naming the frame → exit 1, no upload
 → studio.mux()          H.264 yuv420p 1080x1920 30 fps -g 60, AAC 48 kHz stereo, two-pass loudnorm -14 LUFS
                         → short.mp4 (YouTube mix) + short_fb.mp4 (Facebook mix); thumbnail.jpg = frame 0
-→ metadata.build()      title, description (hook line → summary → Sources → music attribution → disclosure once →
+→ metadata.build()      title, description (hook line → summary → Sources by site name, no URLs → music attribution → disclosure once →
                         3-5 hashtags, #Shorts last), tags, category 27; reel_caption: no links, no #Shorts
 → main.publish()        youtube.upload + set_thumbnail (refusal ignored) · facebook.publish_reel; one platform's failure
                         never blocks the other (the run exits 1 if any failed)

@@ -181,7 +181,7 @@ def run_offline() -> Path:
     meta = json.loads((OUT / "metadata.json").read_text())
     assert meta["description"].count("Narrated with a synthetic voice.") == 1
     assert meta["description"].split()[-1] == "#Shorts" and "#Shorts" not in meta["fb_caption"]
-    assert "https://en.wikipedia.org/wiki/Fresnel_lens" in meta["description"]
+    assert "http" not in meta["description"] and "Sources: wikipedia.org" in meta["description"]
     bl = topics.load(tmp / "backlog.yaml")
     assert bl[0]["status"] == "used" and len(bl) > 1  # used, then refilled from the (mocked) proposals
     changes = json.loads((work / "backlog_changes.json").read_text())  # what the workflow re-applies

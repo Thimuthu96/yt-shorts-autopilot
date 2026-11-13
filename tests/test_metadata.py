@@ -20,8 +20,7 @@ def test_youtube_description():
     assert d.count(LINE) == 1
     assert d.split()[-1] == "#Shorts"
     assert d.startswith("If your captain mixed up two lighthouses at night, you'd hit the rocks before morning.")
-    for s in STORY["sources"]:
-        assert s["url"] in d
+    assert "http" not in d and "Sources: wikipedia.org, noaa.gov" in d
     assert "Music:" not in d
     assert m["tags"] and sum(len(t) + 1 for t in m["tags"]) <= 480
 

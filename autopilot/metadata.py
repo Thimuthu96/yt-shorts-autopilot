@@ -1,7 +1,7 @@
 """Titles, the YouTube description and the Facebook Reel caption for a Gus Explains story.
 
     build(story, track_yt, cfg) -> {"title", "description", "tags", "category_id": upload.category_id (default "22")}
-        description: hook line → summary → "Sources:" bullet URLs → music attribution (if any) → disclosure line
+        description: hook line → summary → "Sources:" site names (no URLs) → music attribution (if any) → disclosure line
         (exactly once) → 3-5 hashtags + #Shorts last
     reel_caption(story, track_fb, cfg) -> str
         the same without links (sources named by site), without #Shorts, < 2,200 chars
@@ -74,8 +74,10 @@ def tags(story: dict) -> list[str]:
 def build(story: dict, track_yt: dict | None, cfg: dict) -> dict:
     line = rules.disclosure(cfg)
     summary = rules.without_disclosure(_safe(story.get("summary", "")), line)
-    parts = [hook_line(story), summary,
-             "Sources:\n" + "\n".join(f"• {s['url']}" for s in story.get("sources", []) if s.get("url"))]
+    names = list(dict.fromkeys(site(s["url"]) for s in story.get("sources", []) if s.get("url")))
+    parts = [hook_line(story), summary]
+    if names:  # owner (2026-11-14): name the sources by site, no URLs in the description
+        parts.append("Sources: " + ", ".join(names[:5]))
     attr = soundtrack.attribution_line(track_yt)
     if attr:
         parts.append(attr)
