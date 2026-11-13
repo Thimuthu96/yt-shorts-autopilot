@@ -1,3 +1,26 @@
 {
-  "videos": []
+  "videos": [
+    {
+      "date": "2026-11-13",
+      "brief_date": "2026-11-13",
+      "published_at": "2026-11-13T23:06:13+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "why-lakes-freeze-top-down",
+      "title": "Why Lakes Freeze From the Top Down",
+      "category": "science",
+      "format": "explainer",
+      "topic_id": "ice-floats-lakes",
+      "voice": "en_US-ryan-high",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 57.6,
+      "video_id": "pwBkDbeoK2c",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
+    }
+  ]
 }

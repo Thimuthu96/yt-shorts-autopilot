@@ -1,0 +1,1391 @@
+{
+  "slug": "why-lakes-freeze-top-down",
+  "title": "Why Lakes Freeze From the Top Down",
+  "version": 2,
+  "category": "science",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "prof": {
+      "look": {
+        "costume": "scientist",
+        "glasses": "round",
+        "prop": "flask"
+      }
+    },
+    "fisherman": {
+      "look": {
+        "costume": "plain",
+        "hat": "beanie",
+        "hatColor": "#D94A26"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://www.usgs.gov/water-science-school/science/water-density",
+      "title": "USGS Water Science School: Water Density"
+    },
+    {
+      "url": "https://science.nasa.gov/earth/earth-observatory/the-water-cycle/",
+      "title": "NASA Earth Observatory: Water's Extreme Density"
+    }
+  ],
+  "summary": "Unlike most liquids that get denser until freezing, pure water reaches maximum density at 3.98 °C. Cold water expands below 4 °C, causing zero-degree ice to float on top and form an insulating blanket that keeps bottom water liquid at 4 °C even in -40 °C weather.",
+  "hashtags": [
+    "#WaterDensity",
+    "#PhysicsFacts",
+    "#LakeEcology",
+    "#ScienceExplainer",
+    "#didyouknow"
+  ],
+  "beats": [
+    {
+      "text": "If ice sank like normal solids,",
+      "set": {
+        "type": "field",
+        "mood": "steel"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "crate1",
+          "type": "crate",
+          "pos": [
+            -2.1,
+            0,
+            -2.5
+          ]
+        },
+        {
+          "id": "barrel1",
+          "type": "barrel",
+          "pos": [
+            1.8,
+            0,
+            -1.8
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "fisherman",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "scared",
+          "expr": "shocked",
+          "talk": false,
+          "enter": null,
+          "motion": "shake"
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.1,
+            0,
+            -1.4
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "fisherman",
+          "pose": "cower"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -12
+      },
+      "transition": null
+    },
+    {
+      "text": "your local lake would freeze solid forever.",
+      "set": {
+        "type": "field",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "shake",
+          "amount": 0.3
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "fisherman",
+        "look_at": "gus",
+        "roll": 6
+      },
+      "transition": null
+    },
+    {
+      "text": "Most liquids get steadily denser",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "j1",
+          "type": "jar",
+          "pos": [
+            0.2,
+            1.0,
+            -1.9
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "prof",
+          "pos": [
+            -0.9,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "prof",
+          "act": "point_at",
+          "id": "j1"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "prof",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof",
+        "angle": -10
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "all the way until they freeze.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "prof",
+          "motion": "flinch"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "prof",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "They shrink and sink right down.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "prof",
+          "pose": "think"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof"
+      },
+      "transition": null
+    },
+    {
+      "text": "But pure water is different.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "prof",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "prof",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof",
+        "roll": -5
+      },
+      "transition": null
+    },
+    {
+      "text": "It reaches maximum density",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "Max Density",
+          "style": "paper",
+          "pos": [
+            0.5,
+            3.6,
+            -3.2
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "prof",
+        "angle": 12
+      },
+      "transition": null
+    },
+    {
+      "text": "at three point nine eight degrees.",
+      "say": "at three point nine eight degrees Celsius.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "3.98 °C",
+          "style": "metal",
+          "pos": [
+            -1.2,
+            3.5,
+            -3.0
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "prof",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof",
+        "angle": -15
+      },
+      "transition": null
+    },
+    {
+      "text": "In autumn, surface water cools",
+      "set": {
+        "type": "coast",
+        "mood": "sunset"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "c1",
+          "type": "cloud",
+          "pos": [
+            -4.0,
+            6.0,
+            -18.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.4,
+            0,
+            -1.3
+          ],
+          "facing": "right",
+          "pose": "cross",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "worried"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "toward four degrees Celsius.",
+      "say": "toward four degrees Celsius.",
+      "set": {
+        "type": "coast",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "Cooling 4 °C",
+          "style": "plank",
+          "pos": [
+            0.8,
+            3.6,
+            -3.1
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 18
+      },
+      "transition": null
+    },
+    {
+      "text": "It gets denser and sinks down,",
+      "set": {
+        "type": "coast",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "gus",
+          "pose": "point"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "circulating the entire lake column.",
+      "set": {
+        "type": "coast",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "motion",
+          "who": "gus",
+          "motion": "bob"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "But below four degrees,",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "j1",
+          "type": "jar",
+          "pos": [
+            0.2,
+            1.0,
+            -1.9
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "prof",
+          "pos": [
+            -0.7,
+            0,
+            -1.3
+          ],
+          "facing": "right",
+          "pose": "scared",
+          "expr": "shocked",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "prof",
+          "act": "jump"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof",
+        "roll": 8
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "water expands and becomes lighter!",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "shake",
+          "amount": 0.25
+        },
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "Less Dense",
+          "style": "paper",
+          "pos": [
+            0.8,
+            3.5,
+            -3.0
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "prof",
+        "angle": -14
+      },
+      "transition": null
+    },
+    {
+      "text": "Cold water stays on the surface",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "prof",
+          "pose": "present"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "prof",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof"
+      },
+      "transition": null
+    },
+    {
+      "text": "until it freezes at zero degrees.",
+      "say": "until it freezes at zero degrees Celsius.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "0 °C Freeze",
+          "style": "chalk",
+          "pos": [
+            -1.5,
+            3.4,
+            -2.9
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "crackle"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "prof"
+      },
+      "transition": null
+    },
+    {
+      "text": "Ice expands by nine percent",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "+9% Volume",
+          "style": "metal",
+          "pos": [
+            0.6,
+            3.6,
+            -3.1
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "prof",
+          "act": "point_at",
+          "id": "j1"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof",
+        "angle": 10
+      },
+      "transition": null
+    },
+    {
+      "text": "into a rigid hexagonal crystal lattice.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "prof",
+          "pose": "present"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "prof",
+          "expr": "smug"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "prof",
+        "angle": -12
+      },
+      "transition": null
+    },
+    {
+      "text": "That drops its density",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "prof",
+          "pose": "think"
+        },
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "prof",
+          "expr": "sly"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "prof"
+      },
+      "transition": null
+    },
+    {
+      "text": "to point nine one seven grams.",
+      "say": "to zero point nine one seven grams per cubic centimeter.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "0.917 g/cm³",
+          "style": "banner",
+          "pos": [
+            -0.4,
+            3.7,
+            -3.0
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof"
+      },
+      "transition": null
+    },
+    {
+      "text": "Floating ice acts as an insulating blanket.",
+      "set": {
+        "type": "coast",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "rock1",
+          "type": "pillar_rock",
+          "pos": [
+            -4.0,
+            -0.35,
+            -18.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.5,
+            0,
+            -1.4
+          ],
+          "facing": "left",
+          "pose": "cheer",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "gus",
+          "act": "jump"
+        },
+        {
+          "at_word": 5,
+          "do": "sign",
+          "text": "Insulating Layer",
+          "style": "banner",
+          "pos": [
+            -1.5,
+            3.6,
+            -3.2
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus",
+        "angle": 20,
+        "roll": -6
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "Even in minus forty degree weather,",
+      "say": "Even in minus forty degree weather,",
+      "set": {
+        "type": "coast",
+        "mood": "night"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "fisherman",
+          "pos": [
+            -0.2,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "cower",
+          "expr": "scared",
+          "talk": false,
+          "enter": null,
+          "motion": "shake"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "-40 °C Air",
+          "style": "plank",
+          "pos": [
+            -1.6,
+            3.5,
+            -3.0
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "fisherman",
+        "roll": 8
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "bottom water stays liquid at four degrees.",
+      "say": "bottom water stays liquid at four degrees Celsius.",
+      "set": {
+        "type": "coast",
+        "mood": "night"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "fisherman",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 5,
+          "do": "sign",
+          "text": "Bottom 4 °C",
+          "style": "metal",
+          "pos": [
+            0.9,
+            3.6,
+            -3.1
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "fisherman",
+        "angle": -16
+      },
+      "transition": null
+    },
+    {
+      "text": "If surface ice sank every winter,",
+      "set": {
+        "type": "field",
+        "mood": "steel"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "crate1",
+          "type": "crate",
+          "pos": [
+            -1.8,
+            0,
+            -2.4
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.4,
+            0,
+            -1.3
+          ],
+          "facing": "right",
+          "pose": "scared",
+          "expr": "worried",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "gus",
+          "act": "fall"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus",
+        "roll": -10
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "summer sun could never reach the bottom.",
+      "set": {
+        "type": "field",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "No Sun Below",
+          "style": "chalk",
+          "pos": [
+            -1.5,
+            3.5,
+            -3.0
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 20
+      },
+      "transition": null
+    },
+    {
+      "text": "Lakes would turn to solid ice blocks.",
+      "set": {
+        "type": "field",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "shake",
+          "amount": 0.35
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "boom"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Instead, floating ice protects the deep water,",
+      "set": {
+        "type": "coast",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "rock1",
+          "type": "pillar_rock",
+          "pos": [
+            -4.0,
+            -0.35,
+            -18.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.3,
+            0,
+            -1.3
+          ],
+          "facing": "right",
+          "pose": "wave",
+          "expr": "happy",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "gus",
+          "pose": "present"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -12
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "so your lake never freezes solid forever.",
+      "set": {
+        "type": "coast",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "gus",
+          "act": "jump"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "excited"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": null
+    }
+  ]
+}

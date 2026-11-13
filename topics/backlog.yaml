@@ -33,8 +33,8 @@
   format: explainer
   angle: If ice sank, a lake could freeze solid from the bottom up and fish would have nowhere to go; water is densest
     near 4 degrees Celsius, so ice floats and insulates the water below.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-13'
   reason: null
 - id: doorway-effect
   title_idea: Why Walking Through a Door Makes You Forget
