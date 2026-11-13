@@ -148,23 +148,27 @@ def mix(voice_wav: Path, timeline: dict, story: dict, track: dict | None, out: P
     mono = voice.copy()
     if track is not None:
         m = _read(Path(track["path"]), 1)
-        if len(m):
+        if len(m) and n > 0:
             m = np.tile(m, int(np.ceil(n / len(m))))[:n].copy()
             fade = min(int(1.5 * SR), n // 2)
-            m[:fade] *= np.linspace(0, 1, fade)
-            m[-fade:] *= np.linspace(1, 0, fade)
+            if fade > 0:
+                m[:fade] *= np.linspace(0, 1, fade)
+                m[-fade:] *= np.linspace(1, 0, fade)
             hop = SR // 30  # duck under the voice: smoothed voice envelope
             env = np.array([np.sqrt(np.mean(voice[i:i + hop] ** 2) + 1e-12) for i in range(0, n, hop)])
             duck = 1 - 0.55 * np.clip(env / 0.08, 0, 1)
             duck = np.convolve(duck, np.ones(9) / 9, mode="same")
             g = np.interp(np.arange(n), np.arange(len(duck)) * hop + hop / 2, duck)
-            mono += m * g * 10 ** (music_db / 20) / (np.sqrt(np.mean(m ** 2)) + 1e-9) * 0.1
+            # music_db = dB under the voice: the music's RMS sits that far below the spoken parts' RMS (before ducking)
+            spoken = voice[np.abs(voice) > 0.01]
+            v_rms = float(np.sqrt(np.mean(spoken ** 2))) if len(spoken) else 0.1
+            mono += m * g * v_rms * 10 ** (music_db / 20) / (float(np.sqrt(np.mean(m ** 2))) + 1e-9)
     for t, name in sfx_times(story, timeline):
         x = sfx(name)
         p = int(t * SR)
         if 0 <= p < n:
             mono[p:p + len(x)] += x[:n - p] * 0.5
-    peak = np.abs(mono).max()
+    peak = float(np.abs(mono).max()) if n else 0.0
     if peak > 0.95:
         mono *= 0.95 / peak
     st = np.repeat(mono[:, None], 2, axis=1)

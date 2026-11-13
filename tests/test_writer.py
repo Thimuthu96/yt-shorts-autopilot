@@ -100,12 +100,56 @@ def test_invalid_first_draft_redrafts_once(fake):
     assert "Your previous draft" in f.prompts["draft_story"][1]
 
 
-def test_two_invalid_drafts_fail(fake):
+def test_two_invalid_drafts_then_valid(fake):
     bad = good_draft()
     bad["beats"][3]["set"]["type"] = "moon_base"
-    fake(drafts=[bad])
+    f = fake(drafts=[bad, bad, good_draft()])
+    assert story.validate(writer.write(TOPIC, CFG, CAT, log=lambda *a: None), CAT) == []
+    assert len(f.prompts["draft_story"]) == 3 and "moon_base" in f.prompts["draft_story"][2]
+
+
+def test_three_invalid_drafts_fail(fake):
+    bad = good_draft()
+    bad["beats"][3]["set"]["type"] = "moon_base"
+    f = fake(drafts=[bad])
     with pytest.raises(writer.WriteFailed, match="invalid story"):
         writer.write(TOPIC, CFG, CAT, log=lambda *a: None)
+    assert len(f.prompts["draft_story"]) == 3
+
+
+def test_malformed_draft_redrafted(fake):
+    bad = good_draft()
+    bad["beats"][2]["events"] = "fire"
+    f = fake(drafts=[bad, good_draft()])
+    writer.write(TOPIC, CFG, CAT, log=lambda *a: None)
+    assert "events must be a list" in f.prompts["draft_story"][1]
+
+
+def test_spatial_guidance_in_prompt(fake):
+    f = fake()
+    writer.write(TOPIC, CFG, CAT, log=lambda *a: None)
+    p = f.prompts["draft_story"][0]
+    for w in ("2.34 tall", "barrel 0.9 x 1.1", "x +- 0.325 * dist", "Signs: place them", "declared"):
+        assert w in p, w
+
+
+def test_hook_rescored_after_fact_check_redraft(fake):
+    f = fake(facts=[{"ok": False, "problems": ["x"]}, {"ok": True}])
+    writer.write(TOPIC, CFG, CAT, log=lambda *a: None)
+    assert len(f.prompts["hook_check"]) == 2
+
+
+def test_hook_number_and_filler_rules():
+    s = good_draft()
+    s["beats"][0]["text"], s["beats"][1]["text"] = "Lighthouses stand on one coast", "with half the sea,"
+    assert any("second-person" in x for x in writer.hook_problems(s))
+    s["beats"][1]["text"] = "with 3 dark rocks,"
+    assert writer.hook_problems(s) == []
+    d = good_draft()
+    d["beats"][5]["text"] = "the subscriber count"  # "subscribe" only as a whole word
+    assert not [x for x in writer._problems(d, CAT) if "subscribe" in x]
+    d["beats"][5]["text"] = "so subscribe now"
+    assert [x for x in writer._problems(d, CAT) if "subscribe" in x]
 
 
 def test_fact_check_fails_twice(fake):

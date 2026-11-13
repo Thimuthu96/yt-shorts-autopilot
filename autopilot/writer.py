@@ -9,8 +9,8 @@
     check_url(url) -> str | None                       final URL when the page exists (bot walls count as existing)
     propose_topics(n, existing, cfg) -> list[dict]     {title_idea, category, format, angle} for the backlog refill
 
-Every redraft is one only: an invalid draft is redrafted once with the validator's problems (still invalid →
-WriteFailed "invalid story"); a weak hook once (hook rules still broken → WriteFailed "hook check failed"); a
+An invalid draft is redrafted up to twice with the validator's problems (still invalid → WriteFailed "invalid
+story"); a weak hook once (hook rules still broken → WriteFailed "hook check failed"); a
 failed fact-check once (still failing → WriteFailed "fact-check failed"). Sources and hashtags come from the
 research, never from the draft. Gemini being unreachable (RuntimeError from llm) is not a WriteFailed: the
 caller stops instead of burning topics.
@@ -32,10 +32,14 @@ HOOK_MIN_SCORE = 7
 HOOK_MAX_WORDS = 18
 MAX_SOURCES = 5
 SECOND_PERSON = re.compile(r"\b(?:you|your|you'd|you're|you'll|you've|yourself)\b", re.I)
-NUMBER = re.compile(r"\d|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|"
-                    r"fifty|hundred|thousand|million|billion|trillion|half|double|twice|triple)\b", re.I)
+# a concrete quantity: digits or a number word of two or more ("one", "half", "double" alone don't count)
+NUMBER = re.compile(r"\d|\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|"
+                    r"sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|"
+                    r"hundreds?|thousands?|millions?|billions?|trillions?)\b", re.I)
 DEFAULT_TAGS = ("#didyouknow", "#explained", "#facts")
 FILLER = ("subscribe", "follow for more", "thanks for watching", "like and share", "let me", "today we")
+FILLER_RX = [(f, re.compile(r"\b" + re.escape(f) + r"\b", re.I)) for f in FILLER]
+VALIDATE_REDRAFTS = 2
 
 
 class WriteFailed(Exception):
@@ -211,7 +215,21 @@ nothing the DISPUTED part calls false or uncertain may be stated as fact):
   "right", "left" or "front".
 - Gus (look "gus") is the channel's curious guide; use him when a guide helps. Other cast members get a look built
   from the look keys (costume, hat, colours, props they hold).
-- World coordinates: y is up, the ground is y = 0, the camera looks towards -z; characters stand near z 0 to -3.
+- Space and scale (world units, y up, ground y = 0, the camera looks towards -z): a character is 2.34 tall (head top
+  at y 2.34, face at about y 1.9); characters stand near z 0 to -3, 1.2-2 apart side by side. Prop sizes at scale 1
+  (width x height): crate 0.9 x 0.9, barrel 0.9 x 1.1, cannon about 2.5 long x 1.3 high (muzzle towards +x), table
+  2 x 1 (top at y 1), door 1.6 x 3, chair 0.7 x 1.4, lighthouse 2.6 wide x 7.6 tall, ship 10 long x 2.8 wide.
+  Put props a character uses within 1-1.5 of it; set pieces (ship, lighthouse, pillar_rock) far back (z -15 to
+  -35) with scale 0.8-1.2 unless the shot is about them.
+- Framing: a preset frames its subject, so other characters in that shot must stand near it: close / pov show only
+  the subject; medium / low_hero keep others within x +-1.2 of the subject; two_shot needs the look_at partner
+  within about 3 of the subject; wide shows about x +-4 around it. With explicit cam {{target, dist, height, angle}}
+  every character must stand within x +- {half} * dist of target x (dist 6 → +-1.95, dist 9 → +-2.9).
+- Signs: place them above or beside their subject, never over a face: about y 2.8-3.5 above a character, or on a
+  wall / post beside it, within the framed area; short text (1-4 words or a number) so it reads at phone size.
+- Ids: every prop and character must be declared (in "props" / "chars" of this shot or a kept earlier shot, and
+  characters in "cast") BEFORE an event, cam subject / look_at / follow or "remove" uses it; a "keep": false shot
+  forgets everything before it.
 
 ## Vocabulary (use ONLY these names)
 {vocab}
@@ -296,22 +314,22 @@ def _problems(s, catalog: dict) -> list[str]:
     if not isinstance(s, dict):
         return ["the story must be one JSON object"]
     p = story_mod.validate(s, catalog)
-    text = " ".join(b.get("text", "") for b in s.get("beats", []) if isinstance(b, dict)).lower()
-    p += [f"narration: no {f!r}" for f in FILLER if f in text]
+    text = " ".join(str(b.get("text", "")) for b in s.get("beats", []) if isinstance(b, dict))
+    p += [f"narration: no {f!r}" for f, rx in FILLER_RX if rx.search(text)]
     return p
 
 
 def _valid_draft(topic, notes, catalog, cfg, sources, tags, log, problems=None, previous=None) -> dict:
     s = _finish(draft(topic, notes, catalog, cfg, problems, previous), topic, sources, tags)
-    p = _problems(s, catalog)
-    if not p:
-        return s
-    log(f"writer: draft invalid ({len(p)} problem(s)): {'; '.join(p[:6])}; redrafting once")
-    s = _finish(draft(topic, notes, catalog, cfg, p, s if isinstance(s, dict) else None), topic, sources, tags)
-    p = _problems(s, catalog)
-    if p:
-        raise WriteFailed("invalid story: " + "; ".join(p[:8]))
-    return s
+    for k in range(VALIDATE_REDRAFTS + 1):
+        p = _problems(s, catalog)
+        if not p:
+            return s
+        if k == VALIDATE_REDRAFTS:
+            break
+        log(f"writer: draft invalid ({len(p)} problem(s)): {'; '.join(p[:6])}; redraft {k + 1}/{VALIDATE_REDRAFTS}")
+        s = _finish(draft(topic, notes, catalog, cfg, p, s if isinstance(s, dict) else None), topic, sources, tags)
+    raise WriteFailed("invalid story: " + "; ".join(p[:8]))
 
 
 # ─── checks ────────────────────────────────────────────────────────────────
@@ -413,9 +431,11 @@ def write(topic, cfg: dict, catalog: dict, log=print) -> dict:
         fc = fact_check(s, notes, cfg)
         if not fc["ok"]:
             raise WriteFailed("fact-check failed: " + "; ".join(fc["problems"][:5]))
-        hp = hook_problems(s)
+        hp = hook_check(s, cfg, log)  # the redraft may have changed the opening: score it again
+        if any(x.startswith("hook rule") for x in hp):
+            raise WriteFailed("hook check failed after the fact-check redraft: " + "; ".join(hp))
         if hp:
-            log(f"writer: after the fact-check redraft: {'; '.join(hp)} (kept, the facts come first)")
+            log(f"writer: after the fact-check redraft the hook scores low, kept ({'; '.join(hp)})")
     log(f"writer: story {s['slug']!r} ({len(s['beats'])} shots, {story_mod.words(s)} words) passed every check")
     return s
 

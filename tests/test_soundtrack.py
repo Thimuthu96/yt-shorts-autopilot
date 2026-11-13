@@ -89,3 +89,17 @@ def test_sfx_mark_events_land_on_their_words():
     got = S.sfx_times(story, tl)
     assert [n for _, n in got] == ["pop", "boom", "ding"]
     assert [round(t, 3) for t, _ in got] == [1.1, 1.35, 1.6]
+
+
+def test_music_db_is_under_the_voice(tmp_path):
+    v = wav(tmp_path / "v.wav", 3.0, amp=0.4)
+    m = wav(tmp_path / "m.wav", 1.0, hz=330, amp=0.9)
+    tl = {"beats": [{"i": 0, "start": 0.0, "end": 3.0, "words": []}]}
+    dry = S._read(S.mix(v, tl, {"beats": [{}]}, None, tmp_path / "a.wav"), 1)
+    wet = S._read(S.mix(v, tl, {"beats": [{}]}, {"path": m}, tmp_path / "b.wav", music_db=-20), 1)
+    mid = slice(int(1.6 * 48000), int(2.4 * 48000))  # past the 1.5 s fade-in
+    rms = lambda a: float(np.sqrt(np.mean(a ** 2)))  # noqa: E731
+    ratio = rms((wet - dry)[mid]) / rms(dry[mid])
+    assert 0.1 * 0.3 < ratio < 0.1 * 0.6  # -20 dB, then ducked under continuous speech (x0.45)
+    short = wav(tmp_path / "s.wav", 0.00002)  # a 1-sample voice: no fade, no crash
+    S.mix(short, {"beats": []}, {"beats": []}, {"path": m}, tmp_path / "c.wav")

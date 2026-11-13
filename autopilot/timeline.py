@@ -84,6 +84,11 @@ def _mouth(audio: np.ndarray) -> list[float]:
     return [round(float(x), 2) for x in env]
 
 
+def _gap(beat: dict) -> float:
+    """Silence after a shot: longer after one that ends a sentence."""
+    return GAP if beat["text"].rstrip()[-1:] in (".", "!", "?", ":") else GAP_IN
+
+
 def _record(story, vcfg, rate, workdir, log):
     scenes = [{"text": spoken(b)} for b in story["beats"]]
     return voice.synthesize(scenes, vcfg["name"], rate, workdir, log=log, fallback=vcfg.get("fallback"))
@@ -94,7 +99,7 @@ def build(story: dict, vcfg: dict, workdir: Path, max_seconds: float = 60, log=p
     workdir.mkdir(parents=True, exist_ok=True)
     rate = vcfg.get("rate", "+0%")
     scenes = _record(story, vcfg, rate, workdir, log)
-    total = LEAD + sum(s["duration"] for s in scenes) + TAIL
+    total = LEAD + sum(s["duration"] for s in scenes) + sum(_gap(b) for b in story["beats"]) + TAIL
     if total > max_seconds:
         rate2 = faster_rate(rate, total / max_seconds)
         log(f"narration {total:.1f}s is over {max_seconds}s, re-recording at {rate2}")
@@ -107,7 +112,7 @@ def build(story: dict, vcfg: dict, workdir: Path, max_seconds: float = 60, log=p
         ws = _align(b["text"].split(), [(s - off, e - off, w) for s, e, w in sc["words"]], dur)
         beats.append({"i": i, "start": round(t, 3), "end": round(t + dur, 3),
                       "words": [{"w": w, "s": round(t + s, 3), "e": round(t + e, 3)} for w, s, e in ws]})
-        gap = GAP if b["text"].rstrip()[-1:] in (".", "!", "?", ":") else GAP_IN
+        gap = _gap(b)
         chunks += [a, np.zeros(int(gap * SR), np.float32)]
         t += dur + gap
     beats[0]["start"] = 0.0

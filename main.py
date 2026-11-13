@@ -87,22 +87,25 @@ def _manual_topic(text: str) -> topics.Topic:
     return topics.Topic("manual-" + topics.slugify(text), text.strip(), "levels" if fmt == "levels" else "", fmt, "")
 
 
-def refill(cfg: dict, history: History, backlog: list[dict], log=log) -> None:
-    """Gemini proposes new topics when the queue runs low; a failure is logged, never fatal."""
+def refill(cfg: dict, history: History, backlog: list[dict], log=log, persist: bool = True) -> None:
+    """Gemini proposes new topics when the queue runs low; a failure is logged, never fatal. `persist` false (a
+    run that publishes nothing): the new topics stay in memory, topics/backlog.yaml is not written."""
     gus = cfg.get("gus") or {}
     if not topics.needs_refill(backlog, int(gus.get("min_backlog", 10))):
         return
     try:
         existing = history.titles() + [e.get("title_idea", "") for e in backlog]
         props = writer.propose_topics(int(gus.get("refill_count", 15)), existing, cfg)
-        if topics.add(backlog, props, history.titles(), log=log):
+        if topics.add(backlog, props, history.titles(), log=log) and persist:
             topics.save(BACKLOG, backlog)
     except Exception as e:
         log(f"Topic refill failed (the backlog stays as it is): {e}")
 
 
-def _write_story(cfg, history, date, catalog, topic_text, workdir, log):
-    """topic → writer → timeline, up to gus.max_topics topics. Returns (story, timeline, topic, backlog)."""
+def _write_story(cfg, history, date, catalog, topic_text, workdir, log, persist=True):
+    """topic → writer → timeline, up to gus.max_topics topics. Returns (story, timeline, topic, backlog).
+    `persist` false (--no-upload / nothing to publish): failed topics are marked in memory only (so the loop moves
+    on) and topics/backlog.yaml is never written."""
     gus = cfg.get("gus") or {}
     vcfg, max_s = cfg["voice"], float((cfg.get("video") or {}).get("max_seconds", 60))
     backlog = None if topic_text else topics.load(BACKLOG)
@@ -114,7 +117,7 @@ def _write_story(cfg, history, date, catalog, topic_text, workdir, log):
             topic = topics.next_topic(backlog, history.titles(), history.stories(), log=log)
             if topic is None and not refilled:
                 log("The topic backlog has no usable queued topic; asking Gemini for more.")
-                refill(cfg, history, backlog, log)
+                refill(cfg, history, backlog, log, persist)
                 refilled = True
                 topic = topics.next_topic(backlog, history.titles(), history.stories(), log=log)
             if topic is None:
@@ -133,12 +136,15 @@ def _write_story(cfg, history, date, catalog, topic_text, workdir, log):
         if topic_text:
             raise RuntimeError(f"the topic {topic_text!r} failed: {reason}")
         topics.mark(backlog, topic.id, "failed", reason[:300], date)
-        topics.save(BACKLOG, backlog)
+        if persist:
+            topics.save(BACKLOG, backlog)
+        else:
+            log(f"Topic {topic.id} kept queued in topics/backlog.yaml (nothing is published by this run)")
     raise RuntimeError(f"{tried} topics failed in a row; nothing to publish")
 
 
 def make_short(cfg: dict, history: History, session: str, date: str, story_path: str | None = None,
-               topic_text: str | None = None, log=log) -> dict | None:
+               topic_text: str | None = None, log=log, persist: bool = True, reuse: bool = False) -> dict | None:
     """Make one Short in output/<stamp>-<session>/: short.mp4 (YouTube mix), short_fb.mp4 (Facebook mix),
     thumbnail.jpg, story.json, timeline.json, metadata.json. Raises on failure (nothing is published)."""
     workdir = OUTPUT / f"{now_utc().strftime('%Y%m%d-%H%M%S')}-{session}"
@@ -152,9 +158,11 @@ def make_short(cfg: dict, history: History, session: str, date: str, story_path:
         if problems:
             raise RuntimeError(f"story {story_path} is invalid: " + "; ".join(problems[:8]))
         log(f"Story from {story_path}: {s['title']}")
+        if not reuse:  # a re-run for a missed platform keeps the published story's slug
+            _unique_slug(s, history)
         tl = timeline.build(s, cfg["voice"], workdir, float(video_cfg.get("max_seconds", 60)), log=log)
     else:
-        s, tl, topic, backlog = _write_story(cfg, history, date, catalog, topic_text, workdir, log)
+        s, tl, topic, backlog = _write_story(cfg, history, date, catalog, topic_text, workdir, log, persist)
 
     tracks = soundtrack.load_tracks(log=log)
     yt = soundtrack.pick_track(tracks, s["music_mood"], "youtube", s["slug"])
@@ -283,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
         pending = []
 
     history = History(HISTORY)
-    story_path = args.story or None
+    story_path, reuse = args.story or None, False
     if args.scheduled and not args.force and not args.no_upload:
         done = [x for x in pending if history.published_on(today, session_key, x)]
         if done:
@@ -299,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
             prev = history.today_story(today, session_key)
             saved = PUBLISHED / f"{prev['slug']}.json" if prev else None
             if saved and saved.exists():
-                story_path = str(saved)
+                story_path, reuse = str(saved), True
                 log(f"Re-making {prev['slug']} for {', '.join(pending)} from {saved}")
             else:
                 log("The earlier story of this slot isn't saved; a new one is made for the missing platform.")
@@ -310,7 +318,8 @@ def main(argv: list[str] | None = None) -> int:
     log(f"Edition: {label} → {', '.join(pending) or 'no upload'}")
 
     try:
-        made = make_short(cfg, history, session_key, today, story_path=story_path, topic_text=args.topic or None)
+        made = make_short(cfg, history, session_key, today, story_path=story_path, topic_text=args.topic or None,
+                          persist=bool(pending), reuse=reuse)
     except Exception as e:
         log(f"Short failed: {e}")
         return 1

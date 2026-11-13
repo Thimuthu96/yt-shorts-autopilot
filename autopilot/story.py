@@ -123,7 +123,62 @@ def _event(p, label, ev, nwords, ids, cat) -> None:
             _in(p, "expr", ev["expr"], cat["exprs"], label)
 
 
+LISTS = ("remove", "props", "chars", "signs", "fx", "sfx", "events")
+
+
+def _shape(story) -> list[str]:
+    """Wrong JSON shapes as problems (never an exception), so a writer can redraft."""
+    if not isinstance(story, dict):
+        return ["the story must be a JSON object"]
+    p = []
+    if not isinstance(story.get("cast", {}), dict) or any(not isinstance(c, dict) for c in story.get("cast", {}).values()):
+        p.append("cast must be an object of {id: {look: ...}}")
+    for k in ("sources", "hashtags"):
+        if not isinstance(story.get(k, []), list):
+            p.append(f"{k} must be a list")
+    if any(not isinstance(x, dict) for x in story.get("sources", []) if isinstance(story.get("sources"), list)):
+        p.append("sources must be objects {url, title}")
+    for k in ("title", "summary", "slug"):
+        if k in story and not isinstance(story[k], str):
+            p.append(f"{k} must be a string")
+    beats = story.get("beats", [])
+    if not isinstance(beats, list):
+        return p + ["beats must be a list of shots"]
+    for i, b in enumerate(beats):
+        if not isinstance(b, dict):
+            p.append(f"beat {i}: must be an object")
+            continue
+        if not isinstance(b.get("text", ""), str) or ("say" in b and not isinstance(b["say"], str)):
+            p.append(f"beat {i}: text / say must be strings")
+        for k in ("set", "cam"):
+            if b.get(k) is not None and not isinstance(b[k], dict):
+                p.append(f"beat {i}: {k} must be an object")
+        for k in LISTS:
+            v = b.get(k, [])
+            if v is None:
+                continue
+            if not isinstance(v, list):
+                p.append(f"beat {i}: {k} must be a list")
+            elif k == "remove":
+                if any(not isinstance(x, str) for x in v):
+                    p.append(f"beat {i}: remove must list ids")
+            elif any(not isinstance(x, dict) for x in v):
+                p.append(f"beat {i}: every item of {k} must be an object")
+    return p
+
+
 def validate(story: dict, catalog: dict) -> list[str]:
+    """Every problem as a short string; never raises on a malformed story."""
+    shape = _shape(story)
+    if shape:
+        return shape
+    try:
+        return _validate(story, catalog)
+    except (TypeError, AttributeError, KeyError, ValueError, IndexError) as e:
+        return [f"malformed story: {type(e).__name__}: {e}"]
+
+
+def _validate(story: dict, catalog: dict) -> list[str]:
     p: list[str] = []
     cat = catalog
     for k in ("slug", "title", "category", "format", "music_mood", "cast", "beats", "sources", "summary", "hashtags"):
@@ -193,19 +248,19 @@ def validate(story: dict, catalog: dict) -> list[str]:
         if b.get("keep"):
             if i == 0:
                 p.append(f"{L}: keep on the first beat")
-            for r in b.get("remove", []):
+            for r in (b.get("remove") or []):
                 if r not in prev_chars and r not in known:
                     p.append(f"{L}: remove {r!r} not in the previous beat")
         else:
             known = set()
-        for r in b.get("remove", []):
+        for r in (b.get("remove") or []):
             known.discard(r)
-        for pr in b.get("props", []):
+        for pr in (b.get("props") or []):
             _in(p, "prop", pr.get("type"), cat["props"], L)
             if "anim" in pr and pr["anim"] is not None:
                 _in(p, "anim", pr["anim"], cat["anims"], L)
             known.add(pr.get("id"))
-        chars = b.get("chars", [])
+        chars = (b.get("chars") or [])
         for c in chars:
             if c.get("id") not in cast:
                 p.append(f"{L}: character {c.get('id')!r} not in cast")
@@ -215,17 +270,17 @@ def validate(story: dict, catalog: dict) -> list[str]:
             known.add(c.get("id"))
         if i == 0 and not chars:
             p.append(f"{L}: no character on screen")
-        for sg in b.get("signs", []):
+        for sg in (b.get("signs") or []):
             if "style" in sg:
                 _in(p, "sign style", sg["style"], cat["sign_styles"], L)
             if "rot" in sg and not _vec(sg["rot"], 3):
                 p.append(f"{L}: sign rot must be [x, y, z] numbers")
-        for fx in b.get("fx", []):
+        for fx in (b.get("fx") or []):
             _fx(p, L, fx, cat)
-        for sf in b.get("sfx", []):
+        for sf in (b.get("sfx") or []):
             _in(p, "sfx", sf.get("type"), cat["sfx"], L)
         ids = known | set(cast)
-        for j, ev in enumerate(b.get("events", [])):
+        for j, ev in enumerate((b.get("events") or [])):
             _event(p, f"{L} event {j}", ev, nw, ids, cat)
 
         cam = b.get("cam") or {}

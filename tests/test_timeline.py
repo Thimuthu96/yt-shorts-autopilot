@@ -99,3 +99,11 @@ def test_piper_word_count_differs(tmp_path, monkeypatch):
 def test_faster_rate():
     assert T.faster_rate("+0%", 1.1) == "+12%"
     assert T.faster_rate("+30%", 2) == "+35%"
+
+
+def test_gaps_count_towards_the_first_pass_limit(tmp_path, monkeypatch):
+    # 3 x 19.7 s + lead 0.15 + tail 0.6 = 59.85 s fits without gaps; with them (0.12 + 0.06 + 0.12) it is 60.15 s
+    calls = []
+    monkeypatch.setattr(voice, "synthesize", fake([19.7, 19.7, 19.7], calls=calls))
+    T.build(STORY, V, tmp_path, max_seconds=60)  # (the fake trims to < 60 s after the re-record)
+    assert len(calls) == 2  # the first pass already saw the overrun and re-recorded

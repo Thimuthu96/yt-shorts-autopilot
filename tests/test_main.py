@@ -34,7 +34,9 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(M, "now_utc", lambda: DUE)
     monkeypatch.setattr(M, "platform_off", lambda plat, cfg: "")
 
-    def fake_make(cfg, history, session, date, story_path=None, topic_text=None, log=M.log):
+    def fake_make(cfg, history, session, date, story_path=None, topic_text=None, log=M.log, persist=True,
+                  reuse=False):
+        state["persist"], state["reuse"] = persist, reuse
         state["made"] += 1
         state["story_path"] = story_path
         wd = tmp_path / "output" / f"run{state['made']}"
@@ -114,7 +116,7 @@ def test_missed_platform_rerun_reuses_story(env):
     M.PUBLISHED.mkdir()
     (M.PUBLISHED / "old-one.json").write_text("{}")
     assert M.main(["--session", "short_a", "--scheduled"]) == 0
-    assert env["story_path"] == str(M.PUBLISHED / "old-one.json")
+    assert env["story_path"] == str(M.PUBLISHED / "old-one.json") and env["reuse"] and env["persist"]
     assert env["yt"] == [] and len(env["fb"]) == 1
 
 
@@ -156,7 +158,37 @@ def test_too_long_marks_topic_failed(env, monkeypatch):
     def too_long(*a, **k):
         raise timeline.TooLong(64.0)
     monkeypatch.setattr(timeline, "build", too_long)
-    assert M.main(["--session", "short_a", "--no-upload"]) == 1
+    assert M.main(["--session", "short_a"]) == 1
     assert [e["status"] for e in topics.load(M.BACKLOG)][:3] == ["failed"] * 3
     assert "too long" in topics.load(M.BACKLOG)[0]["reason"]
+
+
+def test_no_upload_failing_run_leaves_backlog_unchanged(env, monkeypatch):
+    monkeypatch.setattr(M, "make_short", REAL_MAKE)
+    _backlog(5)
+    before = M.BACKLOG.read_bytes()
+    calls = []
+
+    def fail(topic, cfg, catalog, log=print):
+        calls.append(topic.id)
+        raise writer.WriteFailed("invalid story: x")
+    monkeypatch.setattr(writer, "write", fail)
+    monkeypatch.setattr(writer, "propose_topics", lambda *a, **k: [])
+    assert M.main(["--session", "short_a", "--no-upload"]) == 1
+    assert calls == ["t0", "t1", "t2"]  # the in-memory marks still move the loop on
+    assert M.BACKLOG.read_bytes() == before
+
+
+def test_story_path_slug_made_unique(env, monkeypatch, tmp_path):
+    monkeypatch.setattr(M, "make_short", REAL_MAKE)
+    M.HISTORY.write_text(json.dumps({"videos": [{"brief_date": "2026-11-01", "session": "short_a",
+                                                 "slug": SAMPLE["slug"], "video_id": "a"}]}))
+    seen = {}
+
+    def stop(story, *a, **k):
+        seen["slug"] = story["slug"]
+        raise timeline.TooLong(70)
+    monkeypatch.setattr(timeline, "build", stop)
+    assert M.main(["--session", "short_a", "--no-upload", "--story", str(ROOT / "stories/sample/lighthouse.json")]) == 1
+    assert seen["slug"] == SAMPLE["slug"] + "-2"
 

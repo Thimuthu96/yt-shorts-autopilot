@@ -179,3 +179,24 @@ def test_two_shot_needs_look_at():
     def f(s):
         s["beats"][5]["cam"] = {"frame": "two_shot", "subject": "captain", "move": "push"}
     has(mut(f), "needs look_at")
+
+
+@pytest.mark.parametrize("bad", [
+    [], "x", {"beats": "x"},
+    lambda s: s["beats"].__setitem__(3, "a shot"),
+    lambda s: s["beats"][2].update(props="lighthouse"),
+    lambda s: s["beats"][2].update(events=[1, 2]),
+    lambda s: s["beats"][2].update(chars=None, cam=["x"]),
+    lambda s: s.update(cast=[]),
+    lambda s: s.update(sources=["https://a"]),
+    lambda s: s["beats"][2].update(events=[{"do": "act", "act": ["x"], "who": {}, "at_word": "1"}]),
+    lambda s: s["beats"][2]["set"].update(type=["coast"]),
+])
+def test_malformed_shapes_never_raise(bad):
+    if callable(bad):
+        s = copy.deepcopy(V2)
+        bad(s)
+    else:
+        s = bad
+    p = S.validate(s, CAT)
+    assert p and all(isinstance(x, str) for x in p)
