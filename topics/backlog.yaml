@@ -1,0 +1,269 @@
+# Gus Explains topic queue (autopilot/topics.py). The daily run takes the next queued topic;
+# status: queued | used | failed. Refilled by Gemini when fewer than gus.min_backlog are queued.
+# Seeded 2026-11-13 by the builder: original topics (none a Ricks Clips title), each with a "wait, really?"
+# angle for the spec §11.1 hook (second person, stakes, a surprising number) and stageable with
+# studio/catalog.json (sets, props, costumes). The writer researches and fact-checks every claim.
+- id: navy-daily-rum
+  title_idea: Why Navies Handed Out Rum Every Day
+  category: history
+  format: explainer
+  angle: "If you had joined the Royal Navy in 1969, you'd still get a tot of rum at work every single day; it only ended on 'Black Tot Day' in 1970, and the ration was watered down into 'grog' to stop drunk crews."
+  status: queued
+  used_on: null
+  reason: null
+- id: knocker-uppers
+  title_idea: The Job of Waking Up a Whole Town
+  category: laws_jobs_customs
+  format: explainer
+  angle: "Before cheap alarm clocks, you'd pay a 'knocker-upper' to rap on your bedroom window with a long pole or a pea shooter at dawn; some still worked in Britain into the 1920s and later."
+  status: queued
+  used_on: null
+  reason: null
+- id: coin-flip-bias
+  title_idea: Why a Coin Flip Isn't a Fair Coin Flip
+  category: luck_games
+  format: explainer
+  angle: "If you flip a coin, it's slightly more likely to land the same side up it started; a 2023 study of over 350,000 flips measured about 50.8 percent, close to the Diaconis prediction."
+  status: queued
+  used_on: null
+  reason: null
+- id: ice-floats-lakes
+  title_idea: Why Lakes Freeze From the Top Down
+  category: science
+  format: explainer
+  angle: "If ice sank, a lake could freeze solid from the bottom up and fish would have nowhere to go; water is densest near 4 degrees Celsius, so ice floats and insulates the water below."
+  status: queued
+  used_on: null
+  reason: null
+- id: doorway-effect
+  title_idea: Why Walking Through a Door Makes You Forget
+  category: psychology
+  format: explainer
+  angle: "If you walk into a room and forget why you came, the door may be to blame; experiments at Notre Dame found that passing through a doorway made people forget more than walking the same distance in one room."
+  status: queued
+  used_on: null
+  reason: null
+- id: levels-castle-defences
+  title_idea: Levels of Castle Defences
+  category: levels
+  format: levels
+  angle: "If you tried to storm a castle, the moat would be the easy part: escalate from moat to drawbridge to portcullis to arrow slits to 'murder holes' that dropped stones and boiling water on attackers trapped in the gate passage."
+  status: queued
+  used_on: null
+  reason: null
+- id: window-tax
+  title_idea: The Tax That Made People Brick Up Windows
+  category: laws_jobs_customs
+  format: explainer
+  angle: "If you lived in England after 1696, every extra window could raise your tax bill, so owners bricked windows up; the window tax lasted until 1851 and you can still see the blocked windows today."
+  status: queued
+  used_on: null
+  reason: null
+- id: what-if-hole-through-earth
+  title_idea: What If You Fell Through a Hole in the Earth
+  category: what_if
+  format: explainer
+  angle: "If you jumped into a hole drilled straight through the Earth, ignoring heat and air, you'd fall for about 40 minutes, shoot out the far side at a standstill, then fall back forever."
+  status: queued
+  used_on: null
+  reason: null
+- id: round-portholes
+  title_idea: Why Ship Windows Are Always Round
+  category: engineering
+  format: explainer
+  angle: "If a ship's window had sharp square corners, the hull's flexing would pile stress into those corners until cracks started; round openings spread the load, a lesson planes learned the hard way with the de Havilland Comet."
+  status: queued
+  used_on: null
+  reason: null
+- id: monte-carlo-26-blacks
+  title_idea: The Night Roulette Hit Black 26 Times
+  category: luck_games
+  format: explainer
+  angle: "If you'd been in the Monte Carlo casino in 1913, you'd have watched the ball land on black 26 times in a row, while gamblers lost millions betting red was 'due'; the wheel has no memory."
+  status: queued
+  used_on: null
+  reason: null
+- id: mailed-children
+  title_idea: The Year Parents Mailed Their Kids
+  category: laws_jobs_customs
+  format: explainer
+  angle: "When the US Parcel Post started in 1913, some parents actually mailed their children with postage stamps, because it was cheaper than a train ticket, until the Post Office banned it."
+  status: queued
+  used_on: null
+  reason: null
+- id: scurvy-citrus
+  title_idea: Why Sailors' Teeth Fell Out at Sea
+  category: science
+  format: explainer
+  angle: "If you sailed for months on salt meat and biscuit, your gums would bleed and old wounds reopen; scurvy killed more sailors than battles, until a 1747 trial by James Lind showed citrus fixed it."
+  status: queued
+  used_on: null
+  reason: null
+- id: pendulum-clock
+  title_idea: How a Swinging Weight Fixed Every Clock
+  category: engineering
+  format: explainer
+  angle: "If you owned a clock before 1656, it could drift about 15 minutes a day; Christiaan Huygens' pendulum clock cut that to around 15 seconds, because a pendulum's swing takes almost the same time however wide it swings."
+  status: queued
+  used_on: null
+  reason: null
+- id: stopped-clock-illusion
+  title_idea: Why the First Second on a Clock Lasts Longer
+  category: psychology
+  format: explainer
+  angle: "If you glance at a clock, the second hand seems to freeze for a moment; your brain back-fills the time your eyes were moving, so that first second really does feel longer."
+  status: queued
+  used_on: null
+  reason: null
+- id: levels-of-heat
+  title_idea: "Levels of Hot: From Candle to Blast Furnace"
+  category: levels
+  format: levels
+  angle: "If you think a candle is hot, escalate: candle flame, a blacksmith's forge, molten iron, a blast furnace, and finally the surface of the Sun, each level with a real temperature."
+  status: queued
+  used_on: null
+  reason: null
+- id: walking-the-plank
+  title_idea: Why Pirates Almost Never Made Anyone Walk the Plank
+  category: history
+  format: explainer
+  angle: "If pirates captured your ship, walking the plank was the least of your worries; there are only a handful of recorded cases, and the famous image mostly comes from later novels and plays."
+  status: queued
+  used_on: null
+  reason: null
+- id: iron-ships-float
+  title_idea: Why a Steel Ship Floats but a Nail Sinks
+  category: science
+  format: explainer
+  angle: "If you drop an iron nail in the sea it sinks, yet a ship with thousands of tonnes of steel floats; it's all about how much water the hull pushes aside, Archimedes' principle."
+  status: queued
+  used_on: null
+  reason: null
+- id: what-if-moon-vanished
+  title_idea: What If the Moon Vanished Tonight
+  category: what_if
+  format: explainer
+  angle: "If the Moon disappeared tonight, the tides wouldn't stop, they'd shrink to the smaller tides the Sun makes, and nights would get much darker."
+  status: queued
+  used_on: null
+  reason: null
+- id: price-ending-99
+  title_idea: Why Prices End in 99
+  category: psychology
+  format: explainer
+  angle: "If you see $2.99, your brain reads 'two dollars' before it reads the rest; the left-digit effect makes a one-cent difference feel like a whole dollar, and shops have priced this way for over a century."
+  status: queued
+  used_on: null
+  reason: null
+- id: plague-doctor-mask
+  title_idea: Why Plague Doctors Wore Bird Masks
+  category: history
+  format: explainer
+  angle: "If you met a plague doctor in the 1600s, the long beak wasn't for show: it was stuffed with herbs and spices because doctors believed disease spread through bad-smelling air."
+  status: queued
+  used_on: null
+  reason: null
+- id: barrel-bulge
+  title_idea: Why Barrels Bulge in the Middle
+  category: engineering
+  format: explainer
+  angle: "If you had to move a barrel full of wine weighing more than you, the bulge is what saves you: it lets one person roll it and spin it on the spot, and it lets the hoops squeeze the staves watertight."
+  status: queued
+  used_on: null
+  reason: null
+- id: card-shuffle-orders
+  title_idea: Why Every Good Shuffle Is a Brand-New Deck
+  category: luck_games
+  format: explainer
+  angle: "If you shuffle a deck of cards well, the order you're holding has almost certainly never existed before; 52 cards can be arranged in about 8 times ten to the 67 ways."
+  status: queued
+  used_on: null
+  reason: null
+- id: levels-of-loud
+  title_idea: "Levels of Loud: From Whisper to Krakatoa"
+  category: levels
+  format: levels
+  angle: "If you think a cannon is loud, escalate: a whisper, a shout, a ship's cannon, a rocket launch, and the 1883 Krakatoa eruption, heard about 4,800 kilometres away."
+  status: queued
+  used_on: null
+  reason: null
+- id: statue-of-liberty-green
+  title_idea: The Statue That Turned Green on Purpose
+  category: science
+  format: explainer
+  angle: "If you'd visited the Statue of Liberty in 1886, it was shiny copper-brown; within about 30 years the copper grew a green patina, and that green layer now protects the metal underneath."
+  status: queued
+  used_on: null
+  reason: null
+- id: royal-food-taster
+  title_idea: The Job of Eating the King's Food First
+  category: laws_jobs_customs
+  format: explainer
+  angle: "If you were a royal food taster, your job was to eat the king's dinner before he did, just in case it was poisoned; courts from ancient Rome to Tudor England kept people for exactly that."
+  status: queued
+  used_on: null
+  reason: null
+- id: archimedes-ship
+  title_idea: How One Man Moved a Whole Ship
+  category: engineering
+  format: explainer
+  angle: "According to Plutarch, Archimedes moved a fully loaded ship onto land by himself, pulling one rope through a system of pulleys; the trick is trading distance for force."
+  status: queued
+  used_on: null
+  reason: null
+- id: sound-at-night
+  title_idea: Why Sound Travels Farther at Night
+  category: science
+  format: explainer
+  angle: "If you've heard a distant train at night that you never hear by day, it isn't just quieter: cool air near the ground bends sound back down instead of letting it escape upwards."
+  status: queued
+  used_on: null
+  reason: null
+- id: what-if-mercury-lake
+  title_idea: What If You Jumped Into a Pool of Mercury
+  category: what_if
+  format: explainer
+  angle: "If you jumped into a pool of liquid mercury, you wouldn't sink, you'd bounce and float high like a cork, because mercury is about 13 times denser than water."
+  status: queued
+  used_on: null
+  reason: null
+- id: ships-biscuits
+  title_idea: The Bread That Lasted for Decades
+  category: history
+  format: explainer
+  angle: "If you were a sailor, your bread could be older than your voyage; hardtack was baked so dry it lasted for years, and pieces from the 1800s still survive in museums."
+  status: queued
+  used_on: null
+  reason: null
+- id: what-if-everyone-jumped
+  title_idea: What If Everyone on Earth Jumped at Once
+  category: what_if
+  format: explainer
+  angle: "If all eight billion people jumped at the same moment, the Earth would move by less than the width of an atom, because the planet outweighs all of us by about ten trillion times."
+  status: queued
+  used_on: null
+  reason: null
+- id: levels-of-spicy
+  title_idea: "Levels of Spicy: From Pepper to Pure Capsaicin"
+  category: levels
+  format: levels
+  angle: "If you think a jalapeño is hot, escalate up the Scoville scale: bell pepper at zero, jalapeño, cayenne, habanero, the Carolina Reaper at over a million, and pure capsaicin at about 16 million."
+  status: queued
+  used_on: null
+  reason: null
+- id: own-nose-invisible
+  title_idea: Why You Never Notice Your Own Nose
+  category: psychology
+  format: explainer
+  angle: "Your nose is in view of both eyes all day long, yet you almost never see it; your brain filters out things that never change, until someone says it and you can't stop seeing it."
+  status: queued
+  used_on: null
+  reason: null
+- id: roulette-green-zero
+  title_idea: The Green Pocket That Pays the Casino
+  category: luck_games
+  format: explainer
+  angle: "If you bet on red at roulette, you'd think it's a coin flip, but one green zero among 37 pockets gives the house about a 2.7 percent edge on every single spin."
+  status: queued
+  used_on: null
+  reason: null

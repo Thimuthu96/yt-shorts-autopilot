@@ -1,0 +1,8 @@
+# One entry per mp3 in this folder (an entry whose file is missing is skipped).
+# - file: "Track Name.mp3"
+#   title: "Track Name"
+#   artist: "Artist"
+#   attribution: null          # the text YouTube Audio Library asks for, or null for "no attribution required"
+#   facebook_ok: false         # true only when the licence covers Facebook too
+#   moods: [curious, upbeat]   # curious | tense | upbeat | epic
+[]

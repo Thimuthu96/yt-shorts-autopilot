@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Channel art (studio/branding.js): window.brand(kind) builds one scene from the engine's own registries (sets,
+     props, cast, fx) at the artwork's size, renders it, then letters it on a 2D layer. Kinds: avatar, banner, cover.
+     Layouts are in artwork pixels: characters and props are stood on the ground under a screen point (a ray onto
+     y = 0) and scaled to a screen height, so the key art lands inside the platform's safe area. -->
+<style>
+@font-face { font-family: "Fredoka"; font-weight: 300 700; src: url("/fonts/Fredoka.ttf") format("truetype"); }
+html, body { margin: 0; padding: 0; background: #000; }
+#stage { position: relative; overflow: hidden; }
+#c, #o { position: absolute; left: 0; top: 0; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas><canvas id="o"></canvas></div>
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from "three";
+import { INK } from "./core.js";
+import { buildSet, spawnProp, MUZZLES } from "./world.js";
+import { Char, CW, CH, CHAR_HEIGHT, SPRITE_PAD } from "./cast.js";
+import { makeFx, updateFx } from "./fx.js";
+
+const SCARF = "#F2B33D";
+
+// a character: look, pose, expr, facing, mouth (0..1, drawn open when > 0), screen x, foot y, screen height (px)
+// a prop: type, screen x, foot y, world scale, rotY; fx: type, world offset from a prop's muzzle or a point, lt
+const LAYOUTS = {
+  // 800x800: Gus's face and shoulders, big, on a sky + rock-pillar sea; YouTube crops to the centred circle
+  avatar: {
+    w: 800, h: 800, set: { type: "open_sea", mood: "day" },
+    cam: { pos: [0, 1.7, 7], look: [0, 3.4, 0], fov: 40 },
+    chars: [{ id: "gus", look: "gus", pose: "idle", expr: "excited", facing: "front", mouth: 0, x: 400, foot: 1421, h: 1250 }],
+    ring: { r: 392, color: SCARF, width: 0 },
+  },
+  // 2560x1440: everything that matters inside the centred 1546x423 safe area (x 507-2053, y 508-931)
+  banner: {
+    w: 2560, h: 1440, set: { type: "ship_deck", mood: "day" },
+    cam: { pos: [-2, 1.5, 13], look: [-2, 0.7, 0], fov: 32 },
+    chars: [
+      { id: "gus", look: "gus", pose: "wave", expr: "excited", facing: "right", x: 615, foot: 928, h: 365, t: 0.13 },
+      { id: "sci", look: { costume: "scientist", prop: "flask" }, pose: "present", expr: "smug", facing: "left", x: 1465, foot: 922, h: 365 },
+      { id: "pirate", look: { costume: "pirate" }, pose: "cower", expr: "shocked", facing: "right", x: 1630, foot: 925, h: 345 },
+    ],
+    props: [
+      { type: "cannon", x: 1705, foot: 918, scale: 0.55, rotY: -0.8, fx: [["gunsmoke", 0.3, 0.42]] },
+      { type: "crate", x: 200, foot: 1400, scale: 0.8, rotY: 0.5 },
+      { type: "rope_coil", x: 2350, foot: 1330, scale: 1.0 },
+      { type: "barrel", x: 2330, foot: 1000, scale: 0.9, rotY: 0.3 },
+    ],
+    text: { lines: [["GUS", "#FFFFFF"], ["EXPLAINS", SCARF]], x: 1085, y: [705, 868], size: [185, 142] },
+  },
+  // 1640x624: key art inside the centred 1200x462 mobile-safe area (x 220-1420, y 81-543)
+  cover: {
+    w: 1640, h: 624, set: { type: "ship_deck", mood: "day" },
+    cam: { pos: [-2, 1.5, 13], look: [-2, 0.75, 0], fov: 15 },
+    chars: [
+      { id: "gus", look: "gus", pose: "wave", expr: "excited", facing: "right", x: 300, foot: 504, h: 300, t: 0.13 },
+      { id: "sci", look: { costume: "scientist", prop: "flask" }, pose: "present", expr: "smug", facing: "left", x: 955, foot: 500, h: 290 },
+      { id: "pirate", look: { costume: "pirate" }, pose: "cower", expr: "shocked", facing: "right", x: 1080, foot: 502, h: 272 },
+    ],
+    props: [
+      { type: "cannon", x: 1120, foot: 498, scale: 0.55, rotY: -0.8, fx: [["gunsmoke", 0.3, 0.34]] },
+      { type: "barrel", x: 1540, foot: 520, scale: 0.9, rotY: 0.3 },
+    ],
+    text: { lines: [["GUS", "#FFFFFF"], ["EXPLAINS", SCARF]], x: 640, y: [318, 448], size: [150, 114] },
+  },
+};
+LAYOUTS.fb_profile = { ...LAYOUTS.avatar, w: 720, h: 720, chars: [{ ...LAYOUTS.avatar.chars[0], x: 360, foot: 1279, h: 1125 }], ring: { ...LAYOUTS.avatar.ring, r: 353 } };
+
+const canvas = document.getElementById("c"), over = document.getElementById("o"), stage = document.getElementById("stage");
+let renderer = null;
+
+// the point on the ground plane y = 0 under screen pixel (sx, sy)
+function ground(camera, W, H, sx, sy) {
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2((sx / W) * 2 - 1, -(sy / H) * 2 + 1), camera);
+  const p = new THREE.Vector3();
+  if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p)) throw new Error(`no ground under ${sx},${sy}`);
+  return p;
+}
+const screenY = (camera, H, v) => (1 - v.clone().project(camera).y) / 2 * H;
+
+function letter(ctx, text, x, y, size, fill) {
+  ctx.save();
+  ctx.font = `700 ${size}px Fredoka`;
+  ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  ctx.lineJoin = "round";
+  ctx.shadowColor = "rgba(23,20,43,0.45)"; ctx.shadowOffsetY = size * 0.07; ctx.shadowBlur = size * 0.08;
+  ctx.lineWidth = size * 0.2; ctx.strokeStyle = INK;
+  ctx.strokeText(text, x, y);
+  ctx.shadowColor = "transparent";
+  ctx.fillStyle = fill; ctx.fillText(text, x, y);
+  ctx.restore();
+  return ctx.measureText ? true : false;
+}
+
+window.brand = async (kind, patch = {}) => {
+  const L = { ...LAYOUTS[kind], ...patch };
+  if (!L.w) throw new Error(`unknown kind: ${kind}`);
+  const { w: W, h: H } = L;
+  await document.fonts.load("700 100px Fredoka");
+  stage.style.width = W + "px"; stage.style.height = H + "px";
+  over.width = W; over.height = H;
+  if (!renderer) { // one renderer for every kind: the registries cache their textures on its context
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+  }
+  renderer.setSize(W, H, false);
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  renderer.shadowMap.enabled = true;
+
+  const scene = new THREE.Scene();
+  const set = buildSet(L.set);
+  scene.add(set);
+  scene.fog = set.userData.fog;
+  const camera = new THREE.PerspectiveCamera(L.cam.fov, W / H, 0.1, 1000);
+  camera.position.set(...L.cam.pos);
+  camera.lookAt(...L.cam.look);
+  camera.updateMatrixWorld();
+
+  for (const p of L.props || []) {
+    const pos = ground(camera, W, H, p.x, p.foot);
+    const o = spawnProp({ type: p.type, pos: [pos.x, 0, pos.z], rot: [0, ((p.rotY || 0) * 180) / Math.PI, 0], scale: p.scale || 1 }, 0);
+    o.userData.tick(1);
+    scene.add(o);
+    for (const [type, lt, scale] of p.fx || []) {
+      const m = MUZZLES[p.type] || [0, 1, 0], s = p.scale || 1, a = p.rotY || 0;
+      const at = [pos.x + (m[0] * Math.cos(a) + m[2] * Math.sin(a)) * s, m[1] * s, pos.z + (-m[0] * Math.sin(a) + m[2] * Math.cos(a)) * s];
+      const g = makeFx(type, at, null, scale || 1);
+      g.rotation.y = a;
+      scene.add(g);
+      updateFx(g, lt);
+    }
+  }
+  for (const c of L.chars || []) {
+    const ch = new Char(c.id, c.look);
+    // a bigger sprite canvas for the close-ups, so the face stays crisp (the sprite's SPRITE_PAD headroom included)
+    ch.canvas.width = CW * 4; ch.canvas.height = (CH + SPRITE_PAD) * 4;
+    const pos = ground(camera, W, H, c.x, c.foot);
+    const st = ch.frame({ pos: [pos.x, 0, pos.z], pose: c.pose, expr: c.expr, facing: c.facing, talk: !!c.mouth }, c.t ?? 0, c.mouth || 0);
+    ch.draw({ ...st, blink: false });
+    ch.faceCamera(camera);
+    ch.group.updateMatrixWorld(true);
+    const foot = screenY(camera, H, new THREE.Vector3(pos.x, 0, pos.z));
+    const top = screenY(camera, H, new THREE.Vector3(pos.x, CHAR_HEIGHT, pos.z));
+    ch.group.scale.setScalar(c.h / (foot - top));
+    ch.shadow.visible = c.facing !== "front";
+    scene.add(ch.group);
+  }
+  renderer.render(scene, camera);
+
+  const ctx = over.getContext("2d");
+  ctx.clearRect(0, 0, W, H);
+  if (L.text) L.text.lines.forEach(([s, fill], i) => letter(ctx, s, L.text.x, L.text.y[i], L.text.size[i], fill));
+  if (L.ring && L.ring.width) {
+    ctx.beginPath(); ctx.arc(W / 2, H / 2, L.ring.r, 0, Math.PI * 2);
+    ctx.lineWidth = L.ring.width; ctx.strokeStyle = L.ring.color; ctx.stroke();
+  }
+  return { w: W, h: H };
+};
+window.BRAND_READY = true;
+</script>
+</body>
+</html>
