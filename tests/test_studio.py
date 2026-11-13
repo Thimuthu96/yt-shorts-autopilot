@@ -41,6 +41,30 @@ def test_render_ok_with_fake_node(tmp_path):
     assert S.render({"beats": []}, {"duration": 1}, tmp_path / "w", node=str(fake)) == tmp_path / "w" / "video.mp4"
 
 
+def test_render_logs_progress_and_the_rendered_line(tmp_path):
+    fake = tmp_path / "node"
+    fake.write_text("#!/bin/sh\necho 'x: frame 150/300  4s'\necho 'x: rendered 300 frames in 9s'\n"
+                    "touch \"$6/video.mp4\"\n")
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    logged = []
+    S.render({"beats": []}, {"duration": 1}, tmp_path / "w", log=logged.append, node=str(fake))
+    assert "studio: x: frame 150/300  4s" in logged
+    assert "studio: x: rendered 300 frames in 9s" in logged
+    assert any(m.startswith("studio: node finished in") for m in logged)
+
+
+def test_render_timeout_kills_node(tmp_path):
+    import time
+    fake = tmp_path / "node"
+    fake.write_text("#!/bin/sh\necho 'x: frame 0/300  0s'\nsleep 30\n")
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    t0 = time.monotonic()
+    with pytest.raises(S.RenderError, match=r"render timed out after 0.02 min.*frame 0/300"):
+        S.render({"beats": []}, {"duration": 1}, tmp_path / "w", node=str(fake), log=lambda m: None,
+                 timeout_minutes=0.02)
+    assert time.monotonic() - t0 < 10  # killed, not waited out
+
+
 def test_mux_and_thumbnail(tmp_path):
     v, a = media(tmp_path)
     out = S.mux(v, a, tmp_path / "o.mp4")

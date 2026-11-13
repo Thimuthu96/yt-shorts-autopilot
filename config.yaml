@@ -9,6 +9,7 @@ channel:
 # The owner turns it on after the rebrand (spec §8a).
 gus:
   enabled: false
+  cutover: "2026-11-13"       # the day the crypto channel stopped: scripts/delete_old_content.py's default --before
   min_backlog: 10             # fewer queued topics in topics/backlog.yaml → Gemini proposes refill_count more after a publish
   refill_count: 15
   max_topics: 3               # topics tried per run (a writer / too-long failure marks the topic failed, next one)
@@ -19,7 +20,7 @@ llm:
   # Tried in order if the main model is retired or unavailable (404) or out of daily quota.
   fallback_models: [gemini-3.7-flash, gemini-3.5-flash, gemini-flash-latest, gemini-3.5-flash-lite]
 
-# ─── Editions (UTC). The run starts ~35 min before the publish time: research + render take ~20-30 min. ─────
+# ─── Editions (UTC). The run starts ~35 min before the publish time: research + render take ~20-30 min (est.) ─────
 # start_utc = when the run is due (the outside timer, cron-job.org, fires then; the workflow's backup cron 17 min
 # later). Keep start_utc, the cron-job.org job and the workflow cron line in step (Task 17).
 sessions:
@@ -48,6 +49,7 @@ video:
   max_seconds: 60             # Shorts limit we keep under (45-60 s target)
   music_db: -20               # music level under the voice (ducked); tracks in music/tracks.yaml
   render_scale: 1.0           # studio render scale (1.0 = 1080x1920); lower only for local previews
+  render_timeout_minutes: 45  # a render still running after this is killed (RenderError, the run fails)
 
 # ─── Facebook Page (Graph API; secrets FB_PAGE_ID + FB_PAGE_TOKEN, see README) ─────────────────────────────
 # Skipped with a log line when the secrets are missing or enabled is false.

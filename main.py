@@ -185,7 +185,8 @@ def make_short(cfg: dict, history: History, session: str, date: str, story_path:
     db = float(video_cfg.get("music_db", -20))
     mix_yt = soundtrack.mix(workdir / "voice.wav", tl, s, yt, workdir / "mix_yt.wav", db)
     mix_fb = mix_yt if fb is yt else soundtrack.mix(workdir / "voice.wav", tl, s, fb, workdir / "mix_fb.wav", db)
-    video = studio.render(s, tl, workdir, log=log, scale=float(video_cfg.get("render_scale") or 1.0))
+    video = studio.render(s, tl, workdir, log=log, scale=float(video_cfg.get("render_scale") or 1.0),
+                          timeout_minutes=float(video_cfg.get("render_timeout_minutes") or 45))
     short = studio.mux(video, mix_yt, workdir / "short.mp4")
     short_fb = workdir / "short_fb.mp4"
     if mix_fb is mix_yt:

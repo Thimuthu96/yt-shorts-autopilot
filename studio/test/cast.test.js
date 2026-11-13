@@ -189,3 +189,23 @@ test("motion and enter distances scale with the character (tuned at 1.8 tall)", 
   assert.ok(Math.abs(C.ENTERS.left(0).x + 6 * K) < 1e-9 && Math.abs(C.ENTERS.drop(0).y - 5 * K) < 1e-9);
 });
 
+
+test("the sprite has headroom above the design for Gus's curl; feet stay on y = 0", async () => {
+  const C = await cast();
+  const T = await import("three");
+  assert.ok(C.SPRITE_PAD >= 45, "the curl's stroke reaches y ≈ -41 design units");
+  const c = new C.Char("x", "gus");
+  const box = new T.Box3().setFromBufferAttribute(c.plane.geometry.attributes.position);
+  const h = box.max.y - box.min.y, w = box.max.x - box.min.x;
+  assert.ok(Math.abs(h / w - (C.CH + C.SPRITE_PAD) / C.CW) < 1e-6, `${h / w}`);
+  assert.ok(box.min.y < 0 && box.max.y > C.CHAR_HEIGHT + 0.1, "the plane reaches above the head");
+  // Char.draw shifts the drawing down by SPRITE_PAD (a recording 2D context: any method is a no-op)
+  const moves = [];
+  c.ctx = new Proxy({ canvas: { width: C.CW, height: C.CH + C.SPRITE_PAD } }, {
+    get: (o, k) => (k in o ? o[k] : k === "translate" ? (dx, dy) => moves.push([dx, dy]) : () => ({ addColorStop() {} })),
+    set: () => true,
+  });
+  c.tex = {};
+  c.draw({ pose: "idle", expr: "neutral", facing: "right", t: 0, mouth: 0 });
+  assert.deepStrictEqual(moves[0], [0, C.SPRITE_PAD]);
+});

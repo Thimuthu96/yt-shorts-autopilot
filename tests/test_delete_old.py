@@ -225,14 +225,95 @@ def test_facebook_missing_secrets_stops(monkeypatch, tmp_path, capsys):
     assert "FB_PAGE_ID" in capsys.readouterr().out
 
 
-def test_default_before_is_today(monkeypatch, tmp_path):
-    seen = {}
+def test_default_before_is_the_cutover_never_today(tmp_path):
+    seen = []
 
     class Rec(Fake):
         def list(self, before):
-            seen["before"] = before
+            seen.append(before)
             return []
 
-    from datetime import datetime, timezone
-    assert D.main(["--youtube"], sources={"youtube": Rec("youtube", [])}, out=tmp_path) == 0
-    assert seen["before"] == datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    srcs = {"youtube": Rec("youtube", [])}
+    cfg = {"gus": {"cutover": "2026-11-13"}}
+    assert D.main(["--youtube"], sources=srcs, out=tmp_path, cfg=cfg) == 0
+    assert json.loads((tmp_path / D.PLAN).read_text())["before"] == "2026-11-13"
+    # a later --confirm without --before uses the same default, so a saved plan is accepted on another day
+    assert D.main(["--youtube", "--confirm"], sources=srcs, out=tmp_path, cfg=cfg) == 0
+    assert seen == ["2026-11-13", "2026-11-13"]
+    assert D.cutover({}) == D.DEFAULT_CUTOVER
+
+
+def test_real_config_has_the_cutover():
+    import yaml
+    cfg = yaml.safe_load((ROOT / "config.yaml").read_text())
+    assert D.cutover(cfg) == "2026-11-13"
+
+
+def test_gus_ids_in_history_are_never_listed_even_with_a_later_before(tmp_path):
+    hist = tmp_path / "history.json"
+    hist.write_text(json.dumps({"videos": [{"video_id": "GUS1", "fb_reel_id": "777"}, {"video_id": "GUS2"}]}))
+    keep = D.protected_ids(hist)
+    assert keep == {"GUS1", "777", "GUS2"}
+    yt = Fake("youtube", [item(1), {**item(9, "2026-11-14"), "id": "GUS1"}, {**item(8, "2026-11-15"), "id": "GUS2"}])
+    fb = Fake("facebook", [item(1, platform="facebook"), {**item(7, "2026-11-14", "facebook"), "id": "777"},
+                           {**item(6, "2026-11-14", "facebook"), "id": "P1_777", "kind": "post"}])
+    srcs = {"youtube": yt, "facebook": fb}
+    out = tmp_path / "out"
+    assert D.main(["--before", "2027-01-01"], sources=srcs, out=out, keep=keep) == 0
+    plan = json.loads((out / D.PLAN).read_text())
+    assert [i["id"] for i in plan["items"]] == ["yo1", "fa1"]
+    # even a hand-edited plan that names a Gus id never deletes it
+    plan["items"].append({"platform": "youtube", "kind": "video", "id": "GUS1", "date": "2026-11-14", "title": "gus"})
+    (out / D.PLAN).write_text(json.dumps(plan))
+    assert D.main(["--before", "2027-01-01", "--confirm"], sources=srcs, out=out, keep=keep) == 0
+    assert yt.deleted == ["yo1"] and fb.deleted == ["fa1"]
+
+
+def test_protected_ids_reads_the_repo_history_shape(tmp_path):
+    assert D.protected_ids(tmp_path / "missing.json") == set()
+    assert D.protected_ids(ROOT / "data" / "history.json") is not None
+
+
+def test_max_caps_youtube_deletions_and_a_next_day_rerun_finishes(tmp_path, capsys):
+    srcs = {"youtube": Fake("youtube", [item(i) for i in range(1, 6)])}
+    assert run(["--youtube", "--max", "2"], srcs, tmp_path) == 0
+    assert "5 deletion(s) × 50 units = 250 units" in capsys.readouterr().out
+    assert run(["--youtube", "--max", "2", "--confirm"], srcs, tmp_path) == 0
+    assert srcs["youtube"].deleted == ["yo1", "yo2"]
+    assert "--max 2 reached: 3 YouTube item(s) left" in capsys.readouterr().out
+    assert run(["--youtube", "--max", "2", "--confirm"], srcs, tmp_path) == 0  # next day, same plan
+    assert srcs["youtube"].deleted == ["yo1", "yo2", "yo3", "yo4"]
+    assert run(["--youtube", "--max", "2", "--confirm"], srcs, tmp_path) == 0
+    assert srcs["youtube"].deleted == ["yo1", "yo2", "yo3", "yo4", "yo5"]
+
+
+def test_default_max_is_150(tmp_path):
+    srcs = {"youtube": Fake("youtube", [item(i) for i in range(200)])}
+    assert run(["--youtube"], srcs, tmp_path) == 0
+    assert run(["--youtube", "--confirm"], srcs, tmp_path) == 0
+    assert len(srcs["youtube"].deleted) == D.DEFAULT_MAX == 150
+
+
+def test_facebook_already_gone_is_not_a_failure(monkeypatch, tmp_path):
+    monkeypatch.setenv("FB_PAGE_ID", "P1")
+    monkeypatch.setenv("FB_PAGE_TOKEN", "tok")
+
+    def call(method, url, params=None, headers=None, log=print):
+        if method == "GET":
+            if url.endswith("/P1/posts"):
+                return {"data": [{"id": "P1_5", "created_time": "2026-10-03T10:00:00+0000", "message": "m"}]}
+            return {"data": [{"id": "5", "created_time": "2026-10-03T10:00:00+0000", "title": "v"}]} \
+                if url.endswith("/P1/videos") else {"data": []}
+        if url.endswith("/5"):
+            return {"success": True}
+        raise facebook.GraphError("Facebook error 100: Object with ID 'P1_5' does not exist, cannot be loaded due "
+                                  "to missing permissions, or does not support this operation", code=100, subcode=33)
+
+    fb = D.FacebookSource({"facebook": {"graph_version": "v26.0"}}, call=call)
+    srcs = {"facebook": fb}
+    assert run(["--facebook"], srcs, tmp_path) == 0
+    assert run(["--facebook", "--confirm"], srcs, tmp_path) == 0
+    logged = json.loads((tmp_path / D.LOG).read_text())
+    assert [(e["id"], e["result"]) for e in logged] == [("5", "deleted"), ("P1_5", "already gone")]
+    # a permission error is still a stop, never "gone"
+    assert not D.FacebookSource._gone(facebook.GraphError("Facebook error 200: does not exist", code=200))

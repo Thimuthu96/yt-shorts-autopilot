@@ -20,10 +20,10 @@ html, body { margin: 0; padding: 0; background: #000; }
 import * as THREE from "three";
 import { INK } from "./core.js";
 import { buildSet, spawnProp, MUZZLES } from "./world.js";
-import { Char, CW, CH, CHAR_HEIGHT } from "./cast.js";
+import { Char, CW, CH, CHAR_HEIGHT, SPRITE_PAD } from "./cast.js";
 import { makeFx, updateFx } from "./fx.js";
 
-const SCARF = "#F2B33D", PAD = 60;
+const SCARF = "#F2B33D";
 
 // a character: look, pose, expr, facing, mouth (0..1, drawn open when > 0), screen x, foot y, screen height (px)
 // a prop: type, screen x, foot y, world scale, rotY; fx: type, world offset from a prop's muzzle or a point, lt
@@ -137,16 +137,11 @@ window.brand = async (kind, patch = {}) => {
   }
   for (const c of L.chars || []) {
     const ch = new Char(c.id, c.look);
-    // a bigger sprite canvas for the close-ups, so the face stays crisp
-    // with PAD design units of headroom, so Gus's curl is not clipped at the top; the plane grows to match (feet stay put)
-    ch.canvas.width = CW * 4; ch.canvas.height = (CH + PAD) * 4;
-    const box = new THREE.Box3().setFromBufferAttribute(ch.plane.geometry.attributes.position);
-    const ph = box.max.y - box.min.y, pw = box.max.x - box.min.x, ph2 = ph * (CH + PAD) / CH;
-    ch.plane.geometry.dispose();
-    ch.plane.geometry = new THREE.PlaneGeometry(pw, ph2).translate(0, box.min.y + ph2 / 2, 0);
+    // a bigger sprite canvas for the close-ups, so the face stays crisp (the sprite's SPRITE_PAD headroom included)
+    ch.canvas.width = CW * 4; ch.canvas.height = (CH + SPRITE_PAD) * 4;
     const pos = ground(camera, W, H, c.x, c.foot);
     const st = ch.frame({ pos: [pos.x, 0, pos.z], pose: c.pose, expr: c.expr, facing: c.facing, talk: !!c.mouth }, c.t ?? 0, c.mouth || 0);
-    ch.draw({ ...st, blink: false, pad: PAD });
+    ch.draw({ ...st, blink: false });
     ch.faceCamera(camera);
     ch.group.updateMatrixWorld(true);
     const foot = screenY(camera, H, new THREE.Vector3(pos.x, 0, pos.z));

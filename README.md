@@ -34,7 +34,10 @@ kept 7 days under the run's **Artifacts**.
 
 ## Release checklist (owner, in this order)
 
-1. Merge the pause branch and run `python setup_cronjobs.py --disable …` so nothing crypto publishes (Task 1). ✔
+1. Stop the crypto timers (Task 1). ✔ Done 2026-11-13 on the pause branch with *its* `setup_cronjobs.py`. On this
+   branch `--disable` only knows the two Gus jobs, so if a "CryptoFX · …" job ever needs stopping again, delete
+   them all by name: `python setup_cronjobs.py --disable short_a,short_b --delete-retired` (`--dry-run` first; it
+   deletes every "CryptoFX · …" job and creates / updates the two Gus jobs paused).
 2. Make the repository public (Settings → General → Danger Zone → Change visibility) for unlimited Actions minutes,
    after reading the safety audit (Task 2).
 3. Approve the sample look (Task 8). ✔ (sample v2, 2026-11-13)
@@ -45,6 +48,7 @@ kept 7 days under the run's **Artifacts**.
    description; Facebook Page name, username, picture, cover, About.
 7. Optional: delete the old crypto content — `python scripts/delete_old_content.py` (dry run, writes
    `output/deletion-plan.json`), read the plan, then the same command with `--confirm` ([Old content](#deleting-the-old-crypto-content)).
+   **Finish it (every day's `--confirm`) before step 10**: YouTube deletions share the daily quota with the uploads.
 8. `python setup_cronjobs.py --dry-run`, then `python setup_cronjobs.py` (creates the two Gus jobs), then
    `python setup_cronjobs.py --delete-retired` (deletes every "CryptoFX · …" job).
 9. One manual run with `no_upload` (Actions → Run workflow → session `short_a`, tick `no_upload`; it uses the
@@ -157,13 +161,19 @@ How to apply them, click by click: `branding/README.md`.
 Irreversible, and only when you decide to. `scripts/delete_old_content.py` (needs the `--manage-scopes` YouTube
 token in `YT_REFRESH_TOKEN` and the Facebook secrets in your shell):
 ```bash
-python scripts/delete_old_content.py                 # dry run: lists everything before today, writes output/deletion-plan.json
+python scripts/delete_old_content.py                 # dry run: lists everything before gus.cutover, writes output/deletion-plan.json
 python scripts/delete_old_content.py --youtube       # only YouTube (or --facebook); --before YYYY-MM-DD to choose the date
 python scripts/delete_old_content.py --confirm       # deletes exactly the planned items (same options as the dry run)
 ```
-`--confirm` lists again first and refuses if anything new appeared ("plan out of date"); every id goes to
-`output/deletion-log.json`; it stops at the first permission or quota error with what to fix. YouTube allows about
-200 deletions a day (quota); run `--confirm` again the next day for the rest.
+`--before` defaults to `gus.cutover` in `config.yaml` (2026-11-13, the day the crypto channel stopped), never
+"today", and every Gus upload in `data/history.json` (`video_id`, `fb_reel_id`) is always left out, whatever
+`--before` says. `--confirm` lists again first and refuses if anything new appeared ("plan out of date"); every id
+goes to `output/deletion-log.json`; it stops at the first permission or quota error with what to fix; a Facebook post
+that went with its video counts as "already gone". Each YouTube delete costs 50 of the project's 10,000 daily quota
+units, so a run deletes at most `--max` (default 150 ≈ 7,500 units) YouTube items and prints the quota estimate. Keep
+`output/deletion-plan.json` and run the same `--confirm` command (same options, no new dry run) on the next days until
+it reports nothing left. **Finish the deletion before you set `gus.enabled: true`**, so it never takes the quota the
+day's uploads need.
 
 ## Settings you'll likely change (`config.yaml`)
 

@@ -1,6 +1,6 @@
 """Delete the crypto-era videos and posts, only after the owner confirms. Irreversible; dry-run by default.
 
-    python scripts/delete_old_content.py [--youtube] [--facebook] [--before YYYY-MM-DD] [--confirm]
+    python scripts/delete_old_content.py [--youtube] [--facebook] [--before YYYY-MM-DD] [--max N] [--confirm]
 
 Without --confirm (the default) it only lists: every item (platform, id, date, title) and the count, and writes the
 plan to output/deletion-plan.json. Read that file. Then, if you still want it gone, run the same command with
@@ -8,8 +8,14 @@ plan to output/deletion-plan.json. Read that file. Then, if you still want it go
 without --confirm"), then deletes the planned ids one by one, logging each to output/deletion-log.json. It stops on
 the first auth / permission / quota error with a fix hint.
 
---before (default: today, UTC): only items published before that date are listed, so the Gus Explains videos (which
-start after the cutover) are never touched. Neither --youtube nor --facebook = both.
+--before (default: `gus.cutover` in config.yaml, the day the crypto channel stopped; never "today"): only items
+published before that date are listed. On top of that, every video_id / fb_reel_id in data/history.json (the Gus
+Explains uploads) is always left out, whatever --before says. --confirm without --before uses the same default, so a
+saved plan can be confirmed again on later days. Neither --youtube nor --facebook = both.
+
+--max N (default 150): at most N YouTube deletions per run (videos.delete = 50 quota units: 150 ≈ 7,500 of the
+project's 10,000 daily units, leaving room for the day's uploads). Run --confirm again the next day for the rest
+(already-deleted planned items are skipped as "already gone"). Finish the deletion before gus.enabled is turned on.
 
 YouTube: the channel's uploads playlist (channels.list mine → playlistItems.list); deleting needs the `youtube`
 scope: run `python get_token.py --manage-scopes` on your computer and put the new YT_REFRESH_TOKEN in the
@@ -35,6 +41,10 @@ YT_HINT = ("YouTube refused (missing permission): the refresh token needs the `y
            "`python get_token.py --manage-scopes`, sign in with the channel's account, and set YT_REFRESH_TOKEN "
            "to the new value (environment and GitHub secret).")
 YT_QUOTA = "YouTube API quota used up for today (videos.delete = 50 units); run --confirm again tomorrow."
+DEFAULT_CUTOVER = "2026-11-13"  # used only when config.yaml has no gus.cutover
+DEFAULT_MAX = 150
+YT_UNITS = 50  # videos.delete
+HISTORY = ROOT / "data" / "history.json"
 FB_HINT = ("Facebook refused (token / permission): the Page token needs pages_manage_posts (to delete) and "
            "pages_read_engagement (to list), from an admin of the Page (README → Facebook Page).")
 
@@ -160,11 +170,21 @@ class FacebookSource:
                 params = None  # the next link carries its own query
         return out
 
-    def delete(self, item: dict) -> None:
+    @staticmethod
+    def _gone(e) -> bool:
+        """Code 100 (subcode 33) / "does not exist": the object is already gone (deleting a video removes its post)."""
+        code = getattr(e, "code", None)
+        if code in (190, 10) or (isinstance(code, int) and 200 <= code <= 299):
+            return False  # a token / permission problem, never "gone"
+        return getattr(e, "subcode", None) == 33 or "does not exist" in str(e).lower()
+
+    def delete(self, item: dict) -> str | None:
         graph, _, token = self._base()
         try:
             res = self._call("DELETE", f"{graph}/{item['id']}", headers={"Authorization": f"OAuth {token}"}, log=log)
         except Exception as e:
+            if self._gone(e):
+                return "already gone"
             raise self._stop(e) from e
         if res.get("success") is False:
             raise RuntimeError(f"Facebook did not delete {item['id']}: {res}")
@@ -176,13 +196,39 @@ def _key(item: dict) -> tuple[str, str]:
     return item["platform"], item["id"]
 
 
-def gather(sources: dict, platforms: list[str], before: str) -> list[dict]:
+def protected_ids(path: Path = HISTORY) -> set[str]:
+    """Every video_id / fb_reel_id in data/history.json: the Gus Explains uploads, never deleted."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except FileNotFoundError:
+        return set()
+    entries = data.get("videos") if isinstance(data, dict) else data
+    return {str(e[k]) for e in entries or [] if isinstance(e, dict) for k in ("video_id", "fb_reel_id") if e.get(k)}
+
+
+def _protected(item: dict, keep: set[str]) -> bool:
+    oid = str(item["id"])
+    return oid in keep or (item["platform"] == "facebook" and oid.rsplit("_", 1)[-1] in keep)  # PAGE_ID_VIDEO posts
+
+
+def gather(sources: dict, platforms: list[str], before: str, keep: set[str] | None = None) -> list[dict]:
+    keep = protected_ids() if keep is None else keep
     items = []
     for p in platforms:
-        found = [i for i in sources[p].list(before) if i["date"] < before]  # never anything on/after --before
-        log(f"{p}: {len(found)} item(s) published before {before}")
+        listed = [i for i in sources[p].list(before) if i["date"] < before]  # never anything on/after --before
+        found = [i for i in listed if not _protected(i, keep)]  # never a Gus upload, whatever --before is
+        log(f"{p}: {len(found)} item(s) published before {before}"
+            + (f" ({len(listed) - len(found)} Gus upload(s) from data/history.json left out)" if len(listed) > len(found) else ""))
         items += found
     return items
+
+
+def quota_note(items: list[dict], cap: int) -> None:
+    n = sum(1 for i in items if i["platform"] == "youtube")
+    if n:
+        days = -(-n // cap) if cap > 0 else 1
+        log(f"YouTube quota: {n} deletion(s) × {YT_UNITS} units = {n * YT_UNITS:,} units; --max {cap} per run "
+            f"(≈ {cap * YT_UNITS:,} of the 10,000 daily units) → about {days} day(s). Finish before gus.enabled is on.")
 
 
 def show(items: list[dict]) -> None:
@@ -197,7 +243,8 @@ def _append_log(path: Path, entry: dict) -> None:
     path.write_text(json.dumps(done, indent=1, ensure_ascii=False))
 
 
-def confirm(sources: dict, platforms: list[str], before: str, out: Path) -> int:
+def confirm(sources: dict, platforms: list[str], before: str, out: Path, cap: int = DEFAULT_MAX,
+            keep: set[str] | None = None) -> int:
     plan_path = out / PLAN
     if not plan_path.exists():
         log(f"No plan at {plan_path}: run without --confirm first and read the plan")
@@ -207,15 +254,17 @@ def confirm(sources: dict, platforms: list[str], before: str, out: Path) -> int:
         log(f"The plan was made for --before {plan.get('before')} and {', '.join(plan.get('platforms') or [])}; "
             "re-run without --confirm with the options you want, then --confirm with the same ones")
         return 1
-    planned = {_key(i): i for i in plan.get("items") or []}
-    live = gather(sources, platforms, before)
+    keep = protected_ids() if keep is None else keep
+    planned = {_key(i): i for i in plan.get("items") or [] if not _protected(i, keep)}
+    live = gather(sources, platforms, before, keep)
     extra = [i for i in live if _key(i) not in planned]
     if extra:
         show(extra)
         log(f"plan out of date, re-run without --confirm ({len(extra)} live item(s) above are not in the plan)")
         return 1
     live_keys = {_key(i) for i in live}
-    log_path, failed = out / LOG, 0
+    log_path, failed, yt_done, capped = out / LOG, 0, 0, 0
+    quota_note([i for k, i in planned.items() if k in live_keys], cap)
     log(f"Deleting {len(planned)} planned item(s); each one is logged to {log_path}")
     for key, item in planned.items():
         at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -223,8 +272,11 @@ def confirm(sources: dict, platforms: list[str], before: str, out: Path) -> int:
             log(f"{item['platform']} {item['id']}: already gone")
             _append_log(log_path, {**item, "result": "already gone", "at": at})
             continue
+        if item["platform"] == "youtube" and yt_done >= cap:
+            capped += 1  # left for the next run (--max)
+            continue
         try:
-            sources[item["platform"]].delete(item)
+            result = sources[item["platform"]].delete(item)
         except StopError as e:
             _append_log(log_path, {**item, "result": f"stopped: {e}", "at": at})
             log(f"Stopped at {item['platform']} {item['id']}: {e}")
@@ -234,20 +286,42 @@ def confirm(sources: dict, platforms: list[str], before: str, out: Path) -> int:
             _append_log(log_path, {**item, "result": f"failed: {e}", "at": at})
             log(f"{item['platform']} {item['id']}: not deleted ({e})")
             continue
+        if result == "already gone":
+            _append_log(log_path, {**item, "result": "already gone", "at": at})
+            log(f"{item['platform']} {item['id']}: already gone")
+            continue
+        if item["platform"] == "youtube":
+            yt_done += 1
         _append_log(log_path, {**item, "result": "deleted", "at": at})
         log(f"{item['platform']} {item['id']}: deleted ({item['date']} {item['title']})")
-    log(f"Done: {len(planned) - failed} of {len(planned)} handled" + (f", {failed} failed (see the log)" if failed else ""))
+    log(f"Done: {len(planned) - failed - capped} of {len(planned)} handled" + (f", {failed} failed (see the log)" if failed else ""))
+    if capped:
+        log(f"--max {cap} reached: {capped} YouTube item(s) left for the next run. Run the same --confirm command again "
+            "tomorrow (after the quota resets at midnight Pacific).")
     return 1 if failed else 0
 
 
-def main(argv: list[str] | None = None, sources: dict | None = None, out: Path | None = None) -> int:
+def cutover(cfg: dict | None) -> str:
+    return str(((cfg or {}).get("gus") or {}).get("cutover") or DEFAULT_CUTOVER)
+
+
+def main(argv: list[str] | None = None, sources: dict | None = None, out: Path | None = None,
+         cfg: dict | None = None, keep: set[str] | None = None) -> int:
+    if cfg is None:
+        import yaml
+        cfg = yaml.safe_load((ROOT / "config.yaml").read_text()) or {}
     ap = argparse.ArgumentParser(description="List (default) or delete the old channel content.")
     ap.add_argument("--youtube", action="store_true", help="only YouTube")
     ap.add_argument("--facebook", action="store_true", help="only Facebook")
-    ap.add_argument("--before", default=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                    help="only items published before this date (YYYY-MM-DD; default today, UTC)")
+    ap.add_argument("--before", default=cutover(cfg),
+                    help="only items published before this date (YYYY-MM-DD; default gus.cutover in config.yaml)")
+    ap.add_argument("--max", type=int, default=DEFAULT_MAX, dest="cap",
+                    help=f"at most N YouTube deletions per run (default {DEFAULT_MAX} ≈ {DEFAULT_MAX * YT_UNITS:,} units)")
     ap.add_argument("--confirm", action="store_true", help="delete the items in output/deletion-plan.json")
     a = ap.parse_args(argv)
+    if a.cap < 1:
+        log("--max must be at least 1")
+        return 2
     try:
         datetime.strptime(a.before, "%Y-%m-%d")
     except ValueError:
@@ -257,13 +331,11 @@ def main(argv: list[str] | None = None, sources: dict | None = None, out: Path |
     out = Path(out or OUTPUT)
     out.mkdir(parents=True, exist_ok=True)
     if sources is None:
-        import yaml
-        cfg = yaml.safe_load((ROOT / "config.yaml").read_text()) or {}
         sources = {"youtube": YouTubeSource(), "facebook": FacebookSource(cfg)}
     try:
         if a.confirm:
-            return confirm(sources, platforms, a.before, out)
-        items = gather(sources, platforms, a.before)
+            return confirm(sources, platforms, a.before, out, a.cap, keep)
+        items = gather(sources, platforms, a.before, keep)
     except StopError as e:
         log(f"Stopped: {e}")
         return 1
@@ -271,6 +343,7 @@ def main(argv: list[str] | None = None, sources: dict | None = None, out: Path |
         log(f"Stopped: listing failed ({type(e).__name__}: {e}); nothing deleted")
         return 1
     show(items)
+    quota_note(items, a.cap)
     plan = {"made": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "before": a.before,
             "platforms": platforms, "items": items}
     (out / PLAN).write_text(json.dumps(plan, indent=1, ensure_ascii=False))

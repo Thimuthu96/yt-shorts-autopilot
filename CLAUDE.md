@@ -53,7 +53,10 @@ Backlog refill: after a publish, fewer than `gus.min_backlog` (10) queued topics
 | `short_a` | 16:25 | ~17:00 | ~22:30 | ~12 pm / 1 pm | cron-job.org "Gus Explains · short_a" | `42 16 * * *` | YT Short + FB Reel |
 | `short_b` | 22:25 | ~23:00 | ~04:30 | ~6 pm / 7 pm | cron-job.org "Gus Explains · short_b" | `42 22 * * *` | YT Short + FB Reel |
 
-- The run starts ~35 min early: research + render take ~20–30 min on the 2-core runner (job timeout 90 min).
+- The run starts ~35 min early: research + render take ~20–30 min (estimate; the repo is public, so the standard
+  4-vCPU ubuntu-latest runner; write the measured figure here after the first real run). The Actions log shows
+  render.js's progress (`studio: <slug>: frame N/n  Xs` every 150 frames, `rendered N frames in Xs`); a render still
+  running after `video.render_timeout_minutes` (45) is killed → RenderError → exit 1 (job timeout 90 min).
 - **Gate:** `gus.enabled: false` → timed runs log `gus.enabled is false: …` and exit 0 before anything else; manual
   runs still make (and publish unless `--no-upload`). The owner flips it after the rebrand (README release checklist).
 - **Primary timer = cron-job.org** POSTing `workflow_dispatch` `{"ref":"main","inputs":{"session":"short_a","scheduled":"true"}}`
@@ -70,6 +73,10 @@ Backlog refill: after a publish, fewer than `gus.min_backlog` (10) queued topics
   `as_edition` (fills today's slot), `story` (render a story file, no writer), `topic` (write about this topic; the
   backlog is untouched), `no_upload`. Own concurrency group `manual-<run id>`; logged `trigger: manual, counts: false`
   unless `as_edition`. Run names: "Timer · short_a", "Backup schedule · 42 16 * * *", "Manual · short_b".
+  No topic lock: a manual run from the backlog (no `topic` / `story`) started while a timed run is working reads the
+  same backlog and can pick the same queued topic (a topic is only marked `used` by the Save step after publishing),
+  so both publish it. Accepted (owner-started, rare): don't start a backlog manual run 16:25–17:10 or 22:25–23:10
+  UTC, or give it a `topic`. `topics apply` stays idempotent (the second `used` mark changes nothing).
 - **History saving** is safe with parallel runs: the Save step (always) resets to `origin/main`, runs
   `python -m autopilot.history add`, `python -m autopilot.history stories`, `python -m autopilot.topics apply`, commits
   `data/history.json topics/backlog.yaml stories/published/` and retries the push 5×. Run artifacts are kept 7 days.
@@ -195,7 +202,10 @@ Look at stills / the video after any visual change. A local `--no-upload` run ne
 - **Monetization policy:** YouTube's inauthentic-content rule targets templated mass production; keep each video's
   topic, sets, cast and shots different (category rotation, no two `levels` in a row), two a day, no hype.
 - **Deleting old content** is a separate, owner-confirmed step (`scripts/delete_old_content.py`); the builder never
-  runs `--confirm`.
+  runs `--confirm`. `--before` defaults to `gus.cutover` (2026-11-13, config.yaml), never today; every `video_id` /
+  `fb_reel_id` in data/history.json (Gus uploads) is always excluded; `--max` (150) caps YouTube deletes per run
+  (50 units each ≈ 7,500 units); a Facebook "does not exist" answer counts as already gone. Finish it before
+  `gus.enabled` is turned on.
 
 ## Gotchas we hit (carried over)
 

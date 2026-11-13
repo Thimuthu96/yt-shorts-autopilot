@@ -1,13 +1,20 @@
 """Studio bridge: run the Node renderer, mux the voice track, cut the thumbnail.
 
-    render(story, timeline, workdir, log=print, node="node", scale=1.0) -> Path   workdir/video.mp4 (silent);
-                                            RenderError (scale < 1 renders smaller, for local previews / tests)
+    render(story, timeline, workdir, log=print, node="node", scale=1.0, timeout_minutes=45) -> Path
+                                            workdir/video.mp4 (silent); RenderError (scale < 1 renders smaller, for
+                                            local previews / tests). render.js's lines (progress every 150 frames,
+                                            "rendered N frames in Xs") are logged as they come; a render still
+                                            running after timeout_minutes is killed → RenderError("render timed out …")
     mux(video, audio, out) -> Path          1080x1920 30 fps H.264, AAC 48 kHz stereo, -g 60, two-pass loudnorm -14 LUFS
     thumbnail(video, out) -> Path           frame 0 as a jpg
     stills(story, timeline, workdir, times, node="node") -> list[Path]
 """
 import json
+import os
+import signal
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -21,12 +28,44 @@ class RenderError(RuntimeError):
     pass
 
 
-def _node(args: list[str], node: str, log) -> str:
-    p = subprocess.run([node, str(RENDER_JS), *args], capture_output=True, text=True, cwd=ROOT)
-    out = (p.stdout or "") + (p.stderr or "")
-    if p.returncode != 0:
+def _kill(p: subprocess.Popen) -> None:
+    """node and the Chromium it started (own process group)."""
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, AttributeError):
+        p.kill()
+
+
+def _node(args: list[str], node: str, log, timeout_minutes: float | None = None) -> str:
+    """Run render.js, logging each output line as it comes (the Actions log shows render progress)."""
+    t0 = time.monotonic()
+    p = subprocess.Popen([node, str(RENDER_JS), *args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                         cwd=ROOT, start_new_session=True)
+    lines: list[str] = []
+
+    def pump():
+        for line in p.stdout:
+            line = line.rstrip()
+            lines.append(line)
+            if line:
+                log(f"studio: {line}")
+
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
+    try:
+        code = p.wait(timeout=timeout_minutes * 60 if timeout_minutes else None)
+    except subprocess.TimeoutExpired:
+        _kill(p)
+        p.wait()
+        reader.join(5)
+        last = next((x for x in reversed(lines) if "frame" in x), "")
+        raise RenderError(f"render timed out after {timeout_minutes:g} min" + (f" (last: {last})" if last else ""))
+    reader.join(10)
+    out = "\n".join(lines)
+    if code != 0:
         tail = "\n".join(out.strip().splitlines()[-20:])
-        raise RenderError(f"studio render failed (exit {p.returncode}):\n{tail}")
+        raise RenderError(f"studio render failed (exit {code}):\n{tail}")
+    log(f"studio: node finished in {time.monotonic() - t0:.0f}s")
     return out
 
 
@@ -39,11 +78,12 @@ def _write(story: dict, timeline: dict, workdir: Path) -> tuple[Path, Path]:
     return s, t
 
 
-def render(story: dict, timeline: dict, workdir: Path, log=print, node: str = "node", scale: float = 1.0) -> Path:
+def render(story: dict, timeline: dict, workdir: Path, log=print, node: str = "node", scale: float = 1.0,
+           timeout_minutes: float | None = 45) -> Path:
     s, t = _write(story, timeline, workdir)
     log(f"studio: rendering {timeline.get('duration')}s" + (f" at scale {scale:g}" if scale != 1 else ""))
     _node([str(s), "--timeline", str(t), "--out", str(workdir)] + (["--scale", str(scale)] if scale != 1 else []),
-          node, log)
+          node, log, timeout_minutes)
     video = Path(workdir) / "video.mp4"
     if not video.exists():
         raise RenderError("studio render finished without video.mp4")

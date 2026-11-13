@@ -21,6 +21,9 @@ const PI = Math.PI;
 
 // design space (canvas pixels before the resolution scale); feet rest on y = FOOT
 export const CW = 640, CH = 800;
+// design units of headroom above the 640x800 design (the sprite canvas is CH + SPRITE_PAD tall), so Gus's
+// question-mark curl (its stroke reaches y ≈ -41) is never clipped at the top
+export const SPRITE_PAD = 60;
 const RES = 1.6, FOOT = 762, HEIGHT = 2.34; // world units from sole to the top of the head (look v2: 1.8 + 30 %)
 // the character's size against the v1 cast (1.8 tall): motion distances and action offsets were tuned at 1.8 and
 // scale with it, so a hop or a run_across looks the same relative to the body
@@ -564,7 +567,7 @@ export function drawChar(ctx, look, st) {
   x.save();
   const k = x.canvas.width / CW;
   x.scale(k, k);
-  if (st.pad) x.translate(0, st.pad); // design units of headroom above the head (channel art; the canvas is that much taller)
+  if (st.pad) x.translate(0, st.pad); // design units of headroom above the head (Char.draw: SPRITE_PAD; the canvas is that much taller)
   if (st.facing === "left") { x.translate(CW, 0); x.scale(-1, 1); }
   x.lineJoin = "round"; x.lineCap = "round";
   if (pose.lean) { x.translate(cx, FOOT); x.rotate(pose.lean); x.translate(-cx, -FOOT); }
@@ -669,15 +672,15 @@ export class Char {
     this.blinkEvery = 2.8 + hash(seed + 1) * 2.2;
     // born: first appearance (enter, visibility); beatStart: the current beat (motions restart each beat)
     this.born = 0; this.beatStart = null; this.from = null; this.moveStart = 0; this.key = ""; this.spec = null;
-    // sprite plane: canvas y = FOOT sits on y = 0
-    const h = HEIGHT * CH / (FOOT - (HY - HRY)), w = h * (CW / CH);
+    // sprite plane: canvas y = FOOT (+ SPRITE_PAD) sits on y = 0; the headroom adds height above, size unchanged
+    const u = HEIGHT / (FOOT - (HY - HRY)), w = u * CW, h = u * (CH + SPRITE_PAD);
     const geom = new THREE.PlaneGeometry(w, h);
-    geom.translate(0, h / 2 - h * (CH - FOOT) / CH, 0);
+    geom.translate(0, h / 2 - u * (CH - FOOT), 0);
     this.canvas = null;
     let map = null;
     if (HAS_DOM) {
       this.canvas = document.createElement("canvas");
-      this.canvas.width = CW * RES; this.canvas.height = CH * RES;
+      this.canvas.width = CW * RES; this.canvas.height = (CH + SPRITE_PAD) * RES;
       this.ctx = this.canvas.getContext("2d");
       map = new THREE.CanvasTexture(this.canvas);
       map.colorSpace = THREE.SRGBColorSpace;
@@ -765,7 +768,7 @@ export class Char {
   }
 
   draw(state) {
-    drawChar(this.ctx, this.look, state);
+    drawChar(this.ctx, this.look, { ...state, pad: SPRITE_PAD });
     this.tex.needsUpdate = true;
   }
 
