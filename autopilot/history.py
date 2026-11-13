@@ -42,6 +42,28 @@ class History:
             out += v.get("headlines", [])
         return out
 
+    # ─── Gus Explains (entries with a "slug"; the crypto entries are archived by Task 16) ───
+    def stories(self) -> list[dict]:
+        """Uploaded Gus Explains entries, oldest first."""
+        return [v for v in self.uploaded() if v.get("slug")]
+
+    def titles(self) -> list[str]:
+        return [v["title"] for v in self.stories() if v.get("title")]
+
+    def slugs(self) -> set[str]:
+        return {v["slug"] for v in self.stories()}
+
+    def last_category(self) -> str | None:
+        s = self.stories()
+        return s[-1].get("category") if s else None
+
+    def today_story(self, date: str, session: str) -> dict | None:
+        """The counting Gus entry already published in that slot today (a re-run for a missed platform reuses it)."""
+        for v in reversed(self.stories()):
+            if v.get("brief_date") == date and v.get("session") == session and v.get("counts", True):
+                return v
+        return None
+
     def published_on(self, date: str, session: str, platform: str) -> bool:
         # entries from before sessions existed count as the London edition; manual runs don't count
         keys = PLATFORM_IDS[platform]

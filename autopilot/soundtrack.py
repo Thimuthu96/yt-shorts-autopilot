@@ -4,6 +4,7 @@
     pick_track(tracks, mood, platform, seed)  facebook -> only facebook_ok; prefers the mood; deterministic by seed
     SFX_TYPES                             whoosh, boom, splash, impact, pop, ding, crackle, creak (= catalog "sfx")
     sfx(name) -> np.ndarray               mono float32 at SR
+    sfx_times(story, timeline)            [(seconds, type)]: shot sfx + word-anchored sfx_mark events
     mix(voice_wav, timeline, story, track, out, music_db=-20) -> Path   48 kHz stereo wav
     attribution_line(track)               "Music: <title> by <artist>. <attribution>" or ""
 """
@@ -118,6 +119,25 @@ def _read(path: Path, ch: int) -> np.ndarray:
     return a.reshape(-1, ch).copy() if ch > 1 else a.copy()
 
 
+def sfx_times(story: dict, timeline: dict) -> list[tuple[float, str]]:
+    """(seconds, sfx type) for every shot `sfx` entry (shot start + at) and every `sfx_mark` event (its word's start
+    in the timeline + delay), sorted."""
+    beats = {b["i"]: b for b in timeline["beats"]}
+    out = []
+    for i, sb in enumerate(story.get("beats", [])):
+        tb = beats.get(i, {"start": 0, "words": []})
+        for s in sb.get("sfx", []):
+            out.append((tb["start"] + s.get("at", 0), s["type"]))
+        for e in sb.get("events", []):
+            if e.get("do") != "sfx_mark":
+                continue
+            if e.get("sfx") not in SFX_TYPES:
+                raise ValueError(f"unknown sfx type {e.get('sfx')!r}")
+            w = tb["words"][e.get("at_word", 0)] if e.get("at_word", 0) < len(tb["words"]) else {"s": tb["start"]}
+            out.append((w["s"] + float(e.get("delay") or 0), e["sfx"]))
+    return sorted(out)
+
+
 def mix(voice_wav: Path, timeline: dict, story: dict, track: dict | None, out: Path, music_db: float = -20) -> Path:
     voice = _read(voice_wav, 1)
     n = len(voice)
@@ -139,14 +159,11 @@ def mix(voice_wav: Path, timeline: dict, story: dict, track: dict | None, out: P
             duck = np.convolve(duck, np.ones(9) / 9, mode="same")
             g = np.interp(np.arange(n), np.arange(len(duck)) * hop + hop / 2, duck)
             mono += m * g * 10 ** (music_db / 20) / (np.sqrt(np.mean(m ** 2)) + 1e-9) * 0.1
-    beats = {b["i"]: b for b in timeline["beats"]}
-    for i, sb in enumerate(story.get("beats", [])):
-        start = beats[i]["start"] if i in beats else 0
-        for s in sb.get("sfx", []):
-            x = sfx(s["type"])
-            p = int((start + s.get("at", 0)) * SR)
-            if p < n:
-                mono[p:p + len(x)] += x[:n - p] * 0.5
+    for t, name in sfx_times(story, timeline):
+        x = sfx(name)
+        p = int(t * SR)
+        if 0 <= p < n:
+            mono[p:p + len(x)] += x[:n - p] * 0.5
     peak = np.abs(mono).max()
     if peak > 0.95:
         mono *= 0.95 / peak

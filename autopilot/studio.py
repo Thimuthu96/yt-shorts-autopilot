@@ -1,6 +1,7 @@
 """Studio bridge: run the Node renderer, mux the voice track, cut the thumbnail.
 
-    render(story, timeline, workdir, log=print, node="node") -> Path   workdir/video.mp4 (silent); RenderError
+    render(story, timeline, workdir, log=print, node="node", scale=1.0) -> Path   workdir/video.mp4 (silent);
+                                            RenderError (scale < 1 renders smaller, for local previews / tests)
     mux(video, audio, out) -> Path          1080x1920 30 fps H.264, AAC 48 kHz stereo, -g 60, two-pass loudnorm -14 LUFS
     thumbnail(video, out) -> Path           frame 0 as a jpg
     stills(story, timeline, workdir, times, node="node") -> list[Path]
@@ -38,10 +39,11 @@ def _write(story: dict, timeline: dict, workdir: Path) -> tuple[Path, Path]:
     return s, t
 
 
-def render(story: dict, timeline: dict, workdir: Path, log=print, node: str = "node") -> Path:
+def render(story: dict, timeline: dict, workdir: Path, log=print, node: str = "node", scale: float = 1.0) -> Path:
     s, t = _write(story, timeline, workdir)
-    log(f"studio: rendering {timeline.get('duration')}s")
-    _node([str(s), "--timeline", str(t), "--out", str(workdir)], node, log)
+    log(f"studio: rendering {timeline.get('duration')}s" + (f" at scale {scale:g}" if scale != 1 else ""))
+    _node([str(s), "--timeline", str(t), "--out", str(workdir)] + (["--scale", str(scale)] if scale != 1 else []),
+          node, log)
     video = Path(workdir) / "video.mp4"
     if not video.exists():
         raise RenderError("studio render finished without video.mp4")

@@ -76,3 +76,16 @@ def test_mix_with_music_and_unknown_sfx(tmp_path):
     assert abs(dur(out) - 2.0) < 0.05
     with pytest.raises(ValueError):
         S.mix(v, tl, {"beats": [{"sfx": [{"type": "moo", "at": 0}]}]}, None, tmp_path / "x.wav")
+
+
+def test_sfx_mark_events_land_on_their_words():
+    story = {"beats": [{"text": "a b c", "sfx": [{"type": "pop", "at": 0.1}],
+                        "events": [{"at_word": 2, "do": "sfx_mark", "sfx": "ding"},
+                                   {"at_word": 1, "do": "sfx_mark", "sfx": "boom", "delay": 0.05},
+                                   {"at_word": 0, "do": "expr", "who": "x", "expr": "happy"}]}]}
+    tl = {"beats": [{"i": 0, "start": 1.0, "end": 2.0, "words": [{"w": "a", "s": 1.0, "e": 1.2},
+                                                                   {"w": "b", "s": 1.3, "e": 1.5},
+                                                                   {"w": "c", "s": 1.6, "e": 1.9}]}]}
+    got = S.sfx_times(story, tl)
+    assert [n for _, n in got] == ["pop", "boom", "ding"]
+    assert [round(t, 3) for t, _ in got] == [1.1, 1.35, 1.6]
