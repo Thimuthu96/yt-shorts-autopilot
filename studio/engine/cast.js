@@ -564,6 +564,7 @@ export function drawChar(ctx, look, st) {
   x.save();
   const k = x.canvas.width / CW;
   x.scale(k, k);
+  if (st.pad) x.translate(0, st.pad); // design units of headroom above the head (channel art; the canvas is that much taller)
   if (st.facing === "left") { x.translate(CW, 0); x.scale(-1, 1); }
   x.lineJoin = "round"; x.lineCap = "round";
   if (pose.lean) { x.translate(cx, FOOT); x.rotate(pose.lean); x.translate(-cx, -FOOT); }

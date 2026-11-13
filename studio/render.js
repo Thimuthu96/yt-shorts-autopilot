@@ -96,4 +96,5 @@ async function main() {
   }
 }
 
-main().catch((e) => { console.error(`render failed at frame 0: ${e.message}`); process.exit(1); });
+module.exports = { serve };
+if (require.main === module) main().catch((e) => { console.error(`render failed at frame 0: ${e.message}`); process.exit(1); });
