@@ -3,6 +3,7 @@
 // a Char only gets its canvas when a DOM exists.
 //   resolveLook("gus" | {costume?, ...COSTUME_KEYS}) -> full look
 //   new Char(id, look); c.born = beatStart (c.beatStart for a kept char); c.frame(spec, t, mouth) -> state (poses the sprite, redraws on change)
+//   spec.motionStart (set by a motion event, events.js): the motion runs from then instead of the beat's start
 //   c.faceCamera(camera)   yaw-only billboard
 //   drawChar(ctx, look, state)   the sprite, in a CW x CH design space scaled to the canvas
 // Design: big white round head (~45 % of the height) with ink outline, dot eyes with a glint, line brows that carry
@@ -670,7 +671,7 @@ export class Char {
       if (o.falling) m.falling = true;
     };
     if (spec.enter) add(ENTERS[spec.enter](Math.max(0, lt)));
-    if (spec.motion) add(MOTIONS[spec.motion](Math.max(0, t - (this.beatStart ?? this.born)), t, dir));
+    if (spec.motion) add(MOTIONS[spec.motion](Math.max(0, t - (spec.motionStart ?? this.beatStart ?? this.born)), t, dir));
     let pose = pose0;
     if (pose === "idle" && walking) pose = "run";
     if (pose === "idle" && m.falling) pose = "fall";

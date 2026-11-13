@@ -219,5 +219,14 @@
     "spyglass",
     "book",
     "hammer"
+  ],
+  "events": [
+    "expr",
+    "pose",
+    "motion",
+    "fx",
+    "sign",
+    "sfx_mark",
+    "shake"
   ]
 }

@@ -1,6 +1,6 @@
 // Gus Explains engine: window.setup(story, timeline), then window.renderAt(t) per frame.
 // Registries live in their own modules (world.js: sets, props, moods; cast.js: characters; camera.js: camera moves,
-// iris; fx.js: effects; signs.js: in-world signs; captions.js: the one-word caption).
+// iris; fx.js: effects; signs.js: in-world signs; captions.js: the one-word caption; events.js: word-anchored shot events).
 import * as THREE from "three";
 import { clamp01 } from "./core.js";
 import { buildSet, spawnProp, propPosAt } from "./world.js";
@@ -9,6 +9,7 @@ import { camPose, handoff, irisMask } from "./camera.js";
 import { makeFx, updateFx } from "./fx.js";
 import { spawnSign } from "./signs.js";
 import { captionWord, drawCaption } from "./captions.js";
+import { EVENT_TYPES, shotEvents, applyEvents } from "./events.js";
 
 const W = 1080, H = 1920;
 const Q = Object.fromEntries(new URLSearchParams(location.search));
@@ -41,7 +42,9 @@ let capWord = null;
 // cleared each beat unless `keep`, when only the ids in `remove` go. Characters follow the same rule; a kept
 // character given a new `pos` walks there, one without `pos` stays put. FX and signs have no ids: they are cleared
 // each beat unless `keep`; an effect's local time runs from its beat's start + delay, so it is stateless per t.
-let STORY = null, TL = null, beatIdx = -1, setGroup = null, setKey = null;
+// A beat's `events` (story v2) are timed to its words: fx / sign events are spawned with the beat, hidden until their
+// event time; character and shake events are applied per frame from the base specs (events.js), never stored.
+let STORY = null, TL = null, EVENTS = null, beatIdx = -1, setGroup = null, setKey = null;
 const props = new Map();
 const chars = new Map(); // id -> {c: Char, spec}
 let fxs = [], signs = []; // fxs: {g, born}; signs: roots with userData.tick
@@ -66,7 +69,7 @@ function dropSign(o) {
   o.traverse((k) => k.isMesh && [].concat(k.material).forEach((m) => { if (m.map) { m.map.dispose(); m.dispose(); } }));
 }
 
-function applyFxAndSigns(b, start) {
+function applyFxAndSigns(b, start, events) {
   if (!b.keep) {
     fxs.forEach(dropFx);
     signs.forEach(dropSign);
@@ -81,6 +84,13 @@ function applyFxAndSigns(b, start) {
     const o = spawnSign(spec, start);
     scene.add(o);
     signs.push(o);
+  });
+  events.forEach(({ event, t }) => {
+    const made = EVENT_TYPES[event.do].spawn && EVENT_TYPES[event.do].spawn(event, t);
+    if (!made) return;
+    scene.add(made.obj);
+    if (made.kind === "fx") fxs.push({ g: made.obj, born: made.born });
+    else signs.push(made.obj);
   });
 }
 
@@ -127,7 +137,7 @@ function applyBeat(i) {
     props.set(id, o);
   });
   applyChars(b, start);
-  applyFxAndSigns(b, start);
+  applyFxAndSigns(b, start, EVENTS[i]);
 }
 
 // ---------- camera ----------
@@ -176,6 +186,7 @@ function applyIris(r) {
 
 window.setup = async (story, timeline) => {
   STORY = story; TL = timeline; beatIdx = -1; capWord = null;
+  EVENTS = shotEvents(story, timeline); // checks every event up front (bad at_word -> "beat N: ...")
   await document.fonts.load("700 80px Fredoka");
   await document.fonts.ready;
   return true;
@@ -188,15 +199,24 @@ window.renderAt = (t) => {
   props.forEach((o) => o.userData.tick(t));
   fxs.forEach(({ g, born }) => updateFx(g, t - born));
   signs.forEach((o) => o.userData.tick(t));
+  const base = new Map([...chars].map(([id, { spec }]) => [id, spec]));
+  const now = applyEvents({ story: STORY, timeline: TL, chars: base, events: EVENTS }, i, t);
   const pose = poseAt(i, t);
   camera.position.set(...pose.pos);
   if (camera.fov !== pose.fov) { camera.fov = pose.fov; camera.updateProjectionMatrix(); }
   camera.lookAt(...pose.look);
+  // shake: [right, up] in the camera's own axes, added on top of the move (position and aim together)
+  const [sx, sy] = now.shake;
+  if (sx || sy) {
+    const off = new THREE.Vector3(sx, sy, 0).applyQuaternion(camera.quaternion);
+    camera.position.add(off);
+    camera.lookAt(new THREE.Vector3(...pose.look).add(off));
+  }
   applyIris(irisAt(t));
   const word = captionWord(TL, t);
   if (word !== capWord) { capWord = word; drawCaption(capCtx, word, W, H); }
   const mouth = (TL.mouth || [])[Math.round(t * (TL.fps || 30))] || 0;
-  chars.forEach(({ c, spec }) => { c.frame(spec, t, mouth); c.faceCamera(camera); });
+  chars.forEach(({ c }, id) => { c.frame(now.chars.get(id), t, mouth); c.faceCamera(camera); });
   renderer.render(scene, camera);
   return true;
 };
