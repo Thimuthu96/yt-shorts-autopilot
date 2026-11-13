@@ -16,6 +16,25 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+# The channel is paused (config.yaml `paused: true`, switches off) for the Gus Explains switch. These tests
+# exercise the editions as they run live, so a parsed config.yaml is read as the unpaused slate; the pause itself
+# is checked by test_paused_config() against the raw file.
+_raw_safe_load = yaml.safe_load
+
+
+def _unpaused_safe_load(stream, *a, **k):
+    out = _raw_safe_load(stream, *a, **k)
+    if isinstance(out, dict) and out.get("paused") is True and "sessions" in out:
+        out = dict(out, paused=False)
+        for key in ("lessons", "basics", "triggers", "recap", "shorts", "pulse", "evergreen"):
+            out[key] = dict(out[key], enabled=True)
+    return out
+
+
+yaml.safe_load = _unpaused_safe_load
+
 sys.path.insert(0, str(ROOT))
 for _k in ("CF_ACCOUNT_ID", "CF_API_TOKEN", "FB_PAGE_ID", "FB_PAGE_TOKEN"):  # never reach real services
     os.environ.pop(_k, None)
@@ -288,6 +307,7 @@ def main():
     test_pulse_material(cfg)
     test_short_pulse(cfg)
     test_slate_timetable(cfg)
+    test_paused_config()
     test_slate_budget(cfg)
     test_slate_floor(cfg)
     test_slate_facebook(cfg)
@@ -3084,7 +3104,7 @@ def test_lesson_edition(cfg):
     text = (ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8")
     wf = yaml.safe_load(text)
     on = wf.get("on", wf.get(True))
-    assert {"cron": "17 15 * * 4"} in on["schedule"] and "0,2,4,6" not in text and "47 14" not in text, on
+    assert "schedule" not in on and "workflow_dispatch" in on and "0,2,4,6" not in text and "47 14" not in text, on  # paused
     job = wf["jobs"]["make-and-upload"]
     assert "'17 15 * * 4' && 'lesson'" in job["concurrency"]["group"]
     assert job["concurrency"]["group"].startswith("${{ inputs.slot && format('topup-{0}', inputs.slot) || ")
@@ -4753,8 +4773,7 @@ def test_trigger_poll(cfg):
 
     wf = yaml.safe_load((ROOT / ".github" / "workflows" / "triggers.yml").read_text(encoding="utf-8"))
     on_ = wf.get("on", wf.get(True))
-    cron = on_["schedule"][0]["cron"]
-    assert cron == "13,43 * * * *" and "workflow_dispatch" in on_, on_
+    assert "schedule" not in on_ and "workflow_dispatch" in on_, on_  # paused: no poll schedule
     assert wf["permissions"] == {"contents": "write", "actions": "write"}
     steps = wf["jobs"]["check"]["steps"]
     assert not any("ffmpeg" in str(x) for x in steps)
@@ -6115,6 +6134,31 @@ def _main_logs(app, argv: list[str], now: datetime, root: Path) -> tuple[int, li
         app.ROOT, app.datetime, app.log = saved
 
 
+def test_paused_config():
+    """The Gus Explains switch: config.yaml is paused with every switch off; a timed run logs and exits 0 before any
+    fetch; the workflows keep only workflow_dispatch (no schedule)."""
+    import main as app
+    raw = _raw_safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert raw["paused"] is True
+    for key in ("lessons", "basics", "triggers", "recap", "shorts", "pulse", "evergreen"):
+        assert raw[key]["enabled"] is False, key
+    tmp = Path(tempfile.mkdtemp())
+    (tmp / "config.yaml").write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    now = datetime(2026, 10, 17, 13, 4, tzinfo=timezone.utc)
+    yaml.safe_load = _raw_safe_load  # main() must see the file as it is, not the unpaused view
+    try:
+        rc, logs = _main_logs(app, ["--session", "short_a", "--scheduled", "--no-upload"], now, tmp)
+    finally:
+        yaml.safe_load = _unpaused_safe_load
+    assert rc == 0 and logs[-1] == "Channel paused for the Gus Explains switch; timed runs skip.", logs
+    assert not (tmp / "output").exists() and not (tmp / "data").exists(), "nothing made or fetched"
+    shutil.rmtree(tmp, ignore_errors=True)
+    for name in ("autopilot.yml", "triggers.yml"):
+        wf = _raw_safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))
+        on = wf.get("on", wf.get(True))
+        assert "schedule" not in on and "workflow_dispatch" in on, (name, on)
+
+
 def test_slate_timetable(cfg):
     """Slate 5.1: every timed session has one backup cron (17 min after start_utc, on its days) whose string maps to
     it in EDITION and concurrency.group; retired editions (asia, london, newyork, gold) and `auto` are gone; no
@@ -6140,8 +6184,9 @@ def test_slate_timetable(cfg):
         assert timed[k]["start_utc"] == t and list(timed[k].get("days") or []) == days, (k, timed[k])
     text = (ROOT / ".github" / "workflows" / "autopilot.yml").read_text(encoding="utf-8")
     edition, group, on = _wf_map(text)
-    crons = [c["cron"] for c in on["schedule"]]
-    assert edition == group and set(edition) == set(crons) and len(crons) == len(set(crons)), (edition, group, crons)
+    assert "schedule" not in on and "workflow_dispatch" in on, on  # paused: no backup crons, manual + outside timer only
+    crons = list(edition)  # the cron-string maps stay in EDITION / concurrency.group (harmless without schedules)
+    assert edition == group and len(crons) == len(set(crons)), (edition, group, crons)
     dow = {"sun": "0", "mon": "1", "tue": "2", "wed": "3", "thu": "4", "fri": "5", "sat": "6"}
     for k, s in timed.items():
         mine = [c for c, e in edition.items() if e == k]

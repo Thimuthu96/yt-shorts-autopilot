@@ -1,3 +1,5 @@
+# Channel paused for the Gus Explains switch: timed (--scheduled) runs skip; manual runs still work.
+paused: true
 # ─── Channel ────────────────────────────────────────────────────────────────
 channel:
   niche: >-
@@ -187,7 +189,7 @@ images:
 # Keep enabled: false until YT_REFRESH_TOKEN has the lesson scopes (python get_token.py) and the
 # owner's curriculum is merged; while false, lesson runs log why and stop (nothing fetched or posted).
 lessons:
-  enabled: true
+  enabled: false
   max_seconds: 300            # narration limit; re-recorded faster when over
   review_window_hours: 0      # 0 = public on upload; N = private, then public on its own N hours later
   # Automatic playlists: false = add lessons to playlists by hand in YouTube Studio (works with the
@@ -203,7 +205,7 @@ lessons:
 # Switch: while enabled is false, timed runs log why and stop; a manual run still makes and publishes
 # (review_window_hours > 0 / fb_published false hold a run back for review).
 basics:
-  enabled: true
+  enabled: false
   min_words: 600              # narration length → roughly 4-6 minutes
   max_words: 900
   max_seconds: 390            # narration limit; re-recorded faster when over
@@ -217,7 +219,7 @@ basics:
 # Switch: while enabled is false, the poll doesn't dispatch and timed triggered runs log why and stop; a manual run
 # with a trigger still makes it. On since the slate release (5.7).
 triggers:
-  enabled: true
+  enabled: false
   move_pct: 5                 # rule 1: BTC or ETH moves ±5% or more in 24 h
   cap_pct: 4                  # rule 2: total crypto market cap ±4% or more in 24 h (CoinGecko)
   coin_pct: 15                # rule 3: a top-50 coin ±15% or more in 24 h, only with a headline naming it
@@ -235,7 +237,7 @@ triggers:
 
 # ─── Saturday recap (the `recap` edition, CAP-5) ───────────────────────────
 recap:
-  enabled: true
+  enabled: false
   min_words: 560              # narration length → roughly 4-5 minutes
   max_words: 750
   max_seconds: 320            # narration limit; re-recorded faster when over
@@ -247,7 +249,7 @@ recap:
 # ─── Standalone Shorts (the `short_a` / `short_b` editions, CAP-2) ──────────
 # Switch: while enabled is false, timed (--scheduled) Short runs log why and stop; a manual run still makes one.
 shorts:
-  enabled: true
+  enabled: false
   min_words: 70               # script length → roughly 30-40 seconds
   max_words: 105
 
@@ -258,14 +260,14 @@ shorts:
 pulse:
   # Switch (on since 6.6): false → timed short_p runs (gate: pulse) log and skip and short_a keeps the plain Shorts
   # mix (no fetch); a manual short_p run still makes and publishes a pulse Short.
-  enabled: true
+  enabled: false
   quiet_move_pct: 1.5         # |lead 24 h move| under this and no cause story → quiet market, no pulse material
 
 # ─── Evergreen top-up (the `evergreen` edition) ────────────────────────────
 # Switch: while enabled is false, timed (--scheduled) evergreen runs log why and stop; a manual run with a slot
 # still tops that slot up. On since the slate release (5.7) with the weekly floor.
 evergreen:
-  enabled: true
+  enabled: false
 
 # ─── Voice (Microsoft Edge neural voices via edge-tts, free) ────────────────
 voice:

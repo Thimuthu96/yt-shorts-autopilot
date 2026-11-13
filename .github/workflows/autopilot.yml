@@ -7,17 +7,6 @@ on:
   # never), so these crons are only a backup, 17 min after each edition's start time.
   # Times are UTC. Sri Lanka time = UTC + 5:30.
   # If you change a cron line, change the same string in EDITION below and in concurrency.group.
-  schedule:
-    - cron: "47 0 * * *"    # Short P        (market pulse, due 00:30 UTC → 06:00 Sri Lanka); timed runs skip while pulse.enabled is false
-    - cron: "17 12 * * *"   # Morning News   (Facebook post, due 12:00 UTC → 17:30 Sri Lanka)
-    - cron: "17 13 * * *"   # Short A        (due 13:00 UTC → 18:30 Sri Lanka)
-    - cron: "17 15 * * 3"   # Crypto Basics  (due 15:00 UTC → 20:30 Sri Lanka), Wednesday
-    - cron: "17 15 * * 4"   # Trading Lesson (due 15:00 UTC → 20:30 Sri Lanka), Thursday
-    - cron: "17 15 * * 6"   # Weekly Recap   (due 15:00 UTC → 20:30 Sri Lanka), Saturday; else the top-up
-    - cron: "17 15 * * 0"   # Sunday top-up  (due 15:00 UTC → 20:30 Sri Lanka), only when the week is short
-    - cron: "17 16 * * *"   # Midday News    (Facebook post, due 16:00 UTC → 21:30 Sri Lanka)
-    - cron: "17 21 * * *"   # Evening News   (Facebook post, due 21:00 UTC → 02:30 Sri Lanka)
-    - cron: "17 23 * * *"   # Short B        (due 23:00 UTC → 04:30 Sri Lanka)
   workflow_dispatch:          # the "Run workflow" button (manual runs always make + publish)
     inputs:
       session:
