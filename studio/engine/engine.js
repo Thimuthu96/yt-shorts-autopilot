@@ -9,7 +9,7 @@ import { camPose, handoff, irisMask } from "./camera.js";
 import { makeFx, updateFx } from "./fx.js";
 import { spawnSign } from "./signs.js";
 import { captionWord, drawCaption } from "./captions.js";
-import { EVENT_TYPES, shotEvents, applyEvents } from "./events.js";
+import { EVENT_TYPES, shotEvents, shotRoster, applyEvents } from "./events.js";
 
 const W = 1080, H = 1920;
 const Q = Object.fromEntries(new URLSearchParams(location.search));
@@ -44,7 +44,7 @@ let capWord = null;
 // each beat unless `keep`; an effect's local time runs from its beat's start + delay, so it is stateless per t.
 // A beat's `events` (story v2) are timed to its words: fx / sign events are spawned with the beat, hidden until their
 // event time; character and shake events are applied per frame from the base specs (events.js), never stored.
-let STORY = null, TL = null, EVENTS = null, beatIdx = -1, setGroup = null, setKey = null;
+let STORY = null, TL = null, EVENTS = null, ROSTER = null, beatIdx = -1, setGroup = null, setKey = null;
 const props = new Map();
 const chars = new Map(); // id -> {c: Char, spec}
 let fxs = [], signs = []; // fxs: {g, born}; signs: roots with userData.tick
@@ -187,6 +187,7 @@ function applyIris(r) {
 window.setup = async (story, timeline) => {
   STORY = story; TL = timeline; beatIdx = -1; capWord = null;
   EVENTS = shotEvents(story, timeline); // checks every event up front (bad at_word -> "beat N: ...")
+  ROSTER = shotRoster(story);
   await document.fonts.load("700 80px Fredoka");
   await document.fonts.ready;
   return true;
@@ -199,8 +200,11 @@ window.renderAt = (t) => {
   props.forEach((o) => o.userData.tick(t));
   fxs.forEach(({ g, born }) => updateFx(g, t - born));
   signs.forEach((o) => o.userData.tick(t));
-  const base = new Map([...chars].map(([id, { spec }]) => [id, spec]));
-  const now = applyEvents({ story: STORY, timeline: TL, chars: base, events: EVENTS }, i, t);
+  const now = applyEvents({
+    story: STORY, timeline: TL, events: EVENTS, roster: ROSTER,
+    chars: new Map([...chars].map(([id, { spec }]) => [id, spec])),
+    props: new Map([...props].map(([id, o]) => [id, o.userData.spec])),
+  }, i, t);
   const pose = poseAt(i, t);
   camera.position.set(...pose.pos);
   if (camera.fov !== pose.fov) { camera.fov = pose.fov; camera.updateProjectionMatrix(); }

@@ -7,6 +7,7 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
 const STUDIO = path.join(__dirname, "..");
+const fxMod = () => import(pathToFileURL(path.join(STUDIO, "engine", "fx.js")).href);
 const events = () => import(pathToFileURL(path.join(STUDIO, "engine", "events.js")).href);
 const cast = () => import(pathToFileURL(path.join(STUDIO, "engine", "cast.js")).href);
 
@@ -30,7 +31,10 @@ test("EVENT_TYPES lists the built-in event types", async () => {
   for (const k of TYPES) {
     assert.strictEqual(typeof E.EVENT_TYPES[k].validate, "function", k);
     assert.strictEqual(typeof E.EVENT_TYPES[k].apply, "function", k);
+    const scope = E.EVENT_TYPES[k].scope;
+    assert.ok(scope === "scene" || E.SCOPES[scope], `${k}: scope ${scope}`);
   }
+  assert.deepStrictEqual(Object.keys(E.SCOPES), ["char", "prop"]);
 });
 
 test("eventTimes maps at_word to that word's start, adds delay, sorts by time", async () => {
@@ -108,6 +112,29 @@ test("pose and motion events: a motion starts at its event time", async () => {
   assert.ok(Math.abs(c.frame(at(2.7), 2.7, 0).tilt) > 1.4);
 });
 
+test("a prop-scoped event outlasts its shot until the prop is listed again or leaves", async () => {
+  const E = await events();
+  // a stand-in for 8B's prop actions: registered like any event type, acting on ctx.props
+  E.EVENT_TYPES.test_tag = { scope: "prop", validate: () => {}, apply: (ctx, ev, dt) => { ctx.props.get(ev.who).tagged = dt; } };
+  try {
+    const shot = { text: "hit by a cannonball,", props: [{ id: "cannon1", type: "cannon" }, { type: "barrel" }],
+      events: [{ at_word: 1, do: "test_tag", who: "cannon1" }, { at_word: 2, do: "test_tag", who: "barrel1" }] };
+    const st = { beats: [shot, { text: "boom", keep: true }] };
+    const props = new Map([["cannon1", { id: "cannon1", type: "cannon" }], ["barrel1", { type: "barrel" }]]);
+    const state = { story: st, timeline: TL, props };
+    const now = E.applyEvents(state, 1, 3.0);
+    assert.ok(Math.abs(now.props.get("cannon1").tagged - 1.65) < 1e-9, "carries into the kept shot");
+    assert.ok(Math.abs(now.props.get("barrel1").tagged - 1.45) < 1e-9, "an id-less prop is barrel1");
+    assert.strictEqual(props.get("cannon1").tagged, undefined, "the base spec is not changed");
+    assert.deepStrictEqual(E.applyEvents(state, 1, 3.0).chars, new Map(), "a view the state lacks is empty");
+    const relisted = { beats: [shot, { text: "boom", keep: true, props: [{ id: "cannon1", type: "cannon" }] }] };
+    assert.strictEqual(E.applyEvents({ ...state, story: relisted }, 1, 3.0).props.get("cannon1").tagged, undefined);
+    const gone = new Map([["barrel1", { type: "barrel" }]]);
+    assert.strictEqual(E.applyEvents({ ...state, props: gone }, 1, 3.0).props.has("cannon1"), false, "a removed prop is skipped");
+    assert.deepStrictEqual(E.shotRoster(st).map((r) => [...r.prop]), [["cannon1", "barrel1"], []]);
+  } finally { delete E.EVENT_TYPES.test_tag; }
+});
+
 test("an event naming a character not on stage throws", async () => {
   const E = await events();
   const st = story([{ at_word: 0, do: "expr", who: "ghost", expr: "happy" }]);
@@ -142,6 +169,14 @@ test("fx and sign events spawn at their event time", async () => {
   assert.strictEqual(fx.born, 2.5);
   assert.strictEqual(fx.obj.userData.type, "splash");
   assert.deepStrictEqual(fx.obj.position.toArray(), [1, 0, 0]);
+  // spawned at shot start, so frames before its time see a negative local time: hidden and dark
+  const F = await fxMod();
+  const boom = E.EVENT_TYPES.fx.spawn({ do: "fx", type: "explosion" }, 2.5).obj;
+  F.updateFx(boom, 2.4 - 2.5);
+  assert.strictEqual(boom.visible, false);
+  assert.strictEqual(boom.userData.light.intensity, 0);
+  F.updateFx(boom, 0.05);
+  assert.strictEqual(boom.visible, true);
   const sign = E.EVENT_TYPES.sign.spawn({ do: "sign", text: "BOOM", pos: [0, 3, 0], style: "plank" }, 2.5);
   assert.strictEqual(sign.kind, "sign");
   assert.strictEqual(sign.obj.userData.born, 2.5);
