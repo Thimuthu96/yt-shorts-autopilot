@@ -251,3 +251,40 @@ step that runs only after the owner explicitly confirms it at that time**, not a
 - Order of work. Suggested: engine + one hand-written sample story rendering well (show the owner frames
   before going further) → Gemini story writer + validator + fact-check → pipeline + upload rework and
   crypto removal → branding → deletion script.
+
+## 11. Improvement round after the owner's sample review (2026-11-13)
+
+The owner watched the first sample ("Why Lighthouses Flash in Patterns") and found the hook weak and the
+script, animation and camera below the reference. Side-by-side analysis of the first 8 s:
+
+| | Reference | Sample v1 |
+|---|---|---|
+| Hook | "If your ship got hit by a cannonball, you'd actually be one of the lucky ones." — 2nd person, danger, twist | plain fact, no stakes |
+| Pace | a new shot / visual event every 0.5–1.5 s | one shot ≈ 6 s |
+| Action on words | "hit by" → cannon fires; "cannonball" → camera rides the ball; "smash" → splinters burst | nothing tied to words |
+| Camera | close, low, wide lens, tilted, whip-pans, foreground objects | flat, far, level, hard cuts |
+| Characters | 40–70 % of frame height, acting with props | ≈ 30 %, standing |
+| Light | warm bright day, rich textures | dark blue night tints faces |
+
+Decisions (owner approved 2026-11-13):
+1. **Hook & script rules.** Line 1 is a second-person scenario with a twist or high stakes ("If you…, you'd
+   actually…", "This X could Y", a surprising number). Then escalation with concrete facts and numbers; a
+   visible event every 3–6 spoken words; payoff answers the hook. Topic angles are chosen for "wait, really?"
+   stakes, not plain facts.
+2. **Shots, not beats.** A story is a fast shot list: each shot 0.6–2.5 s (≈ 2–8 words), 15–40 shots per video.
+   Shots carry **events anchored to words** (`at_word` index within the shot): actions, expressions, FX, signs,
+   camera shake.
+3. **Action library.** Compound animated actions: cannon/gun fire (recoil, muzzle flash, smoke), projectile
+   launch on an arc with camera follow, impact bursts (splinters/debris/splash by surface), prop fly-off;
+   character actions hold, drink, throw, duck, cower, grab, run_to, point_at, look_at, jump, fall; squash &
+   stretch on hits.
+4. **Camera v2.** Framing presets relative to a subject (`close`, `medium`, `two_shot`, `ots`, `low_hero`,
+   `wide`, `pov`), default wide lens (fov ≈ 60), `roll` (dutch tilt), foreground objects, and **whip-pan
+   transitions** (fast rotation + motion blur) that hide set changes; hard cuts become rare.
+5. **Look v2.** Characters bigger by default; warm daylight preferred; night scenes moonlit-bright with faces
+   staying white (characters not tinted by mood beyond a light rim); richer textures; a lighthouse lens prop
+   and a sweeping light-beam FX; sign text rendered as written.
+6. The sample is rebuilt with all of the above and shown to the owner again side by side with the reference
+   before the automatic writer is built.
+Limit, said to the owner: hand-animated frames are not fully reachable by code; this round targets what
+viewers notice (hook, pace, action on words, camera energy, character size).
