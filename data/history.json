@@ -7188,6 +7188,63 @@
       "platforms": [
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-13T13:01:49+00:00",
+      "brief_date": "2026-11-13",
+      "session": "short_a",
+      "kind": "short",
+      "short_kind": "pulse",
+      "material": "pulse-2026-11-13-short_a",
+      "segment": "hook_0",
+      "source_video": "aqh7Xj_c9I8",
+      "hook": "Why did Bitcoin just fall 5%?",
+      "topic": "bitcoin fall 5",
+      "fingerprint": [
+        "04161b10",
+        "00f1dc0b",
+        "01550449",
+        "02db1bd1",
+        "003f64ca",
+        "009e6110",
+        "0042373e",
+        "03188d2c",
+        "041bc425",
+        "07116107",
+        "02be2e83",
+        "00f46411",
+        "04d38c7a",
+        "02229d2f",
+        "00fbc896",
+        "0497fee3",
+        "02258a84",
+        "03b6f473",
+        "05b4cd5d",
+        "04e23048",
+        "03e1f575",
+        "02f4116c",
+        "01063baa",
+        "01d1babc",
+        "007f2628",
+        "004450d3",
+        "02fd4609",
+        "021777a4",
+        "0c93dc24",
+        "01f3bfff",
+        "00c00d30",
+        "044be7fe"
+      ],
+      "title": "Why did Bitcoin just fall 5%?",
+      "video_id": "rH_nkFoY7UI",
+      "seconds": 35.6,
+      "voice": "en_US-ryan-high",
+      "fb_reel_id": "27009002002130548",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube",
+        "facebook"
+      ]
     }
   ]
 }
