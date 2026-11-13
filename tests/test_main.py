@@ -148,6 +148,10 @@ def test_write_failed_three_topics_exits_1(env, monkeypatch):
     assert [e["status"] for e in bl] == ["failed", "failed", "failed", "queued"]
     assert bl[0]["reason"] == "not enough sources" and bl[0]["used_on"] == TODAY
     assert not M.HISTORY.exists()
+    # the workflow resets to origin/main and re-applies the run's changes: same backlog
+    _backlog()
+    (changes,) = list(M.OUTPUT.glob("*/backlog_changes.json"))
+    assert topics.apply(topics.load(M.BACKLOG), json.loads(changes.read_text())) == bl
 
 
 def test_too_long_marks_topic_failed(env, monkeypatch):
@@ -177,6 +181,7 @@ def test_no_upload_failing_run_leaves_backlog_unchanged(env, monkeypatch):
     assert M.main(["--session", "short_a", "--no-upload"]) == 1
     assert calls == ["t0", "t1", "t2"]  # the in-memory marks still move the loop on
     assert M.BACKLOG.read_bytes() == before
+    assert not list(M.OUTPUT.glob("*/backlog_changes.json"))
 
 
 def test_story_path_slug_made_unique(env, monkeypatch, tmp_path):

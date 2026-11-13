@@ -1,20 +1,15 @@
 """Create or fix the cron-job.org timers (the "outside timer") for every edition in config.yaml.
 
-Each edition gets one job titled "CryptoFX · <edition>" that POSTs workflow_dispatch to GitHub at
-its start_utc on the edition's `days` (e.g. lesson: [thu]; otherwise every day). Jobs with that title
-are updated, missing ones are created, so running it again after changing a time in config.yaml is
-safe. Other jobs are left alone; the retired editions' jobs (asia, london, newyork, gold) are listed and
-deleted only with --delete-retired.
+Each edition gets one job titled "Gus Explains · <edition>" that POSTs workflow_dispatch to GitHub at its
+start_utc on the edition's `days` (none = every day): short_a 16:25 and short_b 22:25 UTC. Jobs with that title are
+updated, missing ones are created, so running it again after changing a time in config.yaml is safe. Other jobs
+are left alone; the crypto channel's jobs (titled "CryptoFX · …") are listed and deleted only with
+--delete-retired (every CryptoFX job, since no edition of config.yaml has that title any more).
 
-The slate's ten jobs: news_morning 12:00, short_a 13:00, basics (Wed) / lesson (Thu) / recap (Sat) / topup_sun (Sun)
-15:00, news_midday 16:00, news_evening 21:00, short_b 23:00, and short_p 00:30 (market pulse, epic-shorts-reach 6.5;
-the owner creates its job with this script in 6.6; until pulse.enabled is true its timed runs log and exit 0).
-
-    python setup_cronjobs.py --dry-run          # show what it would do (no keys needed)
+    python setup_cronjobs.py --dry-run          # show what it would do (no keys, no network)
     python setup_cronjobs.py                    # asks for both keys (hidden input)
-    python setup_cronjobs.py --disable news_morning,news_midday,news_evening   # create them paused
-    python setup_cronjobs.py --disable lesson   # the lesson timer paused until lessons.enabled is true
-    python setup_cronjobs.py --delete-retired   # also delete the retired editions' jobs
+    python setup_cronjobs.py --disable short_a,short_b   # create / update them paused
+    python setup_cronjobs.py --delete-retired   # also delete every "CryptoFX · …" job
 
 Keys (asked for if not set as environment variables; never stored):
   CRONJOB_API_KEY   cron-job.org → Settings → API → Create API key
@@ -35,10 +30,20 @@ ROOT = Path(__file__).parent
 API = "https://api.cron-job.org"
 REPO = "Thimuthu96/yt-shorts-autopilot"
 DISPATCH = f"https://api.github.com/repos/{REPO}/actions/workflows/autopilot.yml/dispatches"
-PREFIX = "CryptoFX · "
+PREFIX = "Gus Explains · "
+RETIRED_PREFIX = "CryptoFX · "  # the crypto channel's jobs: all go with --delete-retired
 POST = 1  # cron-job.org requestMethod code
 WDAYS = {"sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6}  # cron-job.org: 0 = Sunday
-RETIRED = ("asia", "london", "newyork", "gold")  # editions retired by the crypto-only slate (their jobs go)
+# The crypto slate's jobs as setup_cronjobs.py created them (shown by --dry-run, which reads nothing from
+# cron-job.org); a real --delete-retired deletes every job whose title starts with RETIRED_PREFIX.
+KNOWN_RETIRED = ("short_p", "news_morning", "short_a", "basics", "lesson", "recap", "topup_sun", "news_midday",
+                 "news_evening", "short_b", "asia", "london", "newyork", "gold")
+
+
+def retired(existing: dict, sessions: dict) -> list[str]:
+    """Titles of the CryptoFX jobs to delete: every one not named after a config.yaml edition."""
+    keep = {PREFIX + k for k in sessions}
+    return sorted(t for t in existing if t and t.startswith(RETIRED_PREFIX) and t not in keep)
 
 
 def days_of(session: dict) -> list[str]:
@@ -75,13 +80,13 @@ def job_for(key: str, session: dict, token: str, enabled: bool) -> dict:
     }
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--dry-run", action="store_true", help="print the plan, change nothing")
     p.add_argument("--disable", default="", help="comma-separated editions to create/update as paused")
     p.add_argument("--delete-retired", action="store_true",
-                   help="delete the retired editions' jobs (" + ", ".join(PREFIX + k for k in RETIRED) + ")")
-    args = p.parse_args()
+                   help=f"delete every '{RETIRED_PREFIX}…' job (the crypto channel's timers)")
+    args = p.parse_args(argv)
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     sessions = {k: v for k, v in (cfg.get("sessions") or {}).items() if v.get("start_utc")}
@@ -95,8 +100,10 @@ def main() -> int:
         d = days_of(s)
         days = "/".join(x.title() for x in d) if d else "every day"
         print(f"  {PREFIX + k:<26} {s['start_utc']} UTC, {days}{'  (paused)' if k in paused else ''}")
-    print("Retired (" + ("deleted" if args.delete_retired else "delete by hand, or run with --delete-retired")
-          + "): " + ", ".join(PREFIX + k for k in RETIRED))
+    print(f"Retired: every '{RETIRED_PREFIX}…' job (" + ("deleted by this run" if args.delete_retired and not args.dry_run
+                                             else "delete by hand, or run with --delete-retired") + "), i.e. the crypto slate's:")
+    for k in KNOWN_RETIRED:
+        print(f"  {RETIRED_PREFIX + k}")
     if args.dry_run:
         print("Dry run: nothing changed.")
         return 0
@@ -116,12 +123,11 @@ def main() -> int:
     existing = {j.get("title"): j["jobId"] for j in r.json().get("jobs", [])}
 
     if args.delete_retired:
-        for k in RETIRED:
-            if PREFIX + k in existing:
-                r = s.delete(f"{API}/jobs/{existing[PREFIX + k]}", timeout=30)
-                print(f"  {'✗' if r.status_code >= 400 else '✓'} {PREFIX + k} deleted"
-                      + (f": HTTP {r.status_code} {r.text[:200]}" if r.status_code >= 400 else ""))
-                time.sleep(0.3)
+        for title in retired(existing, sessions):
+            r = s.delete(f"{API}/jobs/{existing[title]}", timeout=30)
+            print(f"  {'✗' if r.status_code >= 400 else '✓'} {title} deleted"
+                  + (f": HTTP {r.status_code} {r.text[:200]}" if r.status_code >= 400 else ""))
+            time.sleep(0.3)
     created = 0
     for k, sess in sessions.items():
         job = job_for(k, sess, gh_token, enabled=k not in paused)

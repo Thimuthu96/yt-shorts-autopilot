@@ -13,8 +13,15 @@
     needs_refill(backlog, minimum=10) -> bool    fewer than `minimum` queued
     add(backlog, proposals, history_titles, log) -> int   append writer.propose_topics results as queued
     similar(a, b) -> float                       token Jaccard of two normalized titles
+    changes(before, after) -> {"marks", "added"}  what a run did to the backlog (main.py writes it to
+                                                 output/<stamp>/backlog_changes.json)
+    apply(backlog, changes) -> backlog           re-applies those changes to a newer backlog (idempotent)
+
+    python -m autopilot.topics apply output/*/backlog_changes.json   # the workflow's Save step, after its reset
 """
+import json
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +32,8 @@ CATEGORIES = ("history", "engineering", "science", "psychology", "laws_jobs_cust
 FORMATS = ("explainer", "levels")
 STATUSES = ("queued", "used", "failed")
 SIMILAR = 0.6
+MARK_FIELDS = ("status", "reason", "used_on")
+BACKLOG = Path(__file__).resolve().parents[1] / "topics" / "backlog.yaml"
 
 
 def log(*a):
@@ -149,3 +158,67 @@ def add(backlog: list[dict], proposals: list[dict], history_titles: list[str], l
         added += 1
     log(f"topics: {added} new topic(s) queued")
     return added
+
+
+def changes(before: list[dict], after: list[dict]) -> dict:
+    """The marks (status / reason / used_on of an existing topic) and the added topics between two backlogs."""
+    old = {str(e.get("id")): e for e in before}
+    marks, added = [], []
+    for e in after:
+        o = old.get(str(e.get("id")))
+        if o is None:
+            added.append(dict(e))
+        elif any(o.get(k) != e.get(k) for k in MARK_FIELDS):
+            marks.append({"id": str(e.get("id")), **{k: e.get(k) for k in MARK_FIELDS}})
+    return {"marks": marks, "added": added}
+
+
+def apply(backlog: list[dict], ch: dict, log=log) -> list[dict]:
+    """Apply `changes()` output to (a newer copy of) the backlog, in place, and return it. Applying the same changes
+    twice equals applying them once: marks set fields, an added topic whose id is there (or whose title is a near
+    copy of a queued / used one) is skipped."""
+    by_id = {str(e.get("id")): e for e in backlog}
+    for m in ch.get("marks") or []:
+        e = by_id.get(str(m.get("id")))
+        if e is None:
+            log(f"topics: mark for {m.get('id')!r} skipped, it isn't in the backlog")
+            continue
+        if m.get("status") not in STATUSES:
+            log(f"topics: mark for {m.get('id')!r} skipped, unknown status {m.get('status')!r}")
+            continue
+        for k in MARK_FIELDS:
+            e[k] = m.get(k)
+    for a in ch.get("added") or []:
+        tid = str(a.get("id"))
+        if tid in by_id:
+            continue
+        dup = _duplicate(a.get("title_idea", ""), [e.get("title_idea", "") for e in backlog])
+        if dup:
+            log(f"topics: added topic {a.get('title_idea')!r} skipped, too close to {dup!r}")
+            continue
+        backlog.append(dict(a))
+        by_id[tid] = backlog[-1]
+    return backlog
+
+
+def _main(argv: list[str]) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(prog="python -m autopilot.topics")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    a = sub.add_parser("apply", help="re-apply runs' backlog_changes.json files to topics/backlog.yaml")
+    a.add_argument("--backlog", type=Path, default=BACKLOG)
+    a.add_argument("changes", type=Path, nargs="+")
+    args = ap.parse_args(argv)
+    backlog = load(args.backlog)
+    before = [dict(e) for e in backlog]
+    for f in args.changes:
+        apply(backlog, json.loads(f.read_text(encoding="utf-8")))
+    ch = changes(before, backlog)
+    if ch["marks"] or ch["added"]:
+        save(args.backlog, backlog)
+    log(f"topics: {len(ch['marks'])} mark(s), {len(ch['added'])} new topic(s) applied to {args.backlog.name}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_main(sys.argv[1:]))

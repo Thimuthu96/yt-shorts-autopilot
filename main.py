@@ -87,7 +87,18 @@ def _manual_topic(text: str) -> topics.Topic:
     return topics.Topic("manual-" + topics.slugify(text), text.strip(), "levels" if fmt == "levels" else "", fmt, "")
 
 
-def refill(cfg: dict, history: History, backlog: list[dict], log=log, persist: bool = True) -> None:
+def save_backlog(backlog: list[dict], before: list[dict] | None, workdir: Path | None) -> None:
+    """Write topics/backlog.yaml and, for the workflow, output/<stamp>/backlog_changes.json: what this run changed
+    since it loaded the backlog (the Save step resets to origin/main and re-applies it: autopilot.topics apply)."""
+    topics.save(BACKLOG, backlog)
+    if before is not None and workdir is not None:
+        Path(workdir).mkdir(parents=True, exist_ok=True)
+        (Path(workdir) / "backlog_changes.json").write_text(
+            json.dumps(topics.changes(before, backlog), indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def refill(cfg: dict, history: History, backlog: list[dict], log=log, persist: bool = True,
+           before: list[dict] | None = None, workdir: Path | None = None) -> None:
     """Gemini proposes new topics when the queue runs low; a failure is logged, never fatal. `persist` false (a
     run that publishes nothing): the new topics stay in memory, topics/backlog.yaml is not written."""
     gus = cfg.get("gus") or {}
@@ -97,18 +108,20 @@ def refill(cfg: dict, history: History, backlog: list[dict], log=log, persist: b
         existing = history.titles() + [e.get("title_idea", "") for e in backlog]
         props = writer.propose_topics(int(gus.get("refill_count", 15)), existing, cfg)
         if topics.add(backlog, props, history.titles(), log=log) and persist:
-            topics.save(BACKLOG, backlog)
+            save_backlog(backlog, before, workdir)
     except Exception as e:
         log(f"Topic refill failed (the backlog stays as it is): {e}")
 
 
 def _write_story(cfg, history, date, catalog, topic_text, workdir, log, persist=True):
-    """topic → writer → timeline, up to gus.max_topics topics. Returns (story, timeline, topic, backlog).
+    """topic → writer → timeline, up to gus.max_topics topics. Returns (story, timeline, topic, backlog, before)
+    (`before` = the backlog as loaded, for backlog_changes.json).
     `persist` false (--no-upload / nothing to publish): failed topics are marked in memory only (so the loop moves
     on) and topics/backlog.yaml is never written."""
     gus = cfg.get("gus") or {}
     vcfg, max_s = cfg["voice"], float((cfg.get("video") or {}).get("max_seconds", 60))
     backlog = None if topic_text else topics.load(BACKLOG)
+    before = None if backlog is None else [dict(e) for e in backlog]
     refilled, tried = False, 0
     for tried in range(1, int(gus.get("max_topics", 3)) + 1):
         if topic_text:
@@ -117,7 +130,7 @@ def _write_story(cfg, history, date, catalog, topic_text, workdir, log, persist=
             topic = topics.next_topic(backlog, history.titles(), history.stories(), log=log)
             if topic is None and not refilled:
                 log("The topic backlog has no usable queued topic; asking Gemini for more.")
-                refill(cfg, history, backlog, log, persist)
+                refill(cfg, history, backlog, log, persist, before, workdir)
                 refilled = True
                 topic = topics.next_topic(backlog, history.titles(), history.stories(), log=log)
             if topic is None:
@@ -127,7 +140,7 @@ def _write_story(cfg, history, date, catalog, topic_text, workdir, log, persist=
             s = writer.write(topic, cfg, catalog, log=log)
             _unique_slug(s, history)
             tl = timeline.build(s, vcfg, workdir, max_s, log=log)
-            return s, tl, topic, backlog
+            return s, tl, topic, backlog, before
         except writer.WriteFailed as e:
             reason = str(e)
         except timeline.TooLong as e:
@@ -137,7 +150,7 @@ def _write_story(cfg, history, date, catalog, topic_text, workdir, log, persist=
             raise RuntimeError(f"the topic {topic_text!r} failed: {reason}")
         topics.mark(backlog, topic.id, "failed", reason[:300], date)
         if persist:
-            topics.save(BACKLOG, backlog)
+            save_backlog(backlog, before, workdir)
         else:
             log(f"Topic {topic.id} kept queued in topics/backlog.yaml (nothing is published by this run)")
     raise RuntimeError(f"{tried} topics failed in a row; nothing to publish")
@@ -151,7 +164,7 @@ def make_short(cfg: dict, history: History, session: str, date: str, story_path:
     workdir.mkdir(parents=True, exist_ok=True)
     catalog = story_mod.load_catalog()
     video_cfg = cfg.get("video") or {}
-    topic = backlog = None
+    topic = backlog = before = None
     if story_path:
         s = json.loads(Path(story_path).read_text(encoding="utf-8"))
         problems = story_mod.validate(s, catalog)
@@ -162,7 +175,7 @@ def make_short(cfg: dict, history: History, session: str, date: str, story_path:
             _unique_slug(s, history)
         tl = timeline.build(s, cfg["voice"], workdir, float(video_cfg.get("max_seconds", 60)), log=log)
     else:
-        s, tl, topic, backlog = _write_story(cfg, history, date, catalog, topic_text, workdir, log, persist)
+        s, tl, topic, backlog, before = _write_story(cfg, history, date, catalog, topic_text, workdir, log, persist)
 
     tracks = soundtrack.load_tracks(log=log)
     yt = soundtrack.pick_track(tracks, s["music_mood"], "youtube", s["slug"])
@@ -191,7 +204,8 @@ def make_short(cfg: dict, history: History, session: str, date: str, story_path:
              "seconds": round(float(tl["duration"]), 1)}
     log(f"Made {s['slug']}: {tl['duration']:.1f}s → {short}")
     return {"video": short, "video_fb": short_fb, "thumbnail": thumb, "meta": meta, "fb_caption": caption,
-            "entry": entry, "story": s, "topic": topic, "backlog": backlog, "workdir": workdir}
+            "entry": entry, "story": s, "topic": topic, "backlog": backlog, "backlog_before": before,
+            "workdir": workdir}
 
 
 def publish(made: dict, pending: list[str], cfg: dict) -> tuple[dict, list[str]]:
@@ -219,7 +233,8 @@ def publish(made: dict, pending: list[str], cfg: dict) -> tuple[dict, list[str]]
 
 
 def _after_publish(made: dict, cfg: dict, history: History, date: str) -> None:
-    """Save the story (stories/published/<slug>.json), mark its topic used, refill a low backlog."""
+    """Save the story (stories/published/<slug>.json), mark its topic used, refill a low backlog. The workflow
+    commits these from output/<stamp>/ (story.json, backlog_changes.json) after resetting to origin/main."""
     PUBLISHED.mkdir(parents=True, exist_ok=True)
     (PUBLISHED / f"{made['story']['slug']}.json").write_text(json.dumps(made["story"], indent=2, ensure_ascii=False))
     backlog, topic = made.get("backlog"), made.get("topic")
@@ -229,8 +244,9 @@ def _after_publish(made: dict, cfg: dict, history: History, date: str) -> None:
         topics.mark(backlog, topic.id, "used", None, date)
     except KeyError:
         return
-    topics.save(BACKLOG, backlog)
-    refill(cfg, history, backlog)
+    before, workdir = made.get("backlog_before"), made.get("workdir")
+    save_backlog(backlog, before, workdir)
+    refill(cfg, history, backlog, before=before, workdir=workdir)
 
 
 # ─── the edition ───────────────────────────────────────────────────────────

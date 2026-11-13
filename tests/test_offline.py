@@ -184,6 +184,8 @@ def run_offline() -> Path:
     assert "https://en.wikipedia.org/wiki/Fresnel_lens" in meta["description"]
     bl = topics.load(tmp / "backlog.yaml")
     assert bl[0]["status"] == "used" and len(bl) > 1  # used, then refilled from the (mocked) proposals
+    changes = json.loads((work / "backlog_changes.json").read_text())  # what the workflow re-applies
+    assert topics.apply([dict(e) for e in backlog], changes) == bl
     assert (tmp / "published" / f"{entry['slug']}.json").exists()
     log(f"OK: {OUT / 'short.mp4'} ({entry['seconds']} s, {v[0]['width']}x{v[0]['height']}), history entry and "
         "metadata checked")

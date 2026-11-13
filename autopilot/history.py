@@ -8,8 +8,11 @@ count unless started with --as-edition, so they never stop the autopilot.
 The crypto channel's history is kept in data/archive/crypto-history.json (not read by anything).
 
     python -m autopilot.history add output/*/history_entry.json       # merge (used by the workflow)
+    python -m autopilot.history stories output/*/history_entry.json   # the story.json beside each entry →
+                                                                      # stories/published/<slug>.json (workflow)
 """
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -71,9 +74,29 @@ class History:
         self.path.write_text(json.dumps(self.data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def copy_stories(entries: list[Path], dest: Path, log=print) -> int:
+    """For each history_entry.json, copy the story.json beside it to dest/<slug>.json (a later re-run for a missed
+    platform re-renders it). Returns how many were copied; a missing story is logged."""
+    n = 0
+    for p in map(Path, entries):
+        slug = json.loads(p.read_text(encoding="utf-8")).get("slug")
+        src = p.parent / "story.json"
+        if not slug or not src.exists():
+            log(f"history: no story to keep for {p}")
+            continue
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dest / f"{slug}.json")
+        n += 1
+    return n
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 3 or sys.argv[1] != "add":
-        sys.exit("usage: python -m autopilot.history add <entry.json>...")
+    if len(sys.argv) < 3 or sys.argv[1] not in ("add", "stories"):
+        sys.exit("usage: python -m autopilot.history add|stories <entry.json>...")
+    if sys.argv[1] == "stories":
+        n = copy_stories(sys.argv[2:], ROOT / "stories" / "published")
+        print(f"history: {n} stor{'y' if n == 1 else 'ies'} kept in stories/published/")
+        sys.exit(0)
     h = History(ROOT / "data" / "history.json")
     added = [p for p in sys.argv[2:] if h.add(json.loads(Path(p).read_text(encoding="utf-8")))]
     h.save()

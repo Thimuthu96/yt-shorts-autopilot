@@ -91,3 +91,61 @@ def test_seed_backlog_is_valid():
         assert all(T.similar(e["title_idea"], r) < 0.6 for r in ricks), e["title_idea"]
         assert not story.rules.title_problems(e["title_idea"]), e["title_idea"]
         assert (e["format"] == "levels") == (e["category"] == "levels")
+
+
+# ─── backlog changes (the workflow re-applies a run's changes to origin's backlog) ───
+def _changed():
+    before = [entry("a", "history"), entry("b", "science"), entry("c", "engineering")]
+    after = [dict(e) for e in before]
+    T.mark(after, "a", "used", None, "2026-11-13")
+    T.mark(after, "b", "failed", "too long: narration 64.0s", "2026-11-13")
+    after.append(entry("d", "what_if", title="What If the Moon Had Rings"))
+    return before, after
+
+
+def test_changes_lists_marks_and_added():
+    before, after = _changed()
+    ch = T.changes(before, after)
+    assert [m["id"] for m in ch["marks"]] == ["a", "b"]
+    assert ch["marks"][1] == {"id": "b", "status": "failed", "reason": "too long: narration 64.0s",
+                              "used_on": "2026-11-13"}
+    assert [e["id"] for e in ch["added"]] == ["d"]
+    assert T.changes(before, [dict(e) for e in before]) == {"marks": [], "added": []}
+
+
+def test_apply_reproduces_the_run_on_a_newer_backlog_and_is_idempotent():
+    before, after = _changed()
+    ch = T.changes(before, after)
+    origin = [dict(e) for e in before] + [entry("e", "luck_games", title="Why Dice Have Dots Not Numbers")]
+    once = T.apply([dict(e) for e in origin], ch)
+    twice = T.apply([dict(e) for e in once], ch)
+    assert once == twice
+    by = {e["id"]: e for e in once}
+    assert by["a"]["status"] == "used" and by["b"]["status"] == "failed" and by["c"]["status"] == "queued"
+    assert [e["id"] for e in once] == ["a", "b", "c", "e", "d"]
+
+
+def test_apply_skips_unknown_ids_and_near_duplicate_additions():
+    logs = []
+    origin = [entry("x", "science", title="What If the Moon Had Rings Too")]
+    ch = {"marks": [{"id": "gone", "status": "used", "reason": None, "used_on": "2026-11-13"}],
+          "added": [entry("d", "what_if", title="What If the Moon Had Rings")]}
+    out = T.apply(origin, ch, log=logs.append)
+    assert [e["id"] for e in out] == ["x"]
+    assert any("gone" in m for m in logs) and any("Moon" in m for m in logs)
+
+
+def test_apply_cli(tmp_path):
+    import json
+    import subprocess
+    before, after = _changed()
+    bl = tmp_path / "backlog.yaml"
+    T.save(bl, before)
+    f1 = tmp_path / "1.json"
+    f1.write_text(json.dumps(T.changes(before, after)))
+    py = sys.executable
+    for _ in range(2):
+        r = subprocess.run([py, "-m", "autopilot.topics", "apply", "--backlog", str(bl), str(f1)], cwd=ROOT,
+                           capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+    assert T.load(bl) == after
