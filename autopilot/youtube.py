@@ -60,7 +60,7 @@ def upload(video_path: Path, meta: dict, cfg: dict, log=print) -> str:
             "title": meta["title"],
             "description": meta["description"],
             "tags": meta["tags"],
-            "categoryId": str(up.get("category_id", "27")),
+            "categoryId": str(up.get("category_id", "22")),
             "defaultLanguage": lang,
             "defaultAudioLanguage": lang,
         },

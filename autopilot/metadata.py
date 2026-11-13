@@ -1,6 +1,6 @@
 """Titles, the YouTube description and the Facebook Reel caption for a Gus Explains story.
 
-    build(story, track_yt, cfg) -> {"title", "description", "tags", "category_id": "27"}
+    build(story, track_yt, cfg) -> {"title", "description", "tags", "category_id": upload.category_id (default "22")}
         description: hook line → summary → "Sources:" bullet URLs → music attribution (if any) → disclosure line
         (exactly once) → 3-5 hashtags + #Shorts last
     reel_caption(story, track_fb, cfg) -> str
@@ -82,7 +82,7 @@ def build(story: dict, track_yt: dict | None, cfg: dict) -> dict:
     tail = line + "\n\n" + " ".join(hashtags(story, True))
     body = "\n\n".join(p for p in parts if p)
     return {"title": title(story), "description": body[:4900 - len(tail) - 2].rstrip() + "\n\n" + tail,
-            "tags": tags(story), "category_id": "27"}
+            "tags": tags(story), "category_id": str(cfg.get("upload", {}).get("category_id", "22"))}
 
 
 def reel_caption(story: dict, track_fb: dict | None, cfg: dict) -> str:

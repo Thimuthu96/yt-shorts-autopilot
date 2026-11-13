@@ -16,7 +16,7 @@ TRACK = {"title": "Sea Song", "artist": "Ann", "attribution": "CC BY 4.0 https:/
 def test_youtube_description():
     m = M.build(STORY, None, CFG)
     d = m["description"]
-    assert m["category_id"] == "27" and len(m["title"]) <= 60
+    assert m["category_id"] == "22" and len(m["title"]) <= 60
     assert d.count(LINE) == 1
     assert d.split()[-1] == "#Shorts"
     assert d.startswith("If your captain mixed up two lighthouses at night, you'd hit the rocks before morning.")
