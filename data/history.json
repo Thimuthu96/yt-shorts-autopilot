@@ -7169,6 +7169,25 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-13T12:03:54+00:00",
+      "brief_date": "2026-11-13",
+      "session": "news_morning",
+      "kind": "post",
+      "title": "BITCOIN HITS 12-WEEK LOW AS DOLLAR RALLIES",
+      "fb_post_id": "462331040302049_122258675834610202",
+      "headlines": [
+        "Bitcoin hits 12-week low as dollar rallies on interest-rate outlook, liquidations top $1.6 billion"
+      ],
+      "topic": "crypto",
+      "source": "CoinDesk",
+      "background": "ai",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "facebook"
+      ]
     }
   ]
 }
