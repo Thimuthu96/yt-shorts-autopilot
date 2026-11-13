@@ -4,6 +4,9 @@
 //   resolveLook("gus" | {costume?, ...COSTUME_KEYS}) -> full look
 //   new Char(id, look); c.born = beatStart (c.beatStart for a kept char); c.frame(spec, t, mouth) -> state (poses the sprite, redraws on change)
 //   spec.motionStart (set by a motion event, events.js): the motion runs from then instead of the beat's start
+//   spec.act / spec.squash / spec.runs / spec.holding (set by actions.js acts): offsets {x, y, sx, sy, tilt} for t, run_to
+//   paths, and "a 3D prop is in the hand" (the look's own held prop is then not drawn)
+//   handAt(spec, t), charPosAt(spec, t), runAt(runs, t): positions for actions (a held prop rides handAt)
 //   c.faceCamera(camera)   yaw-only billboard
 //   drawChar(ctx, look, state)   the sprite, in a CW x CH design space scaled to the canvas
 // Design: big white round head (~45 % of the height) with ink outline, dot eyes with a glint, line brows that carry
@@ -106,6 +109,17 @@ export const POSES = {
   }),
   cheer: () => ({ arms: [[-150, 290, -175, 125, "back"], [150, 290, 175, 125, "back"]], fists: true,
     legs: [[-46, 662, -66, FOOT], [46, 662, 66, FOOT]] }),
+  // action poses (actions.js acts); a held 3D prop sits in the front hand (arms[1])
+  carry: () => ({ arms: [DOWN0, [120, 480, 150, 432, "mid"]] }),
+  drink: () => ({ arms: [DOWN0, [175, 420, 92, 300, "over"]], lean: -0.05 }),
+  toast: () => ({ arms: [[-118, 476, -66, 528, "mid"], [165, 300, 196, 118, "back"]] }),
+  throw_wind: () => ({ arms: [[85, 476, 132, 446, "mid"], [-95, 300, -205, 222, "back"]], lean: -0.1 }),
+  throw: () => ({ arms: [[-110, 470, -160, 528, "back"], [160, 380, 238, 318, "mid"]], lean: 0.12 }),
+  duck: () => ({ arms: [[-128, 250, -46, 74, "over"], [128, 250, 46, 74, "over"]],
+    legs: [[-72, 690, -46, FOOT], [72, 690, 46, FOOT]] }),
+  cower: () => ({ arms: [[-150, 450, -112, 282, "over"], [150, 450, 112, 282, "over"]],
+    legs: [[-4, 694, -52, FOOT], [4, 694, 52, FOOT]], lean: -0.1 }),
+  grab: () => ({ arms: [DOWN0, [158, 468, 236, 498, "mid"]], lean: 0.1 }),
 };
 
 export const EXPRS = ["neutral", "happy", "excited", "smug", "sly", "shocked", "scared", "sad", "worried", "angry", "pain"];
@@ -549,7 +563,7 @@ export function drawChar(ctx, look, st) {
   x.lineJoin = "round"; x.lineCap = "round";
   if (pose.lean) { x.translate(cx, FOOT); x.rotate(pose.lean); x.translate(-cx, -FOOT); }
   const layer = (name) => pose.arms.forEach((a, i) => { if (a[4] === name) { drawArm(x, i, a, pose); held(name, i, a); } });
-  const propHand = !look.prop ? -1 : pose.both ? 2 : pose.busy ? 0 : 1;
+  const propHand = !look.prop || st.holding ? -1 : pose.both ? 2 : pose.busy ? 0 : 1;
   function held(name, i, a) {
     if (propHand === i) drawHeld(x, look.prop, cx + a[2], a[3] + 4, i ? 0.12 : -0.12);
     if (propHand === 2 && i === 1) drawHeld(x, look.prop, cx, (a[3] + pose.arms[0][3]) / 2 - 4, 0);
@@ -604,6 +618,35 @@ export const MOTIONS = {
 
 // mood → sprite tint (the sprite is unlit, so it takes the light colour by hand)
 export const SPRITE_TINT = { day: "#FFFFFF", interior_glow: "#FFE3C8", sunset: "#FFD9D2", night: "#9FB1DC", steel: "#E1E5EC" };
+
+// ---------- positions for actions (actions.js) ----------
+// world units per design pixel: the sprite's CH pixels span its plane height
+export const UNIT = HEIGHT / (FOOT - (HY - HRY));
+
+// spec.runs = [{t0, from, to, dur}] (run_to acts, in time order): the latest run started by t sets the position
+export function runAt(runs, t) {
+  let run = null;
+  for (const r of runs || []) if (r.t0 <= t) run = r;
+  if (!run) return null;
+  const u = clamp01((t - run.t0) / run.dur);
+  return { pos: run.from.map((v, k) => v + (run.to[k] - v) * u), moving: u < 1 };
+}
+
+// where the character stands at t: its spec pos, or its run (walks into a kept beat and motions not included)
+export function charPosAt(spec, t) {
+  const r = runAt(spec.runs, t);
+  return r ? r.pos : [...(spec.pos || [0, 0, 0])];
+}
+
+// world position of the hand that holds a 3D prop: the front hand (the back one when the pose is busy, between both
+// when it holds with both); x follows the facing (the sprite is drawn facing right), a little in front of the sprite.
+// spec.act offsets ({x, y, sx, sy}) are included; lean and motions are not.
+export function handAt(spec, t) {
+  const pose = POSES[spec.pose || "idle"](t), arms = pose.arms;
+  const hand = pose.both ? [(arms[0][2] + arms[1][2]) / 2, (arms[0][3] + arms[1][3]) / 2] : pose.busy ? arms[0].slice(2, 4) : arms[1].slice(2, 4);
+  const dir = dirOf(spec.facing), a = spec.act || {}, [x, y, z] = charPosAt(spec, t);
+  return [x + (a.x || 0) + dir * hand[0] * UNIT * (a.sx ?? 1), y + (a.y || 0) + (FOOT - hand[1]) * UNIT * (a.sy ?? 1), z + 0.12];
+}
 
 const seedOf = (id) => [...String(id)].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7) % 9973;
 
@@ -663,6 +706,8 @@ export class Char {
       px = this.from[0] + (base[0] - this.from[0]) * e; py = this.from[1] + (base[1] - this.from[1]) * e;
       pz = this.from[2] + (base[2] - this.from[2]) * e; walking = f < 1;
     }
+    const run = runAt(spec.runs, t); // a run_to act moves the character from its own start
+    if (run) { [px, py, pz] = run.pos; walking = run.moving; }
     const m = { x: 0, y: 0, tilt: 0, spin: 0, scale: 1, sx: 1, sy: 1 };
     const add = (o) => {
       m.x += o.x || 0; m.y += o.y || 0; m.tilt += o.tilt || 0; m.spin += o.spin || 0;
@@ -672,6 +717,8 @@ export class Char {
     };
     if (spec.enter) add(ENTERS[spec.enter](Math.max(0, lt)));
     if (spec.motion) add(MOTIONS[spec.motion](Math.max(0, t - (spec.motionStart ?? this.beatStart ?? this.born)), t, dir));
+    if (spec.act) add(spec.act); // the current act's offsets (actions.js), already for time t
+    if (spec.squash) add(spec.squash); // squash & stretch from a nearby impact
     let pose = pose0;
     if (pose === "idle" && walking) pose = "run";
     if (pose === "idle" && m.falling) pose = "fall";
@@ -679,7 +726,7 @@ export class Char {
     const talk = spec.talk ? Math.round(clamp01(mouth) * 3) / 3 : 0;
     const breathe = Math.sin(t * 3.1 + this.phase) * 0.012 + talk * 0.025;
     const state = {
-      pose, expr, facing, mouth: talk, t,
+      pose, expr, facing, mouth: talk, t, holding: !!spec.holding,
       blink: ((t + this.phase) % this.blinkEvery) < 0.12,
       x: px + m.x, y: py + m.y, z: pz, tilt: m.tilt + Math.sin(t * 1.6 + this.phase) * 0.02, spin: m.spin,
       scale: m.scale, sx: m.sx * (1 - breathe * 0.6), sy: m.sy * (1 + breathe), visible: lt >= 0,
@@ -698,7 +745,7 @@ export class Char {
     if (this.canvas && state.visible) {
       const rate = pose === "wave" || pose === "run" || pose === "fall" ? 15 : this.look.gus ? 10 : 0;
       const anim = rate ? Math.round(t * rate) : 0;
-      const key = `${pose}|${expr}|${facing}|${talk}|${state.blink}|${anim}`;
+      const key = `${pose}|${expr}|${facing}|${talk}|${state.blink}|${anim}|${state.holding}`;
       if (key !== this.key) {
         this.draw({ ...state, t: rate ? anim / rate : 0 });
         this.key = key;

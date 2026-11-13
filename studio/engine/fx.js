@@ -5,7 +5,7 @@
 //   updateFx(g, localT)                                 (poses every sprite for the effect's local time)
 // Stateless per t: a sprite's state at localT is a function of (seed, sprite, localT) alone, so seeking == stepping
 // and a re-render is identical. localT < 0 hides the effect. Continuous effects (smoke, fire, sparks, steam, glow,
-// bubbles, question) run for as long as they exist; bursts (splinters, explosion, splash, flash, debris) end on
+// bubbles, question) run for as long as they exist; bursts (splinters, explosion, splash, flash, debris, gunsmoke) end on
 // their own, and splinters / debris come to rest on the ground (world y = 0).
 import * as THREE from "three";
 import { canvasTex, hash, clamp01, easeOut, INK } from "./core.js";
@@ -334,6 +334,27 @@ export const FX = {
       return { p: [[0, -0.55, 0.5][i], [0, -0.25, -0.15][i] + 0.1 * Math.sin(a * 3 + i), 0], s: [0.9, 0.45, 0.4][i] * easeBack(a / 0.35),
         rot: [0, 0.35, -0.3][i] + 0.14 * Math.sin(a * 2.3 + i * 1.3) };
     } }],
+  },
+  // a gun's muzzle blast: a flash burst, a fireball punching out along local +x, then white smoke clouds bloom down
+  // the line and hang (the engine turns the group to the barrel's direction)
+  gunsmoke: {
+    layers: [
+      { tex: "burst", n: 1, part: (lt) => (lt > 0.16 ? null : { p: [0.35, 0, 0], s: 1.9 * easeBack(lt / 0.05) * clamp01((0.16 - lt) / 0.08),
+        rot: lt * 2 }) },
+      { tex: "firepuff", n: 4, part: (lt, i, r) => (lt > 0.22 ? null : {
+        p: [0.15 + i * 0.32 * easeOut(lt / 0.08), (r(0) - 0.5) * 0.15, (r(1) - 0.5) * 0.15],
+        s: (0.75 - i * 0.12) * easeBack(lt / 0.06) * clamp01((0.22 - lt) / 0.12), rot: r(2) * TAU,
+        c: mix("#FFFFFF", "#FF9A2E", lt / 0.15) }) },
+      { tex: "puff", n: 9, part: (lt, i, r) => {
+        const a = lt - 0.03 * i, life = 1.7 + 0.5 * r(0);
+        if (a < 0 || a > life) return null;
+        const d = (0.25 + i * 0.3) * easeOut(a / 0.35);
+        return { p: [d, (r(1) - 0.5) * 0.35 + a * 0.22, (r(2) - 0.5) * 0.35],
+          s: (0.6 + 0.1 * i + 0.5 * a / life) * (0.85 + 0.3 * r(3)) * swell(a, life, 0.12, 0.6),
+          rot: r(4) * TAU + a * 0.4, c: mix("#FFFFFF", "#D8D4DA", a / life) };
+      } },
+    ],
+    light: { color: "#FFC070", dist: 6, i: (lt) => (lt < 0 ? 0 : 10 * Math.exp(-lt * 14)) },
   },
 };
 

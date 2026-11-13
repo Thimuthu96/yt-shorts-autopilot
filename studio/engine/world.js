@@ -2,7 +2,9 @@
 // Pure registry module: nothing touches the DOM at import time, so plain node can import it
 // (catalog.js, tests). Painted textures need a canvas; without a DOM materials stay untextured.
 //   buildSet({type, mood, ...opts}) -> THREE.Group   (userData.fog = the mood's THREE.Fog)
-//   spawnProp(spec, t) -> THREE.Group                (userData.tick(t) poses it each frame)
+//   spawnProp(spec, t) -> THREE.Group                (userData.tick(t, spec?) poses it each frame; spec = this frame's
+//                                                     event-applied copy: track / kick / hidden, see placeProp)
+//   propPosAt(spec, t, now), muzzle(spec, now) / muzzleAt   positions for the camera follow and the actions
 //   propFace(obj, expr)                              (cartoon face on a prop's front, +z)
 // Conventions: ground at y = 0, the action stays near the origin, a prop's front faces +z,
 // story rotations are degrees, a character is about 1.8 units tall.
@@ -380,6 +382,35 @@ P.cannon = (o) => {
   g.add(cyl(0.06, 0.06, 1.15, C.iron, { pos: [0.45, 0.3, 0], rot: [PI / 2, 0, 0] }));
   return g;
 };
+
+// held props (actions.js `hold`): the origin is the grip, the point that sits in the hand
+P.mug = (o) => {
+  const g = new THREE.Group(), c = o.color || "#E2A53C";
+  g.add(cyl(0.16, 0.15, 0.36, c, { ink: true }));
+  for (const y of [-0.13, 0.13]) g.add(cyl(0.165, 0.165, 0.045, "#9A6420", { pos: [0, y, 0] }));
+  g.add(mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 18, PI), c, { pos: [-0.16, 0, 0], rot: [0, 0, PI / 2], ink: 0.02 }));
+  // a foamy top spilling over the rim
+  for (const [x, z, r] of [[0, 0, 0.14], [0.08, 0.05, 0.08], [-0.07, -0.05, 0.08], [0.06, -0.08, 0.07]])
+    g.add(sph(r, "#FFF6E0", { pos: [x, 0.2, z], scale: [1, 0.55, 1] }));
+  return g;
+};
+
+P.pistol = () => {
+  const g = new THREE.Group();
+  const grip = rbox(0.11, 0.26, 0.08, C.woodDark, { pos: [-0.04, -0.08, 0], ink: 0.02 });
+  grip.rotation.z = 0.35;
+  g.add(grip);
+  g.add(rbox(0.22, 0.09, 0.09, C.wood, { pos: [0.04, 0.05, 0], ink: 0.02 }));
+  g.add(cyl(0.035, 0.04, 0.42, C.iron, { pos: [0.3, 0.07, 0], rot: [0, 0, PI / 2], ink: 0.015 }));
+  g.add(cyl(0.05, 0.05, 0.04, C.gold, { pos: [0.5, 0.07, 0], rot: [0, 0, PI / 2] }));
+  return g;
+};
+
+// where a prop that can `fire` shoots from, in its own frame (the barrel points along +x)
+export const MUZZLES = { cannon: [1.25, 0.99, 0], pistol: [0.53, 0.07, 0] };
+// height of a grip-origin prop's origin above the ground it rests on (others stand on their origin)
+const GRIP_REST = { mug: 0.18, pistol: 0.06 };
+export const restHeight = (spec) => (GRIP_REST[spec.type] || 0) * (spec.scale || 1);
 
 P.barrel = (o) => {
   const g = new THREE.Group();
@@ -963,23 +994,50 @@ const popIn = (age) => (age >= 0.3 ? 1 : 1 + Math.sin((age / 0.3) * PI) * 0.18 -
 
 // base pose + anim for `age` seconds after the prop appeared. Only a delayed prop pops in: one with no delay is
 // already standing there when its beat opens (a cut never lands on an empty set).
-function placeProp(o, spec, age) {
+// Event-applied specs (actions.js) may carry, as functions of the story time `now`:
+//   track(now) -> null (no say yet) | {pos, rot? (radians), visible?}   replaces position (and rotation): held, flying
+//   kick(now)  -> {pos: [dx, dy, dz], rotZ}                             added on top (a gun's recoil)
+// spec.hidden: the prop is invisible until a track shows it (a cannonball waiting in the barrel).
+function placeProp(o, spec, age, now) {
   o.position.set(...(spec.pos || [0, 0, 0]));
   o.rotation.set(...(spec.rot || [0, 0, 0]).map(deg));
   const pops = (spec.delay || 0) > 0 && spec.anim !== "drop" && spec.anim !== "fly";
   o.scale.setScalar((spec.scale || 1) * Math.max(0.01, pops ? popIn(age) : 1));
   if (spec.anim) ANIMS[spec.anim](o, age, spec);
+  let shown = !spec.hidden;
+  const tr = now != null && spec.track ? spec.track(now) : null;
+  if (tr) {
+    o.position.set(...tr.pos);
+    if (tr.rot) o.rotation.set(...tr.rot);
+    shown = tr.visible !== false;
+  }
+  const k = now != null && spec.kick ? spec.kick(now) : null;
+  if (k) { o.position.x += k.pos[0]; o.position.y += k.pos[1]; o.position.z += k.pos[2]; o.rotation.z += k.rotZ || 0; }
+  return shown;
 }
 
 // Where a prop spawned at `t` is at `now` (its spawn position before it appears); no geometry is built.
-// The camera's `follow` move uses it.
+// The camera's `follow` move and the actions use it.
 export function propPosAt(spec, t, now) {
   const age = now - (t + (spec.delay || 0));
   if (age < 0) return [...(spec.pos || [0, 0, 0])];
   const o = new THREE.Object3D();
-  placeProp(o, spec, age);
+  placeProp(o, spec, age, now);
   return [o.position.x, o.position.y, o.position.z];
 }
+
+// A firing prop's muzzle at `now` (base pose when now is null): {pos, dir} in world space, dir a unit vector.
+export function muzzle(spec, now = null) {
+  const local = MUZZLES[spec.type];
+  if (!local) throw new Error(`${spec.id || spec.type} (${spec.type}) cannot fire`);
+  const o = new THREE.Object3D();
+  placeProp(o, spec, now == null ? 0 : now - (spec.spawnT || 0) - (spec.delay || 0), now);
+  o.updateMatrix();
+  const pos = new THREE.Vector3(...local).applyMatrix4(o.matrix);
+  const dir = new THREE.Vector3(1, 0, 0).applyQuaternion(o.quaternion).normalize();
+  return { pos: pos.toArray(), dir: dir.toArray() };
+}
+export const muzzleAt = (spec, now = null) => muzzle(spec, now).pos;
 
 export function spawnProp(spec, t = 0) {
   const make = PROPS[spec.type];
@@ -992,12 +1050,13 @@ export function spawnProp(spec, t = 0) {
   root.add(model);
   const born = t + (spec.delay || 0);
   root.userData = {
-    spec, born,
-    tick(now) {
+    spec, born, spawnT: t,
+    // cur: this frame's spec with its events applied (events.js applyEvents); the story spec by default
+    tick(now, cur = spec) {
       const age = now - born;
       root.visible = age >= 0;
       if (!root.visible) return;
-      placeProp(root, spec, age);
+      root.visible = placeProp(root, cur, age, now);
       root.traverse((k) => { if (k.userData.flame) k.scale.y = 1 + 0.12 * Math.sin(now * 13 + k.id); });
     },
   };

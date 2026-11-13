@@ -3,13 +3,13 @@
 // iris; fx.js: effects; signs.js: in-world signs; captions.js: the one-word caption; events.js: word-anchored shot events).
 import * as THREE from "three";
 import { clamp01 } from "./core.js";
-import { buildSet, spawnProp, propPosAt } from "./world.js";
+import { buildSet, spawnProp } from "./world.js";
 import { Char } from "./cast.js";
 import { camPose, handoff, irisMask } from "./camera.js";
 import { makeFx, updateFx } from "./fx.js";
 import { spawnSign } from "./signs.js";
 import { captionWord, drawCaption } from "./captions.js";
-import { EVENT_TYPES, shotEvents, shotRoster, applyEvents } from "./events.js";
+import { EVENT_TYPES, shotEvents, shotRoster, applyEvents, stageAt, followPosAt } from "./events.js";
 
 const W = 1080, H = 1920;
 const Q = Object.fromEntries(new URLSearchParams(location.search));
@@ -43,11 +43,14 @@ let capWord = null;
 // character given a new `pos` walks there, one without `pos` stays put. FX and signs have no ids: they are cleared
 // each beat unless `keep`; an effect's local time runs from its beat's start + delay, so it is stateless per t.
 // A beat's `events` (story v2) are timed to its words: fx / sign events are spawned with the beat, hidden until their
-// event time; character and shake events are applied per frame from the base specs (events.js), never stored.
-let STORY = null, TL = null, EVENTS = null, ROSTER = null, beatIdx = -1, setGroup = null, setKey = null;
+// event time; character, prop and shake events are applied per frame from the base specs (events.js, actions.js),
+// never stored. Effects the actions make (muzzle flash, impacts) come per frame in ctx.fx and are built on first sight,
+// keyed by their event; like beat fx they are cleared when a beat does not `keep`.
+let STORY = null, TL = null, EVENTS = null, ROSTER = null, STAGES = null, beatIdx = -1, setGroup = null, setKey = null;
 const props = new Map();
 const chars = new Map(); // id -> {c: Char, spec}
 let fxs = [], signs = []; // fxs: {g, born}; signs: roots with userData.tick
+const actFx = new Map(); // ctx.fx key -> fx group
 
 function dispose(obj) {
   obj.traverse((k) => k.geometry && k.geometry.dispose());
@@ -74,6 +77,8 @@ function applyFxAndSigns(b, start, events) {
     fxs.forEach(dropFx);
     signs.forEach(dropSign);
     fxs = []; signs = [];
+    actFx.forEach((g) => dropFx({ g }));
+    actFx.clear();
   }
   (b.fx || []).forEach((spec) => {
     const g = makeFx(spec.type, spec.at || [0, 0, 0], null, spec.scale || 1);
@@ -144,17 +149,37 @@ function applyBeat(i) {
 // Each beat continues from where the last one ended unless it cuts (cam.cut, transition "cut" or "iris", first beat).
 const cutsInto = (k) => k === 0 || !!(STORY.beats[k].cam || {}).cut || ["cut", "iris"].includes(STORY.beats[k].transition);
 
-// the followed prop's position at t: spawned in beat k or in the kept beats before it
+// the followed prop's position at t in beat k, its events included (a launched ball, a held mug)
 function followPos(k, t) {
   const cam = STORY.beats[k].cam || {};
   if (cam.move !== "follow" || !cam.follow) return null;
-  for (let j = k; j >= 0; j--) {
-    const b = STORY.beats[j];
-    const spec = (b.props || []).map((s, n) => ({ ...s, id: s.id || `${s.type}${n}` })).find((s) => s.id === cam.follow);
-    if (spec) return propPosAt(spec, TL.beats[j].start, t);
-    if (!b.keep || (b.remove || []).includes(cam.follow)) break;
+  return followPosAt({ story: STORY, timeline: TL, events: EVENTS, roster: ROSTER, stages: STAGES }, k, cam.follow, t);
+}
+
+// the first beat whose action fx still show in beat i: the last one that did not keep
+function fxFloor(i) {
+  let j = i;
+  while (j > 0 && STORY.beats[j].keep) j--;
+  return j;
+}
+
+// action fx (ctx.fx): built the first time they are asked for, posed for t, hidden when not asked for this frame
+function drawActFx(list, i, t) {
+  const live = new Set(), floor = fxFloor(i);
+  for (const e of list) {
+    if (e.shot < floor) continue;
+    const key = `${e.key}|${e.type}`;
+    let g = actFx.get(key);
+    if (!g) {
+      g = makeFx(e.type, e.at, null, e.scale);
+      if (e.rotY) g.rotation.y = e.rotY;
+      scene.add(g);
+      actFx.set(key, g);
+    }
+    live.add(key);
+    updateFx(g, t - e.born);
   }
-  throw new Error(`camera follow: no prop ${cam.follow} in beat ${k}`);
+  actFx.forEach((g, key) => { if (!live.has(key)) updateFx(g, -1); });
 }
 
 const dur = (k) => Math.max(1e-3, TL.beats[k].end - TL.beats[k].start);
@@ -188,6 +213,7 @@ window.setup = async (story, timeline) => {
   STORY = story; TL = timeline; beatIdx = -1; capWord = null;
   EVENTS = shotEvents(story, timeline); // checks every event up front (bad at_word -> "beat N: ...")
   ROSTER = shotRoster(story);
+  STAGES = story.beats.map((_, k) => stageAt(story, timeline, k));
   await document.fonts.load("700 80px Fredoka");
   await document.fonts.ready;
   return true;
@@ -197,14 +223,15 @@ window.renderAt = (t) => {
   let i = TL.beats.findIndex((b, k) => t < (k + 1 < TL.beats.length ? TL.beats[k + 1].start : Infinity));
   if (i < 0) i = TL.beats.length - 1;
   if (i !== beatIdx) { beatIdx = i; applyBeat(i); }
-  props.forEach((o) => o.userData.tick(t));
-  fxs.forEach(({ g, born }) => updateFx(g, t - born));
-  signs.forEach((o) => o.userData.tick(t));
   const now = applyEvents({
     story: STORY, timeline: TL, events: EVENTS, roster: ROSTER,
     chars: new Map([...chars].map(([id, { spec }]) => [id, spec])),
-    props: new Map([...props].map(([id, o]) => [id, o.userData.spec])),
+    props: new Map([...props].map(([id, o]) => [id, { ...o.userData.spec, spawnT: o.userData.spawnT }])),
   }, i, t);
+  props.forEach((o, id) => o.userData.tick(t, now.props.get(id)));
+  fxs.forEach(({ g, born }) => updateFx(g, t - born));
+  drawActFx(now.fx, i, t);
+  signs.forEach((o) => o.userData.tick(t));
   const pose = poseAt(i, t);
   camera.position.set(...pose.pos);
   if (camera.fov !== pose.fov) { camera.fov = pose.fov; camera.updateProjectionMatrix(); }

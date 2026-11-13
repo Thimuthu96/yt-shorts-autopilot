@@ -23,6 +23,8 @@
   "props": [
     "cannonball",
     "cannon",
+    "mug",
+    "pistol",
     "barrel",
     "crate",
     "rope_coil",
@@ -64,7 +66,15 @@
     "scared",
     "run",
     "fall",
-    "cheer"
+    "cheer",
+    "carry",
+    "drink",
+    "toast",
+    "throw_wind",
+    "throw",
+    "duck",
+    "cower",
+    "grab"
   ],
   "exprs": [
     "neutral",
@@ -106,7 +116,8 @@
     "flash",
     "debris",
     "bubbles",
-    "question"
+    "question",
+    "gunsmoke"
   ],
   "cam_moves": [
     "static",
@@ -179,6 +190,203 @@
     "fly",
     "sink"
   ],
+  "events": [
+    "expr",
+    "pose",
+    "motion",
+    "fx",
+    "sign",
+    "sfx_mark",
+    "shake",
+    "fire",
+    "launch",
+    "impact",
+    "fly_off",
+    "act"
+  ],
+  "event_fields": {
+    "expr": {
+      "need": [
+        "who",
+        "expr"
+      ]
+    },
+    "pose": {
+      "need": [
+        "who",
+        "pose"
+      ]
+    },
+    "motion": {
+      "need": [
+        "who",
+        "motion"
+      ]
+    },
+    "fx": {
+      "need": [
+        "type"
+      ],
+      "opt": [
+        "at",
+        "scale"
+      ]
+    },
+    "sign": {
+      "need": [
+        "text"
+      ],
+      "opt": [
+        "style",
+        "pos",
+        "rot"
+      ]
+    },
+    "sfx_mark": {
+      "need": [
+        "sfx"
+      ]
+    },
+    "shake": {
+      "opt": [
+        "amount"
+      ]
+    },
+    "fire": {
+      "need": [
+        "who"
+      ],
+      "opt": [
+        "projectile",
+        "to",
+        "dur",
+        "surface",
+        "impact",
+        "stay",
+        "scale"
+      ]
+    },
+    "launch": {
+      "need": [
+        "who",
+        "to"
+      ],
+      "opt": [
+        "dur",
+        "surface",
+        "impact",
+        "stay",
+        "scale"
+      ]
+    },
+    "impact": {
+      "need": [
+        "at"
+      ],
+      "opt": [
+        "surface",
+        "impact",
+        "scale"
+      ]
+    },
+    "fly_off": {
+      "need": [
+        "who",
+        "dir"
+      ],
+      "opt": [
+        "dist",
+        "dur"
+      ]
+    },
+    "act": {
+      "need": [
+        "who",
+        "act"
+      ],
+      "opt": [
+        "expr"
+      ]
+    }
+  },
+  "acts": [
+    "hold",
+    "drink",
+    "toast",
+    "throw",
+    "duck",
+    "cower",
+    "grab",
+    "run_to",
+    "point_at",
+    "look_at",
+    "jump",
+    "fall"
+  ],
+  "act_fields": {
+    "hold": {
+      "need": [
+        "prop"
+      ]
+    },
+    "drink": {
+      "opt": [
+        "prop"
+      ]
+    },
+    "toast": {
+      "opt": [
+        "prop"
+      ]
+    },
+    "throw": {
+      "need": [
+        "to"
+      ],
+      "opt": [
+        "prop",
+        "dur",
+        "surface",
+        "impact",
+        "stay",
+        "scale"
+      ]
+    },
+    "duck": {},
+    "cower": {},
+    "grab": {
+      "need": [
+        "prop"
+      ]
+    },
+    "run_to": {
+      "need": [
+        "pos"
+      ],
+      "opt": [
+        "speed"
+      ]
+    },
+    "point_at": {
+      "need": [
+        "id"
+      ]
+    },
+    "look_at": {
+      "need": [
+        "id"
+      ]
+    },
+    "jump": {},
+    "fall": {}
+  },
+  "surfaces": [
+    "wood",
+    "water",
+    "stone",
+    "ground",
+    "powder"
+  ],
   "sfx": [
     "whoosh",
     "boom",
@@ -219,14 +427,5 @@
     "spyglass",
     "book",
     "hammer"
-  ],
-  "events": [
-    "expr",
-    "pose",
-    "motion",
-    "fx",
-    "sign",
-    "sfx_mark",
-    "shake"
   ]
 }

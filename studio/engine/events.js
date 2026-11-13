@@ -13,6 +13,11 @@
 //     state = {story, timeline, <view>: Map(id -> base spec) per scope (a missing view is empty),
 //              events?: shotEvents(...), roster?: shotRoster(...)}; never mutates state.
 //   shakeAt(amount, dt) -> [right, up] camera offset in world units, 0 outside 0..SHAKE_DUR
+//   ctx.fx: [{key, shot, type, at, born, scale, rotY?}] effects the actions make (see actions.js); ctx.key / ctx.shot
+//     name the event being applied ("<shot>.<index in its sorted list>")
+//   stageAt(story, timeline, k) -> {chars, props} base specs on stage in shot k (props carry id + spawnT)
+//   followPosAt(state, k, id, t) -> the prop's position at t with its events (the camera's follow target)
+// Action events (fire, launch, impact, fly_off, act) live in actions.js and are merged in below.
 // Stateless per t: a thing's spec at t is the spec of the latest shot that lists it, plus every event of that shot
 // and the later ones up to the current shot with eventTime <= t, applied in time order. A scoped event is spent once
 // a later shot lists its `who` again (a new base spec) or once its `who` has left the stage; scene events never are.
@@ -20,6 +25,8 @@
 import { EXPRS, POSES, MOTIONS } from "./cast.js";
 import { FX, makeFx } from "./fx.js";
 import { SIGN_STYLES, spawnSign } from "./signs.js";
+import { propPosAt } from "./world.js";
+import { ACTION_TYPES, ACTION_FIELDS, pushAct, refresh } from "./actions.js";
 
 export const SHAKE_DUR = 0.4; // seconds for a camera shake to die out
 
@@ -53,7 +60,12 @@ export function shakeAt(amount, dt) {
 
 export const EVENT_TYPES = {
   expr: charEvent("expr", EXPRS),
-  pose: charEvent("pose", Object.keys(POSES)),
+  // a pose joins the character's acts (actions.js), so it ends the current act and past moments still know it
+  pose: {
+    scope: "char",
+    validate: (ev) => { need(ev, "who"); oneOf(ev, "pose", Object.keys(POSES), "pose"); },
+    apply: (ctx, ev, dt) => { const s = who(ctx, ev); pushAct(s, ctx.t - dt, () => ({ pose: ev.pose, off: null })); refresh(s, ctx.t); },
+  },
   // the motion runs from its event time, not the shot's start
   motion: {
     scope: "char",
@@ -85,6 +97,7 @@ export const EVENT_TYPES = {
       ctx.shake[0] += x; ctx.shake[1] += y;
     },
   },
+  ...ACTION_TYPES, // fire, launch, impact, fly_off, act
 };
 
 export function eventTimes(shot, tlBeat) {
@@ -110,13 +123,13 @@ export const shotRoster = (story) => story.beats.map((shot) =>
 export function applyEvents(state, shotIndex, t) {
   const all = state.events || shotEvents(state.story, state.timeline);
   const roster = state.roster || shotRoster(state.story);
-  const ctx = { t, shake: [0, 0] };
+  const ctx = { t, shake: [0, 0], fx: [] };
   for (const { view } of Object.values(SCOPES)) {
     ctx[view] = new Map();
     (state[view] || new Map()).forEach((spec, id) => ctx[view].set(id, { ...spec }));
   }
   for (let k = 0; k <= shotIndex; k++) {
-    for (const { event, t: at } of all[k]) {
+    for (const [n, { event, t: at }] of all[k].entries()) {
       if (at > t) break;
       const type = EVENT_TYPES[event.do], sc = SCOPES[type.scope];
       // a spent event from an earlier shot is skipped; in the current shot a missing `who` is an error (apply throws)
@@ -126,13 +139,51 @@ export function applyEvents(state, shotIndex, t) {
         for (let j = k + 1; j <= shotIndex && !relisted; j++) relisted = roster[j][type.scope].has(event.who);
         if (relisted) continue;
       }
+      ctx.shot = k; ctx.key = `${k}.${n}`; // fx made by this event are keyed by it
       try { type.apply(ctx, event, t - at); } catch (e) { throw new Error(`beat ${k}: ${event.do}: ${e.message}`); }
     }
   }
+  delete ctx.shot; delete ctx.key;
   return ctx;
 }
 
+// The base specs on stage in shot k, from the story alone (the engine's keep / remove rules): {chars, props}.
+// A prop spec carries its id and spawnT (the start of the shot that listed it); a kept character without `pos`
+// keeps its last one.
+export function stageAt(story, timeline, k) {
+  const chars = new Map(), props = new Map();
+  for (let j = 0; j <= k; j++) {
+    const b = story.beats[j], start = timeline.beats[j].start;
+    if (!b.keep) { chars.clear(); props.clear(); }
+    (b.remove || []).forEach((id) => { chars.delete(id); props.delete(id); });
+    (b.props || []).forEach((p, n) => { const id = p.id || `${p.type}${n}`; props.set(id, { ...p, id, spawnT: start }); });
+    (b.chars || []).forEach((c) => {
+      const prev = chars.get(c.id);
+      chars.set(c.id, { ...c, pos: c.pos || (prev && prev.pos) || [0, 0, 0] });
+    });
+  }
+  return { chars, props };
+}
+
+// Where prop `id` is at t in shot k, events included (launched, held, flying): the camera's follow target.
+// state = {story, timeline, events?, roster?, stages?: [stageAt per shot]}
+export function followPosAt(state, k, id, t) {
+  const stage = (state.stages && state.stages[k]) || stageAt(state.story, state.timeline, k);
+  const spec = applyEvents({ ...state, ...stage }, k, t).props.get(id);
+  if (!spec) throw new Error(`camera follow: no prop ${id} in beat ${k}`);
+  return propPosAt(spec, spec.spawnT, t);
+}
+
+// Each event's own fields for the catalog (every event also has at_word, do and an optional delay):
+// need = required, opt = optional. The action events' fields come from actions.js.
+const FIELDS = {
+  expr: { need: ["who", "expr"] }, pose: { need: ["who", "pose"] }, motion: { need: ["who", "motion"] },
+  fx: { need: ["type"], opt: ["at", "scale"] }, sign: { need: ["text"], opt: ["style", "pos", "rot"] },
+  sfx_mark: { need: ["sfx"] }, shake: { opt: ["amount"] },
+  ...ACTION_FIELDS,
+};
+
 // Names this registry adds to studio/catalog.json.
 export function catalog() {
-  return { events: Object.keys(EVENT_TYPES) };
+  return { events: Object.keys(EVENT_TYPES), event_fields: FIELDS };
 }

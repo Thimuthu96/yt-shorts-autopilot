@@ -11,7 +11,7 @@ const fxMod = () => import(pathToFileURL(path.join(STUDIO, "engine", "fx.js")).h
 const events = () => import(pathToFileURL(path.join(STUDIO, "engine", "events.js")).href);
 const cast = () => import(pathToFileURL(path.join(STUDIO, "engine", "cast.js")).href);
 
-const TYPES = ["expr", "pose", "motion", "fx", "sign", "sfx_mark", "shake"];
+const TYPES = ["expr", "pose", "motion", "fx", "sign", "sfx_mark", "shake", "fire", "launch", "impact", "fly_off", "act"];
 
 // shot 0: "hit by a cannonball," spoken 1.0-2.6 s; shot 1: "boom" at 3.0 s
 const TL = {

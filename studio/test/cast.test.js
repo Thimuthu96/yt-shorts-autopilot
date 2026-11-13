@@ -10,7 +10,7 @@ const STUDIO = path.join(__dirname, "..");
 const cast = () => import(pathToFileURL(path.join(STUDIO, "engine", "cast.js")).href);
 
 const POSES = ["idle", "point", "wave", "armsUp", "shrug", "think", "hold", "cross", "facepalm", "present", "scared", "run",
-  "fall", "cheer"];
+  "fall", "cheer", "carry", "drink", "toast", "throw_wind", "throw", "duck", "cower", "grab"];
 const EXPRS = ["neutral", "happy", "excited", "smug", "sly", "shocked", "scared", "sad", "worried", "angry", "pain"];
 const MOTIONS = ["bob", "hop", "shake", "flinch", "run_across", "fall_over", "spin"];
 const ENTERS = ["left", "right", "drop", "pop"];

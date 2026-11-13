@@ -10,7 +10,7 @@ const STUDIO = path.join(__dirname, "..");
 const load = (name) => import(pathToFileURL(path.join(STUDIO, "engine", name)).href);
 
 const FX_NAMES = ["smoke", "fire", "splinters", "sparks", "explosion", "splash", "steam", "glow", "flash", "debris",
-  "bubbles", "question"];
+  "bubbles", "question", "gunsmoke"];
 const SIGN_STYLES = ["plank", "barrel_label", "banner", "chalk", "metal", "paper"];
 
 // two beats; beat 0 has a pause between "lighthouse" and "blinks" and ends 0.4 s after its last word
@@ -103,7 +103,7 @@ test("FX before their start show nothing; bursts end; splinters land on the grou
     F.updateFx(g, -0.1);
     assert.ok(!g.visible, `${type} hidden before it starts`);
   }
-  for (const type of ["explosion", "flash", "splash"]) {
+  for (const type of ["explosion", "flash", "splash", "gunsmoke"]) {
     const g = F.makeFx(type, [0, 1, 0]);
     F.updateFx(g, 20);
     assert.ok(!g.userData.parts.some((s) => s.visible), `${type} is over`);
