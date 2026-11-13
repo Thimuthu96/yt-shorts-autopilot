@@ -6,11 +6,11 @@
 A browser opens; sign in with the Google account that owns the channel and pick the
 channel. The script prints the three values to paste into GitHub secrets.
 
-Scopes: youtube.upload (daily Shorts and lessons). Only if you turn on automatic lesson playlists
-(config.yaml lessons.playlists: true), run `python get_token.py --lesson-scopes` instead: it also asks
-for youtube (playlists, deleting test uploads) and yt-analytics.readonly, after you add those scopes to
-the OAuth consent screen; then replace YT_REFRESH_TOKEN. The daily uploader always asks only for
-youtube.upload, so either token works for it.
+Scopes: youtube.upload (the daily Shorts). Only to delete the old videos (scripts/delete_old_content.py), run
+`python get_token.py --manage-scopes` instead (`--lesson-scopes` is the old name and still works): it also asks
+for youtube (list + delete videos) and yt-analytics.readonly, after you add those scopes to the OAuth consent
+screen; then replace YT_REFRESH_TOKEN. The daily uploader always asks only for youtube.upload, so either token
+works for it.
 """
 import sys
 import json
@@ -18,10 +18,10 @@ from pathlib import Path
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]  # daily Shorts + lessons
-if "--lesson-scopes" in sys.argv:  # only for lessons.playlists: true
-    SCOPES += ["https://www.googleapis.com/auth/youtube",  # lesson playlists, test-video delete
-               "https://www.googleapis.com/auth/yt-analytics.readonly"]  # lesson analytics (read only)
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]  # the daily Shorts
+if "--manage-scopes" in sys.argv or "--lesson-scopes" in sys.argv:  # = autopilot/youtube.py MANAGE_SCOPES
+    SCOPES += ["https://www.googleapis.com/auth/youtube",  # list + delete videos (scripts/delete_old_content.py)
+               "https://www.googleapis.com/auth/yt-analytics.readonly"]  # analytics (read only)
 SECRET_FILE = Path(__file__).parent / "client_secret.json"
 
 if not SECRET_FILE.exists():

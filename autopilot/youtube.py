@@ -1,7 +1,7 @@
 """Upload to YouTube (YouTube Data API v3). The title / description / tags come from autopilot/metadata.py.
 
 upload() / set_thumbnail() request only SCOPES (youtube.upload). delete_video() needs MANAGE_SCOPES (adds the
-`youtube` scope): a refresh token made by `python get_token.py --lesson-scopes`.
+`youtube` scope): a refresh token made by `python get_token.py --manage-scopes`.
 """
 import os
 import re
