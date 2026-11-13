@@ -7146,6 +7146,29 @@
         "youtube",
         "facebook"
       ]
+    },
+    {
+      "date": "2026-11-13T01:15:47+00:00",
+      "brief_date": "2026-11-13",
+      "session": "triggered",
+      "kind": "triggered",
+      "trigger_id": "20261113-0105-r2-crypto",
+      "title": "Why Crypto Just Dropped 5% (What Actually Happened)",
+      "rule": 2,
+      "coins": [
+        "BTC",
+        "SOL",
+        "ETH"
+      ],
+      "video_id": "aqh7Xj_c9I8",
+      "seconds": 162.9,
+      "voice": "en_US-ryan-high",
+      "publish_at": "2026-11-13T03:15:47.000Z",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
