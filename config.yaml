@@ -54,7 +54,7 @@ video:
 # ─── Facebook Page (Graph API; secrets FB_PAGE_ID + FB_PAGE_TOKEN, see README) ─────────────────────────────
 # Skipped with a log line when the secrets are missing or enabled is false.
 facebook:
-  enabled: true
+  enabled: false              # paused by the owner (2026-11-14) until the Page is ready; YouTube only
   graph_version: v26.0
   poll_minutes: 10            # how long to wait for a Reel to finish publishing
   max_hashtags: 5

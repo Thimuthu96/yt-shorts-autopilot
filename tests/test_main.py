@@ -197,3 +197,11 @@ def test_story_path_slug_made_unique(env, monkeypatch, tmp_path):
     assert M.main(["--session", "short_a", "--no-upload", "--story", str(ROOT / "stories/sample/lighthouse.json")]) == 1
     assert seen["slug"] == SAMPLE["slug"] + "-2"
 
+
+
+def test_facebook_paused_in_config_skips_facebook_only():
+    """Owner paused Facebook (facebook.enabled: false): YouTube stays on, Facebook is skipped with a reason."""
+    cfg = M.load_config()
+    assert cfg["facebook"]["enabled"] is False
+    assert "facebook.enabled is false" in M.platform_off("facebook", cfg)
+    assert M.platform_off("youtube", cfg) == ""
