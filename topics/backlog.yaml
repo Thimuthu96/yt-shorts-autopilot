@@ -51,17 +51,17 @@
   format: levels
   angle: 'If you tried to storm a castle, the moat would be the easy part: escalate from moat to drawbridge to portcullis
     to arrow slits to ''murder holes'' that dropped stones and boiling water on attackers trapped in the gate passage.'
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-14'
+  reason: not enough sources
 - id: window-tax
   title_idea: The Tax That Made People Brick Up Windows
   category: laws_jobs_customs
   format: explainer
   angle: If you lived in England after 1696, every extra window could raise your tax bill, so owners bricked windows
     up; the window tax lasted until 1851 and you can still see the blocked windows today.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-14'
   reason: null
 - id: what-if-hole-through-earth
   title_idea: What If You Fell Through a Hole in the Earth

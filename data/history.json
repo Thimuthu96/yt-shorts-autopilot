@@ -43,6 +43,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-14",
+      "brief_date": "2026-11-14",
+      "published_at": "2026-11-14T23:40:56+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "the-tax-that-made-people-brick-up-windows",
+      "title": "The Law That Made People Brick Up Windows",
+      "category": "laws_jobs_customs",
+      "format": "explainer",
+      "topic_id": "window-tax",
+      "voice": "en_US-ryan-high",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 48.1,
+      "video_id": "Euo_rBJSoDo",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }

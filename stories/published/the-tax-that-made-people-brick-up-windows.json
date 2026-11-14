@@ -1,0 +1,1628 @@
+{
+  "slug": "the-tax-that-made-people-brick-up-windows",
+  "title": "The Law That Made People Brick Up Windows",
+  "version": 2,
+  "category": "laws_jobs_customs",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "king": {
+      "look": {
+        "costume": "king",
+        "crown": true,
+        "coat": "#8B0000",
+        "prop": "scepter"
+      }
+    },
+    "taxman": {
+      "look": {
+        "costume": "suit",
+        "hat": "top",
+        "hatColor": "#111111",
+        "glasses": "round",
+        "prop": "clipboard"
+      }
+    },
+    "homeowner": {
+      "look": {
+        "costume": "plain",
+        "hat": "cap",
+        "hatColor": "#555555",
+        "prop": "hammer"
+      }
+    },
+    "doctor": {
+      "look": {
+        "costume": "doctor",
+        "glasses": "square",
+        "prop": "book"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://historicengland.org.uk/listing/what-is-designation/heritage-highlights/window-tax-history/",
+      "title": "Historic England - Window Tax"
+    },
+    {
+      "url": "https://www.parliament.uk/about/living-heritage/transformingsociety/townoc/towns/overview/windowtax/",
+      "title": "UK Parliament - The Window Tax"
+    }
+  ],
+  "summary": "In 1696, England introduced a window tax that charged homeowners based on the number of windows in their houses. To avoid heavy fees, people bricked up their windows or painted fake ones. After decades of public health concerns linking blocked light and ventilation to illness, the tax was repealed in July 1851, but blocked windows remain visible across England today.",
+  "hashtags": [
+    "#HistoryFacts",
+    "#Architecture",
+    "#England",
+    "#BizarreHistory",
+    "#OldBuildings"
+  ],
+  "beats": [
+    {
+      "text": "If you opened a new window in 1696,",
+      "say": "If you opened a new window in sixteen ninety six,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            -0.8,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "sign1",
+          "type": "sign_post",
+          "pos": [
+            1.8,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "homeowner",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "homeowner",
+          "pose": "scared"
+        },
+        {
+          "at_word": 6,
+          "do": "sign",
+          "text": "1696",
+          "style": "paper",
+          "pos": [
+            -0.8,
+            3.2,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "you'd actually trigger a massive tax bill.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "homeowner",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "TAX BILL",
+          "style": "paper",
+          "pos": [
+            -0.8,
+            2.7,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "motion",
+          "who": "homeowner",
+          "motion": "flinch"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "homeowner",
+        "roll": 6
+      },
+      "transition": null
+    },
+    {
+      "text": "King William the Third needed money fast.",
+      "say": "King William the Third needed money fast.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "crate1",
+          "type": "crate",
+          "pos": [
+            -2.0,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "king",
+          "pos": [
+            0.0,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "angry",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "king",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "KING WILLIAM III",
+          "style": "banner",
+          "pos": [
+            0.0,
+            3.3,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "king",
+        "roll": -5
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "So England created the infamous window tax.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "WINDOW TAX",
+          "style": "metal",
+          "pos": [
+            0.0,
+            2.8,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "king",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "king",
+        "angle": 12
+      },
+      "transition": null
+    },
+    {
+      "text": "The rule was simple:",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl1",
+          "type": "table",
+          "pos": [
+            -1.0,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            0.8,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "taxman",
+          "pos": [
+            -1.0,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "sly",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.1,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "taxman",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "taxman",
+        "look_at": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "count every single window.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "taxman",
+          "act": "point_at",
+          "id": "door1"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "taxman",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "Under ten windows?",
+      "say": "Under 10 windows?",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            -0.8,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "homeowner",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "< 10 WINDOWS",
+          "style": "plank",
+          "pos": [
+            -0.8,
+            3.1,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "homeowner"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "You paid absolutely nothing.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "homeowner",
+          "pose": "cheer"
+        },
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "homeowner",
+          "expr": "happy"
+        },
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "0 TAX",
+          "style": "metal",
+          "pos": [
+            -0.8,
+            3.1,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "homeowner"
+      },
+      "transition": null
+    },
+    {
+      "text": "But ten or more windows",
+      "say": "But 10 or more windows",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "10+ WINDOWS",
+          "style": "plank",
+          "pos": [
+            -0.8,
+            3.1,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "homeowner",
+          "expr": "worried"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "homeowner",
+        "roll": -6
+      },
+      "transition": null
+    },
+    {
+      "text": "bumped you into higher tiered rates.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sign",
+          "text": "TIERED TAX",
+          "style": "banner",
+          "pos": [
+            -0.8,
+            3.4,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "homeowner",
+          "pose": "scared"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "homeowner",
+        "roll": 8
+      },
+      "transition": null
+    },
+    {
+      "text": "The tax man logged every opening.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "taxman",
+          "pos": [
+            -0.9,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "homeowner",
+          "pos": [
+            1.0,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "cower",
+          "expr": "scared",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "taxman",
+          "act": "point_at",
+          "id": "door1"
+        },
+        {
+          "at_word": 4,
+          "do": "motion",
+          "who": "taxman",
+          "motion": "hop"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "taxman",
+        "look_at": "homeowner"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "So homeowners found a drastic fix.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl1",
+          "type": "table",
+          "pos": [
+            -0.8,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "homeowner",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "sly",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.0,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "homeowner",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "homeowner",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "They bricked up their own windows.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            -0.6,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "crate1",
+          "type": "crate",
+          "pos": [
+            1.2,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "homeowner",
+          "pos": [
+            -0.6,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "angry",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "motion",
+          "who": "homeowner",
+          "motion": "shake"
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        },
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "BRICKED UP",
+          "style": "chalk",
+          "pos": [
+            -0.6,
+            3.0,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "homeowner",
+        "angle": 10
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "Landlords sealed off light and fresh air",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "bed1",
+          "type": "bed",
+          "pos": [
+            -0.8,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "chair1",
+          "type": "chair",
+          "pos": [
+            1.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "homeowner",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "facepalm",
+          "expr": "sad",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "fx",
+          "type": "smoke",
+          "at": [
+            -0.8,
+            1.5,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "homeowner",
+          "expr": "pain"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "homeowner",
+        "roll": -6
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "to dodge the mounting fees.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "NO TAX",
+          "style": "paper",
+          "pos": [
+            -0.8,
+            2.8,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "homeowner",
+          "pose": "shrug"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "homeowner"
+      },
+      "transition": null
+    },
+    {
+      "text": "Some even painted fake windows on brick",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            -0.6,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "homeowner",
+          "pos": [
+            -0.6,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "sly",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "FAKE WINDOW",
+          "style": "chalk",
+          "pos": [
+            -0.6,
+            3.0,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "homeowner",
+        "angle": -12
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "with black and white paint!",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "homeowner",
+          "pose": "present"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "homeowner",
+          "expr": "happy"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "homeowner"
+      },
+      "transition": null
+    },
+    {
+      "text": "But blocking out sunlight had a cost.",
+      "set": {
+        "type": "cutaway",
+        "mood": "steel"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl1",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.0,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "worried",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "sad"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "gus",
+          "pose": "shrug"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus",
+        "roll": 5
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "Health campaigns linked lack of light",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "bed1",
+          "type": "bed",
+          "pos": [
+            -0.8,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "doctor",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "angry",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "HEALTH RISK",
+          "style": "banner",
+          "pos": [
+            -0.8,
+            3.2,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "doctor"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "and poor ventilation to disease.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "DISEASE",
+          "style": "paper",
+          "pos": [
+            -0.8,
+            2.8,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "crackle"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "doctor",
+          "pose": "armsUp"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "doctor",
+        "roll": -8
+      },
+      "transition": null
+    },
+    {
+      "text": "Finally, in July 1851,",
+      "say": "Finally, in July eighteen fifty one,",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "flag1",
+          "type": "flag",
+          "pos": [
+            0.0,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.0,
+            0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "king",
+          "pos": [
+            1.0,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "scared",
+          "expr": "shocked",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "JULY 1851",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.3,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "king"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "the window tax was formally repealed.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "REPEALED!",
+          "style": "banner",
+          "pos": [
+            0.0,
+            3.3,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "king",
+          "pose": "fall"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "king",
+        "angle": 15
+      },
+      "transition": null
+    },
+    {
+      "text": "Yet walk around England today,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            -0.8,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "sign1",
+          "type": "sign_post",
+          "pos": [
+            1.5,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.0,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "motion",
+          "who": "gus",
+          "motion": "hop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "and those bricked openings remain visible.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "BLOCKED WINDOW",
+          "style": "plank",
+          "pos": [
+            -0.8,
+            3.0,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "sly"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "So think twice",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "gus",
+          "pose": "think"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus",
+        "roll": 5
+      },
+      "transition": null
+    },
+    {
+      "text": "if you open a new window.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "gus",
+          "pose": "wave"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "happy"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": null
+    }
+  ]
+}
