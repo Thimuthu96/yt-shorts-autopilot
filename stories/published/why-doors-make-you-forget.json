@@ -1,0 +1,1747 @@
+{
+  "slug": "why-doors-make-you-forget",
+  "title": "Why Walking Through a Door Makes You Forget",
+  "version": 2,
+  "category": "psychology",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "walker": {
+      "look": {
+        "costume": "plain",
+        "shirt": "#CC4444",
+        "pants": "#334455"
+      }
+    },
+    "prof": {
+      "look": {
+        "costume": "scientist",
+        "glasses": "round",
+        "prop": "clipboard"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://www.researchgate.net/publication/232598305_Walking_through_doorways_causes_forgetfulness_Further_explorations",
+      "title": "Walking through doorways causes forgetting: Further explorations - University of Notre Dame / ResearchGate"
+    },
+    {
+      "url": "https://www.verywellmind.com/the-doorway-effect-why-do-we-forget-what-were-doing-5112521",
+      "title": "The Doorway Effect: Why Do We Forget What We're Doing? - Verywell Mind"
+    }
+  ],
+  "summary": "If you walk into a room and forget why you came, the door may be to blame. Experiments led by Gabriel Radvansky at Notre Dame in 2011 showed that passing through a doorway causes an immediate drop in memory recall, as the brain treats thresholds as event boundaries and flushes working memory.",
+  "hashtags": [
+    "#DoorwayEffect",
+    "#BrainScience",
+    "#PsychologyFacts",
+    "#MemoryHacks",
+    "#OddFacts"
+  ],
+  "beats": [
+    {
+      "text": "If you walk through a doorway,",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            0,
+            0,
+            -3
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "walker",
+          "pos": [
+            -1.5,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "run",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": "run_across"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "walker",
+          "act": "run_to",
+          "pos": [
+            1.2,
+            0,
+            -1.5
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "walker",
+        "angle": 10,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "you actually flush your short-term memory.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "walker",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 2,
+          "do": "fx",
+          "type": "question",
+          "at": [
+            1.2,
+            2.5,
+            -1.5
+          ],
+          "scale": 1.0
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "walker",
+        "angle": 0,
+        "roll": -5
+      },
+      "transition": null
+    },
+    {
+      "text": "You enter a room to grab something,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "table1",
+          "type": "table",
+          "pos": [
+            1.0,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "jar1",
+          "type": "jar",
+          "pos": [
+            1.0,
+            1.0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "walker",
+          "pos": [
+            -1.2,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "run",
+          "expr": "happy",
+          "talk": false,
+          "enter": null,
+          "motion": "run_across"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "walker",
+          "act": "run_to",
+          "pos": [
+            0.0,
+            0,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "walker",
+          "pose": "grab"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "walker",
+        "angle": -10,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "then stop dead in your tracks.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "walker",
+          "pose": "idle"
+        },
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "walker",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "walker",
+        "angle": 0,
+        "roll": 6
+      },
+      "transition": null
+    },
+    {
+      "text": "What were you looking for?",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "pose",
+          "who": "walker",
+          "pose": "think"
+        },
+        {
+          "at_word": 0,
+          "do": "fx",
+          "type": "question",
+          "at": [
+            0.0,
+            2.5,
+            -1.2
+          ],
+          "scale": 1.0
+        },
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "target": [
+          0.0,
+          1.5,
+          -1.2
+        ],
+        "dist": 4.0,
+        "height": 0.2,
+        "angle": 15,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "You blame your bad memory,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "walker",
+          "pose": "facepalm"
+        },
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "walker",
+          "expr": "sad"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "walker",
+        "angle": -5,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "but the doorway did it.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            -1.8,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "walker",
+          "act": "look_at",
+          "id": "door1"
+        },
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "walker",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "panL",
+        "cut": false,
+        "follow": null,
+        "target": [
+          -0.9,
+          1.5,
+          -2.0
+        ],
+        "dist": 5.0,
+        "height": 0.0,
+        "angle": 0,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "In 2011, Gabriel Radvansky",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "table1",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "prof",
+          "pos": [
+            -1.0,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "2011",
+          "style": "metal",
+          "pos": [
+            0,
+            3.3,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "prof",
+        "look_at": "gus",
+        "angle": 10,
+        "roll": 0
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "led a study at Notre Dame.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "NOTRE DAME",
+          "style": "banner",
+          "pos": [
+            0,
+            3.3,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "prof",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof",
+        "angle": -10,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "Researchers tested people in physical rooms",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "present"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "happy"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 15,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "and in virtual reality.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [
+        {
+          "id": "gear1",
+          "type": "gear",
+          "pos": [
+            1.2,
+            1.2,
+            -1.5
+          ]
+        }
+      ],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "VIRTUAL VR",
+          "style": "metal",
+          "pos": [
+            1.2,
+            3.3,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus",
+        "angle": 0,
+        "roll": -6
+      },
+      "transition": null
+    },
+    {
+      "text": "Participants walked across an open room",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "sign1",
+          "type": "sign_post",
+          "pos": [
+            0,
+            0,
+            -3
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "walker",
+          "pos": [
+            -1.8,
+            0,
+            -1.8
+          ],
+          "facing": "right",
+          "pose": "run",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": "run_across"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "walker",
+          "act": "run_to",
+          "pos": [
+            1.5,
+            0,
+            -1.8
+          ]
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "cut": false,
+        "follow": null,
+        "target": [
+          0,
+          1.5,
+          -2.0
+        ],
+        "dist": 6.0,
+        "height": 0.0,
+        "angle": 0,
+        "roll": 0
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "or passed through a doorway.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            0,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "walker",
+          "pos": [
+            -1.5,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "run",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": "run_across"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "walker",
+          "act": "run_to",
+          "pos": [
+            1.2,
+            0,
+            -1.5
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "walker",
+        "angle": 5,
+        "roll": 0
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "Walking through the door caused",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "walker",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "walker",
+          "pose": "shrug"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "walker",
+        "angle": -10,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "an immediate drop in memory recall.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "MEMORY DROP",
+          "style": "chalk",
+          "pos": [
+            1.2,
+            3.2,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "crackle"
+        },
+        {
+          "at_word": 2,
+          "do": "fx",
+          "type": "glow",
+          "at": [
+            1.2,
+            1.5,
+            -1.5
+          ],
+          "scale": 1.0
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "walker",
+        "angle": 0,
+        "roll": 5
+      },
+      "transition": null
+    },
+    {
+      "text": "People forgot up to three times",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "3X FORGETTING",
+          "style": "plank",
+          "pos": [
+            1.2,
+            3.3,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "walker",
+          "expr": "sad"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "target": [
+          1.2,
+          1.5,
+          -1.5
+        ],
+        "dist": 4.5,
+        "height": 0.2,
+        "angle": 15,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "as many items after crossing.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "pose",
+          "who": "walker",
+          "pose": "facepalm"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "walker",
+        "angle": 0,
+        "roll": -6
+      },
+      "transition": null
+    },
+    {
+      "text": "Even pushing a virtual cart",
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "crate1",
+          "type": "crate",
+          "pos": [
+            -0.5,
+            0,
+            -1.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.5,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "carry",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": "run_across"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "gus",
+          "act": "run_to",
+          "pos": [
+            0.5,
+            0,
+            -1.5
+          ]
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 10,
+        "roll": 0
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "through a digital screen doorway",
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            1.2,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "gus",
+          "act": "look_at",
+          "id": "door1"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "cut": false,
+        "follow": null,
+        "target": [
+          0.8,
+          1.5,
+          -2.0
+        ],
+        "dist": 5.0,
+        "height": 0.0,
+        "angle": 0,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "triggered the exact same reset.",
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "RESET!",
+          "style": "chalk",
+          "pos": [
+            1.2,
+            3.3,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus",
+        "angle": 0,
+        "roll": 6
+      },
+      "transition": null
+    },
+    {
+      "text": "It does not wipe everything, though.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "table1",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "prof",
+          "pos": [
+            -1.0,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "walker",
+          "pos": [
+            1.0,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "prof",
+          "pose": "shrug"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "prof",
+          "expr": "sly"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "prof",
+        "look_at": "walker",
+        "angle": -10,
+        "roll": 0
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "You still remember your name",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "YOUR NAME",
+          "style": "paper",
+          "pos": [
+            1.0,
+            3.2,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "walker",
+          "expr": "happy"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "walker",
+        "angle": 0,
+        "roll": 4
+      },
+      "transition": null
+    },
+    {
+      "text": "and your phone number.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "PHONE #",
+          "style": "paper",
+          "pos": [
+            1.0,
+            2.5,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "walker",
+          "pose": "cheer"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "walker",
+        "angle": 10,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "Psychologists explain your brain treats",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "table1",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "prof",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "prof",
+          "expr": "excited"
+        },
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "prof",
+          "pose": "point"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "prof",
+        "angle": 0,
+        "roll": 0
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "doorways as event boundaries.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "EVENT BOUNDARY",
+          "style": "metal",
+          "pos": [
+            0,
+            3.3,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 2,
+          "do": "fx",
+          "type": "flash",
+          "at": [
+            0,
+            1.5,
+            -1.5
+          ],
+          "scale": 1.0
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof",
+        "angle": 0,
+        "roll": -5
+      },
+      "transition": null
+    },
+    {
+      "text": "It compartmentalizes past episodes",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "EPISODES",
+          "style": "paper",
+          "pos": [
+            -1.2,
+            3.2,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "prof",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "prof",
+        "angle": -15,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "and clears out working memory",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "MEMORY FLUSHED",
+          "style": "chalk",
+          "pos": [
+            1.2,
+            3.2,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "crackle"
+        },
+        {
+          "at_word": 1,
+          "do": "fx",
+          "type": "smoke",
+          "at": [
+            0,
+            1.5,
+            -1.5
+          ],
+          "scale": 1.0
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "prof",
+        "angle": 10,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "to prepare for a new environment.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "door1",
+          "type": "door",
+          "pos": [
+            0,
+            0,
+            -2.5
+          ]
+        },
+        {
+          "id": "table1",
+          "type": "table",
+          "pos": [
+            1.5,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.2,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "wave",
+          "expr": "happy",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus",
+        "angle": -10,
+        "roll": 0
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "So when you cross a threshold",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "walker",
+          "pos": [
+            -1.5,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "run",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": "run_across"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "walker",
+          "act": "run_to",
+          "pos": [
+            0.5,
+            0,
+            -1.5
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "cut": false,
+        "follow": null,
+        "target": [
+          0,
+          1.5,
+          -1.8
+        ],
+        "dist": 5.0,
+        "height": 0.0,
+        "angle": 0,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "and forget what you came for,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "walker",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "walker",
+          "pose": "shrug"
+        },
+        {
+          "at_word": 1,
+          "do": "fx",
+          "type": "question",
+          "at": [
+            0.5,
+            2.5,
+            -1.5
+          ],
+          "scale": 1.0
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "walker",
+        "angle": 0,
+        "roll": 6
+      },
+      "transition": null
+    },
+    {
+      "text": "remember you walked through a doorway.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "walker",
+          "act": "look_at",
+          "id": "door1"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "walker",
+          "expr": "sly"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "walker",
+        "angle": -10,
+        "roll": 0
+      },
+      "transition": null
+    }
+  ]
+}

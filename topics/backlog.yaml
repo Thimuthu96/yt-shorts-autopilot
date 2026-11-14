@@ -42,8 +42,8 @@
   format: explainer
   angle: If you walk into a room and forget why you came, the door may be to blame; experiments at Notre Dame found
     that passing through a doorway made people forget more than walking the same distance in one room.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-14'
   reason: null
 - id: levels-castle-defences
   title_idea: Levels of Castle Defences

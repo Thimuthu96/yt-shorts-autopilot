@@ -21,6 +21,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-14",
+      "brief_date": "2026-11-14",
+      "published_at": "2026-11-14T17:31:15+00:00",
+      "session": "short_a",
+      "kind": "short",
+      "slug": "why-doors-make-you-forget",
+      "title": "Why Walking Through a Door Makes You Forget",
+      "category": "psychology",
+      "format": "explainer",
+      "topic_id": "doorway-effect",
+      "voice": "en_US-ryan-high",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 53.8,
+      "video_id": "oNMpY-0YEJU",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
