@@ -69,18 +69,20 @@
   format: explainer
   angle: If you jumped into a hole drilled straight through the Earth, ignoring heat and air, you'd fall for about
     40 minutes, shoot out the far side at a standstill, then fall back forever.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-15'
+  reason: not enough sources
 - id: round-portholes
   title_idea: Why Ship Windows Are Always Round
   category: engineering
   format: explainer
   angle: If a ship's window had sharp square corners, the hull's flexing would pile stress into those corners until
     cracks started; round openings spread the load, a lesson planes learned the hard way with the de Havilland Comet.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-15'
+  reason: 'fact-check failed: The narration states that the 1955 Cohen report mandated rounded window corners on
+    all planes, but the research notes state only that following the findings published in the report, commercial
+    passenger aircraft adopted rounded-corner windows worldwide, not that the report itself '
 - id: monte-carlo-26-blacks
   title_idea: The Night Roulette Hit Black 26 Times
   category: luck_games
