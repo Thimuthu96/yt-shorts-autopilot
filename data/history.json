@@ -65,6 +65,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-15",
+      "brief_date": "2026-11-15",
+      "published_at": "2026-11-15T23:21:06+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "the-night-roulette-hit-black-26-times",
+      "title": "The Casino Streak That Cost Millions",
+      "category": "luck_games",
+      "format": "explainer",
+      "topic_id": "monte-carlo-26-blacks",
+      "voice": "en_US-ryan-high",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 55.1,
+      "video_id": "3EXpWaqI-qY",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }

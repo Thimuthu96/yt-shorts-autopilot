@@ -1,0 +1,1353 @@
+{
+  "slug": "the-night-roulette-hit-black-26-times",
+  "title": "The Casino Streak That Cost Millions",
+  "version": 2,
+  "category": "luck_games",
+  "format": "explainer",
+  "music_mood": "tense",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "gambler": {
+      "look": {
+        "costume": "suit",
+        "hat": "bowler"
+      }
+    },
+    "croupier": {
+      "look": {
+        "costume": "worker",
+        "hat": "cap"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://medium.com/swlh/the-gamblers-fallacy-what-the-1913-monte-carlo-roulette-incident-teaches-us-d9f273be8252",
+      "title": "The Gambler’s Fallacy: What the 1913 Monte Carlo Roulette Incident Teaches Us - Medium"
+    },
+    {
+      "url": "https://towardsdatascience.com/the-mathematics-of-the-monte-carlo-casino-streak-5e3e29f8a379",
+      "title": "The Mathematics of the Monte Carlo Casino Streak - Toward Data Science"
+    }
+  ],
+  "summary": "In the summer of 1913 at the Monte Carlo Casino, a roulette wheel landed on black 26 consecutive times. Gamblers lost millions of francs betting heavily on red, incorrectly believing red was due, illustrating the famous gambler's fallacy.",
+  "hashtags": [
+    "#MonteCarlo",
+    "#Roulette",
+    "#GamblersFallacy",
+    "#Probability",
+    "#CasinoHistory"
+  ],
+  "beats": [
+    {
+      "text": "If you played roulette in nineteen thirteen,",
+      "say": "If you played roulette in 1913,",
+      "level": 1,
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gambler",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "croupier",
+          "pos": [
+            0.8,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "smug",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "gambler",
+          "act": "look_at",
+          "id": "croupier"
+        },
+        {
+          "at_word": 6,
+          "do": "sign",
+          "text": "1913",
+          "style": "metal",
+          "pos": [
+            0,
+            3.2,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gambler",
+        "look_at": "croupier"
+      },
+      "transition": null
+    },
+    {
+      "text": "you'd watch black hit twenty six times straight.",
+      "say": "you'd watch black hit 26 times straight.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "gambler",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 5,
+          "do": "sign",
+          "text": "26 BLACK",
+          "style": "banner",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gambler"
+      },
+      "transition": null
+    },
+    {
+      "text": "It happened at the Monte Carlo Casino.",
+      "level": 2,
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl2",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "MONTE CARLO",
+          "style": "metal",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "In the summer of nineteen thirteen,",
+      "say": "In the summer of 1913,",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "gus",
+          "pose": "think"
+        },
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "SUMMER 1913",
+          "style": "paper",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "a roulette wheel kept landing on black.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "point"
+        },
+        {
+          "at_word": 6,
+          "do": "fx",
+          "type": "flash",
+          "at": [
+            0,
+            2.0,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "It hit black ten times straight.",
+      "say": "It hit black 10 times straight.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "10 BLACK",
+          "style": "chalk",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Then fifteen times in a row.",
+      "say": "Then 15 times in a row.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "15 BLACK",
+          "style": "banner",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gus",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "The crowd around the wheel went wild.",
+      "level": 3,
+      "set": {
+        "type": "room",
+        "mood": "night"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl3",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.2
+          ]
+        },
+        {
+          "id": "coin1",
+          "type": "coin",
+          "pos": [
+            -0.5,
+            1.1,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gambler",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "cheer",
+          "expr": "excited",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "croupier",
+          "pos": [
+            0.8,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "worried",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "motion",
+          "who": "gambler",
+          "motion": "hop"
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gambler",
+        "look_at": "croupier"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "Gamblers assumed red was finally due.",
+      "set": {
+        "type": "room",
+        "mood": "night"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "gambler",
+          "pose": "think"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gambler",
+          "expr": "sly"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gambler"
+      },
+      "transition": null
+    },
+    {
+      "text": "So they bet heavily on red.",
+      "set": {
+        "type": "room",
+        "mood": "night"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "gambler",
+          "act": "throw",
+          "prop": "coin1",
+          "to": [
+            0.8,
+            1.0,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gambler"
+      },
+      "transition": null
+    },
+    {
+      "text": "But the ball landed on black again.",
+      "set": {
+        "type": "room",
+        "mood": "night"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gambler",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 6,
+          "do": "pose",
+          "who": "gambler",
+          "pose": "cower"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gambler"
+      },
+      "transition": null
+    },
+    {
+      "text": "Players lost millions of francs.",
+      "set": {
+        "type": "room",
+        "mood": "night"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "MILLIONS LOST",
+          "style": "paper",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gambler",
+          "expr": "sad"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gambler"
+      },
+      "transition": null
+    },
+    {
+      "text": "They bet bigger on every spin.",
+      "set": {
+        "type": "room",
+        "mood": "night"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "gambler",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 5,
+          "do": "motion",
+          "who": "gambler",
+          "motion": "shake"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gambler"
+      },
+      "transition": null
+    },
+    {
+      "text": "Yet black hit twenty six straight times.",
+      "say": "Yet black hit 26 straight times.",
+      "set": {
+        "type": "room",
+        "mood": "night"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "26 BLACKS",
+          "style": "metal",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 6,
+          "do": "pose",
+          "who": "gambler",
+          "pose": "facepalm"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gambler",
+        "look_at": "croupier"
+      },
+      "transition": null
+    },
+    {
+      "text": "The statistical odds of this streak",
+      "level": 4,
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl4",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "ODDS",
+          "style": "metal",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "are one in one thirty six million.",
+      "say": "are 1 in 136 million.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "1 in 136M",
+          "style": "chalk",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 6,
+          "do": "expr",
+          "who": "gus",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "This popularized the famous gambler's fallacy,",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "sign",
+          "text": "GAMBLER'S FALLACY",
+          "style": "banner",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "gus",
+          "pose": "point"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "also known as the Monte Carlo fallacy.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "MONTE CARLO FALLACY",
+          "style": "plank",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "People forgot that roulette spins are independent.",
+      "level": 5,
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "sign1",
+          "type": "sign_post",
+          "pos": [
+            1.5,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.6,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 6,
+          "do": "sign",
+          "text": "INDEPENDENT",
+          "style": "metal",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "A roulette wheel has no memory.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "NO MEMORY",
+          "style": "banner",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "gus",
+          "pose": "shrug"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Every spin retains the exact same odds.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 6,
+          "do": "sign",
+          "text": "SAME ODDS",
+          "style": "paper",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 6,
+          "do": "pose",
+          "who": "gus",
+          "pose": "point"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "The streak stopped at twenty six,",
+      "say": "The streak stopped at 26,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "sign",
+          "text": "STOPPED AT 26",
+          "style": "chalk",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "making the casino a massive profit.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "sign",
+          "text": "MASSIVE PROFIT",
+          "style": "metal",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gus",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Yet desperate gamblers lost millions,",
+      "level": 6,
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl5",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gambler",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "cower",
+          "expr": "scared",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "MILLIONS LOST",
+          "style": "paper",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gambler"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "refusing to believe black could hit again,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gambler",
+          "expr": "worried"
+        },
+        {
+          "at_word": 6,
+          "do": "motion",
+          "who": "gambler",
+          "motion": "shake"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gambler"
+      },
+      "transition": null
+    },
+    {
+      "text": "if you played roulette in nineteen thirteen.",
+      "say": "if you played roulette in 1913.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 6,
+          "do": "sign",
+          "text": "1913",
+          "style": "metal",
+          "pos": [
+            0,
+            3.5,
+            -2.2
+          ]
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 6,
+          "do": "act",
+          "who": "gambler",
+          "act": "jump"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gambler"
+      },
+      "transition": null
+    }
+  ]
+}

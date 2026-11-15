@@ -89,8 +89,8 @@
   format: explainer
   angle: If you'd been in the Monte Carlo casino in 1913, you'd have watched the ball land on black 26 times in
     a row, while gamblers lost millions betting red was 'due'; the wheel has no memory.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-15'
   reason: null
 - id: mailed-children
   title_idea: The Year Parents Mailed Their Kids
