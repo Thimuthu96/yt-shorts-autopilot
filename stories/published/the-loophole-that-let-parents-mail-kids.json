@@ -1,0 +1,1707 @@
+{
+  "slug": "the-loophole-that-let-parents-mail-kids",
+  "title": "The Law That Let Parents Mail Their Kids",
+  "version": 2,
+  "category": "laws_jobs_customs",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "parent": {
+      "look": {
+        "costume": "plain",
+        "hat": "bowler",
+        "shirt": "#3B82F6"
+      }
+    },
+    "kid": {
+      "look": {
+        "costume": "plain",
+        "shirt": "#EF4444"
+      }
+    },
+    "postman": {
+      "look": {
+        "costume": "worker",
+        "hat": "cap",
+        "badge": true
+      }
+    },
+    "pmg": {
+      "look": {
+        "costume": "suit",
+        "hat": "top",
+        "mustache": true
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://www.smithsonianmag.com/innovation/plastic-can-repair-itself-180951517/",
+      "title": "Smithsonian Magazine: A Brief History of Children Sent Through the Mail"
+    },
+    {
+      "url": "https://postalmuseum.si.edu/exhibition/women-and-the-postal-service-unusual-mail/mailing-children",
+      "title": "National Postal Museum: Mailing Children"
+    }
+  ],
+  "summary": "When the U.S. Post Office launched domestic Parcel Post in January 1913, some parents realized mailing a child with postage stamps cost as little as 15 cents—significantly cheaper than a train ticket. After a handful of documented cases, the Post Office officially banned mailing human beings in June 1913.",
+  "hashtags": [
+    "#ParcelPost",
+    "#HistoryFacts",
+    "#PostalHistory",
+    "#GusExplains",
+    "#WeirdHistory"
+  ],
+  "beats": [
+    {
+      "text": "If you lived in 1913,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "sign1",
+          "type": "sign_post",
+          "pos": [
+            -2.2,
+            0,
+            -3.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "parent",
+          "pos": [
+            -1.4,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "kid",
+          "pos": [
+            -0.5,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "happy",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "1913",
+          "style": "plank",
+          "pos": [
+            -2.2,
+            3.2,
+            -3.0
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "you could mail a toddler for fifteen cents.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "parent",
+          "act": "point_at",
+          "id": "kid"
+        },
+        {
+          "at_word": 6,
+          "do": "sign",
+          "text": "15 CENTS",
+          "style": "paper",
+          "pos": [
+            -0.5,
+            2.6,
+            -1.5
+          ]
+        },
+        {
+          "at_word": 7,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Buying a train ticket was expensive.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "train",
+          "type": "train_car",
+          "pos": [
+            2.5,
+            0,
+            -4.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "parent",
+          "pos": [
+            -0.8,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "worried",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "kid",
+          "pos": [
+            0.4,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "TRAIN $$$",
+          "style": "banner",
+          "pos": [
+            0.0,
+            3.2,
+            -2.5
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "creak"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "parent",
+        "look_at": "kid"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "So when Parcel Post started,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "box",
+          "type": "crate",
+          "pos": [
+            0.5,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "postman",
+          "pos": [
+            -1.0,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "happy",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.5,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "PARCEL POST",
+          "style": "metal",
+          "pos": [
+            -1.0,
+            3.2,
+            -1.5
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "postman"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "parents found an incredible legal loophole.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "postman",
+          "expr": "sly"
+        },
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "postman",
+          "act": "jump"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "postman"
+      },
+      "transition": null
+    },
+    {
+      "text": "In January 1913,",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.0,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "JAN 1913",
+          "style": "paper",
+          "pos": [
+            -1.0,
+            3.0,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "the Post Office launched domestic Parcel Post,",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "U.S. MAIL",
+          "style": "banner",
+          "pos": [
+            0.0,
+            3.3,
+            -2.0
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "gus",
+          "pose": "cheer"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "allowing packages up to eleven pounds.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "box2",
+          "type": "crate",
+          "pos": [
+            0.2,
+            0,
+            -1.8
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "postman",
+          "pos": [
+            -1.2,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "smug",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "sign",
+          "text": "11 LBS MAX",
+          "style": "plank",
+          "pos": [
+            -1.2,
+            3.1,
+            -1.4
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "postman"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "Parents noticed something immediately.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl2",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "parent",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "sly",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "kid",
+          "pos": [
+            0.8,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "parent",
+          "expr": "excited"
+        },
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "parent",
+          "act": "point_at",
+          "id": "kid"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "parent",
+        "look_at": "kid"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "Stamps cost fifteen cents,",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sign",
+          "text": "STAMP 15 CENTS",
+          "style": "paper",
+          "pos": [
+            -0.8,
+            3.0,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "parent",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "parent"
+      },
+      "transition": null
+    },
+    {
+      "text": "while train tickets cost much more.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "train2",
+          "type": "train_car",
+          "pos": [
+            2.5,
+            0,
+            -4.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.2,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "shocked",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "TICKET $$$",
+          "style": "chalk",
+          "pos": [
+            -1.2,
+            3.1,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gus",
+          "expr": "worried"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "So parents slapped postage stamps",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl3",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "parent",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "sly",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "kid",
+          "pos": [
+            0.6,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "STAMP",
+          "style": "paper",
+          "pos": [
+            0.6,
+            2.7,
+            -1.2
+          ]
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "parent",
+        "look_at": "kid"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "right onto their children's clothing.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "kid",
+          "expr": "excited"
+        },
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "kid",
+          "pose": "armsUp"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "kid"
+      },
+      "transition": null
+    },
+    {
+      "text": "Postal carriers carried toddlers down streets,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "post_sign",
+          "type": "sign_post",
+          "pos": [
+            -2.0,
+            0,
+            -3.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "postman",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "carry",
+          "expr": "happy",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "kid",
+          "pos": [
+            0.4,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "happy",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "postman",
+          "motion": "hop"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "postman",
+        "look_at": "kid"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "and train clerks delivered them to relatives!",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "postman",
+          "act": "run_to",
+          "pos": [
+            1.2,
+            0,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "postman"
+      },
+      "transition": null
+    },
+    {
+      "text": "Retellings claim thousands of kids were shipped,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "boxA",
+          "type": "crate",
+          "pos": [
+            -1.2,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "boxB",
+          "type": "crate",
+          "pos": [
+            1.2,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "shrug",
+          "expr": "shocked",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "THOUSANDS?",
+          "style": "banner",
+          "pos": [
+            0.0,
+            3.2,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "but historians found only seven documented cases.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "ONLY 7 CASES",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.2,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 6,
+          "do": "expr",
+          "who": "gus",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Still, the Post Office panicked.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl4",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "pmg",
+          "pos": [
+            0.0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "scared",
+          "expr": "shocked",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "motion",
+          "who": "pmg",
+          "motion": "shake"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "creak"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "pmg"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "In February 1913,",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "FEB 1913",
+          "style": "paper",
+          "pos": [
+            0.0,
+            3.0,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "pmg"
+      },
+      "transition": null
+    },
+    {
+      "text": "Postmaster General Albert S Burleson",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sign",
+          "text": "A. S. BURLESON",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.2,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "pmg",
+          "pose": "point"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "pmg"
+      },
+      "transition": null
+    },
+    {
+      "text": "issued a firm new ruling:",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "pmg",
+          "expr": "angry"
+        },
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "pmg",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "pmg"
+      },
+      "transition": null
+    },
+    {
+      "text": "children were not live animals",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl5",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.0,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "pmg",
+          "pos": [
+            0.8,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "cross",
+          "expr": "angry",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "NO ANIMALS",
+          "style": "plank",
+          "pos": [
+            0.8,
+            3.2,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "pmg"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "or general mail merchandise!",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "NO MERCHANDISE",
+          "style": "plank",
+          "pos": [
+            0.8,
+            3.2,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        },
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "pmg",
+          "motion": "flinch"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "pmg"
+      },
+      "transition": null
+    },
+    {
+      "text": "Then in June 1913,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "post_sign2",
+          "type": "sign_post",
+          "pos": [
+            -1.5,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "postman",
+          "pos": [
+            0.0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "JUNE 1913",
+          "style": "paper",
+          "pos": [
+            0.0,
+            3.0,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "postman"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "the Post Office officially banned",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "BANNED!",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.2,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        },
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "postman",
+          "pose": "cross"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "postman"
+      },
+      "transition": null
+    },
+    {
+      "text": "mailing human beings forever.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "NO HUMANS",
+          "style": "banner",
+          "pos": [
+            0.0,
+            3.2,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "postman",
+          "expr": "neutral"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "postman"
+      },
+      "transition": null
+    },
+    {
+      "text": "So next time you buy a stamp,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "post_sign3",
+          "type": "sign_post",
+          "pos": [
+            -1.5,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "happy",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "parent",
+          "pos": [
+            0.8,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "sign",
+          "text": "15 CENTS STAMP",
+          "style": "paper",
+          "pos": [
+            -0.8,
+            3.0,
+            -1.2
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "parent"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "remember when fifteen cents mailed a toddler.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 6,
+          "do": "pose",
+          "who": "gus",
+          "pose": "wave"
+        },
+        {
+          "at_word": 6,
+          "do": "act",
+          "who": "parent",
+          "act": "jump"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    }
+  ]
+}

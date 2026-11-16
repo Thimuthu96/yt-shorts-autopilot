@@ -98,8 +98,8 @@
   format: explainer
   angle: When the US Parcel Post started in 1913, some parents actually mailed their children with postage stamps,
     because it was cheaper than a train ticket, until the Post Office banned it.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-16'
   reason: null
 - id: scurvy-citrus
   title_idea: Why Sailors' Teeth Fell Out at Sea

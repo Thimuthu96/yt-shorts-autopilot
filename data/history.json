@@ -87,6 +87,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-16",
+      "brief_date": "2026-11-16",
+      "published_at": "2026-11-16T17:33:17+00:00",
+      "session": "short_a",
+      "kind": "short",
+      "slug": "the-loophole-that-let-parents-mail-kids",
+      "title": "The Law That Let Parents Mail Their Kids",
+      "category": "laws_jobs_customs",
+      "format": "explainer",
+      "topic_id": "mailed-children",
+      "voice": "en_US-ryan-high",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 57.7,
+      "video_id": "QTJhy6FnDUc",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
