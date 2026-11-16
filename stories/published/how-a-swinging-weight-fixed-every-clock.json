@@ -1,0 +1,1289 @@
+{
+  "slug": "how-a-swinging-weight-fixed-every-clock",
+  "title": "How a Swinging Weight Fixed Every Clock",
+  "version": 2,
+  "category": "engineering",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "huygens": {
+      "look": {
+        "costume": "scientist",
+        "hat": "bowler",
+        "prop": "clipboard"
+      }
+    },
+    "citizen": {
+      "look": {
+        "costume": "plain",
+        "hat": "cap"
+      }
+    },
+    "galileo": {
+      "look": {
+        "costume": "suit",
+        "hat": "beret"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://www.britannica.com/biography/Christiaan-Huygens",
+      "title": "URL"
+    },
+    {
+      "url": "https://www.britannica.com/technology/clock/The-pendulum-clock",
+      "title": "URL"
+    },
+    {
+      "url": "https://www.aps.org/publications/apsnews/200712/physicshistory.cfm",
+      "title": "aps.org"
+    }
+  ],
+  "summary": "Before 1656, mechanical clocks drifted by up to 15 minutes every day. Dutch scientist Christiaan Huygens used Galileo's discovery of pendulum isochronism to create the first pendulum clock, slashing daily error to just 15 seconds and making minute hands practical for the first time.",
+  "hashtags": [
+    "#Timekeeping",
+    "#Physics",
+    "#ChristiaanHuygens",
+    "#HistoryOfScience",
+    "#Inventions"
+  ],
+  "beats": [
+    {
+      "text": "If you owned a clock before 1656,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "bell1",
+          "type": "bell",
+          "pos": [
+            0.0,
+            2.2,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "citizen",
+          "pos": [
+            -0.8,
+            0.0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "worried",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "BEFORE 1656",
+          "style": "plank",
+          "pos": [
+            -0.8,
+            3.2,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "citizen",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "citizen"
+      },
+      "transition": null
+    },
+    {
+      "text": "your day drifted off by fifteen minutes.",
+      "say": "your day drifted off by 15 minutes.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "+15 MIN / DAY",
+          "style": "metal",
+          "pos": [
+            0.8,
+            2.8,
+            -1.5
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "citizen",
+          "motion": "shake"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "citizen",
+          "pose": "facepalm"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "close",
+        "subject": "citizen"
+      },
+      "transition": null
+    },
+    {
+      "text": "Early mechanical clocks were wildly unreliable.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "gear1",
+          "type": "gear",
+          "pos": [
+            0.0,
+            1.4,
+            -2.0
+          ],
+          "scale": 1.2,
+          "anim": "wobble"
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0.0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "neutral",
+          "talk": true
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "gus",
+          "act": "point_at",
+          "id": "gear1"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gus",
+          "expr": "sad"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "Their basic balance bars",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "gus",
+          "pose": "shrug"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "drifted constantly,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "motion",
+          "who": "gus",
+          "motion": "shake"
+        },
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "creak"
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "making appointment times pure guesswork.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tb",
+          "type": "table",
+          "pos": [
+            0.0,
+            0.0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "citizen",
+          "pos": [
+            -0.5,
+            0.0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "armsUp",
+          "expr": "angry",
+          "talk": false
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "question",
+          "at": [
+            -0.5,
+            2.6,
+            -1.0
+          ]
+        }
+      ],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "citizen"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "People didn't even have minute hands!",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "NO MINUTE HAND",
+          "style": "chalk",
+          "pos": [
+            0.6,
+            2.9,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "citizen",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "citizen"
+      },
+      "transition": null
+    },
+    {
+      "text": "But in 1581,",
+      "say": "But in 15 eighty 1,",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "lantern1",
+          "type": "lantern",
+          "pos": [
+            0.0,
+            2.5,
+            -2.0
+          ],
+          "scale": 1.4,
+          "anim": "wobble"
+        }
+      ],
+      "chars": [
+        {
+          "id": "galileo",
+          "pos": [
+            -1.0,
+            0.0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "1581",
+          "style": "paper",
+          "pos": [
+            -1.0,
+            3.2,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "galileo"
+      },
+      "transition": "iris"
+    },
+    {
+      "text": "Galileo watched a chandelier swing in Pisa.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "galileo",
+          "act": "look_at",
+          "id": "lantern1"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "galileo",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "tiltUp",
+        "frame": "low_hero",
+        "subject": "galileo"
+      },
+      "transition": null
+    },
+    {
+      "text": "Whether it swung wide or soft,",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "galileo",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "close",
+        "subject": "galileo"
+      },
+      "transition": null
+    },
+    {
+      "text": "each back-and-forth swing took almost identical time!",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "EQUAL TIME",
+          "style": "metal",
+          "pos": [
+            0.6,
+            2.9,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 6,
+          "do": "motion",
+          "who": "galileo",
+          "motion": "hop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "galileo"
+      },
+      "transition": null
+    },
+    {
+      "text": "That property is called isochronism.",
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "facing": "front",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "ISOCHRONISM",
+          "style": "banner",
+          "pos": [
+            0.0,
+            3.1,
+            -1.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "In December 1656,",
+      "say": "In December 1656,",
+      "set": {
+        "type": "lab",
+        "mood": "steel"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl1",
+          "type": "table",
+          "pos": [
+            0.0,
+            0.0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "huygens",
+          "pos": [
+            -0.8,
+            0.0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "DEC 1656",
+          "style": "metal",
+          "pos": [
+            -0.8,
+            3.2,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "huygens"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "Dutch scientist Christiaan Huygens",
+      "set": {
+        "type": "lab",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "C. HUYGENS",
+          "style": "plank",
+          "pos": [
+            0.6,
+            2.9,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "huygens",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "huygens"
+      },
+      "transition": null
+    },
+    {
+      "text": "turned that physics trick into hardware.",
+      "set": {
+        "type": "lab",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "huygens",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "medium",
+        "subject": "huygens"
+      },
+      "transition": null
+    },
+    {
+      "text": "He hooked a swinging pendulum",
+      "set": {
+        "type": "lab",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [
+        {
+          "id": "gear_mech",
+          "type": "gear",
+          "pos": [
+            0.8,
+            1.2,
+            -1.8
+          ],
+          "scale": 1.1,
+          "anim": "wobble"
+        }
+      ],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "huygens",
+          "act": "point_at",
+          "id": "gear_mech"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "huygens"
+      },
+      "transition": null
+    },
+    {
+      "text": "to an escapement gear.",
+      "set": {
+        "type": "lab",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [
+        {
+          "type": "sparks",
+          "at": [
+            0.8,
+            1.2,
+            -1.8
+          ]
+        }
+      ],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "huygens",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "closeUp",
+        "frame": "close",
+        "subject": "huygens"
+      },
+      "transition": null
+    },
+    {
+      "text": "Overnight, daily clock error dropped",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.8,
+            0.0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "ACCURACY",
+          "style": "banner",
+          "pos": [
+            -0.8,
+            3.2,
+            -1.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "from a massive fifteen minutes",
+      "say": "from a massive 15 minutes",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "15 MIN",
+          "style": "plank",
+          "pos": [
+            0.6,
+            2.9,
+            -1.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "shrug"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "all the way down to fifteen seconds!",
+      "say": "all the way down to 15 seconds!",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "15 SECONDS",
+          "style": "metal",
+          "pos": [
+            0.6,
+            2.9,
+            -1.0
+          ]
+        }
+      ],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            0.6,
+            2.9,
+            -1.0
+          ]
+        }
+      ],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 5,
+          "do": "motion",
+          "who": "gus",
+          "motion": "hop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Clockmaker Salomon Coster built the first models",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "c1",
+          "type": "crate",
+          "pos": [
+            0.5,
+            0.0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "huygens",
+          "pos": [
+            -0.8,
+            0.0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "happy",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "S. COSTER",
+          "style": "plank",
+          "pos": [
+            -0.8,
+            3.2,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "huygens"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "in The Hague in 1657.",
+      "say": "in The Hague in 1657.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "THE HAGUE 1657",
+          "style": "banner",
+          "pos": [
+            0.6,
+            3.0,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "huygens"
+      },
+      "transition": null
+    },
+    {
+      "text": "Because time was finally steady,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "citizen",
+          "pos": [
+            -0.5,
+            0.0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "happy",
+          "talk": false
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "citizen",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "citizen"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "clockmakers added minute hands for everyone.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "MINUTE HAND",
+          "style": "metal",
+          "pos": [
+            0.6,
+            2.9,
+            -1.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "citizen",
+          "pose": "cheer"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "low_hero",
+        "subject": "citizen"
+      },
+      "transition": null
+    },
+    {
+      "text": "One swinging weight fixed time,",
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "facing": "front",
+          "pose": "present",
+          "expr": "happy",
+          "talk": true
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "making sure your day",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "citizen",
+          "pos": [
+            -0.6,
+            0.0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "wave",
+          "expr": "excited",
+          "talk": false
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "motion",
+          "who": "citizen",
+          "motion": "hop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "citizen"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "never drifts off by fifteen minutes.",
+      "say": "never drifts off by 15 minutes.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.8,
+            0.0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "smug",
+          "talk": true,
+          "enter": "pop"
+        }
+      ],
+      "signs": [
+        {
+          "text": "15 SEC ACCURACY",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.2,
+            -1.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "citizen"
+      },
+      "transition": null
+    }
+  ]
+}

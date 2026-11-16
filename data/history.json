@@ -109,6 +109,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-16",
+      "brief_date": "2026-11-16",
+      "published_at": "2026-11-16T23:32:48+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "how-a-swinging-weight-fixed-every-clock",
+      "title": "How a Swinging Weight Fixed Every Clock",
+      "category": "engineering",
+      "format": "explainer",
+      "topic_id": "pendulum-clock",
+      "voice": "en-US-AndrewMultilingualNeural",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 51.8,
+      "video_id": "7tphR1Mz4TA",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }

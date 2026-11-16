@@ -107,17 +107,17 @@
   format: explainer
   angle: If you sailed for months on salt meat and biscuit, your gums would bleed and old wounds reopen; scurvy
     killed more sailors than battles, until a 1747 trial by James Lind showed citrus fixed it.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-16'
+  reason: not enough sources
 - id: pendulum-clock
   title_idea: How a Swinging Weight Fixed Every Clock
   category: engineering
   format: explainer
   angle: If you owned a clock before 1656, it could drift about 15 minutes a day; Christiaan Huygens' pendulum clock
     cut that to around 15 seconds, because a pendulum's swing takes almost the same time however wide it swings.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-16'
   reason: null
 - id: stopped-clock-illusion
   title_idea: Why the First Second on a Clock Lasts Longer
