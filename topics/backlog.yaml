@@ -134,27 +134,27 @@
   format: levels
   angle: 'If you think a candle is hot, escalate: candle flame, a blacksmith''s forge, molten iron, a blast furnace,
     and finally the surface of the Sun, each level with a real temperature.'
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-17'
+  reason: 'invalid story: too short: 117 words (130-170)'
 - id: walking-the-plank
   title_idea: Why Pirates Almost Never Made Anyone Walk the Plank
   category: history
   format: explainer
   angle: If pirates captured your ship, walking the plank was the least of your worries; there are only a handful
     of recorded cases, and the famous image mostly comes from later novels and plays.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-17'
+  reason: not enough sources
 - id: iron-ships-float
   title_idea: Why a Steel Ship Floats but a Nail Sinks
   category: science
   format: explainer
   angle: If you drop an iron nail in the sea it sinks, yet a ship with thousands of tonnes of steel floats; it's
     all about how much water the hull pushes aside, Archimedes' principle.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-17'
+  reason: 'invalid story: too short: 95 words (130-170)'
 - id: what-if-moon-vanished
   title_idea: What If the Moon Vanished Tonight
   category: what_if
