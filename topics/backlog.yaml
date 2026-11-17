@@ -125,9 +125,9 @@
   format: explainer
   angle: If you glance at a clock, the second hand seems to freeze for a moment; your brain back-fills the time
     your eyes were moving, so that first second really does feel longer.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-17'
+  reason: not enough sources
 - id: levels-of-heat
   title_idea: 'Levels of Hot: From Candle to Blast Furnace'
   category: levels
