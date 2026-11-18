@@ -161,17 +161,17 @@
   format: explainer
   angle: If the Moon disappeared tonight, the tides wouldn't stop, they'd shrink to the smaller tides the Sun makes,
     and nights would get much darker.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-18'
+  reason: not enough sources
 - id: price-ending-99
   title_idea: Why Prices End in 99
   category: psychology
   format: explainer
   angle: If you see $2.99, your brain reads 'two dollars' before it reads the rest; the left-digit effect makes
     a one-cent difference feel like a whole dollar, and shops have priced this way for over a century.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-18'
   reason: null
 - id: plague-doctor-mask
   title_idea: Why Plague Doctors Wore Bird Masks

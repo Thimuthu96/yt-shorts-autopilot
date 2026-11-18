@@ -1,0 +1,1450 @@
+{
+  "slug": "why-prices-end-in-99",
+  "title": "Why Prices End in 99",
+  "version": 2,
+  "category": "psychology",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "shopper": {
+      "look": {
+        "costume": "plain",
+        "shirt": "#E63946"
+      }
+    },
+    "clerk": {
+      "look": {
+        "costume": "worker",
+        "hat": "cap",
+        "hatColor": "#2A9D8F"
+      }
+    },
+    "merchant": {
+      "look": {
+        "costume": "suit",
+        "hat": "bowler",
+        "hatColor": "#1D3557"
+      }
+    },
+    "scientist": {
+      "look": {
+        "costume": "scientist",
+        "glasses": "round"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://mitsloan.mit.edu/",
+      "title": "Pricing experiments and the left-digit effect: MIT Sloan School of Management"
+    },
+    {
+      "url": "https://www.smithsonianmag.com/",
+      "title": "History of 99-cent pricing in late 19th-century retail: Smithsonian Magazine"
+    },
+    {
+      "url": "https://www.journals.uchicago.edu/doi/abs/10.1086/527293",
+      "title": "University of Chicago and MIT study on retail pricing (2008): University of Chicago Press Journals"
+    },
+    {
+      "url": "https://hbr.org/",
+      "title": "The Psychology of Pricing: Harvard Business Review"
+    }
+  ],
+  "summary": "Prices ending in 99 trick human brains due to the left-digit effect, where numbers are processed left to right, making $2.99 feel much closer to $2.00 than $3.00. Retailers have used this strategy for over a century, and studies show 99 endings signal deals that can even cause $39 items to outsold $34 items.",
+  "hashtags": [
+    "#Psychology",
+    "#Retail",
+    "#Marketing",
+    "#Economics",
+    "#History"
+  ],
+  "beats": [
+    {
+      "text": "If you buy something for two ninety-nine,",
+      "say": "If you buy something for two dollars and ninety-nine cents,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        },
+        {
+          "id": "c1",
+          "type": "coin",
+          "pos": [
+            0,
+            1.05,
+            -1.8
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "shopper",
+          "pos": [
+            -1.2,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "happy",
+          "talk": false
+        },
+        {
+          "id": "clerk",
+          "pos": [
+            1.2,
+            0,
+            -1.4
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "$2.99",
+          "style": "plank",
+          "pos": [
+            0,
+            2.8,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "shopper",
+          "act": "point_at",
+          "id": "tbl"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "your brain actually reads two dollars first.",
+      "say": "your brain actually reads two dollars first.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "$2.00",
+          "style": "banner",
+          "pos": [
+            0,
+            2.8,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "shopper",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "close",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "That single cent difference",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "shopper",
+          "pose": "think"
+        },
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "shopper",
+          "expr": "worried"
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "feels like a whole dollar discount.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "shopper",
+          "expr": "excited"
+        },
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "shopper",
+          "pose": "cheer"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "Psychologists call this the left-digit effect.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "desk",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.0,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "happy",
+          "talk": true
+        },
+        {
+          "id": "scientist",
+          "pos": [
+            1.2,
+            0,
+            -1.4
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "smug",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "LEFT-DIGIT EFFECT",
+          "style": "paper",
+          "pos": [
+            0,
+            3.0,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "gus",
+          "act": "point_at",
+          "id": "scientist"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "scientist"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "Human brains encode numbers",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "scientist",
+          "expr": "excited"
+        },
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "scientist",
+          "pose": "present"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "scientist"
+      },
+      "transition": null
+    },
+    {
+      "text": "strictly from left to right.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "LEFT ---> RIGHT",
+          "style": "chalk",
+          "pos": [
+            0,
+            2.8,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "scientist"
+      },
+      "transition": null
+    },
+    {
+      "text": "So your mind locks onto the first digit,",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "box",
+          "type": "crate",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "shopper",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "think",
+          "expr": "worried",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "$2",
+          "style": "metal",
+          "pos": [
+            -0.8,
+            3.0,
+            -1.8
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "shopper",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "close",
+        "subject": "shopper"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "before reading the change at the end.",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": ".99",
+          "style": "chalk",
+          "pos": [
+            0.8,
+            2.5,
+            -1.8
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "shopper",
+          "expr": "sly"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "target": [
+          0,
+          1.8,
+          -1.5
+        ],
+        "dist": 4.5,
+        "height": 0.2,
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "Merchants have exploited odd pricing",
+      "set": {
+        "type": "town_street",
+        "mood": "sunset"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "post",
+          "type": "sign_post",
+          "pos": [
+            -2,
+            0,
+            -3
+          ]
+        },
+        {
+          "id": "b1",
+          "type": "barrel",
+          "pos": [
+            1.5,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "merchant",
+          "pos": [
+            -0.8,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "smug",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.0,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "happy",
+          "talk": true
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "merchant",
+          "act": "point_at",
+          "id": "b1"
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "medium",
+        "subject": "merchant"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "for over a century.",
+      "set": {
+        "type": "town_street",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "100+ YEARS",
+          "style": "plank",
+          "pos": [
+            0,
+            3.2,
+            -2.5
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Late nineteenth century ads",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "t1",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        },
+        {
+          "id": "ch1",
+          "type": "chair",
+          "pos": [
+            1.5,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "merchant",
+          "pos": [
+            -0.8,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "excited",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "1890s ADS",
+          "style": "paper",
+          "pos": [
+            0,
+            3.0,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "merchant"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "already featured ninety-nine cent bargains.",
+      "say": "already featured ninety nine cent bargains.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "99c SALE",
+          "style": "banner",
+          "pos": [
+            0,
+            2.2,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "merchant",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "merchant"
+      },
+      "transition": null
+    },
+    {
+      "text": "But it gets even weirder.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "lab_table",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "armsUp",
+          "expr": "shocked",
+          "talk": true
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "motion",
+          "who": "gus",
+          "motion": "shake"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "In a classic two thousand eight study,",
+      "say": "In a classic two thousand eight study,",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "scientist",
+          "pos": [
+            1.2,
+            0,
+            -1.4
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "happy",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "2008 STUDY",
+          "style": "metal",
+          "pos": [
+            -0.5,
+            3.2,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "scientist",
+          "act": "point_at",
+          "id": "gus"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "scientist"
+      },
+      "transition": null
+    },
+    {
+      "text": "researchers tested dresses in a catalog.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "scientist",
+          "pose": "present"
+        },
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "scientist",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "medium",
+        "subject": "scientist"
+      },
+      "transition": null
+    },
+    {
+      "text": "They priced the exact same dress",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "catalog_tbl",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "shopper",
+          "pos": [
+            -1.0,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "$34",
+          "style": "paper",
+          "pos": [
+            -1.2,
+            3.0,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "close",
+        "subject": "shopper"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "at thirty-four dollars,",
+      "say": "at thirty-four dollars,",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "$39",
+          "style": "paper",
+          "pos": [
+            0,
+            3.0,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "frame": "medium",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "thirty-nine dollars,",
+      "say": "thirty-nine dollars,",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "$44",
+          "style": "paper",
+          "pos": [
+            1.2,
+            3.0,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "wide",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "and forty-four dollars.",
+      "say": "and forty-four dollars.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "shopper",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "close",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "The thirty-nine dollar dress",
+      "say": "The thirty-nine dollar dress",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "$39 WINNER",
+          "style": "banner",
+          "pos": [
+            0,
+            3.2,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "shopper",
+          "expr": "excited"
+        },
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "shopper",
+          "pose": "cheer"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "actually beat the cheaper price point!",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "shopper",
+          "motion": "hop"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "medium",
+        "subject": "shopper"
+      },
+      "transition": null
+    },
+    {
+      "text": "Ending a price in ninety-nine",
+      "say": "Ending a price in ninety-nine",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "c_box",
+          "type": "crate",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "happy",
+          "talk": true
+        },
+        {
+          "id": "clerk",
+          "pos": [
+            1.0,
+            0,
+            -1.4
+          ],
+          "facing": "left",
+          "pose": "present",
+          "expr": "smug",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": ".99 = SALE",
+          "style": "plank",
+          "pos": [
+            0,
+            3.0,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "clerk"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "signals a sale or special discount.",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "clerk",
+          "expr": "excited"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "clerk"
+      },
+      "transition": null
+    },
+    {
+      "text": "It boosts customer demand automatically.",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "gus",
+          "act": "jump"
+        },
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "gus",
+          "expr": "excited"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "So next time you see two ninety-nine,",
+      "say": "So next time you see two dollars and ninety-nine cents,",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "end_table",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "shopper",
+          "pos": [
+            -1.0,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "think",
+          "expr": "happy",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.0,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "wave",
+          "expr": "happy",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "$2.99",
+          "style": "plank",
+          "pos": [
+            -1.0,
+            3.0,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "act",
+          "who": "shopper",
+          "act": "point_at",
+          "id": "end_table"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "shopper",
+        "look_at": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "remember your brain reads two dollars first.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "$2.00!",
+          "style": "banner",
+          "pos": [
+            0,
+            3.2,
+            -2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "shopper",
+          "expr": "sly"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "shopper",
+          "pose": "point"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "close",
+        "subject": "shopper"
+      },
+      "transition": null
+    }
+  ]
+}

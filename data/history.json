@@ -131,6 +131,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-18",
+      "brief_date": "2026-11-18",
+      "published_at": "2026-11-18T23:36:01+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "why-prices-end-in-99",
+      "title": "Why Prices End in 99",
+      "category": "psychology",
+      "format": "explainer",
+      "topic_id": "price-ending-99",
+      "voice": "en-US-AndrewMultilingualNeural",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 48.6,
+      "video_id": "gWbQZ9sfDAI",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
