@@ -188,18 +188,18 @@
   format: explainer
   angle: 'If you had to move a barrel full of wine weighing more than you, the bulge is what saves you: it lets
     one person roll it and spin it on the spot, and it lets the hoops squeeze the staves watertight.'
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-19'
+  reason: not enough sources
 - id: card-shuffle-orders
   title_idea: Why Every Good Shuffle Is a Brand-New Deck
   category: luck_games
   format: explainer
   angle: If you shuffle a deck of cards well, the order you're holding has almost certainly never existed before;
     52 cards can be arranged in about 8 times ten to the 67 ways.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-19'
+  reason: not enough sources
 - id: levels-of-loud
   title_idea: 'Levels of Loud: From Whisper to Krakatoa'
   category: levels
