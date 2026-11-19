@@ -179,9 +179,9 @@
   format: explainer
   angle: 'If you met a plague doctor in the 1600s, the long beak wasn''t for show: it was stuffed with herbs and
     spices because doctors believed disease spread through bad-smelling air.'
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-19'
+  reason: not enough sources
 - id: barrel-bulge
   title_idea: Why Barrels Bulge in the Middle
   category: engineering
