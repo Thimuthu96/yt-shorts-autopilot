@@ -206,27 +206,27 @@
   format: levels
   angle: 'If you think a cannon is loud, escalate: a whisper, a shout, a ship''s cannon, a rocket launch, and the
     1883 Krakatoa eruption, heard about 4,800 kilometres away.'
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-22'
+  reason: 'fact-check failed: fact-check returned no verdict'
 - id: statue-of-liberty-green
   title_idea: The Statue That Turned Green on Purpose
   category: science
   format: explainer
   angle: If you'd visited the Statue of Liberty in 1886, it was shiny copper-brown; within about 30 years the copper
     grew a green patina, and that green layer now protects the metal underneath.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-22'
+  reason: 'invalid story: summary must be 1-3 sentences and at most 400 chars; beat 28: 9 words (2-8)'
 - id: royal-food-taster
   title_idea: The Job of Eating the King's Food First
   category: laws_jobs_customs
   format: explainer
   angle: If you were a royal food taster, your job was to eat the king's dinner before he did, just in case it was
     poisoned; courts from ancient Rome to Tudor England kept people for exactly that.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-22'
+  reason: not enough sources
 - id: archimedes-ship
   title_idea: How One Man Moved a Whole Ship
   category: engineering
