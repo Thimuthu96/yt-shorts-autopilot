@@ -233,8 +233,8 @@
   format: explainer
   angle: According to Plutarch, Archimedes moved a fully loaded ship onto land by himself, pulling one rope through
     a system of pulleys; the trick is trading distance for force.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-22'
   reason: null
 - id: sound-at-night
   title_idea: Why Sound Travels Farther at Night
@@ -296,6 +296,141 @@
   format: explainer
   angle: If you bet on red at roulette, you'd think it's a coin flip, but one green zero among 37 pockets gives
     the house about a 2.7 percent edge on every single spin.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-ship-prows-cut-through-waves-with-a
+  title_idea: Why Ship Prows Cut Through Waves With a Bulb
+  category: engineering
+  format: explainer
+  angle: If you added a giant underwater bulb to the front of a cargo ship, you would actually burn 15 percent less
+    fuel because it creates its own opposing wave.
+  status: queued
+  used_on: null
+  reason: null
+- id: the-law-that-banned-dying-in-parliament
+  title_idea: The Law That Banned Dying in Parliament
+  category: laws_jobs_customs
+  format: explainer
+  angle: If you pass away inside the British Houses of Parliament, you are technically entitled to a state funeral
+    at public expense.
+  status: queued
+  used_on: null
+  reason: null
+- id: levels-of-ancient-execution-from-exile-t
+  title_idea: 'Levels of Ancient Execution: From Exile to Boiling'
+  category: levels
+  format: levels
+  angle: You think banishment is tough, but historical punishments scaled from public shaming all the way to boiling
+    in oil.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-lighthouse-keepers-went-mad-from-the
+  title_idea: Why Lighthouse Keepers Went Mad From the Lens
+  category: science
+  format: explainer
+  angle: If you stared into a giant Fresnel lens for too many night watches, the concentrated beams of light could
+    literally burn holes in your retina.
+  status: queued
+  used_on: null
+  reason: null
+- id: what-if-you-drank-seawater-when-stranded
+  title_idea: What If You Drank Seawater When Stranded
+  category: what_if
+  format: explainer
+  angle: If you drink just one cup of salty ocean water, your kidneys will actually pull more water from your body
+    to flush it out, making you dehydrate faster.
+  status: queued
+  used_on: null
+  reason: null
+- id: the-job-of-testing-cannonballs-with-bare
+  title_idea: The Job of Testing Cannonballs With Bare Skin
+  category: laws_jobs_customs
+  format: explainer
+  angle: Workers in medieval foundries would gently slide their bare palms over fresh cannonballs to feel microscopic
+    cracks that eyes couldn't spot.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-dice-used-to-be-made-of-cow-knuckles
+  title_idea: Why Dice Used to Be Made of Cow Knuckles
+  category: luck_games
+  format: explainer
+  angle: If you played a high-stakes gambling game in ancient Rome, your rolling bones were literally carved from
+    the ankle joints of sheep and cows.
+  status: queued
+  used_on: null
+  reason: null
+- id: levels-of-armor-from-leather-jerkin-to-f
+  title_idea: 'Levels of Armor: From Leather Jerkin to Full Plate'
+  category: levels
+  format: levels
+  angle: From a simple boiled leather tunic that stops a dagger to a steel suit heavy enough to require a crane,
+    protection has evolved dramatically.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-corks-stay-dry-inside-wine-bottles-o
+  title_idea: Why Corks Stay Dry Inside Wine Bottles on Ships
+  category: history
+  format: explainer
+  angle: When historic sailing ships stored wine in the hold, the rolling waves constantly splashed the bottles,
+    yet the corks stayed airtight because of smart wax seals.
+  status: queued
+  used_on: null
+  reason: null
+- id: the-psychological-trap-of-the-silent-auc
+  title_idea: The Psychological Trap of the Silent Auction
+  category: psychology
+  format: explainer
+  angle: If you bid against yourself in a silent auction, you are falling for the endowment effect, where simply
+    writing down a number makes you value the item more.
+  status: queued
+  used_on: null
+  reason: null
+- id: what-if-you-dropped-an-anvil-from-a-clou
+  title_idea: What If You Dropped an Anvil From a Cloud
+  category: what_if
+  format: explainer
+  angle: If you dropped a heavy iron anvil from a hot air balloon, air resistance would cap its speed long before
+    it reached the ground.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-ships-bells-count-time-in-halves
+  title_idea: Why Ship's Bells Count Time in Halves
+  category: laws_jobs_customs
+  format: explainer
+  angle: If you heard eight bells on an old naval deck, it didn't mean midnight; it meant a four-hour watch was
+    finally over.
+  status: queued
+  used_on: null
+  reason: null
+- id: levels-of-cold-from-ice-cube-to-liquid-n
+  title_idea: 'Levels of Cold: From Ice Cube to Liquid Nitrogen'
+  category: levels
+  format: levels
+  angle: Drop your temperature from a frosty winter breeze down to absolute zero, and materials start to shatter
+    like glass.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-submarines-use-red-light-at-night
+  title_idea: Why Submarines Use Red Light at Night
+  category: science
+  format: explainer
+  angle: If you flip the command room lights to red on a submerged submarine, the crew's night vision remains completely
+    intact when scanning the periscope.
+  status: queued
+  used_on: null
+  reason: null
+- id: the-coin-toss-that-decided-the-name-of-p
+  title_idea: The Coin Toss That Decided the Name of Portland
+  category: luck_games
+  format: explainer
+  angle: If two pioneers hadn't flipped a copper coin in 1845, the major American city of Portland would have been
+    named Boston instead.
   status: queued
   used_on: null
   reason: null

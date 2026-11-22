@@ -153,6 +153,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-22",
+      "brief_date": "2026-11-22",
+      "published_at": "2026-11-22T23:16:31+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "how-one-man-moved-a-ship",
+      "title": "How One Man Moved a Whole Ship",
+      "category": "engineering",
+      "format": "explainer",
+      "topic_id": "archimedes-ship",
+      "voice": "en-US-AndrewMultilingualNeural",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 48.4,
+      "video_id": "kPg_2-S3iyQ",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }

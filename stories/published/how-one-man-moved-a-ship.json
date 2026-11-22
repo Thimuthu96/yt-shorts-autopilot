@@ -1,0 +1,1501 @@
+{
+  "slug": "how-one-man-moved-a-ship",
+  "title": "How One Man Moved a Whole Ship",
+  "version": 2,
+  "category": "engineering",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "archimedes": {
+      "look": {
+        "costume": "scientist",
+        "beard": true,
+        "glasses": "round",
+        "prop": "clipboard"
+      }
+    },
+    "hiero": {
+      "look": {
+        "costume": "king",
+        "crown": true,
+        "prop": "scepter"
+      }
+    },
+    "sailor": {
+      "look": {
+        "costume": "worker",
+        "hat": "cap"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://penelope.uchicago.edu/Thayer/E/Roman/Texts/Plutarch/Lives/Marcellus*.html",
+      "title": "Plutarch, Life of Marcellus"
+    },
+    {
+      "url": "https://press.princeton.edu/books/hardcover/978069117217osite/ancient-science",
+      "title": "Roller, D. W., 2018. \"Ancient Science: A Meeting of East and West\", Princeton University Press"
+    }
+  ],
+  "summary": "According to ancient historian Plutarch, 3rd century BCE mathematician Archimedes demonstrated compound pulleys to King Hiero II of Syracuse by moving a fully loaded merchant ship on land using a single rope. While mechanical advantage trades distance for force, modern calculations show static friction makes a solo pull physically implausible.",
+  "hashtags": [
+    "#Archimedes",
+    "#PhysicsHistory",
+    "#AncientInventions",
+    "#MechanicalAdvantage",
+    "#didyouknow"
+  ],
+  "beats": [
+    {
+      "text": "If you had to move a merchant ship,",
+      "set": {
+        "type": "harbour",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "merchant_ship",
+          "type": "ship",
+          "pos": [
+            -2.0,
+            0,
+            -18.0
+          ],
+          "scale": 1.1
+        },
+        {
+          "id": "rope1",
+          "type": "rope_coil",
+          "pos": [
+            1.2,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            -0.8,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "cower",
+          "expr": "worried",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.4,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "gus",
+          "act": "point_at",
+          "id": "merchant_ship"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "sailor",
+          "expr": "scared"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 12,
+        "roll": -4
+      },
+      "transition": null
+    },
+    {
+      "text": "you'd usually need hundreds of men.",
+      "set": {
+        "type": "harbour",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "100s of Men",
+          "style": "plank",
+          "pos": [
+            -0.8,
+            3.2,
+            -1.5
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "sailor",
+          "expr": "pain"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "sailor"
+      },
+      "transition": null
+    },
+    {
+      "text": "In the third century BCE,",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "stat_sign",
+          "type": "sign_post",
+          "pos": [
+            0,
+            0,
+            -3.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "hiero",
+          "pos": [
+            -1.0,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "3rd Century BCE",
+          "style": "metal",
+          "pos": [
+            0,
+            3.1,
+            -3.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "hiero",
+        "angle": -10
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "King Hiero of Syracuse",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "King Hiero II",
+          "style": "paper",
+          "pos": [
+            -1.0,
+            3.2,
+            -1.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "hiero",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "closeUp",
+        "frame": "close",
+        "subject": "hiero"
+      },
+      "transition": null
+    },
+    {
+      "text": "challenged mathematician Archimedes.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "archimedes",
+          "pos": [
+            1.1,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": false,
+          "enter": "right"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "act",
+          "who": "hiero",
+          "act": "point_at",
+          "id": "archimedes"
+        },
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "archimedes",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "hiero",
+        "look_at": "archimedes"
+      },
+      "transition": null
+    },
+    {
+      "text": "Archimedes claimed pulleys",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "gear1",
+          "type": "gear",
+          "pos": [
+            0,
+            1.2,
+            -2.5
+          ],
+          "scale": 1.2
+        },
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "archimedes",
+          "pos": [
+            -0.8,
+            0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "archimedes",
+          "act": "point_at",
+          "id": "gear1"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "archimedes",
+        "angle": 15
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "could move any massive weight.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "pose",
+          "who": "archimedes",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "archimedes",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "archimedes",
+        "roll": 5
+      },
+      "transition": null
+    },
+    {
+      "text": "They hauled a loaded merchant ship",
+      "set": {
+        "type": "coast",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "ship1",
+          "type": "ship",
+          "pos": [
+            -3.0,
+            0,
+            -14.0
+          ],
+          "scale": 1.0
+        },
+        {
+          "id": "c1",
+          "type": "crate",
+          "pos": [
+            -0.5,
+            0,
+            -2.5
+          ]
+        },
+        {
+          "id": "c2",
+          "type": "barrel",
+          "pos": [
+            0.6,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            1.5,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "carry",
+          "expr": "worried",
+          "talk": false
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "sailor",
+          "motion": "shake"
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "target": [
+          -1.0,
+          1.5,
+          -10.0
+        ],
+        "dist": 12.0,
+        "height": 0.5,
+        "angle": -10
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "onto dry land.",
+      "set": {
+        "type": "coast",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "shake",
+          "amount": 0.3
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "drop",
+        "target": [
+          -3.0,
+          1.0,
+          -14.0
+        ],
+        "dist": 10.0,
+        "height": -1.0,
+        "angle": -5
+      },
+      "transition": null
+    },
+    {
+      "text": "Archimedes rigged a pulley system",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "pulley_gear",
+          "type": "gear",
+          "pos": [
+            0,
+            1.5,
+            -2.0
+          ],
+          "scale": 1.4
+        },
+        {
+          "id": "rope2",
+          "type": "rope_coil",
+          "pos": [
+            -1.2,
+            0,
+            -1.8
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "archimedes",
+          "pos": [
+            1.0,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "archimedes",
+          "act": "point_at",
+          "id": "pulley_gear"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "archimedes",
+        "angle": -12
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "called a spastos.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "SPASTOS",
+          "style": "metal",
+          "pos": [
+            0,
+            3.3,
+            -2.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "archimedes",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "closeUp",
+        "frame": "close",
+        "subject": "archimedes"
+      },
+      "transition": null
+    },
+    {
+      "text": "Historian Plutarch wrote in Life of Marcellus",
+      "say": "Historian Ploo-tark wrote in Life of Mar-cellus",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "book_tbl",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -0.8,
+            0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "neutral",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "PLUTARCH",
+          "style": "paper",
+          "pos": [
+            0,
+            3.2,
+            -2.0
+          ]
+        },
+        {
+          "text": "Life of Marcellus",
+          "style": "chalk",
+          "pos": [
+            0,
+            2.3,
+            -2.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "gus",
+          "act": "point_at",
+          "id": "book_tbl"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 10
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "that Archimedes pulled a single rope",
+      "set": {
+        "type": "coast",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "rope_long",
+          "type": "rope_coil",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "archimedes",
+          "pos": [
+            0.8,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "archimedes",
+          "act": "grab",
+          "prop": "rope_long"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "archimedes",
+        "angle": -15
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "with a calm, steady motion.",
+      "set": {
+        "type": "coast",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "archimedes",
+          "expr": "smug"
+        },
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "archimedes",
+          "pose": "idle"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "close",
+        "subject": "archimedes"
+      },
+      "transition": null
+    },
+    {
+      "text": "The heavy vessel glided forward!",
+      "set": {
+        "type": "coast",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "ship2",
+          "type": "ship",
+          "pos": [
+            -1.0,
+            0,
+            -12.0
+          ],
+          "scale": 1.0,
+          "anim": "wobble"
+        }
+      ],
+      "chars": [
+        {
+          "id": "hiero",
+          "pos": [
+            1.5,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "armsUp",
+          "expr": "shocked",
+          "talk": false
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "splinters",
+          "at": [
+            -1.0,
+            0.5,
+            -12.0
+          ],
+          "scale": 1.5
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "shake",
+          "amount": 0.35
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "creak"
+        }
+      ],
+      "cam": {
+        "move": "lowSweep",
+        "target": [
+          -1.0,
+          1.5,
+          -12.0
+        ],
+        "dist": 11.0,
+        "height": -1.5,
+        "angle": 10
+      },
+      "transition": "cut"
+    },
+    {
+      "text": "The secret is mechanical advantage.",
+      "set": {
+        "type": "cutaway",
+        "mood": "steel"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "lever_prop",
+          "type": "lever",
+          "pos": [
+            0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.0,
+            0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "Mechanical Advantage",
+          "style": "metal",
+          "pos": [
+            0,
+            3.2,
+            -2.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "You trade pulling distance",
+      "set": {
+        "type": "cutaway",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "Distance -> Force",
+          "style": "chalk",
+          "pos": [
+            0,
+            2.2,
+            -2.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "gus",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "gus",
+        "roll": -4
+      },
+      "transition": null
+    },
+    {
+      "text": "for a massive increase in force.",
+      "set": {
+        "type": "cutaway",
+        "mood": "steel"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [
+        {
+          "type": "flash",
+          "at": [
+            0,
+            1.5,
+            -2.0
+          ],
+          "scale": 1.2
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "gus",
+          "expr": "smug"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "To creep the ship inches,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "inch_sign",
+          "type": "sign_post",
+          "pos": [
+            0,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "archimedes",
+          "pos": [
+            -1.2,
+            0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false
+        }
+      ],
+      "signs": [
+        {
+          "text": "Ship: Inches",
+          "style": "paper",
+          "pos": [
+            0,
+            3.0,
+            -2.5
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "archimedes",
+          "act": "point_at",
+          "id": "inch_sign"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "archimedes",
+        "angle": 12
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "he walked the rope for miles.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "Rope: Miles!",
+          "style": "banner",
+          "pos": [
+            0,
+            3.2,
+            -2.5
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "archimedes",
+          "act": "run_to",
+          "pos": [
+            1.2,
+            0,
+            -1.0
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "archimedes",
+          "expr": "pain"
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "frame": "low_hero",
+        "subject": "archimedes"
+      },
+      "transition": null
+    },
+    {
+      "text": "Modern calculations call a solo pull implausible",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "desk",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.0
+          ],
+          "facing": "front",
+          "pose": "think",
+          "expr": "worried",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "PARTLY TRUE",
+          "style": "metal",
+          "pos": [
+            0,
+            3.3,
+            -2.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "due to extreme ground friction.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "Extreme Friction",
+          "style": "chalk",
+          "pos": [
+            0,
+            2.3,
+            -2.0
+          ]
+        }
+      ],
+      "fx": [
+        {
+          "type": "smoke",
+          "at": [
+            0,
+            0.5,
+            -1.5
+          ],
+          "scale": 1.0
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "gus",
+          "pose": "shrug"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "sad"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "medium",
+        "subject": "gus",
+        "roll": 4
+      },
+      "transition": null
+    },
+    {
+      "text": "Yet King Hiero was so astounded,",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "hiero",
+          "pos": [
+            -0.6,
+            0,
+            -1.0
+          ],
+          "facing": "right",
+          "pose": "armsUp",
+          "expr": "excited",
+          "talk": false
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "hiero",
+          "act": "jump"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "hiero",
+        "angle": -8
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "he ordered Archimedes to design war machines.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [
+        {
+          "id": "war_cannon",
+          "type": "cannon",
+          "pos": [
+            1.5,
+            0,
+            -2.2
+          ],
+          "rot": [
+            0,
+            -30,
+            0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "archimedes",
+          "pos": [
+            0.6,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "smug",
+          "talk": false,
+          "enter": "right"
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "sparks",
+          "at": [
+            1.5,
+            1.2,
+            -2.2
+          ],
+          "scale": 1.0
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "act",
+          "who": "archimedes",
+          "act": "point_at",
+          "id": "war_cannon"
+        },
+        {
+          "at_word": 6,
+          "do": "shake",
+          "amount": 0.4
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "boom"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "hiero",
+        "look_at": "archimedes"
+      },
+      "transition": null
+    },
+    {
+      "text": "So bring compound pulleys,",
+      "set": {
+        "type": "harbour",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "merchant_ship2",
+          "type": "ship",
+          "pos": [
+            -2.0,
+            0,
+            -18.0
+          ],
+          "scale": 1.1
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.0
+          ],
+          "facing": "front",
+          "pose": "wave",
+          "expr": "happy",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "Pulleys",
+          "style": "plank",
+          "pos": [
+            0,
+            3.1,
+            -1.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "gus",
+          "pose": "point"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "and bring hundreds of men.",
+      "set": {
+        "type": "harbour",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            1.5,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "cheer",
+          "expr": "happy",
+          "enter": "pop"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "sailor",
+          "act": "jump"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "sailor"
+      },
+      "transition": null
+    }
+  ]
+}
