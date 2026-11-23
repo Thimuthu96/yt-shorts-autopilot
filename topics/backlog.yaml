@@ -251,8 +251,8 @@
   format: explainer
   angle: If you jumped into a pool of liquid mercury, you wouldn't sink, you'd bounce and float high like a cork,
     because mercury is about 13 times denser than water.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-23'
   reason: null
 - id: ships-biscuits
   title_idea: The Bread That Lasted for Decades

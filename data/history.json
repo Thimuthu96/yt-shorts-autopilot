@@ -175,6 +175,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-23",
+      "brief_date": "2026-11-23",
+      "published_at": "2026-11-23T23:14:36+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "what-if-you-jumped-into-mercury",
+      "title": "What If You Jumped Into Liquid Mercury",
+      "category": "what_if",
+      "format": "explainer",
+      "topic_id": "what-if-mercury-lake",
+      "voice": "en-US-AndrewMultilingualNeural",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 46.9,
+      "video_id": "22X1T9MElBk",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
