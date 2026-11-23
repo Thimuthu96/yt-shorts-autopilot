@@ -242,9 +242,9 @@
   format: explainer
   angle: 'If you''ve heard a distant train at night that you never hear by day, it isn''t just quieter: cool air
     near the ground bends sound back down instead of letting it escape upwards.'
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-23'
+  reason: not enough sources
 - id: what-if-mercury-lake
   title_idea: What If You Jumped Into a Pool of Mercury
   category: what_if
