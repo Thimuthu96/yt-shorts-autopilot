@@ -197,6 +197,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-24",
+      "brief_date": "2026-11-24",
+      "published_at": "2026-11-24T23:13:31+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "the-bread-that-lasted-decades",
+      "title": "The Bread That Lasted for Decades",
+      "category": "history",
+      "format": "explainer",
+      "topic_id": "ships-biscuits",
+      "voice": "en-US-AndrewMultilingualNeural",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 50.1,
+      "video_id": "Dk3OSxzaQd4",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }

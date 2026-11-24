@@ -260,8 +260,8 @@
   format: explainer
   angle: If you were a sailor, your bread could be older than your voyage; hardtack was baked so dry it lasted for
     years, and pieces from the 1800s still survive in museums.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-24'
   reason: null
 - id: what-if-everyone-jumped
   title_idea: What If Everyone on Earth Jumped at Once

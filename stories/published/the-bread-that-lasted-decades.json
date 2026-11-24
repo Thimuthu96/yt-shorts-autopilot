@@ -1,0 +1,1690 @@
+{
+  "slug": "the-bread-that-lasted-decades",
+  "title": "The Bread That Lasted for Decades",
+  "version": 2,
+  "category": "history",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "sailor": {
+      "look": {
+        "costume": "sailor",
+        "hat": "sailor"
+      }
+    },
+    "officer": {
+      "look": {
+        "costume": "officer",
+        "hat": "captain"
+      }
+    },
+    "baker": {
+      "look": {
+        "costume": "worker",
+        "hat": "chef",
+        "apron": "#FFFFFF"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://www.rmg.co.uk/collections/objects/rmgc-object-63024%60",
+      "title": "\"Ship's biscuit, 1784\" - URL: `"
+    },
+    {
+      "url": "https://americanhistory.si.edu/collections/search/object/nmah_1359676%60",
+      "title": "\"Hardtack\" - URL: `"
+    },
+    {
+      "url": "https://americanhistory.si.edu/collections/nmah_1359676%60",
+      "title": "Library of Congress or Smithsonian Institution: `"
+    },
+    {
+      "url": "https://americanhistory.si.edu/collections/nmah_1359676",
+      "title": "Smithsonian National Museum of American History"
+    },
+    {
+      "url": "https://www.rmg.co.uk/collections/objects/rmgc-object-63024",
+      "title": "Royal Museums Greenwich"
+    }
+  ],
+  "summary": "Hardtack, the infamous military ship biscuit made of flour and water, was baked up to four times to remove all moisture. Because moisture was gone, it could stay edible for decades without rotting—and pieces baked in 1784 and during the Civil War still survive today in museum collections.",
+  "hashtags": [
+    "#CivilWarHistory",
+    "#FoodHistory",
+    "#MaritimeHistory",
+    "#MilitaryRations",
+    "#OddFacts"
+  ],
+  "beats": [
+    {
+      "text": "If you were a sailor in 1861,",
+      "say": "If you were a sailor in eighteen sixty-one,",
+      "set": {
+        "type": "ship_deck",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "b1",
+          "type": "barrel",
+          "pos": [
+            -2.1,
+            0,
+            -2.5
+          ]
+        },
+        {
+          "id": "c1",
+          "type": "crate",
+          "pos": [
+            1.8,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            -0.8,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "worried",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "officer",
+          "pos": [
+            0.9,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "sailor",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 6,
+          "do": "sign",
+          "text": "1861",
+          "style": "banner",
+          "pos": [
+            0.0,
+            3.2,
+            -3.0
+          ]
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "sailor",
+        "look_at": "officer",
+        "angle": 10
+      },
+      "transition": null
+    },
+    {
+      "text": "your bread might be older than your ship.",
+      "set": {
+        "type": "ship_deck",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "sailor",
+          "act": "look_at",
+          "id": "b1"
+        },
+        {
+          "at_word": 7,
+          "do": "expr",
+          "who": "officer",
+          "expr": "smug"
+        },
+        {
+          "at_word": 7,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "sailor",
+        "roll": -6
+      },
+      "transition": null
+    },
+    {
+      "text": "Navies packed their ships with hardtack,",
+      "set": {
+        "type": "harbour",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "ship1",
+          "type": "ship",
+          "pos": [
+            -6,
+            0,
+            -12
+          ],
+          "scale": 0.9
+        },
+        {
+          "id": "b1",
+          "type": "barrel",
+          "pos": [
+            -1.2,
+            0,
+            -1.8
+          ]
+        },
+        {
+          "id": "b2",
+          "type": "barrel",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "c1",
+          "type": "crate",
+          "pos": [
+            1.4,
+            0,
+            -1.6
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            1.8,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "HARDTACK RATIONS",
+          "style": "plank",
+          "pos": [
+            -0.6,
+            3.1,
+            -3.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 15
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "a square cracker made of flour,",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.1,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "happy",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "FLOUR",
+          "style": "paper",
+          "pos": [
+            0.0,
+            2.8,
+            -3.5
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "water, and zero yeast.",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sign",
+          "text": "+ WATER ONLY",
+          "style": "chalk",
+          "pos": [
+            0.2,
+            2.8,
+            -3.5
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "smug"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -8
+      },
+      "transition": null
+    },
+    {
+      "text": "Bakers baked each block four times",
+      "set": {
+        "type": "furnace_room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "f1",
+          "type": "furnace",
+          "pos": [
+            0.0,
+            0,
+            -3.0
+          ]
+        },
+        {
+          "id": "t1",
+          "type": "tongs",
+          "pos": [
+            1.2,
+            0.8,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "baker",
+          "pos": [
+            -1.2,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "fire",
+          "at": [
+            0.0,
+            0.8,
+            -2.8
+          ],
+          "scale": 1.2
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "BAKED x4",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.3,
+            -3.8
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "crackle"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "baker",
+        "angle": 12
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "until every drop of water evaporated.",
+      "set": {
+        "type": "furnace_room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [
+        {
+          "type": "steam",
+          "at": [
+            0.0,
+            1.2,
+            -2.6
+          ],
+          "scale": 1.5
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "fx",
+          "type": "smoke",
+          "at": [
+            0.0,
+            1.5,
+            -2.6
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "baker",
+        "roll": 5
+      },
+      "transition": null
+    },
+    {
+      "text": "Without moisture, rot cannot grow.",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "jar1",
+          "type": "jar",
+          "pos": [
+            0.0,
+            0.9,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "0% MOISTURE",
+          "style": "metal",
+          "pos": [
+            -0.2,
+            3.0,
+            -3.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -12
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "So hardtack sat in wooden barrels",
+      "set": {
+        "type": "ship_deck",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "b1",
+          "type": "barrel",
+          "pos": [
+            -1.0,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "b2",
+          "type": "barrel",
+          "pos": [
+            0.5,
+            0,
+            -2.2
+          ]
+        },
+        {
+          "id": "b3",
+          "type": "barrel",
+          "pos": [
+            1.8,
+            0,
+            -2.4
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            -2.0,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "sailor",
+          "act": "look_at",
+          "id": "b1"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "sailor",
+        "angle": 10
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "for years, even decades.",
+      "set": {
+        "type": "ship_deck",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "AGE: 10+ YEARS",
+          "style": "plank",
+          "pos": [
+            0.2,
+            3.1,
+            -3.0
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "sailor"
+      },
+      "transition": null
+    },
+    {
+      "text": "By the time sailors ate it,",
+      "set": {
+        "type": "ship_deck",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            -0.5,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "worried",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "sailor",
+          "expr": "pain"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "sailor",
+        "roll": -8
+      },
+      "transition": null
+    },
+    {
+      "text": "the bread had turned to stone.",
+      "set": {
+        "type": "ship_deck",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "sailor",
+          "motion": "flinch"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "sailor",
+        "roll": 6
+      },
+      "transition": null
+    },
+    {
+      "text": "Men had to dunk it in hot coffee,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "m1",
+          "type": "mug",
+          "pos": [
+            0.2,
+            0.95,
+            -1.8
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            -1.1,
+            0,
+            -1.3
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "steam",
+          "at": [
+            0.2,
+            1.2,
+            -1.8
+          ],
+          "scale": 0.8
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "sailor",
+          "act": "look_at",
+          "id": "m1"
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "splash"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "sailor"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "soak it in greasy soup,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "sailor",
+          "expr": "happy"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "sailor",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "or smash it with heavy rocks.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "motion",
+          "who": "sailor",
+          "motion": "shake"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        },
+        {
+          "at_word": 5,
+          "do": "shake",
+          "amount": 0.3
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "sailor",
+        "roll": 10
+      },
+      "transition": null
+    },
+    {
+      "text": "Worse, weevils loved the dry flour.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "b1",
+          "type": "barrel",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.3,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "worried",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "WEEVILS!",
+          "style": "plank",
+          "pos": [
+            0.0,
+            3.0,
+            -3.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 12
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "Barrels crawled with tiny beetles.",
+      "set": {
+        "type": "harbour",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "b1",
+          "type": "barrel",
+          "pos": [
+            -0.5,
+            0,
+            -2.0
+          ]
+        },
+        {
+          "id": "b2",
+          "type": "barrel",
+          "pos": [
+            0.8,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            -1.8,
+            0,
+            -1.4
+          ],
+          "facing": "right",
+          "pose": "scared",
+          "expr": "scared",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "motion",
+          "who": "sailor",
+          "motion": "flinch"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "creak"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "sailor",
+        "roll": -8
+      },
+      "transition": null
+    },
+    {
+      "text": "Sailors tapped crackers on tables",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            -0.9,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "motion",
+          "who": "sailor",
+          "motion": "shake"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "sailor"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "to knock the insects out,",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "sailor",
+          "expr": "pain"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "sailor",
+        "angle": -12
+      },
+      "transition": null
+    },
+    {
+      "text": "or dunked them until bugs floated up.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [
+        {
+          "id": "m1",
+          "type": "mug",
+          "pos": [
+            0.3,
+            0.95,
+            -1.8
+          ]
+        }
+      ],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "sailor",
+          "act": "look_at",
+          "id": "m1"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "splash"
+        },
+        {
+          "at_word": 6,
+          "do": "expr",
+          "who": "sailor",
+          "expr": "happy"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "sailor"
+      },
+      "transition": null
+    },
+    {
+      "text": "Yet the core bread never rotted.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "c1",
+          "type": "crate",
+          "pos": [
+            0.0,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.1,
+            0,
+            -1.1
+          ],
+          "facing": "right",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "NO ROT",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.1,
+            -3.2
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 10
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "A ship's biscuit from 1784",
+      "say": "A ship's biscuit from seventeen eighty-four",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            -1.2,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "1784 BISCUIT",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.2,
+            -3.3
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "still sits intact in a Greenwich museum today,",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "GREENWICH MUSEUM",
+          "style": "banner",
+          "pos": [
+            0.2,
+            3.3,
+            -3.3
+          ]
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -15
+      },
+      "transition": null
+    },
+    {
+      "text": "over two hundred forty years later.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "240+ YEARS OLD",
+          "style": "metal",
+          "pos": [
+            0.0,
+            3.1,
+            -3.2
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "smug"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus",
+        "roll": 6
+      },
+      "transition": null
+    },
+    {
+      "text": "Dozens of Civil War crackers",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "CIVIL WAR HARDTACK",
+          "style": "paper",
+          "pos": [
+            -0.2,
+            3.1,
+            -3.2
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -10
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "from 1861 sit inside the Smithsonian.",
+      "say": "from eighteen sixty-one sit inside the Smithsonian.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "SMITHSONIAN",
+          "style": "metal",
+          "pos": [
+            -0.2,
+            3.3,
+            -3.3
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "So next time your bread goes stale,",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "shrug"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gus",
+          "expr": "sly"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 8
+      },
+      "transition": null
+    },
+    {
+      "text": "remember: it could easily outlive your ship.",
+      "set": {
+        "type": "ship_deck",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "b1",
+          "type": "barrel",
+          "pos": [
+            -1.0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "sailor",
+          "pos": [
+            -0.6,
+            0,
+            -1.3
+          ],
+          "facing": "right",
+          "pose": "cheer",
+          "expr": "happy",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "officer",
+          "pos": [
+            1.0,
+            0,
+            -1.4
+          ],
+          "facing": "left",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "sailor",
+          "act": "jump"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "officer",
+          "expr": "excited"
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "sailor",
+        "look_at": "officer",
+        "angle": -12
+      },
+      "transition": "whipU"
+    }
+  ]
+}
