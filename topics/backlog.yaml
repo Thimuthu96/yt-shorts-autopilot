@@ -278,17 +278,17 @@
   format: levels
   angle: 'If you think a jalapeño is hot, escalate up the Scoville scale: bell pepper at zero, jalapeño, cayenne,
     habanero, the Carolina Reaper at over a million, and pure capsaicin at about 16 million.'
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-25'
+  reason: not enough sources
 - id: own-nose-invisible
   title_idea: Why You Never Notice Your Own Nose
   category: psychology
   format: explainer
   angle: Your nose is in view of both eyes all day long, yet you almost never see it; your brain filters out things
     that never change, until someone says it and you can't stop seeing it.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-25'
   reason: null
 - id: roulette-green-zero
   title_idea: The Green Pocket That Pays the Casino

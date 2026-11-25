@@ -1,0 +1,1317 @@
+{
+  "slug": "why-you-never-notice-your-own-nose",
+  "title": "Why You Never Notice Your Own Nose",
+  "version": 2,
+  "category": "psychology",
+  "format": "explainer",
+  "music_mood": "curious",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "viewer": {
+      "look": {
+        "costume": "plain",
+        "glasses": "round"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2014.00923/full",
+      "title": "Physiological nose adaptation and visual awareness study - Osaka University / Frontiers in Psychology"
+    },
+    {
+      "url": "https://pmc.ncbi.nlm.nih.gov:443/articles/PMC4104273/",
+      "title": "Neural adaptation and visual constancy in human perception - National Institutes of Health (NIH)"
+    }
+  ],
+  "summary": "Your nose stays inside your binocular visual field constantly, yet physiological adaptation suppresses the unchanging image to prevent distraction. In a 2014 Osaka University study, participants missed a nose-shaped bar on a screen until prompted. Directing attention breaks this perceptual illusion, making the nose instantly visible.",
+  "hashtags": [
+    "#OpticalIllusion",
+    "#BrainScience",
+    "#HumanBody",
+    "#VisionScience",
+    "#didyouknow"
+  ],
+  "beats": [
+    {
+      "text": "If you look straight ahead right now,",
+      "level": 1,
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "chair1",
+          "type": "chair",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "viewer",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": "bob"
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": 0,
+        "roll": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "you'd actually stare right at your nose.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "viewer",
+          "pose": "think"
+        },
+        {
+          "at_word": 6,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "viewer",
+        "angle": 10,
+        "roll": -4
+      },
+      "transition": null
+    },
+    {
+      "text": "It sits right in both eyes' view,",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "worried"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "filling your binocular visual field 24/7.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "Visual Field",
+          "style": "banner",
+          "pos": [
+            0,
+            3.2,
+            -2.5
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "viewer",
+        "angle": 15,
+        "roll": 4
+      },
+      "transition": null
+    },
+    {
+      "text": "Yet you almost never notice it.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "viewer",
+          "pose": "shrug"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "sly"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "Psychologists call this physiological adaptation.",
+      "level": 2,
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "desk",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0.8,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "smug",
+          "talk": true,
+          "enter": "pop",
+          "motion": null
+        }
+      ],
+      "signs": [
+        {
+          "text": "Adaptation",
+          "style": "metal",
+          "pos": [
+            -0.5,
+            3.2,
+            -3.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus",
+        "angle": 18,
+        "roll": 5
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "In a 2014 Osaka University study,",
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "2014 Osaka Study",
+          "style": "paper",
+          "pos": [
+            0,
+            3.4,
+            -3.2
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "gus",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -12
+      },
+      "transition": null
+    },
+    {
+      "text": "researchers put participants before a screen.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl2",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "viewer",
+          "pos": [
+            -0.6,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "viewer",
+          "act": "look_at",
+          "id": "tbl2"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "viewer",
+        "angle": 10
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "They superimposed a digital nose-shaped bar",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "Nose Bar",
+          "style": "chalk",
+          "pos": [
+            0.3,
+            3.0,
+            -2.5
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "worried"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "directly inside their field of vision.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [
+        {
+          "type": "beam",
+          "at": [
+            0,
+            1.8,
+            -1.5
+          ],
+          "scale": 0.5
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "viewer",
+        "angle": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "Nobody noticed the giant bar,",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "pose",
+          "who": "viewer",
+          "pose": "shrug"
+        },
+        {
+          "at_word": 0,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "neutral"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": 5
+      },
+      "transition": null
+    },
+    {
+      "text": "until scientists explicitly pointed it out.",
+      "set": {
+        "type": "office",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            1.1,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "smug",
+          "talk": true,
+          "enter": "pop",
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "viewer",
+          "act": "look_at",
+          "id": "gus"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "viewer",
+        "angle": 15
+      },
+      "transition": null
+    },
+    {
+      "text": "Your visual system prioritizes active change.",
+      "level": 3,
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "g1",
+          "type": "gear",
+          "pos": [
+            0,
+            0,
+            -2.2
+          ],
+          "anim": "spin"
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [
+        {
+          "text": "Prioritize Change",
+          "style": "plank",
+          "pos": [
+            0,
+            3.3,
+            -3.0
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "act",
+          "who": "gus",
+          "act": "jump"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus",
+        "angle": 0
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "It constantly filters out static stimuli.",
+      "set": {
+        "type": "cutaway",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "gus",
+          "motion": "shake"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": -10
+      },
+      "transition": null
+    },
+    {
+      "text": "Because your nose never moves,",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "viewer",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "neutral"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": 0
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "relative to your two eyes,",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "viewer",
+          "pose": "hold"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "viewer",
+        "angle": 12
+      },
+      "transition": null
+    },
+    {
+      "text": "the brain performs active neural masking.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "Neural Masking",
+          "style": "metal",
+          "pos": [
+            0,
+            3.2,
+            -2.8
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": -15
+      },
+      "transition": null
+    },
+    {
+      "text": "It deletes the unchanging visual image",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "viewer",
+        "angle": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "to prevent constant, annoying distraction.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "angry"
+        },
+        {
+          "at_word": 4,
+          "do": "motion",
+          "who": "viewer",
+          "motion": "flinch"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "viewer",
+        "angle": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "You are fully capable of seeing it.",
+      "level": 4,
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl3",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "gus",
+          "pose": "armsUp"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus",
+        "angle": 0
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "Both eyes register it at once.",
+      "set": {
+        "type": "lab",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gus",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 10
+      },
+      "transition": null
+    },
+    {
+      "text": "When attention is intentionally directed there,",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "viewer",
+          "pos": [
+            -0.8,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "gus",
+          "pos": [
+            0.8,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "sly",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "gus",
+          "act": "point_at",
+          "id": "viewer"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "viewer",
+        "angle": -15
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "your brain stops filtering it out.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 5,
+          "do": "motion",
+          "who": "viewer",
+          "motion": "shake"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": 0
+      },
+      "transition": null
+    },
+    {
+      "text": "This breaks the perceptual illusion instantly.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "Illusion Broken",
+          "style": "plank",
+          "pos": [
+            0,
+            3.2,
+            -2.6
+          ]
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "crackle"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "scared"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "viewer",
+        "angle": -10,
+        "roll": -6
+      },
+      "transition": null
+    },
+    {
+      "text": "Now you notice that fleshy shadow",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "viewer",
+          "act": "cower"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": 0,
+        "roll": 6
+      },
+      "transition": null
+    },
+    {
+      "text": "stuck right on your face.",
+      "set": {
+        "type": "room",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "boom"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "pain"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": 0,
+        "roll": -8
+      },
+      "transition": null
+    },
+    {
+      "text": "And every single time you look,",
+      "level": 5,
+      "set": {
+        "type": "room",
+        "mood": "sunset"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "chair1",
+          "type": "chair",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "viewer",
+          "pos": [
+            -0.5,
+            0,
+            -1.2
+          ],
+          "facing": "front",
+          "pose": "think",
+          "expr": "worried",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "gus",
+          "pos": [
+            0.9,
+            0,
+            -1.0
+          ],
+          "facing": "left",
+          "pose": "wave",
+          "expr": "happy",
+          "talk": true,
+          "enter": "pop",
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "act",
+          "who": "viewer",
+          "act": "look_at",
+          "id": "gus"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "viewer",
+        "angle": 12
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "you look straight ahead right now.",
+      "set": {
+        "type": "room",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "viewer",
+          "expr": "shocked"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "viewer",
+        "angle": 0
+      },
+      "transition": null
+    }
+  ]
+}

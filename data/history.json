@@ -241,6 +241,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-25",
+      "brief_date": "2026-11-25",
+      "published_at": "2026-11-25T23:34:32+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "why-you-never-notice-your-own-nose",
+      "title": "Why You Never Notice Your Own Nose",
+      "category": "psychology",
+      "format": "explainer",
+      "topic_id": "own-nose-invisible",
+      "voice": "en-US-AndrewMultilingualNeural",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 51.2,
+      "video_id": "84ZruG_ztUA",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
