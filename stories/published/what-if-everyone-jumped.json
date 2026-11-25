@@ -1,0 +1,1481 @@
+{
+  "slug": "what-if-everyone-jumped",
+  "title": "What If Everyone Jumped at Once",
+  "version": 2,
+  "category": "what_if",
+  "format": "explainer",
+  "music_mood": "upbeat",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "person1": {
+      "look": {
+        "costume": "plain",
+        "pants": "#2B4C7E"
+      }
+    },
+    "person2": {
+      "look": {
+        "costume": "worker",
+        "hat": "cap",
+        "hatColor": "#D64527"
+      }
+    },
+    "scientist": {
+      "look": {
+        "costume": "scientist",
+        "glasses": "round"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://www.youtube.com/watch?v=jHbyQ_AQlo0",
+      "title": "What if Everyone Jumped? - Vsauce (YouTube)"
+    },
+    {
+      "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html",
+      "title": "Earth Fact Sheet - NASA Goddard Space Flight Center"
+    }
+  ],
+  "summary": "If all eight billion people jumped at the exact same moment, Earth would move by less than the width of a single hydrogen atom. Earth weighs about 5.97 x 10^24 kg, making it roughly ten trillion times heavier than all humans combined, as calculated by physicist Rhett Allain.",
+  "hashtags": [
+    "#EarthScience",
+    "#PhysicsFun",
+    "#HumanMass",
+    "#PlanetEarth",
+    "#didyouknow"
+  ],
+  "beats": [
+    {
+      "text": "If eight billion people jumped right now,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "c1",
+          "type": "cloud",
+          "pos": [
+            -3,
+            6,
+            -12
+          ],
+          "scale": 1.2
+        }
+      ],
+      "chars": [
+        {
+          "id": "person1",
+          "pos": [
+            -0.8,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "person2",
+          "pos": [
+            0.8,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "person1",
+          "act": "jump"
+        },
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "person2",
+          "act": "jump"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "person1",
+        "look_at": "person2"
+      },
+      "transition": null
+    },
+    {
+      "text": "you'd expect apocalyptic earthquakes.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "shake",
+          "amount": 0.3
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "boom"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "person1"
+      },
+      "transition": null
+    },
+    {
+      "text": "Internet myths say catastrophic tsunamis",
+      "set": {
+        "type": "field",
+        "mood": "sunset"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "c2",
+          "type": "cloud",
+          "pos": [
+            2,
+            7,
+            -15
+          ],
+          "scale": 1.5
+        }
+      ],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "point",
+          "expr": "worried",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [
+        {
+          "type": "splash",
+          "at": [
+            0,
+            0,
+            -2
+          ],
+          "scale": 1.2
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "gus",
+          "expr": "worried"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "splash"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "would wipe out entire cities",
+      "set": {
+        "type": "field",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "creak"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "or knock Earth out of orbit.",
+      "set": {
+        "type": "field",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "pose",
+          "who": "gus",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 1,
+          "do": "expr",
+          "who": "gus",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Physicist Rhett Allain calculated this,",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "t1",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "scientist",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "Rhett Allain",
+          "style": "paper",
+          "pos": [
+            0,
+            3.2,
+            -3
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "scientist"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "and Vsauce shared the results.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "Vsauce",
+          "style": "metal",
+          "pos": [
+            0,
+            3.2,
+            -3
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "scientist",
+          "expr": "happy"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "scientist"
+      },
+      "transition": null
+    },
+    {
+      "text": "The conservation of momentum physics",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "think",
+          "expr": "smug",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "MOMENTUM",
+          "style": "chalk",
+          "pos": [
+            0,
+            3.2,
+            -3
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "tells a completely different story.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "gus",
+          "pose": "present"
+        },
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "smug"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "All eight billion humans weigh",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "person1",
+          "pos": [
+            -0.8,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "person2",
+          "pos": [
+            0.8,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sign",
+          "text": "8 BILLION",
+          "style": "plank",
+          "pos": [
+            0,
+            3.2,
+            -3
+          ]
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "person1",
+        "look_at": "person2"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "around four hundred million kilograms.",
+      "say": "around four hundred million kilograms.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sign",
+          "text": "400M kg",
+          "style": "metal",
+          "pos": [
+            0,
+            3.2,
+            -3
+          ]
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "That sounds like huge mass,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "person1",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "person1",
+          "pose": "think"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "person1"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "until you weigh planet Earth.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "point"
+        },
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "excited"
+        }
+      ],
+      "cam": {
+        "move": "rise",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "gus"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "Earth weighs about five point nine seven",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "sign",
+          "text": "5.97 x 10^24 kg",
+          "style": "banner",
+          "pos": [
+            0,
+            3.5,
+            -3
+          ]
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "times ten to the twenty fourth kilos.",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "That makes the planet",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "gus",
+          "pose": "armsUp"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "ten trillion times heavier",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "10 TRILLION x",
+          "style": "metal",
+          "pos": [
+            0,
+            3.2,
+            -3
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "than all humans combined.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "person2",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "person2",
+          "expr": "shocked"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "person2"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "When everyone jumps up together,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "person1",
+          "pos": [
+            -0.8,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "person2",
+          "pos": [
+            0.8,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "person1",
+          "act": "jump"
+        },
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "person2",
+          "act": "jump"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "person1",
+        "look_at": "person2"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "the ground pushes back slightly.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "shake",
+          "amount": 0.15
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "person1"
+      },
+      "transition": null
+    },
+    {
+      "text": "The planet moves away,",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "think",
+          "expr": "neutral",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "gus",
+          "pose": "think"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "and then pulls right back",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "when everyone lands on Earth.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "person2",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "person2",
+          "motion": "flinch"
+        },
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "person2"
+      },
+      "transition": null
+    },
+    {
+      "text": "The total displacement of Earth",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "tbl",
+          "type": "table",
+          "pos": [
+            0,
+            0,
+            -2
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "scientist",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "scientist",
+          "act": "point_at",
+          "id": "tbl"
+        }
+      ],
+      "cam": {
+        "move": "panR",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "scientist"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "is less than the width",
+      "set": {
+        "type": "lab",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "< ATOM WIDTH",
+          "style": "metal",
+          "pos": [
+            0,
+            3.2,
+            -3
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "scientist"
+      },
+      "transition": null
+    },
+    {
+      "text": "of a single hydrogen atom.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "present",
+          "expr": "happy",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "happy"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "cut": false,
+        "follow": null,
+        "frame": "low_hero",
+        "subject": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "So apocalyptic internet myths",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "sign",
+          "text": "MYTH BUSTED",
+          "style": "banner",
+          "pos": [
+            0,
+            3.2,
+            -3
+          ]
+        },
+        {
+          "at_word": 1,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "are physically completely impossible.",
+      "set": {
+        "type": "town_street",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "smug"
+        },
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "gus",
+          "pose": "present"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "Even if eight billion people jumped,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "person1",
+          "pos": [
+            -0.8,
+            0,
+            -1.5
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        },
+        {
+          "id": "person2",
+          "pos": [
+            0.8,
+            0,
+            -1.5
+          ],
+          "facing": "left",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 5,
+          "do": "act",
+          "who": "person1",
+          "act": "jump"
+        },
+        {
+          "at_word": 5,
+          "do": "act",
+          "who": "person2",
+          "act": "jump"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "cut": false,
+        "follow": null,
+        "frame": "two_shot",
+        "subject": "person1",
+        "look_at": "person2"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "the Earth wouldn't even notice.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "gus",
+          "pos": [
+            0,
+            0,
+            -1.5
+          ],
+          "facing": "front",
+          "pose": "wave",
+          "expr": "happy",
+          "talk": true,
+          "enter": null,
+          "motion": null
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "expr",
+          "who": "gus",
+          "expr": "happy"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "wave"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "cut": false,
+        "follow": null,
+        "frame": "wide",
+        "subject": "gus"
+      },
+      "transition": null
+    }
+  ]
+}

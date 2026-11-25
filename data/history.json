@@ -219,6 +219,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-25",
+      "brief_date": "2026-11-25",
+      "published_at": "2026-11-25T17:15:23+00:00",
+      "session": "short_a",
+      "kind": "short",
+      "slug": "what-if-everyone-jumped",
+      "title": "What If Everyone Jumped at Once",
+      "category": "what_if",
+      "format": "explainer",
+      "topic_id": "what-if-everyone-jumped",
+      "voice": "en-US-AndrewMultilingualNeural",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 47.4,
+      "video_id": "cAwe418tg6o",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
