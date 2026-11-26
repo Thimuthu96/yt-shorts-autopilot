@@ -326,27 +326,28 @@
   format: levels
   angle: You think banishment is tough, but historical punishments scaled from public shaming all the way to boiling
     in oil.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-26'
+  reason: 'invalid story: too short: 126 words (130-170)'
 - id: why-lighthouse-keepers-went-mad-from-the
   title_idea: Why Lighthouse Keepers Went Mad From the Lens
   category: science
   format: explainer
   angle: If you stared into a giant Fresnel lens for too many night watches, the concentrated beams of light could
     literally burn holes in your retina.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-26'
+  reason: 'invalid story: too short: 117 words (130-170); beat 1: 9 words (2-8); beat 18 event 0: at_word 5 out
+    of range (0-4)'
 - id: what-if-you-drank-seawater-when-stranded
   title_idea: What If You Drank Seawater When Stranded
   category: what_if
   format: explainer
   angle: If you drink just one cup of salty ocean water, your kidneys will actually pull more water from your body
     to flush it out, making you dehydrate faster.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-26'
+  reason: 'invalid story: too short: 118 words (130-170)'
 - id: the-job-of-testing-cannonballs-with-bare
   title_idea: The Job of Testing Cannonballs With Bare Skin
   category: laws_jobs_customs
