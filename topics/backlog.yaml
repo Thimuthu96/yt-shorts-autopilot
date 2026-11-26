@@ -296,27 +296,30 @@
   format: explainer
   angle: If you bet on red at roulette, you'd think it's a coin flip, but one green zero among 37 pockets gives
     the house about a 2.7 percent edge on every single spin.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-26'
+  reason: not enough sources
 - id: why-ship-prows-cut-through-waves-with-a
   title_idea: Why Ship Prows Cut Through Waves With a Bulb
   category: engineering
   format: explainer
   angle: If you added a giant underwater bulb to the front of a cargo ship, you would actually burn 15 percent less
     fuel because it creates its own opposing wave.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-26'
+  reason: 'invalid story: beat 13 event 2: at_word 3 out of range (0-2); beat 29 event 2: at_word 5 out of range
+    (0-4)'
 - id: the-law-that-banned-dying-in-parliament
   title_idea: The Law That Banned Dying in Parliament
   category: laws_jobs_customs
   format: explainer
   angle: If you pass away inside the British Houses of Parliament, you are technically entitled to a state funeral
     at public expense.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-26'
+  reason: 'invalid story: too short: 106 words (130-170); beat 1 event 1: at_word 5 out of range (0-4); beat 6 event
+    0: at_word 4 out of range (0-3); beat 6 event 1: at_word 4 out of range (0-3); beat 7 event 1: at_word 5 out
+    of range (0-4); beat 12 event 1: at_word 5 out of range (0-4); beat 13 event 1: at_wo'
 - id: levels-of-ancient-execution-from-exile-t
   title_idea: 'Levels of Ancient Execution: From Exile to Boiling'
   category: levels
