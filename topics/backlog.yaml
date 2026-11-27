@@ -354,18 +354,18 @@
   format: explainer
   angle: Workers in medieval foundries would gently slide their bare palms over fresh cannonballs to feel microscopic
     cracks that eyes couldn't spot.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-27'
+  reason: not enough sources
 - id: why-dice-used-to-be-made-of-cow-knuckles
   title_idea: Why Dice Used to Be Made of Cow Knuckles
   category: luck_games
   format: explainer
   angle: If you played a high-stakes gambling game in ancient Rome, your rolling bones were literally carved from
     the ankle joints of sheep and cows.
-  status: queued
-  used_on: null
-  reason: null
+  status: failed
+  used_on: '2026-11-27'
+  reason: not enough sources
 - id: levels-of-armor-from-leather-jerkin-to-f
   title_idea: 'Levels of Armor: From Leather Jerkin to Full Plate'
   category: levels
