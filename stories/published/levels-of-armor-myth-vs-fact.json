@@ -1,0 +1,1266 @@
+{
+  "slug": "levels-of-armor-myth-vs-fact",
+  "title": "Why Medieval Knights Were Never Hoisted by Cranes",
+  "version": 2,
+  "category": "levels",
+  "format": "levels",
+  "music_mood": "upbeat",
+  "cast": {
+    "gus": {
+      "look": "gus"
+    },
+    "knight": {
+      "look": {
+        "costume": "knight",
+        "helmet": true,
+        "prop": "sword"
+      }
+    },
+    "soldier": {
+      "look": {
+        "costume": "plain",
+        "shirt": "#8B4513"
+      }
+    },
+    "twain": {
+      "look": {
+        "costume": "suit",
+        "hat": "bowler"
+      }
+    }
+  },
+  "sources": [
+    {
+      "url": "https://www.metmuseum.org/toah/hd/aams/hd_aams.htm",
+      "title": "Metropolitan Museum of Art: \"Arms and Armor—Common Misconceptions and Frequently Asked Questions\""
+    },
+    {
+      "url": "https://hal.science/hal-01309831",
+      "title": "Daniel Jaquet / *Historical Methods*: \"A historical encounter with a fifteenth-century knight: Boucicaut's training and mobility in full harness\""
+    },
+    {
+      "url": "https://www.britannica.com/technology/armor-protective-clothing",
+      "title": "Encyclopedia Britannica: \"Armor (military technology)\""
+    }
+  ],
+  "summary": "Medieval armor evolved from thirty-layer linen gambesons to hardened cuir bouilli and articulated plate. Contrary to popular pop-culture myths, full combat plate armor weighed only 45 to 55 pounds, allowing knights to sprint, vault onto horses, and perform cartwheels without cranes.",
+  "hashtags": [
+    "#MedievalHistory",
+    "#Armor",
+    "#KnightMyth",
+    "#MedievalCombat",
+    "#ArmsAndArmor"
+  ],
+  "beats": [
+    {
+      "text": "If you fought a knight in fifty-pound steel,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "post1",
+          "type": "sign_post",
+          "pos": [
+            2.2,
+            0,
+            -3
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "knight",
+          "pos": [
+            -0.6,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "run",
+          "expr": "excited",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "scared",
+          "expr": "shocked",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "50 LBS STEEL",
+          "pos": [
+            -0.6,
+            3.1,
+            -2.2
+          ],
+          "style": "metal"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "knight",
+          "act": "jump"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "knight",
+        "angle": 10
+      },
+      "transition": null
+    },
+    {
+      "text": "he could cartwheel circles right around you.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "act",
+          "who": "knight",
+          "act": "jump"
+        },
+        {
+          "at_word": 3,
+          "do": "motion",
+          "who": "knight",
+          "motion": "spin"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        },
+        {
+          "at_word": 5,
+          "do": "expr",
+          "who": "gus",
+          "expr": "worried"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "low_hero",
+        "subject": "knight",
+        "angle": -15
+      },
+      "transition": null
+    },
+    {
+      "text": "Medieval armor was built for pure agility.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "knight",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 5,
+          "do": "pose",
+          "who": "gus",
+          "pose": "point"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "knight"
+      },
+      "transition": null
+    },
+    {
+      "text": "Level 1: The Gambeson.",
+      "level": 1,
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "crate1",
+          "type": "crate",
+          "pos": [
+            1.5,
+            0,
+            -2.5
+          ]
+        },
+        {
+          "id": "barrel1",
+          "type": "barrel",
+          "pos": [
+            -1.8,
+            0,
+            -2.5
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "soldier",
+          "pos": [
+            -0.6,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.0,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "LEVEL 1: GAMBESON",
+          "pos": [
+            0,
+            3.1,
+            -2.8
+          ],
+          "style": "plank"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus",
+        "angle": 10
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "Foot soldiers skipped soft leather vests.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "NO SOFT LEATHER",
+          "pos": [
+            -1.5,
+            2.5,
+            -2.0
+          ],
+          "style": "paper"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "soldier",
+          "pose": "shrug"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "medium",
+        "subject": "soldier"
+      },
+      "transition": null
+    },
+    {
+      "text": "Instead, they packed 30 layers of linen",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "30 LAYERS LINEN",
+          "pos": [
+            -0.6,
+            3.2,
+            -2.5
+          ],
+          "style": "banner"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "soldier",
+          "pose": "present"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "soldier"
+      },
+      "transition": null
+    },
+    {
+      "text": "into a dense impact-absorbing battle jacket.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "soldier",
+          "motion": "shake"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "close",
+        "subject": "soldier"
+      },
+      "transition": null
+    },
+    {
+      "text": "It blunted heavy sword cuts easily.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [
+        {
+          "type": "splinters",
+          "at": [
+            -0.6,
+            1.5,
+            -1.2
+          ]
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "motion",
+          "who": "soldier",
+          "motion": "flinch"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "impact"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "medium",
+        "subject": "soldier"
+      },
+      "transition": null
+    },
+    {
+      "text": "Level 2: Cuir Bouilli.",
+      "level": 2,
+      "set": {
+        "type": "furnace_room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "furnace1",
+          "type": "furnace",
+          "pos": [
+            -1.5,
+            0,
+            -2.8
+          ]
+        },
+        {
+          "id": "tongs1",
+          "type": "tongs",
+          "pos": [
+            0.2,
+            0,
+            -1.8
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "soldier",
+          "pos": [
+            -0.5,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "hold",
+          "expr": "neutral",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.1,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "LEVEL 2: CUIR BOUILLI",
+          "pos": [
+            0,
+            3.2,
+            -2.5
+          ],
+          "style": "metal"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "Real leather was boiled in hot wax,",
+      "set": {
+        "type": "furnace_room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [
+        {
+          "type": "steam",
+          "at": [
+            -1.5,
+            1.4,
+            -2.8
+          ]
+        }
+      ],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "crackle"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "soldier"
+      },
+      "transition": null
+    },
+    {
+      "text": "forming rigid plates over padded linen.",
+      "set": {
+        "type": "furnace_room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "soldier",
+          "pose": "present"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "soldier"
+      },
+      "transition": null
+    },
+    {
+      "text": "Level 3: Full Field Plate.",
+      "level": 3,
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "knight",
+          "pos": [
+            -0.5,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "happy",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "present",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "LEVEL 3: FULL PLATE",
+          "pos": [
+            0,
+            3.2,
+            -2.5
+          ],
+          "style": "banner"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "A complete steel suit weighed 50 pounds,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "45-55 LBS",
+          "pos": [
+            -0.5,
+            3.0,
+            -2.0
+          ],
+          "style": "metal"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "pose",
+          "who": "knight",
+          "pose": "present"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "medium",
+        "subject": "knight"
+      },
+      "transition": null
+    },
+    {
+      "text": "lighter than modern firefighter gear!",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "< FIREFIGHTER GEAR",
+          "pos": [
+            1.2,
+            3.0,
+            -2.0
+          ],
+          "style": "paper"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "expr",
+          "who": "gus",
+          "expr": "excited"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "knight"
+      },
+      "transition": null
+    },
+    {
+      "text": "Weight was balanced across the skeleton.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "knight",
+          "pose": "armsUp"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "close",
+        "subject": "knight"
+      },
+      "transition": null
+    },
+    {
+      "text": "In 1411, knight Boucicaut trained",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "BOUCICAUT (1411)",
+          "pos": [
+            -0.5,
+            3.0,
+            -2.0
+          ],
+          "style": "plank"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "knight"
+      },
+      "transition": null
+    },
+    {
+      "text": "by climbing tall ladders hand-over-hand,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "knight",
+          "pose": "armsUp"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "tiltUp",
+        "frame": "close",
+        "subject": "knight"
+      },
+      "transition": null
+    },
+    {
+      "text": "then vaulting straight onto his horse.",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 1,
+          "do": "act",
+          "who": "knight",
+          "act": "jump"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "cheer"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "knight"
+      },
+      "transition": null
+    },
+    {
+      "text": "Level 4: Heavy Tournament Harness.",
+      "level": 4,
+      "set": {
+        "type": "castle_yard",
+        "mood": "sunset"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "knight",
+          "pos": [
+            -0.6,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "neutral",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.1,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "LEVEL 4: TOURNAMENT",
+          "pos": [
+            0,
+            3.2,
+            -2.5
+          ],
+          "style": "metal"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 0,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "gus"
+      },
+      "transition": "whipR"
+    },
+    {
+      "text": "Jousting plate reached 100 pounds,",
+      "set": {
+        "type": "castle_yard",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "100 LBS (JOUSTING)",
+          "pos": [
+            -0.6,
+            3.0,
+            -2.0
+          ],
+          "style": "metal"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "knight",
+          "pose": "hold"
+        },
+        {
+          "at_word": 3,
+          "do": "sfx_mark",
+          "sfx": "boom"
+        }
+      ],
+      "cam": {
+        "move": "orbitL",
+        "frame": "medium",
+        "subject": "knight"
+      },
+      "transition": null
+    },
+    {
+      "text": "yet knights still never used cranes.",
+      "set": {
+        "type": "castle_yard",
+        "mood": "sunset"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [
+        {
+          "text": "NO CRANES",
+          "pos": [
+            0,
+            3.0,
+            -2.2
+          ],
+          "style": "banner"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "motion",
+          "who": "gus",
+          "motion": "shake"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "whoosh"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "close",
+        "subject": "gus"
+      },
+      "transition": null
+    },
+    {
+      "text": "That clumsy hoist was a comedy joke",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [
+        {
+          "id": "table1",
+          "type": "table",
+          "pos": [
+            -1.2,
+            0,
+            -2.5
+          ]
+        },
+        {
+          "id": "chair1",
+          "type": "chair",
+          "pos": [
+            -1.2,
+            0,
+            -2.0
+          ]
+        }
+      ],
+      "chars": [
+        {
+          "id": "twain",
+          "pos": [
+            -0.5,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "smug",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "point",
+          "expr": "excited",
+          "talk": true
+        }
+      ],
+      "signs": [
+        {
+          "text": "MARK TWAIN (1889)",
+          "pos": [
+            -0.5,
+            3.0,
+            -2.0
+          ],
+          "style": "paper"
+        }
+      ],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "act",
+          "who": "twain",
+          "act": "point_at",
+          "id": "table1"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "medium",
+        "subject": "twain"
+      },
+      "transition": "whipU"
+    },
+    {
+      "text": "from Mark Twain's 1889 novel.",
+      "set": {
+        "type": "room",
+        "mood": "interior_glow"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 2,
+          "do": "pose",
+          "who": "gus",
+          "pose": "facepalm"
+        },
+        {
+          "at_word": 4,
+          "do": "sfx_mark",
+          "sfx": "pop"
+        }
+      ],
+      "cam": {
+        "move": "orbitR",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "twain"
+      },
+      "transition": null
+    },
+    {
+      "text": "Real steel let warriors sprint and roll,",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": false,
+      "remove": [],
+      "props": [],
+      "chars": [
+        {
+          "id": "knight",
+          "pos": [
+            -0.5,
+            0,
+            -1.2
+          ],
+          "facing": "right",
+          "pose": "idle",
+          "expr": "excited",
+          "talk": false
+        },
+        {
+          "id": "gus",
+          "pos": [
+            1.2,
+            0,
+            -1.2
+          ],
+          "facing": "left",
+          "pose": "present",
+          "expr": "happy",
+          "talk": true
+        }
+      ],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 4,
+          "do": "act",
+          "who": "knight",
+          "act": "jump"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "push",
+        "frame": "low_hero",
+        "subject": "knight"
+      },
+      "transition": "whipL"
+    },
+    {
+      "text": "so watch out for that fifty-pound cartwheel!",
+      "set": {
+        "type": "field",
+        "mood": "day"
+      },
+      "keep": true,
+      "remove": [],
+      "props": [],
+      "chars": [],
+      "signs": [],
+      "fx": [],
+      "sfx": [],
+      "events": [
+        {
+          "at_word": 3,
+          "do": "motion",
+          "who": "knight",
+          "motion": "spin"
+        },
+        {
+          "at_word": 4,
+          "do": "pose",
+          "who": "gus",
+          "pose": "wave"
+        },
+        {
+          "at_word": 5,
+          "do": "sfx_mark",
+          "sfx": "ding"
+        }
+      ],
+      "cam": {
+        "move": "pull",
+        "frame": "two_shot",
+        "subject": "gus",
+        "look_at": "knight"
+      },
+      "transition": null
+    }
+  ]
+}

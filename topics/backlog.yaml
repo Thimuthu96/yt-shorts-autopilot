@@ -372,8 +372,8 @@
   format: levels
   angle: From a simple boiled leather tunic that stops a dagger to a steel suit heavy enough to require a crane,
     protection has evolved dramatically.
-  status: queued
-  used_on: null
+  status: used
+  used_on: '2026-11-27'
   reason: null
 - id: why-corks-stay-dry-inside-wine-bottles-o
   title_idea: Why Corks Stay Dry Inside Wine Bottles on Ships
@@ -435,6 +435,141 @@
   format: explainer
   angle: If two pioneers hadn't flipped a copper coin in 1845, the major American city of Portland would have been
     named Boston instead.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-ships-carried-cats-on-official-payro
+  title_idea: Why Ships Carried Cats on Official Payroll
+  category: history
+  format: explainer
+  angle: If you served in the British Royal Navy, cats weren't just pets—they were official crew members paid in
+    food rations to protect food crates and ropes from rats.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-train-tracks-have-gaps-between-rails
+  title_idea: Why Train Tracks Have Gaps Between Rails
+  category: engineering
+  format: explainer
+  angle: If rail engineers didn't leave tiny expansion gaps between steel tracks, summer heat would cause the metal
+    to expand and buckle the rails into wild zig-zag shapes.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-boiling-water-freezes-faster-than-co
+  title_idea: Why Boiling Water Freezes Faster Than Cold
+  category: science
+  format: explainer
+  angle: If you put a mug of boiling water next to cold water in a freezer, the hot water can actually freeze faster
+    due to rapid evaporation—a real phenomenon called the Mpemba effect.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-red-lights-feel-longer-when-youre-la
+  title_idea: Why Red Lights Feel Longer When You're Late
+  category: psychology
+  format: explainer
+  angle: If you're rushing to an appointment, your brain tracks time using stress-driven neural pulses, making every
+    single second at a red light feel twice as long.
+  status: queued
+  used_on: null
+  reason: null
+- id: the-job-of-firing-cannons-to-test-fog-ho
+  title_idea: The Job of Firing Cannons to Test Fog Horns
+  category: laws_jobs_customs
+  format: explainer
+  angle: Before modern sirens existed, lighthouse keepers had to manually load and fire a real cannon every 10 minutes
+    into the thick fog to warn oncoming ships.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-slot-machines-pay-out-in-cherries
+  title_idea: Why Slot Machines Pay Out in Cherries
+  category: luck_games
+  format: explainer
+  angle: When cash gambling was banned in 1910, slot machine makers replaced coin payouts with fruit-flavored chewing
+    gum, turning standard reels into cherry and melon symbols.
+  status: queued
+  used_on: null
+  reason: null
+- id: what-if-you-stood-next-to-a-ships-foghor
+  title_idea: What If You Stood Next to a Ship's Foghorn
+  category: what_if
+  format: explainer
+  angle: If you stood right in front of a ship's foghorn blasting at 140 decibels, the intense sound waves wouldn't
+    just deafen you—they could vibrate your lungs until you nauseated.
+  status: queued
+  used_on: null
+  reason: null
+- id: levels-of-anchors-from-stone-to-supertan
+  title_idea: 'Levels of Anchors: From Stone to Supertanker'
+  category: levels
+  format: levels
+  angle: From a heavy stone tied to a rope, to wooden-fluked hooks, iron grapnels, and 100-ton supertanker claws
+    built to hold against hurricane-force waves.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-pirates-wore-eyepatches-before-injur
+  title_idea: Why Pirates Wore Eyepatches Before Injury
+  category: history
+  format: explainer
+  angle: If a pirate ran from bright sunlight straight below deck into a dark hold, swapping an eyepatch to the
+    other eye instantly gave them perfect dark-adapted vision.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-a-green-flash-appears-at-ocean-sunse
+  title_idea: Why a Green Flash Appears at Ocean Sunset
+  category: science
+  format: explainer
+  angle: If you watch the sun sink past a flat ocean horizon, atmospheric refraction acts like a giant glass prism,
+    flashing an emerald green beam for exactly one second.
+  status: queued
+  used_on: null
+  reason: null
+- id: the-job-of-inspecting-the-kings-breath
+  title_idea: The Job of Inspecting the King's Breath
+  category: laws_jobs_customs
+  format: explainer
+  angle: In medieval royal courts, groom officers didn't just taste food for poison—they had to smell the king's
+    breath and inspect his bed sheets every morning to check for slow toxins.
+  status: queued
+  used_on: null
+  reason: null
+- id: how-ships-use-zinc-blocks-to-stop-rust
+  title_idea: How Ships Use Zinc Blocks to Stop Rust
+  category: engineering
+  format: explainer
+  angle: If you bolt sacrificial zinc plates to a steel ship hull, saltwater creates a natural battery effect that
+    corrodes the zinc completely while leaving the ship's steel untouched.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-you-hear-your-heart-in-silent-rooms
+  title_idea: Why You Hear Your Heart in Silent Rooms
+  category: psychology
+  format: explainer
+  angle: If you sit inside an anechoic soundproof chamber, your brain automatically turns up your internal audio
+    gain so high that you start hearing blood rushing through your own ears.
+  status: queued
+  used_on: null
+  reason: null
+- id: why-playing-cards-have-two-heads
+  title_idea: Why Playing Cards Have Two Heads
+  category: luck_games
+  format: explainer
+  angle: Before double-headed face cards were invented in 1850, players had to physically flip single-head cards
+    right-side up, immediately tipping off opponents to good hands.
+  status: queued
+  used_on: null
+  reason: null
+- id: what-if-you-fired-a-cannon-on-a-train
+  title_idea: What If You Fired a Cannon on a Train
+  category: what_if
+  format: explainer
+  angle: If a train car moves forward at 60 mph and fires a cannonball backward at exactly 60 mph, the ball cancels
+    out its forward speed and drops straight to the ground.
   status: queued
   used_on: null
   reason: null

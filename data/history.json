@@ -263,6 +263,28 @@
       "platforms": [
         "youtube"
       ]
+    },
+    {
+      "date": "2026-11-27",
+      "brief_date": "2026-11-27",
+      "published_at": "2026-11-27T23:20:24+00:00",
+      "session": "short_b",
+      "kind": "short",
+      "slug": "levels-of-armor-myth-vs-fact",
+      "title": "Why Medieval Knights Were Never Hoisted by Cranes",
+      "category": "levels",
+      "format": "levels",
+      "topic_id": "levels-of-armor-from-leather-jerkin-to-f",
+      "voice": "en_US-ryan-high",
+      "music_yt": null,
+      "music_fb": null,
+      "seconds": 56.0,
+      "video_id": "Kee_M9ZaPZ8",
+      "trigger": "timed",
+      "counts": true,
+      "platforms": [
+        "youtube"
+      ]
     }
   ]
 }
